@@ -2684,6 +2684,9 @@ def _record_integration(plan: dict[str, Any], run: dict[str, Any], args: argpars
                 "reviews across a new candidate tree; refine the recovery graph first: "
                 + ", ".join(inactive_skips)
             )
+        # A new head re-arms every gate and integration review; refuse now
+        # rather than leave one re-armed with no budget to run again.
+        _require_candidate_revalidation_budget(plan, run)
         prior_heads = run["integration"].setdefault("prior_head_shas", [])
         if previous_head not in prior_heads:
             prior_heads.append(previous_head)

@@ -361,9 +361,16 @@ These are planning expectations, not authorization. Record explicit action autho
 
 ## Plan Readiness Gate
 
-For newly authored delivery work, also follow `references/delivery-acceptance-contract.md`: freeze `docs/verification/delivery-acceptance.json` as a source of kind `delivery acceptance`, add an always-run `check_delivery_acceptance.py` final gate and a matching `local_command` verifier node on the required closeout path. Use the parent's frozen contract hash and observed candidate SHA, never values derived from result writers. The result register is `docs/verification/delivery-results.json`; evidence remains SHA-bound. The template's neutral command placeholders must be replaced before execution.
+For newly authored delivery work, also follow `references/delivery-acceptance-contract.md`. The example manifest above omits these entries; add all of them before readiness:
 
-The parent reviews these bindings before readiness. The legacy manifest validator does not enforce the presence of this new gate; passing schema validation alone is insufficient. Do not retrofit or silently migrate a running legacy PLAN/RUN. Direct work runs the acceptance CLI without these artifacts.
+- a source `SRC-004` of kind `delivery acceptance` at `docs/verification/delivery-acceptance.json`, frozen like the other rows;
+- a final gate `delivery-acceptance` with no `selection` (so it always runs) whose argv runs `check_delivery_acceptance.py` with `--repo-root`, `--prd`, `--contract`, `--contract-sha256`, `--results` and `--candidate-sha`;
+- a `local_command` verifier node `N-ACCEPTANCE-GATE` with `ref: "delivery-acceptance"`;
+- `dependency` edges from `N-FINAL-GATE` to `N-ACCEPTANCE-GATE` and from `N-ACCEPTANCE-GATE` to `N-CLOSEOUT-GATE`.
+
+Use the parent's frozen contract hash and observed candidate SHA, never values derived from result writers. The result register is `docs/verification/delivery-results.json`; evidence remains SHA-bound. The template's neutral command placeholders must be replaced before execution.
+
+The manifest validator does not check that these entries exist, so the parent's readiness review must confirm them; passing schema validation alone is insufficient. Do not retrofit or silently migrate a running legacy PLAN/RUN. Direct work runs the acceptance CLI without these artifacts.
 
 Implementation may start only after static validation passes, RUN records `plan_readiness: "ready"`, and required actions have explicit user authorization. Readiness never grants authorization.
 

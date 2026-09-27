@@ -831,6 +831,43 @@ class RecordIntegrationGuardTests(unittest.TestCase):
         with self.assertRaisesRegex(ManifestError, "may only move forward"):
             self.record()
 
+    def _second_integration(self, gate_attempts: int) -> str:
+        # M1 already sits at the integration head and its batch gate passed
+        # there; a later in-scope commit moves the head forward.
+        self.run["integration"]["integration_head_sha"] = self.head
+        (self.root / "src" / "a").mkdir(parents=True)
+        (self.root / "src" / "a" / "one.py").write_text("x = 1\n", encoding="utf-8")
+        mf.git(self.root, "add", "src/a/one.py")
+        mf.git(self.root, "commit", "-qm", "next mission")
+        new_head = mf.git(self.root, "rev-parse", "HEAD")
+        self.run["mission_states"]["M1"]["head_sha"] = new_head
+        self.run["graph_state"]["node_states"]["N-REVIEW-PASS-M1"].update(
+            {
+                "phase": "succeeded",
+                "attempts": gate_attempts,
+                "last_attempt_id": "ATT-GATE",
+                "last_outcome": "pass",
+            }
+        )
+        return new_head
+
+    def test_new_head_with_an_exhausted_gate_budget_is_refused(self) -> None:
+        new_head = self._second_integration(gate_attempts=2)
+        before = json.dumps(self.run, sort_keys=True)
+
+        with self.assertRaisesRegex(ManifestError, "node attempt budget is exhausted"):
+            self.record(integrated_sha=new_head)
+        self.assertEqual(before, json.dumps(self.run, sort_keys=True))
+
+    def test_new_head_with_gate_budget_left_re_arms_the_gate(self) -> None:
+        new_head = self._second_integration(gate_attempts=1)
+
+        self.record(integrated_sha=new_head)
+
+        gate = self.run["graph_state"]["node_states"]["N-REVIEW-PASS-M1"]
+        self.assertEqual("ready", gate["phase"])
+        self.assertEqual(new_head, self.run["integration"]["integration_head_sha"])
+
 
 class CoordinationHeadGuardTests(unittest.TestCase):
     """Coordination-head adoption accepts only an exact bookkeeping child."""

@@ -833,6 +833,7 @@ def _validate_graph_state(
             if valid_phase and phase in {"succeeded", "failed", "blocked"} and (
                 not _nonempty_string(state["last_attempt_id"])
                 or outcome is None
+                or not _is_int(attempts)
                 or attempts < 1
             ):
                 _add(errors, state_path, "terminal node requires attempt identity, outcome, and attempts")
