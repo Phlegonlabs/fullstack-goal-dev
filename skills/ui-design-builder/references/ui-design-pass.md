@@ -109,7 +109,7 @@ The file calls no live backend, credential, identity provider, or unapproved gen
 Before human visual approval:
 
 1. Freeze the PRD, `ui-design.md`, wireframe, and HiFi candidate paths and SHA-256 values.
-2. Run `impeccable critique` and `impeccable audit` against the exact connected candidate only with explicit workflow authorization. Impeccable may have side effects and is not a read-only publication gate. Its Nielsen, detector, accessibility, responsive, performance, theming, and implementation-integrity scores are diagnostic evidence; the record uses exact `PASS` verdicts after the human gate standard is met.
+2. Run `impeccable critique` and `impeccable audit` against the exact connected candidate only with explicit workflow authorization. Impeccable may have side effects, so it needs that authorization, but it is required: Visual Approval and publication need both PASS records, and a declined authorization leaves the stage `blocked`. Its Nielsen, detector, accessibility, responsive, performance, theming, and implementation-integrity scores are diagnostic evidence; the record uses exact `PASS` verdicts after the human gate standard is met.
 3. Run `ui-grading-rubric.md`'s Technical Hard Gate and complete `H1`–`H9` scoring. These scores, not Impeccable's native totals, decide readiness.
 4. Consolidate every Impeccable and rubric finding into one root-cause defect ledger before editing.
 5. Let `frontend-design` make one repair batch. Then re-run the authorized Impeccable critique and audit checks plus the complete rubric once on the new SHA-256.
