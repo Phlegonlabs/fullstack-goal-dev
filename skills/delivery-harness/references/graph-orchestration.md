@@ -140,6 +140,8 @@ Reconciliation is a PARENT-SIDE convention, not a graph feature. The N reviewer 
 
 One exception to the plain reading above: a review node's `pass` edge to a deterministic (`local_command` or `harness_parent`) gate must be a `route`, not a `dependency`, even though the gate does consume a completed prerequisite. Validation requires it — `dependency` there fails with "review pass requires an outgoing route to a deterministic final gate".
 
+Incoming routes are OR-matched: one matching route activates the target. Incoming dependencies are AND-matched: every source must pass. Use several routes into one node only for alternative paths, such as a first review and a repair re-review. When a final gate must wait for several reviewers, route each review's `pass` to its own gate, then join those gates into the final gate with `dependency` edges. Several `pass` routes into one final gate would let it run after the first reviewer passes while another is still pending or returned `fix_required`.
+
 A route cycle is valid only when:
 
 - every route edge inside the cycle has `max_traversals`;
@@ -163,7 +165,7 @@ Run `scripts/select_ready_nodes.py` for PLAN v6 with RUN v11. A node is logicall
 - RUN `control.desired_state` is `running`; `paused` and `cancelled` fail closed for every node;
 - its phase is `dormant` or `ready` and its attempt budget remains; runtime reviews consume the stable `review.lineage_id` budget in `RUN.review_lineages`, not a fresh node-local budget after replan;
 - all dependency sources succeeded with `pass`, except that a current RUN-v11 runtime review may consume a covered mission's validated `worker_passed` exact head before the parent integrates it;
-- at least one incoming route matches when route edges exist, except that the same pre-integration dependency activates the review's initial attempt while a matching repair route activates later attempts;
+- at least one incoming route matches when route edges exist (OR, not AND; see Dependency And Route Edges), except that the same pre-integration dependency activates the review's initial attempt while a matching repair route activates later attempts;
 - no node blocker remains;
 - mission nodes still have a queued or ready mission state.
 
