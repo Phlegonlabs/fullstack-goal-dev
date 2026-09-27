@@ -36,6 +36,16 @@ class ProjectTemplateRuleTests(unittest.TestCase):
                 agents.read_text(encoding="utf-8"),
             )
 
+    def test_managed_default_branch_must_be_main(self) -> None:
+        # archive_run.py and the promotion contract bind only `main` refs, so
+        # the template states that as a precondition instead of asking agents
+        # to resolve an arbitrary default branch name.
+        template = read("assets/templates/PROJECT_AGENTS.template.md")
+        self.assertIn("Managed Harness requires the default branch to be named `main`", template)
+        self.assertIn("If it differs, stop before managed work and ask the owner.", template)
+        self.assertNotIn("never assume its name", template)
+        self.assertNotIn("real default branch", template)
+
 
 if __name__ == "__main__":
     unittest.main()
