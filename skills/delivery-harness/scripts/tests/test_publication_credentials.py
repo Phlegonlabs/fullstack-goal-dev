@@ -156,6 +156,28 @@ class CredentialTests(unittest.TestCase):
                 with self.assertRaises((ManifestError, RuntimeError)):
                     subject.credential_binding(URL)
 
+    def test_trusted_host_readback_ignores_ancestor_repository_rewrite(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root, remote = self._repo_with_remote(Path(temp))
+            attacker = Path(temp) / "attacker.git"
+            subprocess.run(["git", "init", "-q", "--bare", str(attacker)], check=True)
+            subprocess.run(["git", "push", "-q", "--", str(remote), "HEAD:refs/heads/run"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-q", "--allow-empty", "-m", "other"], cwd=root, check=True)
+            subprocess.run(["git", "push", "-q", "--", str(attacker), "HEAD:refs/heads/run"], cwd=root, check=True)
+            expected = subprocess.check_output(["git", "rev-parse", "HEAD~1"], cwd=root, text=True).strip()
+            url = remote.as_posix()
+            subprocess.run(["git", "config", f"url.{attacker.as_posix()}.insteadOf", url], cwd=root, check=True)
+            nested = root / "tmp"
+
+            def mkdtemp(prefix=""):
+                nested.mkdir()
+                return str(nested)
+
+            with patch.object(subject, "_policy_bytes", return_value=None), patch.object(
+                host.tempfile, "mkdtemp", side_effect=mkdtemp
+            ):
+                self.assertEqual(expected, host._remote_head(url, "refs/heads/run", cwd=root))
+
     def test_private_read_paths_pass_bound_credentials_to_isolated_git(self):
         binding = {"policy_sha256": "a" * 64, "helper": "/trusted/helper",
                    "helper_sha256": "b" * 64, "endpoint": URL}
