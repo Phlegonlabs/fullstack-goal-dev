@@ -1315,33 +1315,47 @@ class CheckDesignSystemPairTests(unittest.TestCase):
                     checker._open_posix_parent = original_open
             self.assertEqual(concurrent_edit, md.read_bytes())
 
+    def test_write_does_not_need_linux_only_renameat2(self) -> None:
+        # macOS and older libc have no renameat2; the write must not look it up.
+        with tempfile.TemporaryDirectory() as temp:
+            md = Path(temp) / "design-system.md"
+            md.write_bytes(b"# Original\n")
+            with mock.patch.object(
+                checker.ctypes, "CDLL", side_effect=OSError("no libc lookup")
+            ):
+                checker._write_bytes_atomic(md, b"# Replacement\n", b"# Original\n")
+            self.assertEqual(b"# Replacement\n", md.read_bytes())
+            self.assertEqual(["design-system.md"], [item.name for item in Path(temp).iterdir()])
+
+    def test_write_rejects_stale_expected_bytes_without_replacing(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            md = Path(temp) / "design-system.md"
+            md.write_bytes(b"# Concurrent edit\n")
+            with self.assertRaisesRegex(
+                checker.ConcurrentModificationError, "changed while preparing"
+            ):
+                checker._write_bytes_atomic(md, b"# Replacement\n", b"# Original\n")
+            self.assertEqual(b"# Concurrent edit\n", md.read_bytes())
+            self.assertEqual(["design-system.md"], [item.name for item in Path(temp).iterdir()])
+
     def test_write_exchange_primitive_preserves_displaced_edit(self) -> None:
+        if os.name != "nt":
+            self.skipTest("the displaced-file backup check is Windows ReplaceFileW only")
         markdown = b"# Original\n"
         concurrent_edit = b"# Concurrent inside primitive\n"
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             md = root / "design-system.md"
             md.write_bytes(markdown)
-            if os.name == "nt":
-                primitive = checker._windows_replace_with_backup
+            primitive = checker._windows_replace_with_backup
 
-                def inject(destination: Path, replacement: Path, backup: Path) -> None:
-                    destination.write_bytes(concurrent_edit)
-                    primitive(destination, replacement, backup)
+            def inject(destination: Path, replacement: Path, backup: Path) -> None:
+                destination.write_bytes(concurrent_edit)
+                primitive(destination, replacement, backup)
 
-                patcher = mock.patch.object(
-                    checker, "_windows_replace_with_backup", side_effect=inject
-                )
-            else:
-                primitive = checker._posix_rename_exchange
-
-                def inject(parent_fd: int, left_name: str, right_name: str) -> None:
-                    md.write_bytes(concurrent_edit)
-                    primitive(parent_fd, left_name, right_name)
-
-                patcher = mock.patch.object(
-                    checker, "_posix_rename_exchange", side_effect=inject
-                )
+            patcher = mock.patch.object(
+                checker, "_windows_replace_with_backup", side_effect=inject
+            )
             with patcher:
                 with self.assertRaisesRegex(
                     checker.ConcurrentModificationError,

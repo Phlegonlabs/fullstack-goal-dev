@@ -268,21 +268,6 @@ def _windows_open_parent(path: Path) -> tuple[int, list[int]]:
         raise
 
 
-def _posix_rename_exchange(parent_fd: int, left_name: str, right_name: str) -> None:
-    """Exchange destination and payload atomically, or fail closed."""
-
-    if os.name == "nt":
-        raise ConcurrentModificationError("POSIX rename exchange is unavailable on Windows")
-    libc = ctypes.CDLL(None, use_errno=True)
-    renameat2 = getattr(libc, "renameat2", None)
-    if renameat2 is None:
-        raise ConcurrentModificationError("renameat2(RENAME_EXCHANGE) is unavailable")
-    renameat2.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_uint]
-    renameat2.restype = ctypes.c_int
-    if renameat2(parent_fd, os.fsencode(left_name), parent_fd, os.fsencode(right_name), 0x2) != 0:
-        raise ConcurrentModificationError(f"renameat2 exchange failed (errno={ctypes.get_errno()})")
-
-
 def _windows_replace_with_backup(destination: Path, replacement: Path, backup: Path) -> None:
     """Replace a design-system authority file while retaining its old bytes."""
 
@@ -315,31 +300,14 @@ def _path_version(path: Path) -> tuple[int, int, int, int, str]:
     )
 
 
-def _exchange_design_system_commit(
+def _windows_replace_commit(
     path: Path,
     temporary_path: Path,
     *,
-    parent_fd: int | None,
     expected_version: tuple[int, int, int, int, str],
     payload: bytes,
 ) -> None:
     """Commit with a displaced-file backup and verify/restore on mismatch."""
-
-    if os.name != "nt":
-        if parent_fd is None:
-            raise ConcurrentModificationError("design-system exchange requires a held parent descriptor")
-        _posix_rename_exchange(parent_fd, temporary_path.name, path.name)
-        displaced = path.parent / temporary_path.name
-        if _path_version(displaced) != expected_version:
-            if _path_version(path)[-1] == hashlib.sha256(payload).hexdigest():
-                _posix_rename_exchange(parent_fd, temporary_path.name, path.name)
-                if _path_version(path) != expected_version:
-                    raise ConcurrentModificationError("design-system restore verification failed; artifacts retained")
-                os.unlink(temporary_path.name, dir_fd=parent_fd)
-            raise ConcurrentModificationError("design-system displaced bytes changed; concurrent bytes preserved")
-        os.unlink(temporary_path.name, dir_fd=parent_fd)
-        os.fsync(parent_fd)
-        return
 
     backup = path.parent / f".{path.name}.{secrets.token_hex(8)}.backup"
     _windows_replace_with_backup(path, temporary_path, backup)
@@ -540,10 +508,9 @@ def _write_bytes_atomic_unlocked(path: Path, payload: bytes, expected_bytes: byt
                     raise ConcurrentModificationError(
                         f"{path} changed before the native replace"
                     )
-                _exchange_design_system_commit(
+                _windows_replace_commit(
                     path,
                     temporary_path,
-                    parent_fd=None,
                     expected_version=destination_version_token,
                     payload=payload,
                 )
@@ -553,21 +520,22 @@ def _write_bytes_atomic_unlocked(path: Path, payload: bytes, expected_bytes: byt
                     _windows_close(ancestor_handle)
         else:
             # POSIX keeps every component no-follow checked and the final
-            # directory open while replacing by basename. This prevents an
-            # ancestor swap from redirecting the destination after CAS.
-            parent_fd, _basename = _open_posix_parent(path)
+            # directory open, re-compares the destination bytes right before
+            # the replace, then renames by basename inside that directory.
+            # This works on any POSIX host, including macOS.
+            parent_fd, basename = _open_posix_parent(path)
             try:
                 if _destination_version_token(path) != destination_version_token:
                     raise ConcurrentModificationError(
                         f"{path} changed before the dirfd replace"
                     )
-                _exchange_design_system_commit(
-                    path,
-                    temporary_path,
-                    parent_fd=parent_fd,
-                    expected_version=destination_version_token,
-                    payload=payload,
+                os.replace(
+                    temporary_path.name,
+                    basename,
+                    src_dir_fd=parent_fd,
+                    dst_dir_fd=parent_fd,
                 )
+                os.fsync(parent_fd)
             finally:
                 os.close(parent_fd)
         temporary_path = None
