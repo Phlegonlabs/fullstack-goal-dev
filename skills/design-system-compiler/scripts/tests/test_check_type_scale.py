@@ -72,10 +72,10 @@ class ParseStepSpecTests(unittest.TestCase):
 
 
 class MainCliTests(unittest.TestCase):
-    def test_body_text_at_wcag_minimum_passes(self) -> None:
+    def test_body_text_at_house_floor_passes(self) -> None:
         self.assertEqual(main(["--step", "Body,16px,1.5,text"]), 0)
 
-    def test_body_text_below_wcag_minimum_fails(self) -> None:
+    def test_body_text_below_house_floor_fails(self) -> None:
         self.assertEqual(main(["--step", "Cramped body,16px,1.2,text"]), 1)
 
     def test_heading_uses_lower_readability_floor(self) -> None:
@@ -98,6 +98,13 @@ class MainCliTests(unittest.TestCase):
             ),
             1,
         )
+
+    def test_text_floor_is_labeled_as_house_floor_not_wcag(self) -> None:
+        import check_type_scale
+
+        doc = check_type_scale.__doc__ or ""
+        self.assertIn("house readability floors, not WCAG AA", doc)
+        self.assertNotIn("WCAG 1.4.12 minimum", check_type_scale.build_parser().format_help())
 
     def test_malformed_size_exits_two(self) -> None:
         self.assertEqual(main(["--step", "Body,large,1.5,text"]), 2)

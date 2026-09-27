@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
-"""Check WCAG 2.2 line-height ratios for a design system's type scale.
+"""Check line-height ratios for a design system's type scale.
 
-Implements the line-height portion of Success Criterion 1.4.12 Text Spacing
-(https://www.w3.org/TR/WCAG22/#text-spacing): a block of text needs a line
-height (line spacing) of at least 1.5 times its font size. That SC targets
-blocks of text, not isolated headings, so this tool applies the 1.5 minimum
-only to the "text" kind; the "heading" kind instead uses a lower general
-readability floor (1.1) to catch a line-height tight enough to clip
-ascenders and descenders. Sizes may be px, unitless (px), rem, or em; rem and
+The thresholds are this skill's house readability floors, not WCAG AA
+requirements. Body text ("text" kind) needs a line height of at least 1.5
+times its font size; headings ("heading" kind) need at least 1.1 so that
+ascenders and descenders do not clip. WCAG 2.2 SC 1.4.12 Text Spacing only
+requires that content survives a user override to 1.5, and the 1.5 authored
+spacing in SC 1.4.8 is AAA, so a lower authored value can still conform. Sizes may be px, unitless (px), rem, or em; rem and
 em font sizes use the declared root font size (default 16px). This tool only
 computes and reports; it never edits a file.
 """
@@ -17,6 +16,7 @@ from __future__ import annotations
 import argparse
 
 DEFAULT_ROOT_FONT_SIZE = 16.0
+# House readability floors, not WCAG AA minimums.
 TEXT_MIN_RATIO = 1.5
 HEADING_MIN_RATIO = 1.1
 KIND_THRESHOLDS = {
@@ -117,8 +117,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="One type-scale step to check, e.g. 'Body,16px,1.5,text'. "
         "FONT-SIZE may be px, unitless (px), rem, or em. LINE-HEIGHT may be "
         "a unitless multiplier (1.5), px (24px), rem, or em. "
-        "KIND is 'text' (default, WCAG 1.4.12 minimum 1.5) or 'heading' "
-        "(readability floor 1.1). Repeat --step for multiple roles in one run.",
+        "KIND is 'text' (default, house readability floor 1.5) or 'heading' "
+        "(house readability floor 1.1). Repeat --step for multiple roles in one run.",
     )
     parser.add_argument(
         "--root-font-size",
