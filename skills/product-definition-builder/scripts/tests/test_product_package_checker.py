@@ -1,3 +1,5 @@
+import contextlib
+import io
 import os
 import subprocess
 import re
@@ -845,6 +847,36 @@ class ProductPackageCheckerTests(unittest.TestCase):
                 ))
                 self.assertIn("Checkpoint digest does not match", findings)
                 self.assertIn("Package digest does not match", findings)
+
+    def test_cli_pass_line_claims_owner_approval_only_when_checked(self) -> None:
+        prd, architecture, stack = strictize_approved_package(
+            valid_prd(), valid_architecture(), valid_stack()
+        )
+        blocked = re.sub(r"(?m)^- Decision: approved$", "- Decision: blocked", prd, count=1)
+        self.assertNotEqual(prd, blocked)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            paths = {"prd": root / "PRD.md", "architecture": root / "architecture.md", "stack": root / "stack-decisions.md"}
+            for key, text in (("prd", blocked), ("architecture", architecture), ("stack", stack)):
+                paths[key].write_text(text, encoding="utf-8")
+            base = ["--prd", str(paths["prd"]), "--architecture", str(paths["architecture"]),
+                    "--stack-decisions", str(paths["stack"])]
+
+            def run(*flags: str) -> tuple[int, str]:
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output), contextlib.redirect_stderr(io.StringIO()):
+                    code = check_product_package.main([*base, *flags])
+                return code, output.getvalue()
+
+            code, output = run()
+            self.assertEqual(0, code)
+            self.assertIn("approval not checked", output)
+            self.assertNotIn("owner-approved", output)
+            self.assertEqual(1, run("--require-filled", "--require-approved")[0])
+            paths["prd"].write_text(prd, encoding="utf-8")
+            code, output = run("--require-filled", "--require-approved")
+            self.assertEqual(0, code)
+            self.assertIn("complete and owner-approved", output)
 
     def test_strict_approval_revision_is_an_exact_digest_binding(self) -> None:
         prd, architecture, stack = strictize_approved_package(

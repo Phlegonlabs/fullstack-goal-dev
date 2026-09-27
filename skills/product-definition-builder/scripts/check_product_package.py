@@ -3346,7 +3346,12 @@ def main(argv: list[str] | None = None) -> int:
         for problem in problems:
             print(f"FAIL {problem}", file=sys.stderr)
         return 1
-    print("PASS core Product Definition package is complete and owner-approved")
+    if args.require_filled and args.require_approved:
+        print("PASS core Product Definition package is complete and owner-approved")
+    elif args.require_approved:
+        print("PASS core Product Definition package approval checked (completeness not checked)")
+    else:
+        print("PASS core Product Definition package structure (approval not checked)")
     return 0
 
 
