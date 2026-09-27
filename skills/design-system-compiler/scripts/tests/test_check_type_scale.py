@@ -24,6 +24,13 @@ class LineHeightRatioTests(unittest.TestCase):
     def test_font_size_without_px_suffix_is_accepted(self) -> None:
         self.assertAlmostEqual(line_height_ratio("16", "1.5"), 1.5, places=2)
 
+    def test_rem_and_em_use_the_root_font_size(self) -> None:
+        self.assertAlmostEqual(line_height_ratio("1rem", "1.5rem"), 1.5, places=2)
+        self.assertAlmostEqual(line_height_ratio("1rem", "24px"), 1.5, places=2)
+        self.assertAlmostEqual(line_height_ratio("2em", "1.5rem"), 0.75, places=2)
+        self.assertAlmostEqual(line_height_ratio("1.25rem", "1.4em"), 1.4, places=2)
+        self.assertAlmostEqual(line_height_ratio("1rem", "30px", 20.0), 1.5, places=2)
+
     def test_non_numeric_font_size_rejected(self) -> None:
         with self.assertRaises(TypeScaleError):
             line_height_ratio("large", "1.5")
@@ -94,6 +101,15 @@ class MainCliTests(unittest.TestCase):
 
     def test_malformed_size_exits_two(self) -> None:
         self.assertEqual(main(["--step", "Body,large,1.5,text"]), 2)
+        self.assertEqual(main(["--step", "Body,1vw,1.5,text"]), 2)
+
+    def test_rem_steps_and_declared_root_font_size(self) -> None:
+        self.assertEqual(main(["--step", "Body,1rem,1.5,text"]), 0)
+        self.assertEqual(main(["--step", "Body,1rem,1.25rem,text"]), 1)
+        self.assertEqual(
+            main(["--root-font-size", "20px", "--step", "Body,1rem,30px,text"]), 0
+        )
+        self.assertEqual(main(["--root-font-size", "big", "--step", "Body,1rem,1.5"]), 2)
 
     def test_malformed_step_spec_exits_two(self) -> None:
         self.assertEqual(main(["--step", "Body,16px"]), 2)

@@ -74,8 +74,8 @@ Run these from the repository root:
 ```text
 python "<design-system-compiler-skill-root>/scripts/check_design_system_pair.py" --markdown <staged design-system.md> --registry <staged design-system.json> --repo-root <repository-root> --write
 python "<design-system-compiler-skill-root>/scripts/check_design_system_pair.py" --markdown <staged design-system.md> --registry <staged design-system.json> --repo-root <repository-root> --require-filled
-python "<design-system-compiler-skill-root>/scripts/check_color_contrast.py" <the arguments required by the staged design system>
-python "<design-system-compiler-skill-root>/scripts/check_type_scale.py" <the arguments required by the staged design system>
+python "<design-system-compiler-skill-root>/scripts/check_color_contrast.py" --pair <foreground-hex>,<background-hex>[,normal|large|ui] (one --pair per registry color pairing)
+python "<design-system-compiler-skill-root>/scripts/check_type_scale.py" --step <role>,<font-size>,<line-height>[,text|heading] (one --step per registry type role) [--root-font-size <px>]
 python "<product-definition-builder-skill-root>/scripts/check_product_package.py" --prd <PRD.md> --architecture <architecture.md> --stack-decisions <stack-decisions.md> --repo-root <repository-root> --require-filled --require-approved
 ```
 

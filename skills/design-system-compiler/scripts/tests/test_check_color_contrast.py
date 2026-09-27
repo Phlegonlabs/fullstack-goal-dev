@@ -11,6 +11,7 @@ from check_color_contrast import (  # noqa: E402
     contrast_ratio,
     main,
     parse_hex_color,
+    parse_hex_rgba,
     parse_pair_spec,
 )
 
@@ -26,8 +27,13 @@ class ParseHexColorTests(unittest.TestCase):
         self.assertEqual(parse_hex_color("#fff"), (255, 255, 255))
         self.assertEqual(parse_hex_color("#000"), (0, 0, 0))
 
+    def test_alpha_hex_parses_channels_and_alpha(self) -> None:
+        self.assertEqual(parse_hex_rgba("#00000080"), (0, 0, 0, 128 / 255))
+        self.assertEqual(parse_hex_rgba("#0008"), (0, 0, 0, 136 / 255))
+        self.assertEqual(parse_hex_rgba("#ffffff"), (255, 255, 255, 1.0))
+
     def test_malformed_value_rejected(self) -> None:
-        for bad in ("red", "#12345", "#gggggg", ""):
+        for bad in ("red", "#12345", "#1234567", "#gggggg", "oklch(0.5 0.1 200)", ""):
             with self.subTest(bad=bad):
                 with self.assertRaises(ColorContrastError):
                     parse_hex_color(bad)
@@ -47,6 +53,23 @@ class ContrastRatioTests(unittest.TestCase):
             contrast_ratio("#FFFFFF", "#000000"),
             places=6,
         )
+
+    def test_translucent_foreground_is_composited_over_background(self) -> None:
+        self.assertAlmostEqual(contrast_ratio("#000000ff", "#FFFFFF"), 21.0, places=2)
+        # 50% black over white composites to #808080 (about 3.95:1).
+        self.assertAlmostEqual(
+            contrast_ratio("#00000080", "#FFFFFF"),
+            contrast_ratio("#7F7F7F", "#FFFFFF"),
+            places=1,
+        )
+        self.assertLess(contrast_ratio("#0000001a", "#FFFFFF"), 1.5)
+        self.assertAlmostEqual(
+            contrast_ratio("#0008", "#FFF"), contrast_ratio("#00000088", "#FFFFFF"), places=6
+        )
+
+    def test_translucent_background_is_rejected(self) -> None:
+        with self.assertRaises(ColorContrastError):
+            contrast_ratio("#000000", "#ffffff80")
 
     def test_known_wcag_reference_gray_is_at_aa_threshold(self) -> None:
         # #767676 on white is a commonly cited WCAG reference value that sits
@@ -106,6 +129,11 @@ class MainCliTests(unittest.TestCase):
 
     def test_malformed_color_exits_two(self) -> None:
         self.assertEqual(main(["--pair", "notacolor,#FFFFFF,normal"]), 2)
+
+    def test_alpha_tokens_are_checked_and_translucent_background_exits_two(self) -> None:
+        self.assertEqual(main(["--pair", "#000000cc,#FFFFFF,normal"]), 0)
+        self.assertEqual(main(["--pair", "#0000001a,#FFFFFF,ui"]), 1)
+        self.assertEqual(main(["--pair", "#000000,#FFFFFF80,normal"]), 2)
 
     def test_malformed_pair_spec_exits_two(self) -> None:
         self.assertEqual(main(["--pair", "#FFFFFF"]), 2)
