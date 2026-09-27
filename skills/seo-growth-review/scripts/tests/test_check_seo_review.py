@@ -120,6 +120,75 @@ def valid_review_v2(*, mode: str = "baseline") -> str:
     return text
 
 
+IOS_TARGETS = """
+### Release Target: ios-dev
+- Surface: ios-app
+- Surface class: ios
+- Public discoverability: no
+- Surface suffix: ios
+- Release name: fixture-ios-dev
+- Provider: App Store Connect
+- Stage: development
+- Source policy: stage=development; ref=run.integration.branch; sha=run.integration.integration_head_sha
+- Artifact kind: signed iOS archive
+- Signing requirement: App Store development certificate
+- Exact channel / track: testflight-internal
+- Submission / promotion / review / manual approval path: candidate checks and owner approval
+- Availability signal: TestFlight smoke check passes on the build
+- Rollout: internal testers only
+- Rollback / forward-fix: expire the build and upload the prior one
+
+### Release Target: ios-prod
+- Surface: ios-app
+- Surface class: ios
+- Public discoverability: no
+- Surface suffix: ios
+- Release name: fixture-ios
+- Provider: App Store Connect
+- Stage: production
+- Source policy: stage=production; ref=refs/heads/main; sha=promotion.verified_main_sha
+- Artifact kind: signed iOS archive
+- Signing requirement: App Store distribution certificate
+- Exact channel / track: app-store-production
+- Submission / promotion / review / manual approval path: candidate checks, main promotion, App Store review
+- Availability signal: App Store listing passes the smoke check
+- Rollout: phased release to all users
+- Rollback / forward-fix: submit a corrected forward-fix build
+"""
+WEB_PROFILE_ROW = "| web | yes | public web release | web owner |"
+WEB_READINESS_PREFIX = "| web-prod | production | Cloudflare;fixture-production-route |"
+
+
+def web_and_pending_ios() -> tuple[str, str, str]:
+    """Architecture, Deployment and Activation with iOS still in App Store review."""
+
+    architecture = ARCHITECTURE.replace(
+        "Expected deployable surfaces: web-app",
+        "Expected deployable surfaces: web-app, ios-app",
+    ) + IOS_TARGETS
+    deployment = DEPLOYMENT + (
+        "| ios-dev | ios-app | development | App Store Connect;testflight-internal | pending | pending | pending | pending | pending | pending | pending |\n"
+        f"| ios-prod | ios-app | production | App Store Connect;app-store-production | pending | {SHA} | {SHA} | ios-build-7 | pending | pending | pending |\n"
+    )
+    activation = (
+        activation_fixtures.valid_record_v2()
+        .replace(
+            WEB_PROFILE_ROW,
+            WEB_PROFILE_ROW + "\n| ios | yes | App Store release | ios owner |",
+            1,
+        )
+        .replace("- Status: handoff_ready", "- Status: active", 1)
+        .replace(
+            WEB_READINESS_PREFIX,
+            "| ios-dev | development | App Store Connect;testflight-internal | pending | pending | n/a | n/a | n/a | n/a — development candidate is not an activation target | none |\n"
+            f"| ios-prod | production | App Store Connect;app-store-production | {SHA} | ios-build-7 | pending | pending | pending | none | none |\n"
+            + WEB_READINESS_PREFIX,
+            1,
+        )
+    )
+    return architecture, deployment, activation
+
+
 class SeoLifecycleReviewTests(unittest.TestCase):
     def check(
         self,
@@ -199,6 +268,52 @@ class SeoLifecycleReviewTests(unittest.TestCase):
                 )
             self.assertEqual(expected_calls, package_check.call_count)
             self.assertEqual(expected_calls, deployment_check.call_count)
+
+    def test_other_targets_may_stay_pending_but_reviewed_target_must_be_ready(self) -> None:
+        architecture, deployment, activation = web_and_pending_ios()
+
+        def run(activation_text: str) -> list[str]:
+            review = valid_review_v2().replace(
+                ACTIVATION_SHA256,
+                hashlib.sha256(activation_text.encode("utf-8")).hexdigest(),
+            )
+            with patch("check_product_package.validate_texts", return_value=[]), patch(
+                "check_deployment.check_deployment_text", return_value=[]
+            ):
+                return check_seo_review.check_seo_review_text(
+                    review,
+                    prd_text=activation_fixtures.APPROVED_PRD,
+                    architecture_text=architecture,
+                    deployment_text=deployment,
+                    activation_text=activation_text,
+                    stack_text="# Stack Decisions: Example",
+                    repo_root=Path.cwd(),
+                )
+
+        self.assertEqual([], run(activation))
+        # The product-wide handoff rules this review no longer needs.
+        with patch("check_product_package.validate_texts", return_value=[]), patch(
+            "check_deployment.check_deployment_text", return_value=[]
+        ):
+            handoff = "\n".join(
+                sys.modules["check_activation"].check_activation_text(
+                    activation,
+                    prd_text=activation_fixtures.APPROVED_PRD,
+                    architecture_text=architecture,
+                    deployment_text=deployment,
+                    stack_text="# Stack Decisions: Example",
+                    repo_root=Path.cwd(),
+                    require_verified_sources=True,
+                )
+            )
+        self.assertIn("verified handoff target ios-prod must be ready or n/a", handoff)
+        self.assertIn("requires status handoff_ready", handoff)
+
+        web_pending = activation.replace("| deployed | ready |", "| deployed | pending |", 1)
+        self.assertIn(
+            "Activation: Target Readiness: required target web-prod is not ready",
+            run(web_pending),
+        )
 
     def test_valid_lifecycle_review_passes_exact_bindings(self) -> None:
         self.assertEqual([], self.check(valid_review()))

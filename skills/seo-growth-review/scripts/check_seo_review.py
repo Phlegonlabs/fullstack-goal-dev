@@ -449,6 +449,8 @@ def check_seo_review_text(
                 "Deployment: reviewed endpoint/domain hostname must equal the SEO Production domain"
             )
 
+    # Only the reviewed target must be ready; other targets may stay pending.
+    # The matching verified MS-* sources are checked below.
     activation_findings = check_activation_text(
         activation_text,
         prd_text=prd_text,
@@ -456,7 +458,6 @@ def check_seo_review_text(
         deployment_text=deployment_text,
         stack_text=stack_text,
         repo_root=repo_root,
-        require_verified_sources=True,
         require_ready=(target_id,),
         package_validated=stack_text is not None,
     )
