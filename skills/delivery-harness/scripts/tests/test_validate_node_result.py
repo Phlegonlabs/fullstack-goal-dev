@@ -24,7 +24,7 @@ if str(SCRIPTS_DIR) not in sys.path:
 from harness_manifest import plan_digest  # noqa: E402
 from test_graph_orchestration import valid_graph_plan, valid_graph_run  # noqa: E402
 from test_harness_manifest import authorize_execution  # noqa: E402
-from manifest_fixtures import manifest_markdown  # noqa: E402
+from manifest_fixtures import manifest_markdown, record_review_spawn_receipts  # noqa: E402
 import test_harness_strict_authority as strict_authority_fixtures  # noqa: E402
 from validate_node_result import main as validate_node_result_main, validate_node_result  # noqa: E402
 
@@ -241,6 +241,7 @@ class ValidateNodeResultTests(unittest.TestCase):
                 "findings": [],
             }
         ]
+        record_review_spawn_receipts(run)
         result = {
             "run_id": run["run_id"],
             "node_id": review_node["id"],

@@ -7146,6 +7146,32 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                             "run.authorizations.create_user_owned_tasks",
                             f"must exactly authorize review target {target}",
                         )
+                # reserve-review-dispatch records worker:<id> for a subagent
+                # reviewer, the same spawn receipt a mission worker carries.
+                if (
+                    schema_version == 11
+                    and worker["worker_runtime"] == "subagent"
+                    and _nonempty_string(worker["worker_id"])
+                ):
+                    target = f"worker:{worker['worker_id']}"
+                    if any(
+                        not authorization_covers(
+                            run,
+                            "spawn_subagents",
+                            mission_id,
+                            target,
+                            require_exact_target=True,
+                            preserve_completed_run_expiry=(
+                                run.get("status") == "complete"
+                            ),
+                        )
+                        for mission_id in reviewed_mission_ids
+                    ):
+                        _add(
+                            errors,
+                            "run.authorizations.spawn_subagents",
+                            f"must exactly authorize review target {target}",
+                        )
                 if worker["completion_channel"] == "report_file" and not _nonempty_string(
                     worker["report_path"]
                 ):

@@ -116,6 +116,10 @@ class HarnessV11Tests(unittest.TestCase):
             "findings": [],
         }
         run["review_workers"] = [review_worker]
+        # reserve-review-dispatch records this exact spawn receipt.
+        run["authorizations"]["spawn_subagents"]["scope"]["targets"].append(
+            f"worker:{worker_id}"
+        )
         run["graph_state"]["node_states"][node_id].update(
             {
                 "phase": "running",
@@ -593,6 +597,36 @@ class HarnessV11Tests(unittest.TestCase):
             run["review_lineages"]["REVIEW-N-FRONTEND-REVIEW"][
                 "consumed_attempts"
             ],
+        )
+
+    def test_subagent_review_reservation_records_exact_spawn_receipt(self) -> None:
+        plan, run = current_preintegration_review_state()
+        harness_transition._reserve_review_dispatch(
+            plan,
+            run,
+            Namespace(
+                node_id="N-FRONTEND-REVIEW",
+                worker_id="RW-SPAWN",
+                attempt_id="ATT-SPAWN",
+                report_path=None,
+            ),
+            repo_root=None,
+        )
+
+        self.assertEqual("subagent", run["review_workers"][-1]["worker_runtime"])
+        targets = run["authorizations"]["spawn_subagents"]["scope"]["targets"]
+        self.assertIn("worker:RW-SPAWN", targets)
+        self.assertEqual([], validate_run(plan, run))
+
+        # The receipt survives the user narrowing the grant to exact targets.
+        targets.remove("*")
+        self.assertEqual([], validate_run(plan, run))
+
+        # Without the receipt the reviewer has no exact launch authorization.
+        targets.remove("worker:RW-SPAWN")
+        self.assertIn(
+            "run.authorizations.spawn_subagents: must exactly authorize review target worker:RW-SPAWN",
+            validate_run(plan, run),
         )
 
     def test_reserved_review_pass_traverses_its_declared_route(self) -> None:

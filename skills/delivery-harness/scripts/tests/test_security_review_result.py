@@ -16,6 +16,9 @@ from pathlib import Path
 SCRIPTS_DIR = Path(__file__).resolve().parents[1]
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
+TESTS_DIR = Path(__file__).resolve().parent
+if str(TESTS_DIR) not in sys.path:
+    sys.path.insert(0, str(TESTS_DIR))
 
 from security_review_result import (  # noqa: E402
     SecurityReviewResultError,
@@ -31,6 +34,7 @@ from harness_manifest import (  # noqa: E402
     plan_digest,
     validate_run,
 )
+from manifest_fixtures import add_spawn_receipt  # noqa: E402
 
 
 HEAD = "a" * 40
@@ -345,6 +349,7 @@ class SecurityReviewTransitionTests(unittest.TestCase):
                 "findings": [],
             }
         )
+        add_spawn_receipt(run, "RW-SECURITY")
         return plan, run
 
     def args(self, path: Path | None) -> Namespace:

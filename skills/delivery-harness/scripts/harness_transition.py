@@ -4416,6 +4416,13 @@ def _reserve_review_dispatch(
         "outcome": None,
         "findings": [],
     }
+    # Record the exact spawn receipt only after every guard has passed, as
+    # _lease_worker does for mission workers.
+    if directive["worker_runtime"] == "subagent":
+        for mission_id in node["review"]["mission_ids"]:
+            _materialize_authorized_target(
+                run, "spawn_subagents", mission_id, f"worker:{args.worker_id}"
+            )
     run["review_workers"].append(review_worker)
     state = run["graph_state"]["node_states"][args.node_id]
     state.update(
