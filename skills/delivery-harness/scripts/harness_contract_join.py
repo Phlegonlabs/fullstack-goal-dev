@@ -2377,7 +2377,9 @@ def validate_frozen_contract_joins(
             errors.append(f"design-system.md: is not valid UTF-8 ({exc})")
         else:
             try:
-                errors.extend(compare_design_system_pair(markdown_text, registry))
+                errors.extend(
+                    compare_design_system_pair(markdown_text, registry, repo_root=repo_root)
+                )
             except Exception as exc:
                 errors.append(
                     "design_system: canonical pair adapter failed safely: "

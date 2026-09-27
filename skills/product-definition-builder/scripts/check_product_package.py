@@ -176,6 +176,7 @@ STACK_SECTION_LAYERS = {
         "target operating systems",
         "client strategy",
         "framework",
+        "styling approach",
         "toolchain",
         "navigation and state",
         "local persistence",
