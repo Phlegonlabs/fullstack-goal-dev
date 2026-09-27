@@ -160,21 +160,28 @@ def _posix_rename_exchange(parent_fd: int, left_name: str, right_name: str) -> N
     import ctypes
 
     libc = ctypes.CDLL(None, use_errno=True)
-    renameat2 = getattr(libc, "renameat2", None)
-    if renameat2 is None:
-        raise OSError("renameat2(RENAME_EXCHANGE) is unavailable; refusing destructive replace")
-    renameat2.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_uint]
-    renameat2.restype = ctypes.c_int
-    result = renameat2(
+    # Linux renameat2(RENAME_EXCHANGE) and macOS renameatx_np(RENAME_SWAP)
+    # take the same arguments and both use flag 0x2.
+    exchange = getattr(libc, "renameat2", None)
+    if exchange is None:
+        exchange = getattr(libc, "renameatx_np", None)
+    if exchange is None:
+        raise OSError(
+            "renameat2(RENAME_EXCHANGE) and renameatx_np(RENAME_SWAP) are unavailable; "
+            "refusing destructive replace"
+        )
+    exchange.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_uint]
+    exchange.restype = ctypes.c_int
+    result = exchange(
         parent_fd,
         os.fsencode(left_name),
         parent_fd,
         os.fsencode(right_name),
-        0x2,  # RENAME_EXCHANGE
+        0x2,  # RENAME_EXCHANGE / RENAME_SWAP
     )
     if result != 0:
         error = ctypes.get_errno()
-        raise OSError(error, f"renameat2 exchange failed for {left_name} and {right_name}")
+        raise OSError(error, f"rename exchange failed for {left_name} and {right_name}")
 
 
 def _windows_replace_file(destination: Path, replacement: Path, backup: Path) -> None:
