@@ -27,6 +27,7 @@ from harness_schema import (
     SHA256_RE,
     UI_EVIDENCE_IMAGE_SUFFIXES,
     run_required_harness_version,
+    supported_coordination_path,
     version_at_least,
 )
 
@@ -1239,7 +1240,14 @@ def validate_integration_head_against_git(
         changed = _run_git("diff", "--name-only", f"{recorded}..{actual}")
         if ancestry is None or changed is None:
             return sorted(set(errors))
-        coordination_paths = set(integration.get("coordination_paths", []))
+        # Only real coordination files may close the gap. A product path that
+        # RUN lists by mistake must still report the head as stale.
+        listed_paths = integration.get("coordination_paths", [])
+        coordination_paths = {
+            item
+            for item in (listed_paths if isinstance(listed_paths, list) else [])
+            if supported_coordination_path(item)
+        }
         changed_paths = {
             line.strip().replace("\\", "/")
             for line in changed.stdout.splitlines()

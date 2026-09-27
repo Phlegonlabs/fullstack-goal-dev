@@ -49,9 +49,10 @@ from harness_manifest import (
     mission_has_ui_authoring_action,
     validate_current_plan_run,
 )
-from harness_schema import RUN_DISPATCH_STATUSES, RUN_HEADING
+from harness_schema import EXACT_TARGET_LIFECYCLE_ACTIONS, RUN_DISPATCH_STATUSES, RUN_HEADING
 from harness_schema import archive_first_required, parse_harness_version, required_harness_version
 from harness_schema import version_at_least
+from harness_schema import frozen_coordination_path, supported_coordination_path
 from push_integration_branch import (
     make_push_request,
     validate_push_receipt,
@@ -173,39 +174,6 @@ def _coordination_commit_changes(
             raise ManifestError(f"coordination commit path {path!r} {reason}")
         changes.append((status, path))
     return changes
-
-
-def _forbidden_coordination_paths(plan: dict[str, Any]) -> set[str]:
-    """Names that never qualify as run coordination even if RUN lists them."""
-
-    forbidden: set[str] = set()
-    for source in plan.get("sources", []):
-        if not isinstance(source, dict):
-            continue
-        location = source.get("location")
-        if (
-            isinstance(location, str)
-            and location
-            and "://" not in location
-            and not location.startswith("/")
-            and "\\" not in location
-        ):
-            forbidden.add(location)
-    return forbidden
-
-
-def _supported_coordination_path(path: str) -> bool:
-    fixed_paths = {"docs/tasks.md", "docs/DOCUMENTS.md"}
-    goal_coordination = (
-        r"docs/goal/(?:[^/]+/)?"
-        r"(?:PLAN|RUN|DECISIONS|REFINEMENT_BACKLOG)\.md"
-    )
-    return (
-        path in fixed_paths
-        or re.fullmatch(goal_coordination, path) is not None
-        or re.fullmatch(r"docs/goal/(?:[^/]+/)?tasks.md", path) is not None
-        or re.fullmatch(r"docs/epics/[^/]+\.md", path) is not None
-    )
 
 
 def _git_entry_mode(root: Path, commit_sha: str, path: str) -> str | None:
@@ -1832,6 +1800,10 @@ def _reserve_node_attempt(
             raise ManifestError(
                 f"lifecycle action {node.get('ref')!r} is not currently authorized"
             )
+        if node.get("ref") in EXACT_TARGET_LIFECYCLE_ACTIONS and not node.get("target"):
+            raise ManifestError(
+                f"{node.get('ref')} lifecycle node must declare an exact PLAN target"
+            )
         if node.get("ref") == "push":
             _validate_push_side_effect(
                 run, getattr(args, "repo_root", None), entry.get("authorized_head_sha")
@@ -2008,6 +1980,11 @@ def _record_node_result(
         # an uncertain attempt and must remain recordable after revocation or
         # head drift so the node does not stay permanently running.
         if outcome not in {"blocked", "contract_gap"}:
+            if action in EXACT_TARGET_LIFECYCLE_ACTIONS and expected_target == "*":
+                raise ManifestError(
+                    f"{action} lifecycle result requires an exact PLAN target; "
+                    "record the attempt as blocked"
+                )
             current_entry = run.get("authorizations", {}).get(action)
             if (
                 not isinstance(current_entry, dict)
@@ -3498,12 +3475,9 @@ def _reconcile_coordination_head(
         path for path in coordination_paths_value
         if isinstance(path, str) and validate_changed_path(path) is None
     }
-    forbidden_paths = _forbidden_coordination_paths(plan)
     listed_frozen_paths = sorted(
         path for path in exact_coordination_paths
-        if path in forbidden_paths
-        or path.startswith("docs/product/")
-        or path.startswith("docs/design/")
+        if frozen_coordination_path(path, plan)
     )
     if listed_frozen_paths:
         raise ManifestError(
@@ -3512,7 +3486,7 @@ def _reconcile_coordination_head(
         )
     unsupported_exact_paths = sorted(
         path for path in exact_coordination_paths
-        if not _supported_coordination_path(path)
+        if not supported_coordination_path(path)
     )
     if unsupported_exact_paths:
         raise ManifestError(
@@ -4442,6 +4416,13 @@ def _reserve_review_dispatch(
         "outcome": None,
         "findings": [],
     }
+    # Record the exact spawn receipt only after every guard has passed, as
+    # _lease_worker does for mission workers.
+    if directive["worker_runtime"] == "subagent":
+        for mission_id in node["review"]["mission_ids"]:
+            _materialize_authorized_target(
+                run, "spawn_subagents", mission_id, f"worker:{args.worker_id}"
+            )
     run["review_workers"].append(review_worker)
     state = run["graph_state"]["node_states"][args.node_id]
     state.update(

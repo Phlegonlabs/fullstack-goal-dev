@@ -116,6 +116,10 @@ class HarnessV11Tests(unittest.TestCase):
             "findings": [],
         }
         run["review_workers"] = [review_worker]
+        # reserve-review-dispatch records this exact spawn receipt.
+        run["authorizations"]["spawn_subagents"]["scope"]["targets"].append(
+            f"worker:{worker_id}"
+        )
         run["graph_state"]["node_states"][node_id].update(
             {
                 "phase": "running",
@@ -340,6 +344,58 @@ class HarnessV11Tests(unittest.TestCase):
             subprocess.run(["git", "commit", "-qm", "code after review"], cwd=root, check=True)
             self.assertTrue(validate_integration_head_against_git(run, root))
 
+    def test_product_path_listed_as_coordination_still_stales_candidate(self) -> None:
+        """RUN cannot list product code as coordination to hide a newer head."""
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Harness Test"], cwd=root, check=True)
+            source = root / "src" / "app.ts"
+            source.parent.mkdir()
+            source.write_text("candidate\n", encoding="utf-8")
+            subprocess.run(["git", "add", "src/app.ts"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "candidate"], cwd=root, check=True)
+            candidate = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
+            source.write_text("untested change\n", encoding="utf-8")
+            subprocess.run(["git", "add", "src/app.ts"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "c2"], cwd=root, check=True)
+            branch = subprocess.check_output(["git", "branch", "--show-current"], cwd=root, text=True).strip()
+            run = {
+                "schema_version": 11,
+                "integration": {
+                    "branch": branch,
+                    "integration_head_sha": candidate,
+                    "coordination_paths": ["docs/goal/RUN.md", "src/app.ts"],
+                },
+            }
+
+            errors = validate_integration_head_against_git(run, root)
+            self.assertTrue(any("RUN.md is stale" in error for error in errors))
+
+    def test_validate_run_rejects_product_and_frozen_coordination_paths(self) -> None:
+        plan = valid_plan()
+        run = valid_run(plan)
+        self.assertEqual([], validate_run(plan, run))
+
+        run["integration"]["coordination_paths"].append("src/app.ts")
+        errors = validate_run(plan, run)
+        self.assertTrue(
+            any("unsupported product-path coordination entries: src/app.ts" in e for e in errors),
+            errors,
+        )
+
+        run["integration"]["coordination_paths"][-1] = "docs/product/PRD.md"
+        errors = validate_run(plan, run)
+        self.assertTrue(
+            any("frozen product/design sources cannot be coordination paths" in e for e in errors),
+            errors,
+        )
+
+        run["integration"]["coordination_paths"][-1] = "docs/epics/EPIC-1.md"
+        self.assertEqual([], validate_run(plan, run))
+
     def test_review_packet_is_bounded(self) -> None:
         plan = valid_plan()
         run = valid_run(plan)
@@ -541,6 +597,36 @@ class HarnessV11Tests(unittest.TestCase):
             run["review_lineages"]["REVIEW-N-FRONTEND-REVIEW"][
                 "consumed_attempts"
             ],
+        )
+
+    def test_subagent_review_reservation_records_exact_spawn_receipt(self) -> None:
+        plan, run = current_preintegration_review_state()
+        harness_transition._reserve_review_dispatch(
+            plan,
+            run,
+            Namespace(
+                node_id="N-FRONTEND-REVIEW",
+                worker_id="RW-SPAWN",
+                attempt_id="ATT-SPAWN",
+                report_path=None,
+            ),
+            repo_root=None,
+        )
+
+        self.assertEqual("subagent", run["review_workers"][-1]["worker_runtime"])
+        targets = run["authorizations"]["spawn_subagents"]["scope"]["targets"]
+        self.assertIn("worker:RW-SPAWN", targets)
+        self.assertEqual([], validate_run(plan, run))
+
+        # The receipt survives the user narrowing the grant to exact targets.
+        targets.remove("*")
+        self.assertEqual([], validate_run(plan, run))
+
+        # Without the receipt the reviewer has no exact launch authorization.
+        targets.remove("worker:RW-SPAWN")
+        self.assertIn(
+            "run.authorizations.spawn_subagents: must exactly authorize review target worker:RW-SPAWN",
+            validate_run(plan, run),
         )
 
     def test_reserved_review_pass_traverses_its_declared_route(self) -> None:

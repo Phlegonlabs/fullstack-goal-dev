@@ -426,6 +426,9 @@ class HarnessCliE2ETests(unittest.TestCase):
                     "*",
                     "worker:W-M1-CODEX",
                     "worker:W-M2-CODEX",
+                    # Spawn receipts reserve-review-dispatch records.
+                    "worker:RW-M1",
+                    "worker:RW-M2",
                 ],
                 "create_local_worktrees": [
                     f"worktree:{worktrees['M1']}",

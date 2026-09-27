@@ -17,6 +17,7 @@ from harness_schema import (
     CAPABILITY_PROBE_KEYS,
     DRIVER_CAPABILITY_REQUIREMENTS,
     CURRENT_SCHEMA_PAIR,
+    EXACT_TARGET_LIFECYCLE_ACTIONS,
     EXPIRY_BOUNDARIES,
     GATE_VALUES,
     HEAD_BOUND_AUTHORIZATION_ACTIONS,
@@ -52,6 +53,8 @@ from harness_schema import (
     TASK_ID_RE,
     TASK_PHASES,
     TARGET_RE,
+    frozen_coordination_path,
+    supported_coordination_path,
     version_at_least,
     WORKER_PHASES,
 )
@@ -100,6 +103,7 @@ from harness_authorization import (
     authorization_covers,
     execution_covers,
     is_explicit_remote_intent,
+    is_protected_branch_target,
     wave_scope_matches_current,
 )
 from harness_graph import (
@@ -4189,6 +4193,18 @@ def _validate_run_attempt_log(
                                     f"{path}.node_dispatch.target",
                                     "must be an exact target or *",
                                 )
+                            # A cleanup PASS must name what it archived,
+                            # removed, or deleted.
+                            if (
+                                node.get("ref") in EXACT_TARGET_LIFECYCLE_ACTIONS
+                                and target == "*"
+                                and attempt.get("result") == "pass"
+                            ):
+                                _add(
+                                    errors,
+                                    f"{path}.node_dispatch.target",
+                                    f"{node.get('ref')} PASS requires an exact recorded target, not *",
+                                )
                             _optional_sha(
                                 errors,
                                 f"{path}.node_dispatch.authorized_head_sha",
@@ -5874,6 +5890,22 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                             f"{path}.scope.targets",
                             "RUN-v11 push authorization cannot target retired development",
                         )
+                if action == "delete_branches" and entry["authorized"]:
+                    delete_scope = entry.get("scope")
+                    delete_targets = (
+                        delete_scope.get("targets")
+                        if isinstance(delete_scope, dict)
+                        else None
+                    )
+                    if isinstance(delete_targets, list) and any(
+                        is_protected_branch_target(run, target)
+                        for target in delete_targets
+                    ):
+                        _add(
+                            errors,
+                            f"{path}.scope.targets",
+                            "delete_branches cannot target main, development, or the observed default branch",
+                        )
                 if schema_version in {10, 11} and action in HEAD_BOUND_AUTHORIZATION_ACTIONS:
                     authorized_head = entry.get("authorized_head_sha")
                     if not is_full_sha(authorized_head):
@@ -6560,6 +6592,32 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                         "run.integration.coordination_paths",
                         "must contain repository-relative POSIX paths",
                     )
+            # Closeout accepts a newer branch head when only coordination
+            # files changed, so a product path listed here would hide
+            # untested product commits.
+            frozen_paths = sorted(
+                path for path in coordination_paths
+                if frozen_coordination_path(path, plan)
+            )
+            if frozen_paths:
+                _add(
+                    errors,
+                    "run.integration.coordination_paths",
+                    "frozen product/design sources cannot be coordination paths: "
+                    + ", ".join(frozen_paths),
+                )
+            unsupported_paths = sorted(
+                path for path in coordination_paths
+                if not frozen_coordination_path(path, plan)
+                and not supported_coordination_path(path)
+            )
+            if unsupported_paths:
+                _add(
+                    errors,
+                    "run.integration.coordination_paths",
+                    "RUN declares unsupported product-path coordination entries: "
+                    + ", ".join(unsupported_paths),
+                )
         retention = integration.get("retention")
         if retention is not None and retention not in {"persistent", "ephemeral"}:
             _add(errors, "run.integration.retention", "must be null, persistent, or ephemeral")
@@ -7086,6 +7144,32 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                         _add(
                             errors,
                             "run.authorizations.create_user_owned_tasks",
+                            f"must exactly authorize review target {target}",
+                        )
+                # reserve-review-dispatch records worker:<id> for a subagent
+                # reviewer, the same spawn receipt a mission worker carries.
+                if (
+                    schema_version == 11
+                    and worker["worker_runtime"] == "subagent"
+                    and _nonempty_string(worker["worker_id"])
+                ):
+                    target = f"worker:{worker['worker_id']}"
+                    if any(
+                        not authorization_covers(
+                            run,
+                            "spawn_subagents",
+                            mission_id,
+                            target,
+                            require_exact_target=True,
+                            preserve_completed_run_expiry=(
+                                run.get("status") == "complete"
+                            ),
+                        )
+                        for mission_id in reviewed_mission_ids
+                    ):
+                        _add(
+                            errors,
+                            "run.authorizations.spawn_subagents",
                             f"must exactly authorize review target {target}",
                         )
                 if worker["completion_channel"] == "report_file" and not _nonempty_string(

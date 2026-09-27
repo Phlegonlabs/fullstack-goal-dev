@@ -35,6 +35,7 @@ from select_ready_nodes import (  # noqa: E402
     select_ready_nodes,
 )
 from verifier_runtime import execution_key_from_document  # noqa: E402
+from manifest_fixtures import add_spawn_receipt  # noqa: E402
 from test_graph_orchestration import (  # noqa: E402
     detach_mission_edges,
     valid_graph_plan,
@@ -517,6 +518,8 @@ def exact_head_review_worker(
         )
         if isinstance(mission_worker, dict):
             review_path = mission_worker["worktree_path"]
+    # reserve-review-dispatch records this exact spawn receipt.
+    add_spawn_receipt(run, worker_id)
     return {
         "worker_id": worker_id,
         "node_id": node_id,
@@ -1544,6 +1547,7 @@ class SelectReadyNodesTests(unittest.TestCase):
                 "findings": ["src/example/file.ts:1 fix required"],
             }
         ]
+        add_spawn_receipt(run, "RW-OLD")
         self.assertEqual([], validate_run(plan, run))
 
         unchanged = select_ready_nodes(plan, run)
@@ -1775,6 +1779,8 @@ class SelectReadyNodesTests(unittest.TestCase):
         review_worker["reviewed_sha"] = integrated_sha
         review_worker["review_path"] = "C:/repo"
         run["review_workers"] = [review_worker]
+        # The batch reviewer's spawn receipt covers both reviewed missions.
+        run["authorizations"]["spawn_subagents"]["scope"]["mission_ids"] = ["M1", "M3"]
 
         # While the integration head still equals that SHA the PASS is current.
         self.assertEqual([], validate_run(plan, run))

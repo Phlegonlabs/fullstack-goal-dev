@@ -1604,3 +1604,21 @@ def authorize_action(
         },
         "expires_when": "run_complete",
     }
+
+
+def add_spawn_receipt(run: dict[str, object], worker_id: str) -> None:
+    """Add the worker:<id> receipt reserve-review-dispatch records for a subagent reviewer."""
+
+    if run["authorizations"]["spawn_subagents"].get("authorized") is not True:
+        authorize_action(run, "spawn_subagents", sorted(run["mission_states"]), [])
+    targets = run["authorizations"]["spawn_subagents"]["scope"]["targets"]
+    if f"worker:{worker_id}" not in targets:
+        targets.append(f"worker:{worker_id}")
+
+
+def record_review_spawn_receipts(run: dict[str, object]) -> None:
+    """Add the spawn receipt for every subagent reviewer in the RUN."""
+
+    for worker in run.get("review_workers") or []:
+        if isinstance(worker, dict) and worker.get("worker_runtime") == "subagent":
+            add_spawn_receipt(run, worker["worker_id"])
