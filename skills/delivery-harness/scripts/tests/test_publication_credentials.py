@@ -128,6 +128,26 @@ class CredentialTests(unittest.TestCase):
                     sentinel.unlink(missing_ok=True)
             self.assertEqual([], list(empty.iterdir()))
 
+    def test_publication_push_never_signs(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root, remote = self._repo_with_remote(Path(temp))
+            sentinel = Path(temp) / "gpg-ran"
+            gpg = Path(temp) / "gpg.sh"
+            self._script(gpg, sentinel)
+            subprocess.run(["git", "config", "push.gpgSign", "true"], cwd=root, check=True)
+            subprocess.run(["git", "config", "gpg.program", gpg.as_posix()], cwd=root, check=True)
+            empty = Path(temp) / "no-hooks"
+            empty.mkdir()
+            env = subject.publication_environment(str(remote), expected=None, hooks_dir=str(empty))
+            argv = [git_executable(), "--no-replace-objects", "push", "--", str(remote), "HEAD:refs/heads/published"]
+            # Control: the repository's push.gpgSign=true makes a plain push fail here.
+            control = subject.publication_environment(str(remote), expected=None)
+            refused = subprocess.run(argv, cwd=root, env=control, capture_output=True, text=True, timeout=60)
+            self.assertNotEqual(0, refused.returncode)
+            pushed = subprocess.run(argv, cwd=root, env=env, capture_output=True, text=True, timeout=60)
+            self.assertEqual(0, pushed.returncode, pushed.stderr)
+            self.assertFalse(sentinel.exists(), "gpg.program ran during publication")
+
     def test_publication_environment_neutralizes_repository_askpass(self):
         with tempfile.TemporaryDirectory() as temp:
             root, _ = self._repo_with_remote(Path(temp))

@@ -464,6 +464,13 @@ def _normalise_config_name(value: str) -> str:
     return value.strip().casefold()
 
 
+def _gpg_command_key(name: str) -> bool:
+    # Signing programs run during a signed push (push.gpgSign).
+    return name.startswith("gpg.") and (
+        name.endswith(".program") or name == "gpg.ssh.defaultkeycommand"
+    )
+
+
 def _dangerous_config_name(value: str) -> bool:
     """Return whether a local config key can retarget or execute a helper."""
 
@@ -492,6 +499,8 @@ def _dangerous_config_name(value: str) -> bool:
     }:
         return True
     if name.startswith("merge.") and name.endswith(".driver"):
+        return True
+    if _gpg_command_key(name):
         return True
     # URL rewrite rules apply even when the command receives an explicit URL.
     if name.startswith("url.") and name.endswith((".insteadof", ".pushinsteadof")):
@@ -667,6 +676,7 @@ def reject_dangerous_local_config(
             or normalized.startswith("filter.")
             or (normalized.startswith("diff.") and normalized.rsplit(".", 1)[-1] in {"command", "textconv"})
             or (normalized.startswith("merge.") and normalized.endswith(".driver"))
+            or _gpg_command_key(normalized)
             or normalized in {"core.hookspath", "core.fsmonitor"}
         )
         origin_path = origin.removeprefix("file:").replace("\\", "/")

@@ -249,6 +249,30 @@ class HarnessGitTests(unittest.TestCase):
             with self.assertRaisesRegex(GitConfigurationError, "http.sslverify"):
                 run_git(root, "rev-parse", "HEAD")
 
+    def test_local_gpg_signing_programs_are_rejected_but_global_ones_allowed(self) -> None:
+        import harness_git as module
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self._repo(root)
+            for key in ("gpg.program", "gpg.ssh.program", "gpg.x509.program", "gpg.ssh.defaultKeyCommand"):
+                with self.subTest(key=key):
+                    subprocess.run(["git", "config", key, "sentinel-signer"], cwd=root, check=True)
+                    with self.assertRaisesRegex(GitConfigurationError, key.casefold()):
+                        run_git(root, "status", "--porcelain")
+                    subprocess.run(["git", "config", "--unset-all", key], cwd=root, check=True)
+            run_git(root, "status", "--porcelain")
+
+            # Operator signing setup in global/system config stays usable.
+            for key in ("gpg.program", "gpg.ssh.defaultkeycommand"):
+                def fake_git(_root, *arguments, _key=key, **_kwargs):
+                    if arguments[0] == "rev-parse":
+                        return subprocess.CompletedProcess(["git"], 0, ".git\n.git\n", "")
+                    return subprocess.CompletedProcess(["git"], 0, f"file:/etc/gitconfig\x00{_key}\x00", "")
+
+                with patch.object(module, "_raw_git", side_effect=fake_git):
+                    module.reject_dangerous_local_config(root)
+
     def test_system_helper_outside_a_repository_leaves_the_git_error_to_git(self) -> None:
         import harness_git as module
 
