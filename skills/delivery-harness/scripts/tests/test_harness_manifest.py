@@ -900,6 +900,26 @@ class RunValidationTests(unittest.TestCase):
         errors = validate_plan(plan)
         self.assertTrue(any("observed non-zero RepoDigest" in error for error in errors))
 
+    def test_container_sandbox_policy_is_checked_once_and_strictly(self) -> None:
+        # normalize_sandbox_policy is the one policy check; an extra
+        # capability next to ALL or a missing key still fails, once.
+        plan = valid_plan()
+        sandbox = plan["missions"][0]["tasks"][0]["verifiers"][0]["execution"]["sandbox"]
+        sandbox["cap_drop"] = ["ALL", "NET_ADMIN"]
+        errors = validate_plan(plan)
+        cap_errors = [error for error in errors if "cap_drop" in error]
+        self.assertEqual(1, len(cap_errors), errors)
+        self.assertIn("sandbox cap_drop must equal ['ALL']", cap_errors[0])
+
+        plan = valid_plan()
+        sandbox = plan["missions"][0]["tasks"][0]["verifiers"][0]["execution"]["sandbox"]
+        del sandbox["pull"]
+        errors = validate_plan(plan)
+        self.assertTrue(
+            any("sandbox policy must contain the exact required keys" in error for error in errors),
+            errors,
+        )
+
     def test_harness_038_execution_binds_observed_runtime_identity(self) -> None:
         plan = valid_plan()
         plan["security_review"] = {
