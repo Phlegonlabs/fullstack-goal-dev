@@ -184,6 +184,10 @@ console.log("hybrid fallback and stale QA assertions completed");
             "`gsap-scrolltrigger`",
             "Higgsfield MCP",
             "exact provider/action authorization",
+            "route `Motion`",
+            "route `Three.js`",
+            "## HiFi Embedding Limits",
+            "never rename, strip or obfuscate library code",
         ):
             self.assertIn(marker, router)
         self.assertIn("Do not add GSAP merely because motion exists", router)

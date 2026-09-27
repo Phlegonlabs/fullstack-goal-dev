@@ -15,6 +15,7 @@ Ask one product-specific set covering:
 - disliked patterns and explicit avoid rules;
 - brand, color, dark-mode, typography, language, imagery, and icon constraints;
 - shared brand principles and any distinct Web/native expression needs; platform destinations and stack remain the approved inputs;
+- motion posture per page and whether a generation provider may be used, for which regions and within what limit (see `motion-and-media-routing.md`);
 - reference images, screenshots, websites, Figma views, named products, or brand references, with the page or aspect to learn from and what to avoid; and
 - whether the owner wants one recommended direction or three comparable directions.
 

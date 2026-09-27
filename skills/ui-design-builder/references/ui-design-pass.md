@@ -43,7 +43,7 @@ Present the complete direction set to the human owner. End the turn and wait for
 
 Before this selection, render bounded representative studies for every direction: a frequent primary task and a stress case using dense data, long content, or an approved alternate state. A one-screen product may show two content scenarios in the same approved state; do not invent a state or rewrite frozen copy. Use the same surface, state, target, scenario, and content basis across directions. Cover each in-scope platform. Compare composition, hierarchy, density, typography, and control treatment; changing only an accent color is not a distinct direction.
 
-Where useful, a study may play a bounded local deterministic motion option after Wireframe Validation, within the existing MM scope, and with its normal/reduced-motion behavior visible. This makes a design choice easier to judge; it is not Required motion evidence, native proof, or permission to call a generation provider. Full connected HiFi remains the source of final motion evidence on the selected route, and provider calls remain after direction selection with exact authorization.
+Where useful, a study may play a bounded local deterministic motion option after Wireframe Validation, within the existing MM scope, and with its normal/reduced-motion behavior visible. This makes a design choice easier to judge; it is not Required motion evidence, native proof, or permission to call a generation provider. Full connected HiFi remains the source of final motion evidence on the selected route, and provider calls remain after direction selection with exact authorization. For a landing or portfolio region with a proposed or selected `expressive` row, at least one direction plays that motion live; a static frame cannot stand in for it.
 
 If proactive reference research introduced a structural option, route the structural scope back through the current wireframe review before HiFi cosmetic work. Do not use an unreviewed reference study to add a route, control, state, or responsive destination.
 
@@ -82,9 +82,9 @@ Set `Review medium: HTML projection only`. Studies and HiFi review native appear
 
 ## Motion And Generated Media
 
-Consume the approved Motion and Media Intent rows without re-asking them. Use `motion-and-media-routing.md` to select CSS/WAAPI or the minimum applicable GSAP skills only after Wireframe Validation.
+Consume the approved Motion and Media Intent rows without re-asking them. Use `motion-and-media-routing.md` to select the lowest applicable route (CSS/WAAPI, Motion, GSAP or Three.js) only after Wireframe Validation.
 
-After direction selection, an installed Higgsfield MCP or another owner-approved generation provider may create an approved generated or curated motion asset only after exact provider/action authorization. Record provider capability, prompt, output identity, usage constraints, placement, fallback, and review result. If generation is not required for visual judgment, retain the typed static placeholder and defer the call. Generated output cannot add copy, controls, states, routes, or claims.
+After direction selection, an installed Higgsfield MCP or another owner-approved generation provider may create an approved generated or curated motion asset only after exact provider/action authorization. Record provider capability, prompt, output identity, usage constraints, placement, fallback, and review result. When intake authorized a provider for an MM row, generate its asset after direction selection so the HiFi shows the actual result. Without that authorization, keep the typed static placeholder and name the gap in the handoff. Generated output cannot add copy, controls, states, routes, or claims.
 
 Required deterministic functional UI motion may run locally in the HiFi HTML with its normal and reduced-motion behavior. A generated video or cinematic asset has a static poster/fallback even when the generated output is present.
 

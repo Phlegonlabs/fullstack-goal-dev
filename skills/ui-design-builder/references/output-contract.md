@@ -110,7 +110,7 @@ Motion direction: [not_required / functional_only / expressive] — [owner or ac
 
 | Intent ID | UI scope / region | Treatment | Purpose | Trigger | Draft prompt | Source | Static / reduced-motion fallback | Generation route | Status | Generation status |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| MM-001 | [UI-* / region] | [none / image / motion / image + motion] | [purpose] | [trigger] | [draft prompt] | [owner decision or source] | [fallback] | [none / existing asset / CSS-WAAPI / GSAP / native-framework / authorized provider] | [approved / deferred] | deferred |
+| MM-001 | [UI-* / region] | [none / image / motion / image + motion] | [purpose] | [trigger] | [draft prompt] | [owner decision or source] | [fallback] | [none / existing asset / CSS-WAAPI / Motion / GSAP / Three.js / native-framework / authorized provider] | [approved / deferred] | deferred |
 
 ## Wireframe Validation
 

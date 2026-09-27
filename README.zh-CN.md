@@ -68,6 +68,8 @@ App＋展示 Web 使用同一份 PRD，分别定义 iOS、Android 与公开展�
 
 [现代设计来源指南](skills/ui-design-builder/references/modern-design-sources.md)把 Web 无障碍、Apple／Android 平台规范及近期 Anthropic／Google Labs AI 设计方法对应到现有 handoff 与审查；区分标准与风格建议，保留平台选型、审阅宽度与修复次数限制。 [页面设计设置](skills/ui-design-builder/references/page-design-profiles.md)按用途采纳 Taste：landing／portfolio 可选有辨识度的字体、桌面一至两行主标题与必须呈现的表现型动画；后台总览、数据页与表单优先可读密度及功能反馈。沿用现有 brief，记录选择与手机、翻译、减少动态效果的例外，保留已批准决策。
 
+[动效与媒体路由](skills/ui-design-builder/references/motion-and-media-routing.md)现在有明确的升级顺序：CSS／WAAPI，接着是 Motion、GSAP、Three.js，每一层都要已批准的技术栈包含它才使用。Higgsfield 提供生成媒体，包括给已批准 Three.js 区块用的 GLB 模型。owner 没表态动效等级时，依页面实际要展示的内容提出建议，并在方向比较中实际播放。是否使用生成服务、用在哪些区块、费用上限，都在设计 intake 一次问完。HiFi 的媒体以 `data:` 内嵌；无法在 HiFi 运行的库改用确定性的近似效果，并标记到第一个实现切片验证。H6 另外评动效工艺；检视过的参考要留截图或录屏，采用 template 代码时记录授权。
+
 现行 wireframe 模板默认四个 Web 审阅宽度：**390、768、1024、1440 px**，每个示例画面都包含四种布局。这些是审阅尺寸，不是 CSS 断点。产品 wireframe 仍按已批准 PRD 的确切尺寸制作；原生 size classes 与历史模板保持不变。
 
 完整 wireframe 前，先把已批准 PRD 转译为任务层级、区块比例、responsive、阅读顺序与动画范围，记录在现有 UI handoff，不新增批准关卡。先检查主要任务与密集／异常情境，完成内部 Wireframe Validation，再以完整 HiFi 取得一次 Visual Approval。HiFi 保留产品行为和信息层级，细化暂定字体、光学间距与比例；跨页比较组件，使用真实长文案与中英文检查，不只给分数。
@@ -636,7 +638,7 @@ HiFi 示例以固定 LF 换行维持跨平台字节哈希。Wireframe 的 Node �
 
 每次发布都要更新本节，连同上面《发布》一节描述的版本号提升与 tag 一起完成。
 
-- **0.55.0** — 修正对七个 skill 进行多代理审查后发现的问题。破坏性变更与使用者需要做的事：重跑 finalize，并重新记录 Product Definition Approval 与 Stack Decision Checkpoint，因为 digest 现在覆盖含 fenced code、缩进行与 HTML 注释的原始文本；在 Mobile/Desktop stack 加上 `Styling approach` 行；Environment Status 的 Checked 值改用带时区的 RFC3339；在要求 0.55.0 的 run 中，清理类 lifecycle 节点（`archive_worker_tasks`、`remove_worktrees`、`delete_branches`）要有精确 target；Visual Approval 前完成 Impeccable critique 与 audit；enhancement 的 UI 行要写明 Wireframe Validation 与 Visual Approval。另外，trusted-host 与 legacy push 与 repository hooks 和 askpass 隔离，RUN、DOCUMENTS 与 design-system 的原子提交支持 macOS，installer 记录源 commit，并新增 macOS CI job。
+- **0.55.0** — 修正对七个 skill 进行多代理审查后发现的问题。破坏性变更与使用者需要做的事：重跑 finalize，并重新记录 Product Definition Approval 与 Stack Decision Checkpoint，因为 digest 现在覆盖含 fenced code、缩进行与 HTML 注释的原始文本；在 Mobile/Desktop stack 加上 `Styling approach` 行；Environment Status 的 Checked 值改用带时区的 RFC3339；在要求 0.55.0 的 run 中，清理类 lifecycle 节点（`archive_worker_tasks`、`remove_worktrees`、`delete_branches`）要有精确 target；Visual Approval 前完成 Impeccable critique 与 audit；enhancement 的 UI 行要写明 Wireframe Validation 与 Visual Approval。另外，trusted-host 与 legacy push 与 repository hooks 和 askpass 隔离，RUN、DOCUMENTS 与 design-system 的原子提交支持 macOS，installer 记录源 commit，并新增 macOS CI job。 UI Design Builder 另外新增 Motion 与 Three.js 动效路线、owner 未表态时依内容提出动效建议、HiFi 媒体内嵌限制，以及参考截图留存。
 
 - **0.54.5** — 补上 2026-09-24 交接审计记录与 2026-09-26 分支整理记录。先以 tree 比对确认分支内容已在 main 发布，才删除本地与远端分支。
 

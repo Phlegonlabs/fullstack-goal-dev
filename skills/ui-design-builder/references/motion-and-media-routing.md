@@ -9,6 +9,10 @@ Ask the human owner whether shipped motion is:
 - `expressive`: selected surfaces may use motion for hierarchy or brand, without hiding content; or
 - `recommend`: the UI Design Builder proposes one of the above from product evidence for owner approval.
 
+When the owner states no posture, base the `recommend` proposal on what each page actually shows. Propose `expressive` only for a region whose content gains from being shown in motion, such as a product demonstration, portfolio work, a 3D product model or a step-by-step story. Propose `functional_only` elsewhere. Play the proposal in the direction study; it still needs the owner's selection.
+
+In the same intake, ask whether a generation provider such as Higgsfield may be used, for which MM rows, and within what credit or cost limit. Record the answer as that row's exact provider/action authorization. Do not infer it from a motion or hero request; an unanswered question leaves the provider route unauthorized.
+
 Generated motion, autoplay or sound, material performance budgets, accessibility exceptions, and new product scope always return to the owner. Every motion decision includes an equivalent reduced-motion path.
 
 For page-specific defaults, use `page-design-profiles.md`. Landing/portfolio expressive motion is proposed through this same intake and becomes required only when selected; accepted no-motion decisions stay valid. Once selected, demonstrate the actual effect and reduced-motion equivalent under the rules below.
@@ -38,10 +42,22 @@ For newly authored motion regions, attach `motionSpec` to the existing `mediaInt
 
 ## Implementation Routing After Wireframe Validation
 
+Pick the lowest route that delivers the approved effect. Motion, GSAP and Three.js are production dependencies: use them only when the approved stack includes them, otherwise return the choice to `product-definition-builder`.
+
 - Use CSS transitions or the Web Animations API for small, deterministic state feedback. Do not add GSAP merely because motion exists.
+- Use Motion (route `Motion`) for springs, sequences, layout and exit animation, gestures, or simple scroll and in-view effects. React stacks use Motion for React.
 - Load `gsap-core` when the approved effect needs a scripted tween, responsive matchMedia behavior, or precise reusable easing.
 - Add `gsap-timeline` only when multiple approved movements need choreography or shared playback control.
 - Add `gsap-scrolltrigger` only when the approved behavior is scroll-driven, pinned, scrubbed, or intersection-timed.
+- Use Three.js (route `Three.js`; React Three Fiber in a React stack) only for an approved 3D region such as a product model, spatial data or a brand scene. Record its poster, the content shown when WebGL is unavailable, the asset budget and the reduced-motion behavior.
 - Use Higgsfield MCP only when it is installed, its live capability has been observed, and the owner grants exact provider/action authorization for the generated or curated motion request. Treat it as a media provider, never as the implementation source for buttons, navigation, state feedback, or accessibility behavior.
+
+A Higgsfield `generate_3d` model (GLB) can feed an approved Three.js region. The model is a provider asset with its own authorization and review; the scene code uses the `Three.js` route.
+
+For motion craft (timing, easing, choreography), consult `motion-doctrine` or Impeccable's animate guidance when available. They inform the author; `frontend-design` stays the single design author.
+
+## HiFi Embedding Limits
+
+HiFi pages allow only embedded `data:` media. Keep each embedded clip short and compressed (aim for about 2 MB per clip) and always include its poster. A small library such as Motion's `animate()` may be inlined when the page still passes the offline surface check. When a library cannot run inside HiFi (the Three.js source, for example, contains network API names that the surface check rejects), never rename, strip or obfuscate library code to pass. Show the effect with a deterministic approximation instead: CSS 3D, canvas 2D or a short pre-rendered clip of the scene. The approximation still needs its normal and reduced-motion receipts. Mark the row as `HiFi approximation — <library> verified in first implementation slice` in the Style Integration notes and the Harness UI evidence; the real library behavior becomes an implementation obligation, like native proof.
 
 Generated assets remain provider-neutral in the canonical contract. Record the prompt, provider, model or route when known, output identity, license or usage constraints, placement, fallback, and review decision. A generated asset that invents copy, controls, states, routes, or product claims is rejected.
