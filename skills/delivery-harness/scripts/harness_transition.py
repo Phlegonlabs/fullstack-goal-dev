@@ -3645,12 +3645,18 @@ def _run_posix_exchange(parent_fd: int, left_name: str, right_name: str) -> None
     import ctypes
 
     libc = ctypes.CDLL(None, use_errno=True)
-    renameat2 = getattr(libc, "renameat2", None)
-    if renameat2 is None:
-        raise ManifestError("RUN commit requires renameat2(RENAME_EXCHANGE)")
-    renameat2.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_uint]
-    renameat2.restype = ctypes.c_int
-    if renameat2(parent_fd, os.fsencode(left_name), parent_fd, os.fsencode(right_name), 0x2) != 0:
+    # Linux renameat2(RENAME_EXCHANGE) and macOS renameatx_np(RENAME_SWAP)
+    # take the same arguments and both use flag 0x2.
+    exchange = getattr(libc, "renameat2", None)
+    if exchange is None:
+        exchange = getattr(libc, "renameatx_np", None)
+    if exchange is None:
+        raise ManifestError(
+            "RUN commit requires renameat2(RENAME_EXCHANGE) or renameatx_np(RENAME_SWAP)"
+        )
+    exchange.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_uint]
+    exchange.restype = ctypes.c_int
+    if exchange(parent_fd, os.fsencode(left_name), parent_fd, os.fsencode(right_name), 0x2) != 0:
         error = ctypes.get_errno()
         raise ManifestError(f"RUN atomic exchange failed (errno={error})")
 
