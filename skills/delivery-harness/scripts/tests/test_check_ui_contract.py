@@ -271,6 +271,36 @@ class RuleTests(unittest.TestCase):
     def test_comments_are_not_scanned(self) -> None:
         self.assertEqual(self.rules("<!-- color: #ff0000 -->"), [])
 
+    def test_bare_root_and_reduced_motion_blocks_may_hold_raw_values(self) -> None:
+        css = (
+            ":root { --ink: #101010; --space-4: 16px; }\n"
+            ':root[data-theme="dark"] { --ink: #fafafa; }\n'
+            "@media (prefers-color-scheme: dark) { :root { --ink: #eeeeee; } }\n"
+            "@media (prefers-reduced-motion: reduce) { * { transition: none 0ms; } }\n"
+        )
+        self.assertEqual(self.rules(css, "theme.css"), [])
+
+    def test_root_prefixed_page_rules_are_not_token_blocks(self) -> None:
+        for css in (
+            ":root .hero { padding: 13px; color: #ff0000; }",
+            ":root, .hero { padding: 13px; color: #ff0000; }",
+            ".page :root { padding: 13px; color: #ff0000; }",
+        ):
+            with self.subTest(css=css):
+                rules = self.rules(css, "page.css")
+                self.assertIn("raw-color", rules)
+                self.assertIn("raw-dimension", rules)
+
+    def test_only_reduce_motion_media_is_exempt(self) -> None:
+        css = (
+            "@media (prefers-reduced-motion: no-preference) {"
+            " .hero { padding: 13px; color: #ff0000; transition: opacity 300ms; } }"
+        )
+        rules = self.rules(css, "page.css")
+        self.assertIn("raw-color", rules)
+        self.assertIn("raw-dimension", rules)
+        self.assertIn("call-site-motion", rules)
+
     def test_unreadable_file_is_rejected(self) -> None:
         with self.assertRaises(UiContractError):
             check_file(self.root / "missing.html", self.registry, False)

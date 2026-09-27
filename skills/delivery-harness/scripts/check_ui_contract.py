@@ -182,8 +182,14 @@ def _line_of(text: str, index: int) -> int:
     return text.count("\n", 0, index) + 1
 
 
+# Only a bare `:root` rule (attribute selectors such as `:root[data-theme]`
+# allowed) and an exact `(prefers-reduced-motion: reduce)` block count. The
+# `:root` must start its own rule, so `.page :root`, `:root .hero` and
+# `:root, .hero` stay page code.
 TOKEN_BLOCK_START = re.compile(
-    r"(?::root\b[^{]*|@media[^{]*prefers-reduced-motion[^{]*)\{", re.I
+    r"(?:(?<=[{};>])|\A)\s*(?::root(?:\[[^\]{}]*\])*"
+    r"|@media\s*\(\s*prefers-reduced-motion\s*:\s*reduce\s*\))\s*\{",
+    re.I,
 )
 
 
