@@ -792,6 +792,17 @@ class CheckDesignSystemPairTests(unittest.TestCase):
         self.assertEqual([], problems)
         self.assertEqual(0, code)
 
+    def test_token_and_primitive_sources_must_be_repo_relative(self) -> None:
+        self.assertEqual([], checker.validate_registry(registry()))
+        for key in ("tokenSources", "primitiveSources"):
+            for bad in ("./src/tokens.css", "/abs/tokens.css", "src\\tokens.css", "../tokens.css", "C:/tokens.css"):
+                with self.subTest(key=key, bad=bad):
+                    problems = checker.validate_registry(registry(**{key: [bad]}))
+                    self.assertTrue(
+                        any(f"{key} entry" in item and "exact repo-relative path" in item for item in problems),
+                        problems,
+                    )
+
     def test_optional_component_and_motion_inventories_may_be_omitted(self) -> None:
         data = registry()
         del data["productComponents"]

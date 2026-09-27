@@ -759,6 +759,14 @@ def validate_registry(registry: dict[str, Any]) -> list[str]:
     _string_list(problems, "stateMatrix", registry.get("stateMatrix"), nonempty=True)
     _string_list(problems, "tokenSources", registry.get("tokenSources"), nonempty=True)
     _string_list(problems, "primitiveSources", registry.get("primitiveSources"), nonempty=False)
+    # Harness conformance compares these by exact repo-relative identity.
+    for key in ("tokenSources", "primitiveSources"):
+        sources = registry.get(key)
+        for item in sources if isinstance(sources, list) else []:
+            if isinstance(item, str) and item.strip() and not is_placeholder(item) and not _repo_relative(item):
+                problems.append(
+                    f"design-system.json {key} entry {item!r} must be an exact repo-relative path"
+                )
 
     if schema == "design-system/2":
         bindings = registry.get("sourceBindings")
