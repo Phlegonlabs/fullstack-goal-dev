@@ -287,7 +287,7 @@ remove_worktrees
 delete_branches
 ```
 
-`invoke_external_runtime` is required when the Harness parent starts a different provider process or service. Its target is `runtime:<provider>`. It does not replace `spawn_subagents`, worktree, branch, commit, integration, or lifecycle authorization.
+`invoke_external_runtime` is required when the Harness parent starts a different provider process or service. Its target is `runtime:<provider>`. It does not replace `spawn_subagents`, worktree, branch, commit, integration, or lifecycle authorization. The scripts do not support cross-provider runtime dispatch: a node whose providers exclude the current host stays `runtime_unavailable`, and no dispatch path requires this key. It stays for schema compatibility and as a parent rule for external processes the parent starts itself; only a PLAN lifecycle node with ref `invoke_external_runtime` is checked against it by the scripts.
 
 The ordinary execution loop uses only the applicable local entries. The outer v10 `app_threads` app-task route excludes `spawn_subagents` because app-task workers never delegate. Parent-dispatched direct sibling workers and reviewers retain their own launch authorization. "Implement", "build", "fix", or "refactor" never implies a remote action. Harness 0.38 keeps RUN `push` false; after A exists, a new exact instruction is captured in the checkout-external request instead of the archived RUN. Older pinned RUNs keep their historical push path only for recovery. All 12 keys remain for schema compatibility.
 
