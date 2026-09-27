@@ -37,6 +37,31 @@ from harness_schema import (
 )
 
 
+def validate_cleanup_lifecycle_targets(errors: list[str], graph: Any) -> None:
+    """A cleanup lifecycle node must name the exact task, worktree, or branch.
+
+    Only validate_run calls this, for RUNs that require Harness 0.55.0 or
+    later, so PLANs of older RUNs and their archives keep validating.
+    """
+
+    nodes = graph.get("nodes") if isinstance(graph, dict) else None
+    if not isinstance(nodes, list):
+        return
+    for index, node in enumerate(nodes):
+        if (
+            isinstance(node, dict)
+            and node.get("kind") == "lifecycle"
+            and isinstance(node.get("ref"), str)
+            and node["ref"] in EXACT_TARGET_LIFECYCLE_ACTIONS
+            and node.get("target") is None
+        ):
+            _add(
+                errors,
+                f"plan.graph.nodes[{index}].target",
+                f"{node['ref']} requires an exact non-wildcard authorization target",
+            )
+
+
 def _cycle_nodes(edges: dict[str, list[str]]) -> set[str]:
     visiting: set[str] = set()
     visited: set[str] = set()
@@ -305,16 +330,10 @@ def _validate_graph(
                 # select_ready_nodes.py checks the RUN ledger against. The ledger
                 # rejects a "*" grant only for push, so a push node needs a
                 # target. Cleanup refs (EXACT_TARGET_LIFECYCLE_ACTIONS) may use a
-                # "*" grant, but the node itself must name the exact task,
-                # worktree, or branch it acts on.
+                # "*" grant; validate_cleanup_lifecycle_targets requires them
+                # to name an exact target for 0.55.0+ RUNs.
                 target = node.get("target")
-                if target is None and valid_ref and ref in EXACT_TARGET_LIFECYCLE_ACTIONS:
-                    _add(
-                        errors,
-                        f"{node_path}.target",
-                        f"{ref} requires an exact non-wildcard authorization target",
-                    )
-                elif target is not None and (
+                if target is not None and (
                     not _nonempty_string(target)
                     or target == "*"
                     or TARGET_RE.fullmatch(target) is None

@@ -13,6 +13,7 @@ import sys
 import tempfile
 import unittest
 from argparse import Namespace
+from unittest import mock
 from pathlib import Path
 
 
@@ -652,12 +653,112 @@ class HarnessV11Tests(unittest.TestCase):
         targets.remove("*")
         self.assertEqual([], validate_run(plan, run))
 
-        # Without the receipt the reviewer has no exact launch authorization.
+        # From Harness 0.55.0, a reviewer without the receipt has no exact
+        # launch authorization.
         targets.remove("worker:RW-SPAWN")
+        run["runtime_capabilities"]["runtime_adapter"]["version_gate"][
+            "required_harness_version"
+        ] = "0.55.0"
         self.assertIn(
             "run.authorizations.spawn_subagents: must exactly authorize review target worker:RW-SPAWN",
             validate_run(plan, run),
         )
+
+    def test_subagent_review_selection_agrees_with_reservation(self) -> None:
+        # The selector offers a subagent reviewer only when reservation can
+        # record a receipt that validate_run accepts.
+        message = (
+            "run.authorizations.spawn_subagents: "
+            "must exactly authorize review target worker:RW-SEL"
+        )
+        cases = (
+            ("0.54.5", ["*"], True),
+            ("0.55.0", ["*"], False),
+            ("0.55.0", None, True),
+        )
+        for version, mission_scope, dispatchable in cases:
+            with self.subTest(version=version, mission_scope=mission_scope):
+                plan, run = current_preintegration_review_state()
+                if mission_scope is not None:
+                    run["authorizations"]["spawn_subagents"]["scope"][
+                        "mission_ids"
+                    ] = mission_scope
+                    # Mission workers carry their own exact-mission check;
+                    # keep them out of this reviewer-only case.
+                    for worker in run["workers"]:
+                        worker["worker_runtime"] = "parent"
+                run["runtime_capabilities"]["runtime_adapter"]["version_gate"][
+                    "required_harness_version"
+                ] = version
+                # The fixture has no repo root, which a >= 0.38 RUN needs for
+                # the current-pair check; validate_run is checked directly.
+                with mock.patch.object(
+                    harness_transition, "validate_current_plan_run", return_value=[]
+                ):
+                    selection = select_ready_nodes(
+                        plan, run, manifest_already_validated=True
+                    )
+                    before = validate_run(plan, run)
+                    reserve = lambda: harness_transition._reserve_review_dispatch(  # noqa: E731
+                        plan,
+                        run,
+                        Namespace(
+                            node_id="N-FRONTEND-REVIEW",
+                            worker_id="RW-SEL",
+                            attempt_id="ATT-SEL",
+                            report_path=None,
+                        ),
+                        repo_root=None,
+                    )
+                    listed = [
+                        item["node_id"] for item in selection["dispatchable_nodes"]
+                    ]
+                    if dispatchable:
+                        self.assertIn("N-FRONTEND-REVIEW", listed)
+                        reserve()
+                        after = validate_run(plan, run)
+                        self.assertNotIn(message, after)
+                        self.assertEqual(before, after)
+                    else:
+                        self.assertNotIn("N-FRONTEND-REVIEW", listed)
+                        with self.assertRaisesRegex(
+                            harness_transition.ManifestError,
+                            "not dispatchable: .*action_not_authorized",
+                        ):
+                            reserve()
+
+    def test_subagent_review_receipt_is_not_required_before_0_55(self) -> None:
+        # A RUN closed under 0.54.5 reserved its subagent reviewer without a
+        # worker:<id> receipt. Its archived record must still validate.
+        plan, run = current_preintegration_review_state()
+        harness_transition._reserve_review_dispatch(
+            plan,
+            run,
+            Namespace(
+                node_id="N-FRONTEND-REVIEW",
+                worker_id="RW-OLD",
+                attempt_id="ATT-OLD",
+                report_path=None,
+            ),
+            repo_root=None,
+        )
+        run["authorizations"]["spawn_subagents"]["scope"]["targets"].remove(
+            "worker:RW-OLD"
+        )
+        run["status"] = "complete"
+        gate = run["runtime_capabilities"]["runtime_adapter"]["version_gate"]
+        message = (
+            "run.authorizations.spawn_subagents: "
+            "must exactly authorize review target worker:RW-OLD"
+        )
+        gate["required_harness_version"] = "0.54.5"
+        old_errors = validate_run(plan, run)
+        gate["required_harness_version"] = "0.55.0"
+        new_errors = validate_run(plan, run)
+        # Other version gates fire on this fixture at both versions; only the
+        # receipt rule differs.
+        self.assertNotIn(message, old_errors)
+        self.assertEqual({message}, set(new_errors) - set(old_errors))
 
     def test_reserved_review_pass_traverses_its_declared_route(self) -> None:
         plan, run = current_preintegration_review_state()
