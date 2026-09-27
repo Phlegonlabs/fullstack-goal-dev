@@ -341,6 +341,16 @@ class ArchiveFirstPushTests(unittest.TestCase):
         self.assertEqual(fixture["candidate_a"], receipt["readback_head_sha"])
         subject.verify_receipt(root, request_path=request_path)
 
+    def test_publication_rejects_local_url_scoped_extraheader(self) -> None:
+        from harness_git import GitMetadataError
+
+        fixture = self._fixture()
+        root = Path(fixture["root"])
+        git(root, "config", "http.https://github.com/.extraheader", "AUTHORIZATION: basic fixture")
+        with self.assertRaisesRegex((ManifestError, GitMetadataError), "extraheader"):
+            self._prepare(fixture)
+        self.assertFalse(Path(fixture["request"]).exists())
+
     def test_real_archive_run_dirty_plan_and_run_produce_receipt_accepted_by_verifier(self) -> None:
         fixture = self._fixture()
         verified = subject.verify_archive_candidate(Path(fixture["root"]), archive_path=Path(fixture["archive"]), candidate_a=str(fixture["candidate_a"]))

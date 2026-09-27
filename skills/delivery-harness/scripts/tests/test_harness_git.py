@@ -224,6 +224,31 @@ class HarnessGitTests(unittest.TestCase):
             with patch.object(module, "_raw_git", side_effect=fake_git):
                 module.reject_dangerous_local_config(root)
 
+    def test_ci_checkout_extraheader_allows_local_reads_but_not_remote_access(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            _, head = self._repo(root)
+            subprocess.run(["git", "remote", "add", "origin", "https://example.invalid/repo.git"], cwd=root, check=True)
+            # actions/checkout writes this key into the local config by default.
+            for key, value in (
+                ("http.https://github.com/.extraheader", "AUTHORIZATION: basic fixture"),
+                ("http.https://example.invalid/.sslVerify", "false"),
+            ):
+                with self.subTest(key=key):
+                    subprocess.run(["git", "config", key, value], cwd=root, check=True)
+                    result = run_git(root, "rev-parse", "HEAD")
+                    self.assertEqual(0, result.returncode, result.stderr)
+                    self.assertEqual(head, result.stdout.strip())
+                    reject_object_substitution(root)
+                    for command in (("remote", "get-url", "origin"), ("ls-remote", "origin")):
+                        with self.assertRaisesRegex(GitConfigurationError, key.casefold().rsplit(".", 1)[-1]):
+                            run_git(root, *command)
+                    subprocess.run(["git", "config", "--unset-all", key], cwd=root, check=True)
+            # Plain local TLS weakening still fails every read.
+            subprocess.run(["git", "config", "http.sslVerify", "false"], cwd=root, check=True)
+            with self.assertRaisesRegex(GitConfigurationError, "http.sslverify"):
+                run_git(root, "rev-parse", "HEAD")
+
     def test_system_helper_outside_a_repository_leaves_the_git_error_to_git(self) -> None:
         import harness_git as module
 

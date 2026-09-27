@@ -613,12 +613,16 @@ def reject_dangerous_local_config(
     root: Path,
     *,
     environment: Mapping[str, str] | None = None,
+    remote_access: bool = True,
 ) -> None:
     """Reject local config that can retarget a remote or execute a helper.
 
     This is intentionally a read-only, local-file preflight.  Global/system
     credential helpers remain usable for a trusted host, while repository-local
     endpoint rewrites and helpers fail closed before ``ls-remote``/``push``.
+    With ``remote_access=False`` URL-scoped HTTP keys (for example the
+    ``http.<url>.extraheader`` that CI checkouts write) are ignored, because
+    a local read never opens a connection.
     """
 
     resolved = Path(root).resolve()
@@ -649,6 +653,8 @@ def reject_dangerous_local_config(
     for index in range(0, len(fields), 2):
         origin, name = fields[index], fields[index + 1]
         if not _dangerous_config_name(name):
+            continue
+        if not remote_access and _http_tls_key(_normalise_config_name(name)) and name.count(".") > 1:
             continue
         # Credential/filter/diff/merge helpers from an operator's global/system
         # config are ordinary workstation policy.  A repository-local helper
@@ -731,7 +737,9 @@ def run_git(
     """Run Git with replacement objects disabled and remote config preflight."""
 
     if arguments and not trusted_boundary:
-        reject_dangerous_local_config(Path(root), environment=environment)
+        reject_dangerous_local_config(
+            Path(root), environment=environment, remote_access=_remote_access(arguments)
+        )
     return _raw_git(
         Path(root),
         *arguments,
