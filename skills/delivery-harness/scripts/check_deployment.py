@@ -4,8 +4,9 @@
 Validates that the deployment record is resolved (no template placeholders),
 that its name-only human configuration handoff is structurally complete, and
 that its Environment Status table is coherent: both development and production
-rows exist with a URL, duplicate section/row identities are rejected, and any
-verified row carries full lowercase SHAs and a status. Also validates the
+rows exist, duplicate section/row identities are rejected, and any row with a
+Checked value or status carries a URL, an RFC3339 Checked time, full lowercase
+SHAs and a status, with Expected equal to Deployed for PASS. Also validates the
 Release Unit Names table: production uses the canonical surface name and
 development uses that exact name plus ``-dev``. Also validates the Resource
 Isolation table: no binding class may list the same resource ID in both the
@@ -810,33 +811,37 @@ def check_deployment_text(text: str, *, architecture_text: str | None = None) ->
         if row is None:
             findings.append(f"Environment Status: missing the {environment} row")
             continue
-        if not row["url"] and not row["checked"]:
+        status = row["status"].strip()
+        if not row["url"] and not row["checked"] and not status:
             # Not verified yet; the Record section still names the URL.
             continue
         if not row["url"]:
-            findings.append(f"Environment Status: {environment} is checked but has no URL")
-        status = row["status"].strip()
-        if row["checked"]:
+            findings.append(f"Environment Status: {environment} is recorded but has no URL")
+        if row["checked"] and _timestamp(row["checked"]) is None:
+            findings.append(
+                f"Environment Status: {environment} Checked must be RFC3339 with a real timezone"
+            )
+        if row["checked"] or status:
             for column in ("expected", "deployed"):
                 if not FULL_SHA_RE.match(row[column]):
                     findings.append(
                         f"Environment Status: {environment} {column} must be a full lowercase SHA once checked"
                     )
-            if not status:
-                findings.append(
-                    f"Environment Status: {environment} is checked but has no status"
-                )
+        if row["checked"] and not status:
+            findings.append(
+                f"Environment Status: {environment} is checked but has no status"
+            )
         if status:
             if status not in ENVIRONMENT_STATUSES:
                 findings.append(
                     f"Environment Status: {environment} has invalid status {status!r}; "
                     "expected one of PASS, FAIL, BLOCKED, or UNVALIDATED"
                 )
-            elif not row["checked"]:
+            if not row["checked"]:
                 findings.append(
                     f"Environment Status: {environment} status {status!r} requires a Checked value"
                 )
-            elif status == "PASS" and row["expected"] != row["deployed"]:
+            if status == "PASS" and row["expected"] != row["deployed"]:
                 findings.append(
                     f"Environment Status: {environment} PASS requires Expected head "
                     "and Deployed SHA to be identical"
