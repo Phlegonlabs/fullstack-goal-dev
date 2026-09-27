@@ -368,7 +368,7 @@ For newly authored delivery work, also follow `references/delivery-acceptance-co
 - a `local_command` verifier node `N-ACCEPTANCE-GATE` with `ref: "delivery-acceptance"`;
 - `dependency` edges from `N-FINAL-GATE` to `N-ACCEPTANCE-GATE` and from `N-ACCEPTANCE-GATE` to `N-CLOSEOUT-GATE`.
 
-Use the parent's frozen contract hash and observed candidate SHA, never values derived from result writers. The result register is `docs/verification/delivery-results.json`; evidence remains SHA-bound. The template's neutral command placeholders must be replaced before execution.
+Use the parent's frozen contract hash and observed candidate SHA, never values derived from result writers. `--candidate-sha` is the pre-register candidate H1 that the scenarios ran against. Commit only the register and its evidence on top of H1, giving H2, before the unified reviews; every review and final gate, including `N-ACCEPTANCE-GATE`, then runs at H2. The result register is `docs/verification/delivery-results.json`; evidence remains SHA-bound. The template's neutral command placeholders must be replaced before execution.
 
 The manifest validator does not check that these entries exist, so the parent's readiness review must confirm them; passing schema validation alone is insufficient. Do not retrofit or silently migrate a running legacy PLAN/RUN. Direct work runs the acceptance CLI without these artifacts.
 

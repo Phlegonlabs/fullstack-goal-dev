@@ -303,6 +303,26 @@ class RuleTests(unittest.TestCase):
         self.assertIn("raw-dimension", rules)
         self.assertIn("call-site-motion", rules)
 
+    def test_reduce_motion_block_exempts_only_motion_values(self) -> None:
+        css = (
+            "@media (prefers-reduced-motion: reduce) {"
+            " .hero { padding: 13px; color: #ff0000; transition: opacity 300ms; } }"
+        )
+        rules = self.rules(css, "page.css")
+        self.assertIn("raw-color", rules)
+        self.assertIn("raw-dimension", rules)
+        self.assertNotIn("call-site-motion", rules)
+
+    def test_rules_nested_in_root_are_page_code(self) -> None:
+        css = ":root { --ink: #101010; .hero { padding: 13px; color: #ff0000; } --space-4: 16px; }"
+        findings = [
+            (finding.rule, finding.text)
+            for finding in check_file(self.write("page.css", css), self.registry, False)
+        ]
+        self.assertEqual(
+            sorted(findings), [("raw-color", "#ff0000"), ("raw-dimension", "padding: 13px")]
+        )
+
     def test_unreadable_file_is_rejected(self) -> None:
         with self.assertRaises(UiContractError):
             check_file(self.root / "missing.html", self.registry, False)
