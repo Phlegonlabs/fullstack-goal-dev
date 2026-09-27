@@ -14,6 +14,7 @@ from typing import Any
 from harness_contract import contract_digest
 from harness_core import _nonempty_string, _normalized_branch, classify_execution_route
 from harness_manifest import (
+    EXACT_RECEIPT_REQUIRED_VERSION,
     ManifestError,
     UI_AUTHORING_REQUIRED_SKILLS,
     authorization_covers,
@@ -33,6 +34,8 @@ from harness_schema import (
     EXACT_TARGET_LIFECYCLE_ACTIONS,
     HEAD_BOUND_AUTHORIZATION_ACTIONS,
     RUN_DISPATCH_STATUSES,
+    run_required_harness_version,
+    version_at_least,
 )
 from verifier_runtime import sandbox_host_fingerprint
 
@@ -1152,6 +1155,28 @@ def _dispatch_reasons(
             if any(
                 not authorization_covers(run, action, mission_id, target)
                 for mission_id in authorization_missions
+            ):
+                reasons.add("action_not_authorized")
+            # From 0.55.0 a subagent reviewer needs an exact worker:<id>
+            # receipt, which validate_run checks against exact mission ids,
+            # as it does for mission workers. A "*" mission scope cannot
+            # produce that receipt, so do not offer the reservation.
+            spawn_scope = (
+                run.get("authorizations", {}).get("spawn_subagents") or {}
+            ).get("scope")
+            spawn_missions = (
+                spawn_scope.get("mission_ids") if isinstance(spawn_scope, dict) else None
+            )
+            if (
+                node["kind"] == "verifier"
+                and action == "spawn_subagents"
+                and run["schema_version"] == 11
+                and version_at_least(
+                    run_required_harness_version(run),
+                    EXACT_RECEIPT_REQUIRED_VERSION,
+                )
+                and isinstance(spawn_missions, list)
+                and "*" in spawn_missions
             ):
                 reasons.add("action_not_authorized")
     if node["kind"] == "lifecycle":
