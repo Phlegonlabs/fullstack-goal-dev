@@ -186,34 +186,61 @@ def _line_of(text: str, index: int) -> int:
 # allowed) and an exact `(prefers-reduced-motion: reduce)` block count. The
 # `:root` must start its own rule, so `.page :root`, `:root .hero` and
 # `:root, .hero` stay page code.
-TOKEN_BLOCK_START = re.compile(
-    r"(?:(?<=[{};>])|\A)\s*(?::root(?:\[[^\]{}]*\])*"
-    r"|@media\s*\(\s*prefers-reduced-motion\s*:\s*reduce\s*\))\s*\{",
+ROOT_BLOCK_START = re.compile(r"(?:(?<=[{};>])|\A)\s*:root(?:\[[^\]{}]*\])*\s*\{", re.I)
+REDUCED_MOTION_START = re.compile(
+    r"(?:(?<=[{};>])|\A)\s*@media\s*\(\s*prefers-reduced-motion\s*:\s*reduce\s*\)\s*\{",
     re.I,
 )
+
+
+def _block_regions(
+    text: str, pattern: re.Pattern[str], declarations_only: bool = False
+) -> list[tuple[int, int]]:
+    """Brace-balanced spans of each block that `pattern` opens.
+
+    With `declarations_only`, nested rules are cut out, so only the block's own
+    declarations are covered.
+    """
+    regions: list[tuple[int, int]] = []
+    for match in pattern.finditer(text):
+        depth = 0
+        start: int | None = match.start()
+        end = len(text)
+        for index in range(match.end() - 1, len(text)):
+            if text[index] == "{":
+                depth += 1
+                if declarations_only and depth == 2 and start is not None:
+                    regions.append((start, index))
+                    start = None
+            elif text[index] == "}":
+                depth -= 1
+                if depth == 0:
+                    end = index + 1
+                    break
+                if declarations_only and depth == 1:
+                    start = index + 1
+        if start is not None:
+            regions.append((start, end))
+    return regions
 
 
 def token_regions(text: str) -> list[tuple[int, int]]:
     """Spans where raw values are allowed even in a page file.
 
-    A self-contained file may inline its own tokens, so the token block is the
-    one place a raw value may appear. The global reduced-motion override counts
-    too: it is the single place the reduced-motion policy is set.
+    A self-contained file may inline its own tokens, so the declarations of a
+    bare `:root` block are the one place a raw value may appear. Rules nested
+    inside that block are page code.
     """
-    regions: list[tuple[int, int]] = []
-    for match in TOKEN_BLOCK_START.finditer(text):
-        depth = 0
-        for index in range(match.end() - 1, len(text)):
-            if text[index] == "{":
-                depth += 1
-            elif text[index] == "}":
-                depth -= 1
-                if depth == 0:
-                    regions.append((match.start(), index + 1))
-                    break
-        else:
-            regions.append((match.start(), len(text)))
-    return regions
+    return _block_regions(text, ROOT_BLOCK_START, declarations_only=True)
+
+
+def reduced_motion_regions(text: str) -> list[tuple[int, int]]:
+    """The global reduced-motion override, the one place raw motion values are allowed.
+
+    It sets the reduced-motion policy only, so colors and dimensions inside it
+    are still checked.
+    """
+    return _block_regions(text, REDUCED_MOTION_START)
 
 
 def _in_regions(index: int, regions: list[tuple[int, int]]) -> bool:
@@ -248,6 +275,7 @@ def check_file(
     text = _strip_comments(raw)
     findings: list[Finding] = []
     allowed = token_regions(text) + media_prelude_regions(text)
+    motion_allowed = allowed + reduced_motion_regions(text)
 
     if not is_token_source:
         for match in HEX_COLOR.finditer(text):
@@ -279,7 +307,7 @@ def check_file(
                     )
                 )
         for match in MOTION_VALUE.finditer(text):
-            if _in_regions(match.start(), allowed):
+            if _in_regions(match.start(), motion_allowed):
                 continue
             findings.append(
                 Finding(path, _line_of(text, match.start()), "call-site-motion", match.group(0))
