@@ -224,6 +224,32 @@ class HarnessGitTests(unittest.TestCase):
             with patch.object(module, "_raw_git", side_effect=fake_git):
                 module.reject_dangerous_local_config(root)
 
+    def test_system_helper_outside_a_repository_leaves_the_git_error_to_git(self) -> None:
+        import harness_git as module
+
+        def fake_git(_root, *arguments, **_kwargs):
+            if arguments[0] == "rev-parse":
+                return subprocess.CompletedProcess(["git"], 128, "", "fatal: not a git repository")
+            return subprocess.CompletedProcess(
+                ["git"], 0, "file:C:/Program Files/Git/etc/gitconfig\x00credential.helper\x00", ""
+            )
+
+        with tempfile.TemporaryDirectory() as temporary:
+            with patch.object(module, "_raw_git", side_effect=fake_git):
+                module.reject_dangerous_local_config(Path(temporary))
+
+            # A repository-local helper is still rejected when rev-parse fails.
+            local = (Path(temporary).resolve() / ".git" / "config").as_posix()
+
+            def local_git(_root, *arguments, **_kwargs):
+                if arguments[0] == "rev-parse":
+                    return subprocess.CompletedProcess(["git"], 128, "", "fatal: not a git repository")
+                return subprocess.CompletedProcess(["git"], 0, f"file:{local}\x00credential.helper\x00", "")
+
+            with patch.object(module, "_raw_git", side_effect=local_git):
+                with self.assertRaisesRegex(GitConfigurationError, "credential.helper"):
+                    module.reject_dangerous_local_config(Path(temporary))
+
     def test_local_askpass_and_url_scoped_tls_or_header_keys_are_rejected(self) -> None:
         import harness_git as module
 

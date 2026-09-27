@@ -598,9 +598,11 @@ def _repository_config_dirs(root: Path, environment: Mapping[str, str] | None) -
         dirs = _raw_git(root, "rev-parse", "--git-dir", "--git-common-dir", environment=environment, timeout=10)
     except (OSError, subprocess.SubprocessError) as exc:
         raise GitConfigurationError(f"cannot resolve repository Git directories: {exc}") from exc
-    if dirs.returncode != 0 or not isinstance(dirs.stdout, str):
-        raise GitConfigurationError("cannot resolve repository Git directories")
     local = [root / ".git"]
+    if dirs.returncode != 0 or not isinstance(dirs.stdout, str):
+        # Not a checkout: keep the plain root/.git check and let the real Git
+        # command report "not a git repository".
+        return local
     for line in dirs.stdout.splitlines():
         if line.strip():
             local.append((root / line.strip()).resolve(strict=False))
