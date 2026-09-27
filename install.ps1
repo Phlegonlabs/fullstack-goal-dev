@@ -145,12 +145,20 @@ function Get-TrackedRelativeFiles {
     param([string]$Skill)
 
     $prefix = "skills/$Skill/"
-    $tracked = @(& git -C $RepoRoot ls-files -- "skills/$Skill")
+    # --stage exposes each entry's mode so symlink and gitlink entries are
+    # rejected exactly as install.sh rejects them; -z keeps paths unquoted.
+    $staged = (& git -C $RepoRoot ls-files --stage -z -- "skills/$Skill") -join "`n"
     if ($LASTEXITCODE -ne 0) {
         throw "could not read tracked manifest for $Skill"
     }
     $relativeFiles = @()
-    foreach ($path in $tracked) {
+    foreach ($entry in ($staged -split "`0")) {
+        if (-not $entry) { continue }
+        $metadata, $path = $entry -split "`t", 2
+        $mode = ($metadata -split " ")[0]
+        if ($mode -ne "100644" -and $mode -ne "100755") {
+            throw "non-regular tracked source entry is not installable: mode=$mode path=$path"
+        }
         $normalized = $path.Replace("\", "/")
         if (-not $normalized.StartsWith($prefix, [StringComparison]::Ordinal)) {
             throw "unexpected tracked path for $Skill`: $path"
@@ -366,6 +374,8 @@ try {
     Assert-NoReparseComponents $BackupRoot
     foreach ($Skill in $Skills) {
         Assert-NoUnexpectedSourceFiles $Skill
+        # Reject non-regular tracked entries before any destination mutation.
+        $null = Get-TrackedRelativeFiles $Skill
     }
     $destinationFull = [IO.Path]::GetFullPath($Destination).TrimEnd('\', '/')
     $skillsSourceFull = [IO.Path]::GetFullPath($SkillsSrc).TrimEnd('\', '/')

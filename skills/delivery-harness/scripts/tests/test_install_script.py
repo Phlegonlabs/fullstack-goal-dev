@@ -296,6 +296,42 @@ class InstallScriptTests(unittest.TestCase):
         )
         self.assertFalse(self.destination.exists())
 
+    @unittest.skipIf(POWERSHELL is None, "neither pwsh nor powershell is available")
+    def test_powershell_rejects_tracked_symlink_mode_before_mutation(self) -> None:
+        source = self.make_minimal_repo()
+        relative = "skills/delivery-harness/tracked-link"
+        (source / relative).write_text("ordinary working-tree bytes\n", encoding="utf-8")
+        blob = subprocess.run(
+            ["git", "hash-object", "-w", "--stdin"],
+            cwd=source,
+            input="SKILL.md",
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        subprocess.run(
+            ["git", "update-index", "--add", "--cacheinfo", f"120000,{blob},{relative}"],
+            cwd=source,
+            check=True,
+        )
+        result = subprocess.run(
+            [
+                POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+                str(source / "install.ps1"), "-Destination", str(self.destination),
+                "-BackupRoot", str(self.backup_root),
+            ],
+            capture_output=True,
+            text=True,
+            cwd=self.home,
+            timeout=180,
+        )
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn(
+            f"non-regular tracked source entry is not installable: mode=120000 path={relative}",
+            result.stderr + result.stdout,
+        )
+        self.assertFalse(self.destination.exists())
+
     def make_minimal_repo(self) -> Path:
         source = self.home / "minimal-source"
         source.mkdir()
