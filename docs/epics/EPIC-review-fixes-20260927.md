@@ -58,7 +58,7 @@ committed; no working-tree changes are recorded.
 | SEO and security review | seo checker TypeError; single package validation; only the reviewed target must be ready; security `required_checks` in the packet; no reviewer reason codes | `22715311`, `75ef7f30`, `b6ef4c4d`, `f2b16689`, `0bc4c8a0`, `692f7bd5`; merge `434c5b9d` | Focused tests passed per writer |
 | Installers, CI and repo rules | cross-ps1-symlink-mode-parity; cross-installer-dirty-bytes-no-source-identity (reporting, see skipped); cross-restore-instruction-unfollowable; cross-version-pins-literal-readme-unchecked; dh-docs-02 routine maintenance; dh-docs-03 main default branch; dh-docs-08 AGENTS/CLAUDE drift; macOS CI job; installer test deadlines; worker goal word budget | `ca29d605`, `d3a4a4c9`, `6eab8045`, `6d48590f`, `16d94714`, `2c310ac2`, `4c7aad71`, `033c68e1`, `0a526d02`, `44d4dc32` | Focused tests passed |
 | Round-2 follow-ups | security-04 legacy push isolation; cleanup nodes without a target rejected in PLAN and deferred by the selector; docs-consistency promotion order, stale verifier docs, restore rule, new required inputs; skills-correctness-4 mobile stack record; routine maintenance and main default branch wording | `53b525fe`, `bfe15af0`, `0ef94a48`, `5e494867`, `6f2ac607`, `a9eb17c9`, `f2635c76`, `0a18d480`, `705ba403`, `ffdf374d`, `4a60347a`; merges `ec272b25`, `fae73077` | Focused tests passed per writer |
-| Round-3 fixes (in progress, other writers) | RUN, DOCUMENTS and design-system commits keep the atomic exchange and add macOS `renameatx_np` `RENAME_SWAP` (docs-consistency-macos-renameat2, skills-correctness-1); new 0.55.0 validation rules apply only to runs that require 0.55.0 or later (security-03, harness-correctness-03); other round-2 findings as assigned by the parent | Not integrated when this record was written | Parent records the commits and results |
+| Round-3 fixes | docs-consistency-macos-renameat2 and skills-correctness-1: RUN, DOCUMENTS and design-system commits keep the atomic exchange and add macOS `renameatx_np` `RENAME_SWAP`; security-03, harness-correctness-03: new receipt and cleanup rules apply only to runs that require 0.55.0; harness-correctness-01 subagent review deferred under a wildcard mission scope; skills-correctness-2 non-checkout repo root; security-01 CI extraheader allowed for local reads; security-02 live-head diff without rename detection; security-05 readback repo discovery; security-06 repo signing programs; harness-correctness-05/security-07 case-insensitive default branch; harness-correctness-02 nested token-block styles; skills-correctness-5 approval date only for current HiFi; acceptance register commit order; skills-correctness-3 documented; trusted-host key ACL in the Windows test; README preflight wording and lockfile 0.55.0 | `30560d51`, `43b8db06`, `96051fc4`, `2f8d037d`, `514f174e`, `4f0461e6`, `644c64df`, `89cb21de`, `84203955`, `e7c95443`, `08c96e35`, `b707e99e`, `31fb85d7`, `da617d3d`, `045e9bae`, `78fca572`, `27ea4979`; merges `7792eb40`, `2eaa412f`, `91437497`, `85c421a4`, `8e05d3e0` | Focused tests passed per writer; full suite below. POSIX exchange paths verified by reading and mocked-libc tests only |
 | README sync, version 0.55.0, index, this record | cross-readme-mermaid-provider-section, docs-consistency-readme-sync, docs-consistency-epic-and-version-sync, skills-correctness-6, cross-documents-index-stale-release-status | `99372247`, `9cc2617d`, `5a3cf8be`, and the commit that adds this file | README structure, skill contract and docs-weight tests passed |
 
 ### Skipped or partial, with reasons
@@ -90,13 +90,28 @@ committed; no working-tree changes are recorded.
 ### Verification
 
 - Focused tests per writer passed; see the Change Log rows.
-- Full suite: pending.
+- Full suite on `27ea4979` (Windows 11, Python 3.14, 2026-09-27), from the repository root:
+  `check_skill_spec.py`, `pyflakes` on all six script dirs, `docs_weight.py` and
+  `git diff --check 70ab12bd HEAD` passed. Unit suites: delivery-harness 1318 OK (16 skipped),
+  product-definition-builder 240 OK, ui-design-builder 292 OK, design-system-compiler 116 OK
+  (4 skipped), product-activation 56 OK, seo-growth-review 21 OK. Golden path 1 OK.
+- Not run: the Playwright browser tests (`PDH_REQUIRE_BROWSER_TESTS=1`) and Linux/macOS CI.
 
 ### Open follow-ups
 
-- The POSIX commit paths (Linux and macOS) are verified only by reading until CI runs them.
+- The POSIX commit paths (Linux and macOS) are verified only by reading and mocked-libc tests
+  until CI runs them.
+- The exchange verify/restore code (RUN, DOCUMENTS, design-system) has two older narrow races:
+  after a restore swap it compares with the expected bytes instead of the displaced bytes, and on
+  a double concurrent write the cleanup deletes displaced bytes it reports as preserved.
+- Mission subagent workers have the same wildcard mission-scope mismatch that
+  harness-correctness-01 fixed for reviewers (pre-existing, not gated).
+- The coordination_paths allowlist and protected-branch grant checks are not version-gated;
+  older in-flight RUNs that violate them will need a PLAN/RUN revision.
+- The acceptance register commit (H1 to H2) has no slot in the RUN state model.
 - dh-docs-01: add the delivery-acceptance rows to the PLAN and RUNBOOK templates together with
   their test fixtures.
-- dh-docs-04: no change on this branch. Workers and reviewers still have no result field that
-  carries contract-adoption reading evidence.
-- `package-lock.json` still names 0.54.5; it was outside the docs owner scope.
+- dh-docs-04: workers and reviewers still have no result field that carries contract-adoption
+  reading evidence.
+- skills-correctness-3: Harness joins and the compiler preflight do not enforce the current-HiFi
+  rule for legacy approvals.
