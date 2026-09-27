@@ -80,6 +80,7 @@ _DANGEROUS_CONFIG_EXACT = {
     "http.proxycommand",
     "https.proxycommand",
     "credential.helper",
+    "core.askpass",
     "core.hookspath",
     "core.fsmonitor",
     "include.path",
@@ -94,6 +95,21 @@ _DANGEROUS_CONFIG_EXACT = {
     "http.extraheader",
     "https.extraheader",
 }
+
+# TLS and header keys, also in their URL-scoped form (http.<url>.<key>).
+_HTTP_TLS_KEYS = {
+    "sslverify",
+    "sslcainfo",
+    "sslcapath",
+    "sslcert",
+    "sslkey",
+    "extraheader",
+    "cookiefile",
+}
+
+
+def _http_tls_key(name: str) -> bool:
+    return name.startswith(("http.", "https.")) and name.rsplit(".", 1)[-1] in _HTTP_TLS_KEYS
 
 
 def _path_has_reparse_or_link(path: Path) -> bool:
@@ -452,7 +468,7 @@ def _dangerous_config_name(value: str) -> bool:
     """Return whether a local config key can retarget or execute a helper."""
 
     name = _normalise_config_name(value)
-    if name in _DANGEROUS_CONFIG_EXACT:
+    if name in _DANGEROUS_CONFIG_EXACT or _http_tls_key(name):
         return True
     # Includes can pull an attacker-controlled config file into the local
     # repository.  ``includeif`` is represented with a dotted suffix.
@@ -652,15 +668,14 @@ def reject_dangerous_local_config(
         # policy remains available for corporate proxies and credential
         # helpers, but command-line/config-injection origins are rejected.
         remote_rewrite = normalized.startswith("url.") and normalized.endswith((".insteadof", ".pushinsteadof"))
-        always_reject = remote_rewrite or normalized in {
-            "http.sslverify",
-            "https.sslverify",
-            "http.extraheader",
-            "https.extraheader",
-        }
+        always_reject = remote_rewrite or (
+            _http_tls_key(normalized)
+            and normalized.rsplit(".", 1)[-1] in {"sslverify", "extraheader"}
+        )
         proxy_or_tls = (
             normalized.endswith((".proxy", ".proxycommand"))
             or normalized in _DANGEROUS_CONFIG_EXACT
+            or _http_tls_key(normalized)
         )
         if local_only_helper or proxy_or_tls or remote_rewrite:
             if always_reject or local_config or origin.startswith(("command:", "blob:", "stdin:")):

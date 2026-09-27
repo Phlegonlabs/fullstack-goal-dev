@@ -224,6 +224,39 @@ class HarnessGitTests(unittest.TestCase):
             with patch.object(module, "_raw_git", side_effect=fake_git):
                 module.reject_dangerous_local_config(root)
 
+    def test_local_askpass_and_url_scoped_tls_or_header_keys_are_rejected(self) -> None:
+        import harness_git as module
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self._repo(root)
+            for key, value in (
+                ("core.askPass", "sentinel-askpass"),
+                ("http.https://example.invalid/.sslVerify", "false"),
+                ("http.https://example.invalid/.sslCAInfo", "attacker-ca.pem"),
+                ("http.https://example.invalid/.extraHeader", "Authorization: sentinel"),
+            ):
+                with self.subTest(key=key):
+                    subprocess.run(["git", "config", key, value], cwd=root, check=True)
+                    with self.assertRaisesRegex(GitConfigurationError, key.casefold().rsplit(".", 1)[-1]):
+                        module.reject_dangerous_local_config(root)
+                    subprocess.run(["git", "config", "--unset-all", key], cwd=root, check=True)
+            module.reject_dangerous_local_config(root)
+
+            # Global URL-scoped CA stays usable; URL-scoped TLS weakening does not.
+            def global_config(name):
+                def fake_git(_root, *arguments, **_kwargs):
+                    if arguments[0] == "rev-parse":
+                        return subprocess.CompletedProcess(["git"], 0, ".git\n.git\n", "")
+                    return subprocess.CompletedProcess(["git"], 0, f"file:/etc/gitconfig\x00{name}\x00", "")
+                return fake_git
+
+            with patch.object(module, "_raw_git", side_effect=global_config("http.https://corp.invalid/.sslcainfo")):
+                module.reject_dangerous_local_config(root)
+            with patch.object(module, "_raw_git", side_effect=global_config("http.https://corp.invalid/.sslverify")):
+                with self.assertRaises(GitConfigurationError):
+                    module.reject_dangerous_local_config(root)
+
     def test_linked_worktree_shared_and_worktree_config_count_as_local(self) -> None:
         import harness_git as module
 
