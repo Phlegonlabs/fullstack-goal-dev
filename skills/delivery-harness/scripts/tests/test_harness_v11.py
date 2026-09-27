@@ -374,6 +374,36 @@ class HarnessV11Tests(unittest.TestCase):
             errors = validate_integration_head_against_git(run, root)
             self.assertTrue(any("RUN.md is stale" in error for error in errors))
 
+    def test_product_file_renamed_onto_coordination_path_still_stales_candidate(self) -> None:
+        """A rename must not hide the deleted product path from the check."""
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Harness Test"], cwd=root, check=True)
+            source = root / "src" / "app.ts"
+            source.parent.mkdir()
+            source.write_text("export const app = 'candidate';\n" * 20, encoding="utf-8")
+            subprocess.run(["git", "add", "src/app.ts"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "candidate"], cwd=root, check=True)
+            candidate = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
+            (root / "docs" / "epics").mkdir(parents=True)
+            subprocess.run(["git", "mv", "src/app.ts", "docs/epics/EPIC-7.md"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "rename"], cwd=root, check=True)
+            branch = subprocess.check_output(["git", "branch", "--show-current"], cwd=root, text=True).strip()
+            run = {
+                "schema_version": 11,
+                "integration": {
+                    "branch": branch,
+                    "integration_head_sha": candidate,
+                    "coordination_paths": ["docs/goal/RUN.md", "docs/epics/EPIC-7.md"],
+                },
+            }
+
+            errors = validate_integration_head_against_git(run, root)
+            self.assertTrue(any("RUN.md is stale" in error for error in errors), errors)
+
     def test_validate_run_rejects_product_and_frozen_coordination_paths(self) -> None:
         plan = valid_plan()
         run = valid_run(plan)

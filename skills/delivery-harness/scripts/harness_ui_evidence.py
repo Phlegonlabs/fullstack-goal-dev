@@ -1237,7 +1237,9 @@ def validate_integration_head_against_git(
     actual = result.stdout.strip()
     if actual != recorded and run.get("schema_version") == 11:
         ancestry = _run_git("merge-base", "--is-ancestor", recorded, actual)
-        changed = _run_git("diff", "--name-only", f"{recorded}..{actual}")
+        # --no-renames lists both sides, so a product file renamed onto a
+        # coordination path still shows its deleted source path.
+        changed = _run_git("diff", "--name-only", "--no-renames", f"{recorded}..{actual}")
         if ancestry is None or changed is None:
             return sorted(set(errors))
         # Only real coordination files may close the gap. A product path that
