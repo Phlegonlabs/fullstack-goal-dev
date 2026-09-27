@@ -290,6 +290,57 @@ class ArchiveFirstPushTests(unittest.TestCase):
                 Path(fixture["root"]), request_path=Path(fixture["request"]),
             )
 
+    def test_trusted_host_execute_evidence_is_accepted_by_recover(self) -> None:
+        if shutil.which("ssh-keygen") is None:
+            self.skipTest("OpenSSH ssh-keygen is unavailable")
+        import contextlib
+        import io
+        import trusted_host_publication as host
+
+        fixture = self._fixture()
+        root = Path(fixture["root"])
+        request_path = Path(fixture["request"])
+        self._prepare(fixture)
+        subject.begin_handoff(root, request_path=request_path)
+        request = json.loads(request_path.read_text(encoding="utf-8"))
+        evidence_path = Path(request["execution_evidence_path"])
+        self._external_files += [evidence_path, evidence_path.with_suffix(".sig")]
+        # A planted pre-push hook must never run during publication.
+        sentinel = root.parent / f"hook-ran-{root.name}"
+        self._external_files.append(sentinel)
+        hook = root / ".git" / "hooks" / "pre-push"
+        hook.write_text(f"#!/bin/sh\necho ran > '{sentinel.as_posix()}'\n", encoding="utf-8", newline="\n")
+        hook.chmod(0o755)
+        policy = subject._discover_machine_trust_policy(root=root)  # fixture policy
+        args = host.argparse.Namespace(
+            request=request_path,
+            attempt=Path(fixture["attempt"]),
+            evidence_out=evidence_path,
+            signing_key=Path(fixture["private_key"]),
+            trusted_host_issuer="fixture-trusted-host",
+        )
+        previous = Path.cwd()
+        os.chdir(root)
+        try:
+            with (
+                patch.dict(os.environ, {"HARNESS_TRUSTED_HOST": "1"}),
+                patch.object(host, "_discover_machine_trust_policy", return_value=policy),
+                # The fixture key lives in a user-writable temp dir.
+                patch.object(host, "_validate_signing_key", side_effect=lambda path, _root: Path(path).resolve()),
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                self.assertEqual(0, host.execute(args))
+        finally:
+            os.chdir(previous)
+        self.assertFalse(sentinel.exists(), "repository pre-push hook ran during trusted-host push")
+        self.assertEqual(
+            fixture["candidate_a"],
+            git(root, "ls-remote", str(fixture["remote"]), "refs/heads/codex/test").split()[0],
+        )
+        receipt = subject.recover_uncertain(root, request_path=request_path)
+        self.assertEqual(fixture["candidate_a"], receipt["readback_head_sha"])
+        subject.verify_receipt(root, request_path=request_path)
+
     def test_real_archive_run_dirty_plan_and_run_produce_receipt_accepted_by_verifier(self) -> None:
         fixture = self._fixture()
         verified = subject.verify_archive_candidate(Path(fixture["root"]), archive_path=Path(fixture["archive"]), candidate_a=str(fixture["candidate_a"]))
