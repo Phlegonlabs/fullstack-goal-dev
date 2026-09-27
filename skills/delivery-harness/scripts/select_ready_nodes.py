@@ -29,7 +29,11 @@ from harness_manifest import (
     mission_has_ui_authoring_action,
 )
 
-from harness_schema import HEAD_BOUND_AUTHORIZATION_ACTIONS, RUN_DISPATCH_STATUSES
+from harness_schema import (
+    EXACT_TARGET_LIFECYCLE_ACTIONS,
+    HEAD_BOUND_AUTHORIZATION_ACTIONS,
+    RUN_DISPATCH_STATUSES,
+)
 from verifier_runtime import sandbox_host_fingerprint
 
 
@@ -1156,12 +1160,14 @@ def _dispatch_reasons(
         # (harness_manifest.py). Other actions may hold a run-wide "*" grant.
         # node["target"], when the PLAN declares one, is the exact target the
         # RUN ledger is checked against; falling back to "*" keeps older PLANs
-        # valid. Cleanup refs without a target are refused later by
-        # reserve-node-attempt, not here.
+        # valid. A cleanup ref must name its exact target, so a target-less
+        # one is never dispatchable.
         target = node.get("target") or "*"
         mission_ids = sorted(run["mission_states"])
         current_head = _current_authorized_head(run)
-        if any(
+        if target == "*" and node["ref"] in EXACT_TARGET_LIFECYCLE_ACTIONS:
+            reasons.add("action_not_authorized")
+        elif any(
             not authorization_covers(run, node["ref"], mission_id, target)
             for mission_id in mission_ids
         ):
