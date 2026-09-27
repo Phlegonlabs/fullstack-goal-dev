@@ -586,6 +586,27 @@ def _raw_git(
     )
 
 
+def _repository_config_dirs(root: Path, environment: Mapping[str, str] | None) -> list[Path]:
+    """Return directories whose config files are repository-local.
+
+    In a linked worktree ``<root>/.git`` is a file.  Repository config then
+    lives in the common dir (config) and the per-worktree git dir
+    (config.worktree), so both count as local.
+    """
+
+    try:
+        dirs = _raw_git(root, "rev-parse", "--git-dir", "--git-common-dir", environment=environment, timeout=10)
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise GitConfigurationError(f"cannot resolve repository Git directories: {exc}") from exc
+    if dirs.returncode != 0 or not isinstance(dirs.stdout, str):
+        raise GitConfigurationError("cannot resolve repository Git directories")
+    local = [root / ".git"]
+    for line in dirs.stdout.splitlines():
+        if line.strip():
+            local.append((root / line.strip()).resolve(strict=False))
+    return local
+
+
 def reject_dangerous_local_config(
     root: Path,
     *,
@@ -622,22 +643,7 @@ def reject_dangerous_local_config(
     if len(fields) % 2:
         raise GitConfigurationError("effective Git configuration listing is malformed")
     root_resolved = resolved
-    # In a linked worktree ``<root>/.git`` is a file.  Repository config then
-    # lives in the common dir (config) and the per-worktree git dir
-    # (config.worktree), so both count as local.
-    local_dirs = [root_resolved / ".git"]
-    try:
-        dirs = _raw_git(
-            resolved, "rev-parse", "--git-dir", "--git-common-dir",
-            environment=environment, timeout=10,
-        )
-    except (OSError, subprocess.SubprocessError) as exc:
-        raise GitConfigurationError(f"cannot resolve repository Git directories: {exc}") from exc
-    if dirs.returncode != 0 or not isinstance(dirs.stdout, str):
-        raise GitConfigurationError("cannot resolve repository Git directories")
-    for line in dirs.stdout.splitlines():
-        if line.strip():
-            local_dirs.append((root_resolved / line.strip()).resolve(strict=False))
+    local_dirs: list[Path] | None = None
     for index in range(0, len(fields), 2):
         origin, name = fields[index], fields[index + 1]
         if not _dangerous_config_name(name):
@@ -663,6 +669,8 @@ def reject_dangerous_local_config(
                 if not origin_candidate.is_absolute():
                     origin_candidate = root_resolved / origin_candidate
                 origin_resolved = origin_candidate.resolve(strict=False)
+                if local_dirs is None:
+                    local_dirs = _repository_config_dirs(resolved, environment)
                 local_config = any(_is_within(origin_resolved, local) for local in local_dirs)
             except OSError:
                 local_config = True
