@@ -2825,6 +2825,7 @@ def _validate_impl(
     require_wireframe_approved: bool = False,
     require_structure_validated: bool = False,
     require_visual_approved: bool = False,
+    require_current_hifi_evidence: bool = False,
 ) -> list[str]:
     try:
         text = ui_design_path.read_text(encoding="utf-8")
@@ -2841,6 +2842,9 @@ def _validate_impl(
 
     active = active_text(text)
     modern = is_structure_review(active)
+    # A new or changed HiFi approval always needs current evidence; only an
+    # unchanged historical legacy approval keeps its ui-evidence/2 receipts.
+    current_hifi = modern or require_current_hifi_evidence
     needs_repo_root = require_filled or require_structure_validated or require_wireframe_approved or require_visual_approved
     approved_gate = require_structure_validated or require_wireframe_approved or require_visual_approved
     if needs_repo_root and repo_root is None:
@@ -2948,6 +2952,9 @@ def _validate_impl(
                 data_for_matrix, _release_classes(root, source_values.get("Architecture source")))
     if modern and approved_gate:
         problems.extend(author_artifact_findings(root, active, require_hifi=require_visual_approved))
+    elif current_hifi and require_visual_approved:
+        # A legacy wireframe keeps its historical approval; it has no usage row to backfill.
+        problems.extend(author_artifact_findings(root, active, require_hifi=True, require_wireframe=False))
     if require_visual_approved:
         checked_hifi = _require_exact_cli_path(
             hifi_path,
@@ -2958,7 +2965,7 @@ def _validate_impl(
         )
         if checked_hifi is not None:
             _validate_hifi_surface(checked_hifi, problems, target_scope_for_evidence,
-                                   require_connected=True, require_reviewer_v3=modern)
+                                   require_connected=True, require_reviewer_v3=current_hifi)
             _resolve_source(
                 recorded_hifi,
                 repo_root=root,
@@ -3006,7 +3013,7 @@ def _validate_impl(
                 ),
                 expected_check=_evidence_check("HiFi UI grading" if field_name == "UI grading" else field_name, capture_mode),
                 expected_matrix=evidence_matrix,
-                require_machine=modern,
+                require_machine=current_hifi,
                 required_inputs=[identity for value in [*source_values.values(), recorded_wireframe] if (identity := _source_identity(value)) is not None],
                 recorded_scores={name: _score(_field(_section(active, "## HiFi Review") or "", name)) for name in ("HiFi score", "HiFi lowest dimension", "H2 score", "H4 score", "H5 score", "H7 score", "H8 score", "H9 score")} if field_name == "UI grading" else None,
             )
@@ -3017,7 +3024,7 @@ def _validate_impl(
             recorded_hifi,
             repo_root=root,
             problems=problems,
-            require_machine=modern,
+            require_machine=current_hifi,
             required_inputs=[identity for value in [*source_values.values(), recorded_wireframe]
                              if (identity := _source_identity(value)) is not None],
         )
@@ -3247,8 +3254,13 @@ def validate(
     require_wireframe_approved: bool = False,
     require_structure_validated: bool = False,
     require_visual_approved: bool = False,
+    require_current_hifi_evidence: bool = False,
 ) -> list[str]:
     """Validate a UI contract for normal publication.
+
+    ``require_current_hifi_evidence`` makes a legacy-heading contract meet the
+    current HiFi evidence rules. Publication sets it unless the Approved target
+    equals the one already recorded at HEAD.
 
     Pair verification is deliberately not a caller-selectable boolean.  The
     only pair-less route is the exact compiler preflight below, which requires
@@ -3267,6 +3279,7 @@ def validate(
         require_wireframe_approved=require_wireframe_approved,
         require_structure_validated=require_structure_validated,
         require_visual_approved=require_visual_approved,
+        require_current_hifi_evidence=require_current_hifi_evidence,
     )
 
 

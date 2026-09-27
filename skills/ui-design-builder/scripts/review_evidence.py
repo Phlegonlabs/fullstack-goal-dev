@@ -98,13 +98,13 @@ def author_source(text):
     return parsed.groupdict() if parsed else None
 
 
-def author_usage_findings(text, *, require_hifi=False):
+def author_usage_findings(text, *, require_hifi=False, require_wireframe=True):
     errors = []
     rows = author_rows(text)
     source = author_source(text)
     if source is None or not source["path"].startswith("docs/design/") or not source["path"].endswith("/SKILL.md"):
         errors.append("Frontend Design Usage requires one repository snapshot of the observed frontend-design SKILL.md")
-    required = {"wireframe", "direction", "hifi"} if require_hifi else {"wireframe"}
+    required = ({"wireframe"} if require_wireframe else set()) | ({"direction", "hifi"} if require_hifi else set())
     seen = set()
     for cells in rows:
         if len(cells) != 4:
@@ -127,8 +127,8 @@ def author_usage_findings(text, *, require_hifi=False):
     return errors
 
 
-def author_artifact_findings(root, text, *, require_hifi=False):
-    errors = author_usage_findings(text, require_hifi=require_hifi)
+def author_artifact_findings(root, text, *, require_hifi=False, require_wireframe=True):
+    errors = author_usage_findings(text, require_hifi=require_hifi, require_wireframe=require_wireframe)
     source = author_source(text)
     if source is not None:
         try:
