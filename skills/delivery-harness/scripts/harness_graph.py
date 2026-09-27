@@ -20,6 +20,7 @@ from harness_core import (
 )
 from harness_schema import (
     AUTHORIZATION_KEYS,
+    EXACT_TARGET_LIFECYCLE_ACTIONS,
     GRAPH_EDGE_PHASES,
     GRAPH_EXECUTORS,
     GRAPH_NODE_KINDS,
@@ -298,16 +299,22 @@ def _validate_graph(
                     _add(errors, f"{node_path}.executor", "lifecycle requires harness_parent")
                 if valid_ref and ref not in authorization_actions:
                     _add(errors, f"{node_path}.ref", "must reference an authorization action")
-                # `target` is optional so PLANs written before this field existed
-                # stay valid; a missing target resolves to "*". When present it
-                # must be the exact authorization target select_ready_nodes.py
-                # checks the RUN ledger against. The ledger rejects a "*" grant
-                # only for push, so a push node needs a target. Cleanup refs
-                # (archive_worker_tasks, remove_worktrees, delete_branches) may
-                # use a "*" grant, but reserve-node-attempt refuses them
-                # without an exact target so the attempt records what it acts on.
+                # `target` is optional for most refs so PLANs written before this
+                # field existed stay valid; a missing target resolves to "*".
+                # When present it must be the exact authorization target
+                # select_ready_nodes.py checks the RUN ledger against. The ledger
+                # rejects a "*" grant only for push, so a push node needs a
+                # target. Cleanup refs (EXACT_TARGET_LIFECYCLE_ACTIONS) may use a
+                # "*" grant, but the node itself must name the exact task,
+                # worktree, or branch it acts on.
                 target = node.get("target")
-                if target is not None and (
+                if target is None and valid_ref and ref in EXACT_TARGET_LIFECYCLE_ACTIONS:
+                    _add(
+                        errors,
+                        f"{node_path}.target",
+                        f"{ref} requires an exact non-wildcard authorization target",
+                    )
+                elif target is not None and (
                     not _nonempty_string(target)
                     or target == "*"
                     or TARGET_RE.fullmatch(target) is None

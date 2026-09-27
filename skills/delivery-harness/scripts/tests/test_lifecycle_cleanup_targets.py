@@ -21,13 +21,15 @@ import manifest_fixtures as mf  # noqa: E402
 from harness_authorization import authorization_covers  # noqa: E402
 from harness_core import ManifestError  # noqa: E402
 from harness_manifest import plan_digest, validate_current_plan_run  # noqa: E402
+from harness_schema import EXACT_TARGET_LIFECYCLE_ACTIONS  # noqa: E402
+from select_ready_nodes import _dispatch_reasons  # noqa: E402
 
 
 NODE_ID = "N-DELETE-BRANCH"
 
 
-def lifecycle_pair(target: str | None, grant_targets: list[str]):
-    """Return a running PLAN/RUN pair with one dormant delete_branches root node."""
+def lifecycle_pair(target: str | None, grant_targets: list[str], ref: str = "delete_branches"):
+    """Return a running PLAN/RUN pair with one dormant cleanup root node."""
 
     plan = mf.valid_plan()
     run = mf.valid_run(plan)
@@ -51,7 +53,7 @@ def lifecycle_pair(target: str | None, grant_targets: list[str]):
     node = {
         "id": NODE_ID,
         "kind": "lifecycle",
-        "ref": "delete_branches",
+        "ref": ref,
         "executor": "harness_parent",
         "allowed_outcomes": ["pass", "blocked"],
         "max_attempts": 2,
@@ -73,7 +75,7 @@ def lifecycle_pair(target: str | None, grant_targets: list[str]):
     run["plan"]["digest_sha256"] = digest
     run["execution_authorization_scope"]["plan_digest_sha256"] = digest
     run["observed"]["sandbox"]["plan_digest_sha256"] = digest
-    mf.authorize_action(run, "delete_branches", ["M1", "M2"], grant_targets)
+    mf.authorize_action(run, ref, ["M1", "M2"], grant_targets)
     return plan, run
 
 
@@ -154,7 +156,7 @@ class CleanupLifecycleTargetTests(unittest.TestCase):
 
     def test_reserve_requires_exact_target_and_records_it(self) -> None:
         plan, run = lifecycle_pair(None, ["*"])
-        with self.assertRaisesRegex(ManifestError, "must declare an exact PLAN target"):
+        with self.assertRaisesRegex(ManifestError, "requires an exact non-wildcard authorization target"):
             reserve(plan, run)
 
         plan, run = lifecycle_pair("branch:codex/done", ["*"])
@@ -165,6 +167,29 @@ class CleanupLifecycleTargetTests(unittest.TestCase):
         )
         record(plan, run, "pass")
         self.assertEqual([], validate_current_plan_run(plan, run))
+
+    def test_plan_rejects_cleanup_node_without_target(self) -> None:
+        for ref in sorted(EXACT_TARGET_LIFECYCLE_ACTIONS):
+            with self.subTest(ref=ref):
+                plan, run = lifecycle_pair(None, ["*"], ref=ref)
+                errors = validate_current_plan_run(plan, run)
+                self.assertIn(
+                    "plan.graph.nodes[7].target: "
+                    f"{ref} requires an exact non-wildcard authorization target",
+                    errors,
+                )
+
+    def test_selector_never_dispatches_cleanup_node_without_target(self) -> None:
+        plan, run = lifecycle_pair(None, ["*"])
+        node = plan["graph"]["nodes"][-1]
+        missions = {mission["id"]: mission for mission in plan["missions"]}
+        self.assertIn(
+            "action_not_authorized", _dispatch_reasons(node, None, plan, run, missions)
+        )
+        node["target"] = "branch:codex/done"
+        self.assertNotIn(
+            "action_not_authorized", _dispatch_reasons(node, None, plan, run, missions)
+        )
 
     def test_reserve_refuses_protected_branch_under_wildcard_grant(self) -> None:
         plan, run = lifecycle_pair("branch:main", ["*"])
