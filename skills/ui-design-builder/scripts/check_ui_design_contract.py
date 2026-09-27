@@ -2983,7 +2983,9 @@ def _validate_impl(
             problems,
         )
         decided_on = _field(visual, "Decided on")
-        if _date(decided_on):
+        # A retained historical approval keeps its original meaning, so only
+        # current HiFi evidence is dated against the owner's decision.
+        if current_hifi and _date(decided_on):
             review_section = _section(active, "## HiFi Review") or ""
             receipt_dates = [
                 receipt_date

@@ -224,6 +224,26 @@ class StructurePublicationTests(unittest.TestCase):
                 if not rejected:
                     self.assertEqual("", findings)
 
+    def test_historical_legacy_approval_is_not_dated_against_its_receipts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prd, _, _, wf, hifi, _ = materialize_publication(root, required=False)
+            ui = root / "docs/design/ui-design.md"
+            original = ui.read_text(encoding="utf-8")
+            start = original.index("## Visual Approval")
+            text = original[:start] + re.sub(r"^Decided on: .*$", "Decided on: 2019-12-01",
+                                             original[start:], count=1, flags=re.M)
+            text = text.replace(checker.canonical_ui_approval_sha256(original),
+                                checker.canonical_ui_approval_sha256(text))
+            ui.write_text(text, encoding="utf-8")
+            for current, rejected in ((False, False), (True, True)):
+                findings = "\n".join(checker.validate(ui, repo_root=root, prd_path=prd, wireframes_path=wf,
+                    hifi_path=hifi, require_filled=True, require_wireframe_approved=True,
+                    require_visual_approved=True, require_current_hifi_evidence=current))
+                self.assertEqual(rejected, "predates the newest HiFi review evidence" in findings, findings)
+                if not current:
+                    self.assertEqual("", findings)
+
     def test_every_machine_receipt_binds_current_product_inputs(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
