@@ -54,7 +54,7 @@ plan_readiness: draft | ready | blocked
 | Workers | No active or blocked mission or review worker |
 | Waves | No proposed or active wave |
 | Landing | `landing.continuity` is `preserved` with its `head_sha` equal to the integration head |
-| PLAN-v6 graph run | Every node is succeeded, skipped, or superseded; every edge is terminal; no retained node blocker (a failed node must be routed or superseded before closeout) |
+| PLAN-v6 graph run | Every node is succeeded, skipped, or superseded; every edge is terminal; no retained node blocker (a failed node must be routed or superseded before closeout). Transitions mark only taken routes, so a dependency whose source passed, and a route whose source passed with an outcome it does not match, also count as terminal. A node, and its queued mission and tasks, that only such untaken routes lead to stays dormant and does not block |
 | RUN-v11 gates | Every PLAN batch and final gate has a PASS result bound to the integration head, and every required UI screenshot matrix entry is PASS; when a UI registry is supplied, the PLAN surface matrix also covers its exact responsive set, required states, and route trace/test bindings |
 | Gate freshness | A changed integration head invalidates an earlier gate PASS immediately, in every RUN lifecycle state |
 

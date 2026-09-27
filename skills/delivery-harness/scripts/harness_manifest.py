@@ -7445,6 +7445,7 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                 "run.integration.integration_head_sha",
                 "complete run requires an integration head",
             )
+        unreached_mission_ids: set[str] = set()
         if graph_run:
             graph_state = run.get("graph_state")
             closeout_node_states = (
@@ -7457,11 +7458,31 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                 if isinstance(graph_state, dict)
                 else {}
             )
+            closeout_graph = plan.get("graph")
+            reached_node_ids = _closeout_reached_nodes(
+                closeout_graph, closeout_node_states, edge_states
+            )
+            unreached_mission_ids = {
+                node["ref"]
+                for node in (
+                    closeout_graph.get("nodes", [])
+                    if isinstance(closeout_graph, dict)
+                    and isinstance(closeout_graph.get("nodes"), list)
+                    else []
+                )
+                if isinstance(node, dict)
+                and node.get("kind") == "mission"
+                and isinstance(node.get("ref"), str)
+                and isinstance(node.get("id"), str)
+                and node["id"] not in reached_node_ids
+            }
             if not isinstance(closeout_node_states, dict) or any(
                 not isinstance(state, dict)
-                or state.get("phase")
-                not in {"succeeded", "skipped", "superseded"}
-                for state in closeout_node_states.values()
+                or (
+                    state.get("phase") not in {"succeeded", "skipped", "superseded"}
+                    and node_id in reached_node_ids
+                )
+                for node_id, state in closeout_node_states.items()
             ):
                 _add(
                     errors,
@@ -7520,10 +7541,26 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                     "run.graph_state.node_states",
                     "complete graph run cannot supersede a review node that returned fix_required",
                 )
+            closeout_edges = {
+                edge.get("id"): edge
+                for edge in (
+                    closeout_graph.get("edges", [])
+                    if isinstance(closeout_graph, dict)
+                    and isinstance(closeout_graph.get("edges"), list)
+                    else []
+                )
+                if isinstance(edge, dict)
+                and all(isinstance(edge.get(key), str) for key in ("id", "from", "to"))
+            }
             if not isinstance(edge_states, dict) or any(
                 not isinstance(state, dict)
-                or state.get("status") not in {"traversed", "exhausted", "skipped"}
-                for state in edge_states.values()
+                or not _closeout_edge_terminal(
+                    closeout_edges.get(edge_id),
+                    state,
+                    closeout_node_states,
+                    reached_node_ids,
+                )
+                for edge_id, state in edge_states.items()
             ):
                 _add(
                     errors,
@@ -7531,10 +7568,17 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                     "complete graph run requires every edge to be terminal",
                 )
             _validate_required_security_closeout(errors, plan, run)
+        # A repair mission behind a route that was never taken stays queued.
         if not isinstance(mission_states, dict) or any(
             not isinstance(state, dict)
-            or state.get("phase") not in {"integrated", "superseded"}
-            for state in mission_states.values()
+            or (
+                state.get("phase") not in {"integrated", "superseded"}
+                and not (
+                    mission_id in unreached_mission_ids
+                    and state.get("phase") == "queued"
+                )
+            )
+            for mission_id, state in mission_states.items()
         ):
             _add(
                 errors,
@@ -7570,11 +7614,26 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                 )
             )
         }
+        unreached_task_ids = {
+            item["id"]
+            for current_mission in plan.get("missions", [])
+            if isinstance(current_mission, dict)
+            and current_mission.get("id") in unreached_mission_ids
+            and isinstance(mission_states, dict)
+            and isinstance(mission_states.get(current_mission.get("id")), dict)
+            and mission_states[current_mission["id"]].get("phase") == "queued"
+            for item in current_mission.get("tasks", [])
+            if isinstance(item, dict) and _nonempty_string(item.get("id"))
+        } - superseded_task_ids
         task_closeout_invalid = not isinstance(task_states, dict)
         if isinstance(task_states, dict):
             for task_id, state in task_states.items():
                 expected_phase = (
-                    "superseded" if task_id in superseded_task_ids else "mission_recorded"
+                    "superseded"
+                    if task_id in superseded_task_ids
+                    else "queued"
+                    if task_id in unreached_task_ids
+                    else "mission_recorded"
                 )
                 if not isinstance(state, dict) or state.get("phase") != expected_phase:
                     task_closeout_invalid = True
@@ -7641,6 +7700,101 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
             )
 
     return sorted(set(errors))
+
+
+def _closeout_route_untaken(edge: dict[str, Any], source: Any) -> bool:
+    """A route whose source passed on to other outcomes was never taken."""
+
+    outcomes = edge.get("on_outcomes")
+    return (
+        edge.get("kind") == "route"
+        and isinstance(source, dict)
+        and source.get("phase") == "succeeded"
+        and isinstance(outcomes, list)
+        and source.get("last_outcome") not in outcomes
+    )
+
+
+def _closeout_reached_nodes(
+    graph: Any, node_states: Any, edge_states: Any
+) -> set[Any]:
+    """Nodes that ran, or that a finished run could still activate.
+
+    Start from the entry nodes and every node that left dormant, then follow
+    every edge except routes that were never taken. A node outside this set
+    (for example a repair node behind an unused fix_required route) never ran
+    and never will, so closeout does not wait for it.
+    """
+
+    if not isinstance(node_states, dict):
+        return set()
+    if not isinstance(graph, dict):
+        return set(node_states)
+    entry_nodes = graph.get("entry_nodes")
+    reached = {
+        node_id
+        for node_id in (entry_nodes if isinstance(entry_nodes, list) else [])
+        if isinstance(node_id, str)
+    }
+    reached.update(
+        node_id
+        for node_id, state in node_states.items()
+        if not isinstance(state, dict)
+        or state.get("phase") != "dormant"
+        or state.get("attempts") != 0
+    )
+    edges = [
+        edge
+        for edge in (graph.get("edges") if isinstance(graph.get("edges"), list) else [])
+        if isinstance(edge, dict)
+        and all(isinstance(edge.get(key), str) for key in ("id", "from", "to"))
+    ]
+    changed = True
+    while changed:
+        changed = False
+        for edge in edges:
+            target = edge.get("to")
+            edge_state = (
+                edge_states.get(edge.get("id")) if isinstance(edge_states, dict) else None
+            )
+            taken = isinstance(edge_state, dict) and edge_state.get("status") == "traversed"
+            if (
+                edge.get("from") in reached
+                and target not in reached
+                and (
+                    taken
+                    or not _closeout_route_untaken(edge, node_states.get(edge.get("from")))
+                )
+            ):
+                reached.add(target)
+                changed = True
+    return reached
+
+
+def _closeout_edge_terminal(
+    edge: Any, edge_state: dict[str, Any], node_states: Any, reached: set[Any]
+) -> bool:
+    """Whether an edge is settled for closeout.
+
+    Transitions only mark routes they take. A dependency whose source passed,
+    a route whose source passed on to other outcomes, and any edge out of a
+    node that never ran are also settled.
+    """
+
+    if edge_state.get("status") in {"traversed", "exhausted", "skipped"}:
+        return True
+    if not isinstance(edge, dict) or not isinstance(node_states, dict):
+        return False
+    if edge.get("from") not in reached:
+        return True
+    source = node_states.get(edge.get("from"))
+    if edge.get("kind") == "dependency":
+        return (
+            isinstance(source, dict)
+            and source.get("phase") == "succeeded"
+            and source.get("last_outcome") == "pass"
+        )
+    return _closeout_route_untaken(edge, source)
 
 
 def _validate_required_security_closeout(
