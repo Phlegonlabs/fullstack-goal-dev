@@ -205,6 +205,9 @@ def _remote_head(url: str, branch_ref: str, *, cwd: Path, credentials=UNBOUND) -
     isolated = Path(tempfile.mkdtemp(prefix="harness-trusted-host-"))
     try:
         env = publication_environment(url, expected=credentials)
+        # Stop Git from discovering an ancestor repository's config. Git never
+        # treats the cwd itself as a ceiling, so use its parent.
+        env["GIT_CEILING_DIRECTORIES"] = str(isolated.parent)
         result = subprocess.run(
             [git_executable(env), "--no-replace-objects", "ls-remote", "--", url, branch_ref],
             cwd=isolated,

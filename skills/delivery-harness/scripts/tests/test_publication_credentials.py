@@ -128,6 +128,26 @@ class CredentialTests(unittest.TestCase):
                     sentinel.unlink(missing_ok=True)
             self.assertEqual([], list(empty.iterdir()))
 
+    def test_publication_push_never_signs(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root, remote = self._repo_with_remote(Path(temp))
+            sentinel = Path(temp) / "gpg-ran"
+            gpg = Path(temp) / "gpg.sh"
+            self._script(gpg, sentinel)
+            subprocess.run(["git", "config", "push.gpgSign", "true"], cwd=root, check=True)
+            subprocess.run(["git", "config", "gpg.program", gpg.as_posix()], cwd=root, check=True)
+            empty = Path(temp) / "no-hooks"
+            empty.mkdir()
+            env = subject.publication_environment(str(remote), expected=None, hooks_dir=str(empty))
+            argv = [git_executable(), "--no-replace-objects", "push", "--", str(remote), "HEAD:refs/heads/published"]
+            # Control: the repository's push.gpgSign=true makes a plain push fail here.
+            control = subject.publication_environment(str(remote), expected=None)
+            refused = subprocess.run(argv, cwd=root, env=control, capture_output=True, text=True, timeout=60)
+            self.assertNotEqual(0, refused.returncode)
+            pushed = subprocess.run(argv, cwd=root, env=env, capture_output=True, text=True, timeout=60)
+            self.assertEqual(0, pushed.returncode, pushed.stderr)
+            self.assertFalse(sentinel.exists(), "gpg.program ran during publication")
+
     def test_publication_environment_neutralizes_repository_askpass(self):
         with tempfile.TemporaryDirectory() as temp:
             root, _ = self._repo_with_remote(Path(temp))
@@ -155,6 +175,28 @@ class CredentialTests(unittest.TestCase):
             with patch.object(subject, "_policy_bytes", return_value=payload):
                 with self.assertRaises((ManifestError, RuntimeError)):
                     subject.credential_binding(URL)
+
+    def test_trusted_host_readback_ignores_ancestor_repository_rewrite(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root, remote = self._repo_with_remote(Path(temp))
+            attacker = Path(temp) / "attacker.git"
+            subprocess.run(["git", "init", "-q", "--bare", str(attacker)], check=True)
+            subprocess.run(["git", "push", "-q", "--", str(remote), "HEAD:refs/heads/run"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-q", "--allow-empty", "-m", "other"], cwd=root, check=True)
+            subprocess.run(["git", "push", "-q", "--", str(attacker), "HEAD:refs/heads/run"], cwd=root, check=True)
+            expected = subprocess.check_output(["git", "rev-parse", "HEAD~1"], cwd=root, text=True).strip()
+            url = remote.as_posix()
+            subprocess.run(["git", "config", f"url.{attacker.as_posix()}.insteadOf", url], cwd=root, check=True)
+            nested = root / "tmp"
+
+            def mkdtemp(prefix=""):
+                nested.mkdir()
+                return str(nested)
+
+            with patch.object(subject, "_policy_bytes", return_value=None), patch.object(
+                host.tempfile, "mkdtemp", side_effect=mkdtemp
+            ):
+                self.assertEqual(expected, host._remote_head(url, "refs/heads/run", cwd=root))
 
     def test_private_read_paths_pass_bound_credentials_to_isolated_git(self):
         binding = {"policy_sha256": "a" * 64, "helper": "/trusted/helper",

@@ -312,6 +312,14 @@ class ArchiveFirstPushTests(unittest.TestCase):
         hook.write_text(f"#!/bin/sh\necho ran > '{sentinel.as_posix()}'\n", encoding="utf-8", newline="\n")
         hook.chmod(0o755)
         policy = subject._discover_machine_trust_policy(root=root)  # fixture policy
+        if os.name == "nt" and shutil.which("icacls") and os.environ.get("USERNAME"):
+            # Windows OpenSSH refuses a private key that other principals can
+            # read; temp files inherit such entries on some hosts.
+            subprocess.run(
+                ["icacls", str(fixture["private_key"]), "/inheritance:r", "/grant:r", f"{os.environ['USERNAME']}:F"],
+                capture_output=True,
+                check=False,
+            )
         args = host.argparse.Namespace(
             request=request_path,
             attempt=Path(fixture["attempt"]),
@@ -329,7 +337,13 @@ class ArchiveFirstPushTests(unittest.TestCase):
                 patch.object(host, "_validate_signing_key", side_effect=lambda path, _root: Path(path).resolve()),
                 contextlib.redirect_stdout(io.StringIO()),
             ):
-                self.assertEqual(0, host.execute(args))
+                try:
+                    status = host.execute(args)
+                except RuntimeError as exc:
+                    if "Bad permissions" in str(exc) or "UNPROTECTED PRIVATE KEY" in str(exc):
+                        self.skipTest(f"ssh-keygen rejects the fixture key ACL on this host: {str(exc).splitlines()[0]}")
+                    raise
+                self.assertEqual(0, status)
         finally:
             os.chdir(previous)
         self.assertFalse(sentinel.exists(), "repository pre-push hook ran during trusted-host push")
@@ -340,6 +354,16 @@ class ArchiveFirstPushTests(unittest.TestCase):
         receipt = subject.recover_uncertain(root, request_path=request_path)
         self.assertEqual(fixture["candidate_a"], receipt["readback_head_sha"])
         subject.verify_receipt(root, request_path=request_path)
+
+    def test_publication_rejects_local_url_scoped_extraheader(self) -> None:
+        from harness_git import GitMetadataError
+
+        fixture = self._fixture()
+        root = Path(fixture["root"])
+        git(root, "config", "http.https://github.com/.extraheader", "AUTHORIZATION: basic fixture")
+        with self.assertRaisesRegex((ManifestError, GitMetadataError), "extraheader"):
+            self._prepare(fixture)
+        self.assertFalse(Path(fixture["request"]).exists())
 
     def test_real_archive_run_dirty_plan_and_run_produce_receipt_accepted_by_verifier(self) -> None:
         fixture = self._fixture()

@@ -106,7 +106,8 @@ def publication_environment(url: str, *, expected=UNBOUND, hooks_dir: str | None
     # Command-line config outranks repository config.
     config.append(("core.fsmonitor", "false"))
     if hooks_dir is not None:
-        config.append(("core.hooksPath", hooks_dir))
+        # The push itself: no repository hooks and no signing program.
+        config += [("core.hooksPath", hooks_dir), ("push.gpgSign", "false")]
     env["GIT_CONFIG_COUNT"] = str(len(config))
     for index, (key, value) in enumerate(config):
         env[f"GIT_CONFIG_KEY_{index}"] = key
