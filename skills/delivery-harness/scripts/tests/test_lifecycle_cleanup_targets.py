@@ -20,7 +20,11 @@ import harness_transition  # noqa: E402
 import manifest_fixtures as mf  # noqa: E402
 from harness_authorization import authorization_covers  # noqa: E402
 from harness_core import ManifestError  # noqa: E402
-from harness_manifest import plan_digest, validate_current_plan_run  # noqa: E402
+from harness_manifest import (  # noqa: E402
+    plan_digest,
+    validate_current_plan_run,
+    validate_run,
+)
 from harness_schema import EXACT_TARGET_LIFECYCLE_ACTIONS  # noqa: E402
 from select_ready_nodes import _dispatch_reasons  # noqa: E402
 
@@ -77,6 +81,12 @@ def lifecycle_pair(target: str | None, grant_targets: list[str], ref: str = "del
     run["observed"]["sandbox"]["plan_digest_sha256"] = digest
     mf.authorize_action(run, ref, ["M1", "M2"], grant_targets)
     return plan, run
+
+
+def set_required_version(run, version: str) -> None:
+    run["runtime_capabilities"]["runtime_adapter"]["version_gate"][
+        "required_harness_version"
+    ] = version
 
 
 def reserve(plan, run, attempt_id: str = "ATT-DELETE"):
@@ -204,18 +214,28 @@ class CleanupLifecycleTargetTests(unittest.TestCase):
         receipt = record(plan, run, "blocked", attempt_id="ATT-LEGACY")
         self.assertEqual("blocked", receipt["phase"])
 
-    def test_validate_rejects_wildcard_cleanup_pass(self) -> None:
+    def test_wildcard_cleanup_pass_is_rejected_only_from_0_55(self) -> None:
+        # A RUN closed under 0.54.5 may hold a "*" cleanup PASS recorded
+        # before the rule existed; it must still validate.
         plan, run = lifecycle_pair(None, ["*"])
         reserve_legacy_wildcard(run)
         run["graph_state"]["node_states"][NODE_ID].update(
             {"phase": "succeeded", "last_outcome": "pass"}
         )
         run["attempt_log"][-1]["result"] = "pass"
-        errors = validate_current_plan_run(plan, run)
-        self.assertTrue(
-            any("delete_branches PASS requires an exact recorded target" in e for e in errors),
-            errors,
+        run["status"] = "complete"
+        message = (
+            "run.attempt_log[0].node_dispatch.target: "
+            "delete_branches PASS requires an exact recorded target, not *"
         )
+        set_required_version(run, "0.54.5")
+        old_errors = validate_run(plan, run)
+        set_required_version(run, "0.55.0")
+        new_errors = validate_run(plan, run)
+        # Other version gates fire on this fixture at both versions; only the
+        # cleanup rule differs.
+        self.assertNotIn(message, old_errors)
+        self.assertIn(message, new_errors)
 
 
 if __name__ == "__main__":

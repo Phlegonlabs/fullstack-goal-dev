@@ -1828,6 +1828,9 @@ def _security_required_check_errors(
 
 
 UI_IMPACT_SUMMARY_REQUIRED_VERSION = (0, 35, 0)
+# Exact-receipt rules added in 0.55.0 (reviewer spawn receipt, exact cleanup
+# PASS target, cleanup lifecycle node target). Older RUNs keep their shape.
+EXACT_RECEIPT_REQUIRED_VERSION = (0, 55, 0)
 UI_IMPACT_SUMMARY_ROW_KEYS = {"mission_id", "impact"}
 
 
@@ -4196,7 +4199,11 @@ def _validate_run_attempt_log(
                             # A cleanup PASS must name what it archived,
                             # removed, or deleted.
                             if (
-                                node.get("ref") in EXACT_TARGET_LIFECYCLE_ACTIONS
+                                version_at_least(
+                                    run_required_harness_version(run),
+                                    EXACT_RECEIPT_REQUIRED_VERSION,
+                                )
+                                and node.get("ref") in EXACT_TARGET_LIFECYCLE_ACTIONS
                                 and target == "*"
                                 and attempt.get("result") == "pass"
                             ):
@@ -7150,6 +7157,10 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                 # reviewer, the same spawn receipt a mission worker carries.
                 if (
                     schema_version == 11
+                    and version_at_least(
+                        run_required_harness_version(run),
+                        EXACT_RECEIPT_REQUIRED_VERSION,
+                    )
                     and worker["worker_runtime"] == "subagent"
                     and _nonempty_string(worker["worker_id"])
                 ):
