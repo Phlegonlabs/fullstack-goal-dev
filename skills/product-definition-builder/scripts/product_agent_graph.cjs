@@ -2,6 +2,12 @@
 // The parent maps packets to its observed native tools under separate authorization.
 function packet(prompt, options) { return { prompt, ...options }; }
 
+// Closed release-source policies, keyed by stage (same as release_targets.py).
+const SOURCE_POLICIES = {
+  development: "stage=development; ref=run.integration.branch; sha=run.integration.integration_head_sha",
+  production: "stage=production; ref=refs/heads/main; sha=promotion.verified_main_sha",
+};
+
 function createProductAgentGraph(args) {
   const workflowArgs = typeof args === "string" ? JSON.parse(args) : args;
 
@@ -165,6 +171,9 @@ function createProductAgentGraph(args) {
     }
     if (!["development", "production"].includes(target.stage)) {
       throw new Error(`product-definition-builder-graph requires args.release_targets[${index}].stage development or production`);
+    }
+    if (target.source_policy.trim() !== SOURCE_POLICIES[target.stage]) {
+      throw new Error(`product-definition-builder-graph release target ${target.id} source_policy must be ${SOURCE_POLICIES[target.stage]}`);
     }
     if (releaseTargetIds.has(target.id)) {
       throw new Error(`product-definition-builder-graph requires unique release target ID ${target.id}`);
@@ -428,7 +437,7 @@ function createProductAgentGraph(args) {
       "Write canonical artifact prose in English. The parent prepares complete PRD.zh-TW.md and architecture.zh-TW.md review copies before owner review under references/bilingual-review.md; those copies never become implementation authority. Preserve literal product copy and identifiers. " +
       "Apply references/prd-refinement.md. Reconcile UI and technical findings into the same candidate, checking complete first-delivery journeys and cross-feature dependencies. Separate required-now coverage, explicitly deferred scope and owner decisions using existing requirements and Open Questions. An essential unresolved gap blocks approval; do not silently add scope, weaken acceptance or treat deferred required work as complete. Preserve evidence and stable IDs. " +
       "You are the synthesis role in a Product Definition org graph. Reconcile role results into candidate Markdown for PRD.md, architecture.md, and stack-decisions.md, plus implementation-plan.md only when requested. Include the exact Data and Trust, Security Requirements Gate and Security scope, and AI and Automation gates, plus the required seven-column security rows with human residual-risk decisions. Keep the measurable Metrics contract, structured Assumptions and Open Questions, UI Design Handoff Status, Product Definition Decisions section, and both machine marker pairs. Product Definition Approval and Stack Decision Checkpoint remain blocked in this candidate; a workflow cannot approve them. Keep every new technology proposal Recommended and present coherent frontend, backend/data/auth, mobile/desktop, AI/automation, deployment, and commercial bundles plus alternatives. For UI products, finish the UI Surface Contract but do not create wireframe data, choose layout/style/motion/media, or claim any UI approval; those belong to a later ui-design-builder run. " +
-        "Preserve stable PRD, ARCH, UI, UX, TEST, surface, and release target IDs; do not hide conflicts or failed lanes; do not claim publication or visual/user validation. Keep Non-Functional Requirements after Functional Requirements and Test Obligations after Open Questions in PRD.md. Map every Must functional requirement and every applicable NFR to at least one required TEST row. If implementation-plan.md is requested, reuse those TEST IDs rather than creating anonymous replacements. Write provider-neutral release-target blocks for every expected surface, preserve each supplied surface_suffix and release_name plus the typed surface_class and public_discoverability fields, and name the exact branch or ref. Production has the canonical surface name without -prod; development has that exact name plus -dev. Keep surface separate from provider. Use the exact candidate run branch/ref for the internally tested development release and main for production after same-SHA fast-forward, recording the shared remote-main base rule and separate promotion authorization/read-back. Do not treat upload/submission as availability or force native distribution into the hosted environment table; native recovery may require a signed forward-fix. " +
+        "Preserve stable PRD, ARCH, UI, UX, TEST, surface, and release target IDs; do not hide conflicts or failed lanes; do not claim publication or visual/user validation. Keep Non-Functional Requirements after Functional Requirements and Test Obligations after Open Questions in PRD.md. Map every Must functional requirement and every applicable NFR to at least one required TEST row. If implementation-plan.md is requested, reuse those TEST IDs rather than creating anonymous replacements. Write provider-neutral release-target blocks for every expected surface, preserve each supplied surface_suffix and release_name plus the typed surface_class and public_discoverability fields, and name the exact branch or ref. Production has the canonical surface name without -prod; development has that exact name plus -dev. Keep surface separate from provider. Use the exact candidate run branch/ref for the internally tested development release and main for production after same-SHA fast-forward, recording the shared remote-main base rule and separate promotion authorization/read-back. Copy each Source policy verbatim: development `" + SOURCE_POLICIES.development + "`; production `" + SOURCE_POLICIES.production + "`. Never use a tag or another production ref. Do not treat upload/submission as availability or force native distribution into the hosted environment table; native recovery may require a signed forward-fix. " +
         "Follow the output contract's \"How To Read This Package\": open each document with human-readable content and close it with the ID matrices and decision records, respect the per-file length budget, and keep every table at seven columns or fewer, except the mandated hosted environment contract in architecture.md, whose columns are all release-critical. " +
         `Frozen task context: ${sourceContext}\n\nRole results: ${JSON.stringify(lanes)}`,
       { label: "prd:synthesis", phase: "Synthesize", schema: draftSchema },

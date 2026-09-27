@@ -9,6 +9,8 @@ from pathlib import Path
 
 SKILL_ROOT = Path(__file__).resolve().parents[2]
 UI_SKILL_ROOT = SKILL_ROOT.parent / "ui-design-builder"
+DEV_SOURCE_POLICY = "stage=development; ref=run.integration.branch; sha=run.integration.integration_head_sha"
+PROD_SOURCE_POLICY = "stage=production; ref=refs/heads/main; sha=promotion.verified_main_sha"
 
 
 class ProductDefinitionBuilderSkillContractTests(unittest.TestCase):
@@ -168,14 +170,14 @@ async function agent(_prompt, options) {
                     "ios-app",
                     "TestFlight",
                     "development",
-                    "exact candidate branch head after verification",
+                    DEV_SOURCE_POLICY,
                 ),
                 self.release_target(
                     "ios-production",
                     "ios-app",
                     "App Store",
                     "production",
-                    "main branch head after exact candidate PASS",
+                    PROD_SOURCE_POLICY,
                 ),
             ],
             "has_public_marketing_content": False,
@@ -1483,7 +1485,7 @@ async function agent(_prompt, options) {
                         "browser-extension",
                         "Chrome Web Store test group",
                         "development",
-                        "exact candidate run branch head",
+                        DEV_SOURCE_POLICY,
                         "fixture-extension-dev",
                     ),
                     self.release_target(
@@ -1491,7 +1493,7 @@ async function agent(_prompt, options) {
                         "browser-extension",
                         "Chrome Web Store",
                         "production",
-                        "main branch head after candidate PASS",
+                        PROD_SOURCE_POLICY,
                         "fixture-extension",
                     ),
                 ],
@@ -1514,10 +1516,10 @@ async function agent(_prompt, options) {
                 "deployable_surfaces": ["web-app", "ios-app"],
                 "mobile_desktop_platform": "native iOS",
                 "release_targets": [
-                    self.release_target("web-development", "web-app", "Cloudflare", "development", "exact candidate run branch head", "fixture-web-dev"),
-                    self.release_target("web-production", "web-app", "Cloudflare", "production", "main branch head after candidate PASS", "fixture-web"),
-                    self.release_target("ios-development", "ios-app", "TestFlight", "development", "exact candidate run branch head", "fixture-ios-dev"),
-                    self.release_target("ios-production", "ios-app", "App Store", "production", "main branch head after candidate PASS", "fixture-ios"),
+                    self.release_target("web-development", "web-app", "Cloudflare", "development", DEV_SOURCE_POLICY, "fixture-web-dev"),
+                    self.release_target("web-production", "web-app", "Cloudflare", "production", PROD_SOURCE_POLICY, "fixture-web"),
+                    self.release_target("ios-development", "ios-app", "TestFlight", "development", DEV_SOURCE_POLICY, "fixture-ios-dev"),
+                    self.release_target("ios-production", "ios-app", "App Store", "production", PROD_SOURCE_POLICY, "fixture-ios"),
                 ],
             }
         )
@@ -1535,10 +1537,10 @@ async function agent(_prompt, options) {
                 "deployment_platform": "Cloudflare",
                 "deployable_surfaces": ["web-app", "browser-extension"],
                 "release_targets": [
-                    self.release_target("web-development", "web-app", "Cloudflare", "development", "exact candidate run branch head", "fixture-web-dev"),
-                    self.release_target("web-production", "web-app", "Cloudflare", "production", "main branch head after candidate PASS", "fixture-web"),
-                    self.release_target("extension-development", "browser-extension", "Chrome Web Store test group", "development", "exact candidate run branch head", "fixture-extension-dev"),
-                    self.release_target("extension-production", "browser-extension", "Chrome Web Store", "production", "main branch head after candidate PASS", "fixture-extension"),
+                    self.release_target("web-development", "web-app", "Cloudflare", "development", DEV_SOURCE_POLICY, "fixture-web-dev"),
+                    self.release_target("web-production", "web-app", "Cloudflare", "production", PROD_SOURCE_POLICY, "fixture-web"),
+                    self.release_target("extension-development", "browser-extension", "Chrome Web Store test group", "development", DEV_SOURCE_POLICY, "fixture-extension-dev"),
+                    self.release_target("extension-production", "browser-extension", "Chrome Web Store", "production", PROD_SOURCE_POLICY, "fixture-extension"),
                 ],
             }
         )
@@ -1557,14 +1559,14 @@ async function agent(_prompt, options) {
                 "deployable_surfaces": ["public-api", "android-app", "macos-app", "windows-app"],
                 "mobile_desktop_platform": "native Android; native macOS; native Windows",
                 "release_targets": [
-                    self.release_target("api-development", "public-api", "Cloudflare", "development", "exact candidate run branch head", "fixture-api-dev"),
-                    self.release_target("api-production", "public-api", "Cloudflare", "production", "main branch head after candidate PASS", "fixture-api"),
-                    self.release_target("android-development", "android-app", "Play Console", "development", "exact candidate run branch head", "fixture-android-dev"),
-                    self.release_target("android-production", "android-app", "Google Play", "production", "main branch head after candidate PASS", "fixture-android"),
-                    self.release_target("macos-development", "macos-app", "Developer ID", "development", "exact candidate run branch head", "fixture-macos-dev"),
-                    self.release_target("macos-production", "macos-app", "Mac App Store", "production", "main branch head after candidate PASS", "fixture-macos"),
-                    self.release_target("windows-development", "windows-app", "MSIX signing", "development", "exact candidate run branch head", "fixture-windows-dev"),
-                    self.release_target("windows-production", "windows-app", "Microsoft Store", "production", "main branch head after candidate PASS", "fixture-windows"),
+                    self.release_target("api-development", "public-api", "Cloudflare", "development", DEV_SOURCE_POLICY, "fixture-api-dev"),
+                    self.release_target("api-production", "public-api", "Cloudflare", "production", PROD_SOURCE_POLICY, "fixture-api"),
+                    self.release_target("android-development", "android-app", "Play Console", "development", DEV_SOURCE_POLICY, "fixture-android-dev"),
+                    self.release_target("android-production", "android-app", "Google Play", "production", PROD_SOURCE_POLICY, "fixture-android"),
+                    self.release_target("macos-development", "macos-app", "Developer ID", "development", DEV_SOURCE_POLICY, "fixture-macos-dev"),
+                    self.release_target("macos-production", "macos-app", "Mac App Store", "production", PROD_SOURCE_POLICY, "fixture-macos"),
+                    self.release_target("windows-development", "windows-app", "MSIX signing", "development", DEV_SOURCE_POLICY, "fixture-windows-dev"),
+                    self.release_target("windows-production", "windows-app", "Microsoft Store", "production", PROD_SOURCE_POLICY, "fixture-windows"),
                 ],
             }
         )
@@ -1587,7 +1589,7 @@ async function agent(_prompt, options) {
                         "web-app",
                         "Cloudflare",
                         "development",
-                        "exact candidate run branch head",
+                        DEV_SOURCE_POLICY,
                         "fixture-web-dev",
                     ),
                     self.release_target(
@@ -1595,7 +1597,7 @@ async function agent(_prompt, options) {
                         "web-app",
                         "Cloudflare",
                         "production",
-                        "main branch head after candidate PASS",
+                        PROD_SOURCE_POLICY,
                         "fixture-web",
                     ),
                     self.release_target(
@@ -1603,7 +1605,7 @@ async function agent(_prompt, options) {
                         "marketing-web",
                         "Cloudflare",
                         "development",
-                        "exact candidate run branch head",
+                        DEV_SOURCE_POLICY,
                         "fixture-web-dev",
                     ),
                     self.release_target(
@@ -1611,7 +1613,7 @@ async function agent(_prompt, options) {
                         "marketing-web",
                         "Cloudflare",
                         "production",
-                        "main branch head after candidate PASS",
+                        PROD_SOURCE_POLICY,
                         "fixture-web",
                     ),
                 ],
@@ -1653,6 +1655,29 @@ async function agent(_prompt, options) {
                 or "tags and alternative production refs are rejected" in content.lower()
             )
         self.assertIn("promotion.verified_main_sha", contract)
+        graph_doc = self.read("references/agent-work-graph.md")
+        self.assertIn(PROD_SOURCE_POLICY, graph_doc)
+        self.assertIn(DEV_SOURCE_POLICY, graph_doc)
+        self.assertIn("Tags and alternative production refs are rejected", graph_doc)
+        self.assertNotIn("other source rules remain explicit", graph_doc)
+
+    def test_graph_rejects_open_release_source_policies(self) -> None:
+        result = self.run_workflow(self.base_workflow_args())
+        self.assertTrue(result["ok"], result)
+        synthesis = next(call["prompt"] for call in result["calls"] if call["role"] == "synthesis")
+        self.assertIn(DEV_SOURCE_POLICY, synthesis)
+        self.assertIn(PROD_SOURCE_POLICY, synthesis)
+        for index, policy in (
+            (1, "signed tag v*"),
+            (1, DEV_SOURCE_POLICY.replace("development", "production", 1)),
+            (0, PROD_SOURCE_POLICY),
+        ):
+            with self.subTest(index=index, policy=policy):
+                args = self.base_workflow_args()
+                args["release_targets"][index]["source_policy"] = policy
+                result = self.run_workflow(args)
+                self.assertFalse(result["ok"])
+                self.assertIn("source_policy must be", result["error"])
 
     def test_migration_order_drops_plan_v5_field_mapping(self) -> None:
         architecture = self.read("references/architecture-playbook.md")
@@ -1709,14 +1734,14 @@ async function agent(_prompt, options) {
                         "web-app",
                         "Cloudflare",
                         "development",
-                        "exact candidate run branch head",
+                        DEV_SOURCE_POLICY,
                     ),
                     self.release_target(
                         "web-production",
                         "web-app",
                         "AWS",
                         "production",
-                        "main branch head after candidate PASS",
+                        PROD_SOURCE_POLICY,
                     ),
                 ],
             }
