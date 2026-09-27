@@ -140,7 +140,7 @@ Fill this architecture-backed table from the stable target IDs in `docs/product/
 
 ## Environment Status
 
-Keep this legacy table for repositories and reviewers that inspect environment URLs without the richer architecture join. Do not replace the per-target table above with two generic rows.
+Keep this legacy table for repositories and reviewers that inspect environment URLs without the richer architecture join. Do not replace the per-target table above with two generic rows. Fill Checked with an `<RFC3339>` time with a timezone, such as `2026-09-03T14:05:00Z`, like the Release Target table; a bare date fails `check_deployment.py`.
 
 | Environment | URL | Expected head | Deployed SHA | Checked | Status |
 | --- | --- | --- | --- | --- | --- |

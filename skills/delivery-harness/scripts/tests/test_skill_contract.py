@@ -162,7 +162,8 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("never overwrite or delete", agents)
         self.assertIn("Never overwrite or delete", runtime)
         self.assertIn("previous release tag", agents)
-        self.assertIn("Restore the backup if verification fails", runtime)
+        self.assertIn("previous release tag", runtime)
+        self.assertNotIn("Restore the backup if verification fails", runtime)
         readme_backup_phrases = {
             "README.md": "archive the legacy directories under their original IDs",
             "README.zh-CN.md": "用原 ID 保存各旧目录",

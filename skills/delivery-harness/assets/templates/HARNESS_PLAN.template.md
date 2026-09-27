@@ -70,7 +70,7 @@ Use this template as `docs/goal/PLAN.md` for managed work that needs durable coo
         "id": "final-check",
         "cwd": ".",
         "argv": ["<runner>", "<final-argument>"],
-        "pass_signal": "<literal pass signal>",
+        "pass_signal": "exit 0",
         "execution": {
           "parallel_safe": false,
           "resources": [],
@@ -81,7 +81,7 @@ Use this template as `docs/goal/PLAN.md` for managed work that needs durable coo
         "id": "final-closeout",
         "cwd": ".",
         "argv": ["<runner>", "<closeout-argument>"],
-        "pass_signal": "<literal pass signal>",
+        "pass_signal": "exit 0",
         "execution": {
           "parallel_safe": false,
           "resources": [],
@@ -243,7 +243,7 @@ Use this template as `docs/goal/PLAN.md` for managed work that needs durable coo
             "id": "mission-integration",
             "cwd": ".",
             "argv": ["<runner>", "<integration-argument>"],
-            "pass_signal": "<literal pass signal>",
+            "pass_signal": "exit 0",
             "execution": {
               "parallel_safe": false,
               "resources": [],
@@ -297,7 +297,7 @@ Use this template as `docs/goal/PLAN.md` for managed work that needs durable coo
 
 The exact fenced JSON block is the canonical plan. New plans use PLAN schema v6. Older PLAN schemas remain readable; their recorded schema decides which fields apply. Every runtime review has a stable `lineage_id` that survives node replacement and PLAN revision. The graph is the canonical source for mission dependencies and routing. Keep the JSON valid, increment `revision` after an accepted semantic plan or graph change, and calculate the run's digest with the normalization algorithm in `references/execution-state-model.md`. There is no `execution_route` PLAN field: the selector derives it from the chosen route and actually selected safe write missions.
 
-Every new RUN records an explicit `security_review` policy. Use `required` for code delivery and include `security` in `required_reviews`; use `not_applicable` only with a concrete reason for a non-code delivery. `new_run.py` refuses an omitted policy. Existing PLAN-v6/RUN-v11 pairs remain readable and are never silently rewritten.
+Every new RUN records an explicit `security_review` policy. Use `required` for code delivery and include `security` in `required_reviews`; use `not_applicable` only with a concrete reason for a non-code delivery. `new_run.py` refuses an omitted policy. A required policy may add `required_checks`: batch or final verifier IDs whose single parent-run graph node must precede every security node and pass at the reviewed head before reservation; the review packet carries each with its `execution_key`. Existing PLAN-v6/RUN-v11 pairs remain readable and are never silently rewritten.
 
 Planned security requirements reuse upstream `PRD-*` traces and required `TEST-*` acceptance IDs. Give each trace an existing disposition (`planned`, `deferred`, or `out_of_scope`) under the current trace rules; an executable touched boundary must be `planned`. This template adds no security-specific schema or risk document.
 
