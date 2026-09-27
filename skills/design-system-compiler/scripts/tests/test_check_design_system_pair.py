@@ -294,6 +294,77 @@ class CheckDesignSystemPairTests(unittest.TestCase):
                 )
                 self.assertTrue(problems, key)
 
+    def test_styling_mechanism_maps_to_verbatim_stack_selection(self):
+        for mechanism, selection in (
+            ("plain CSS", "modern vanilla CSS"),
+            ("Tailwind CSS", "Tailwind CSS v4"),
+            ("utility CSS", "Tailwind CSS utilities"),
+            ("platform theme", "component-library-managed styles"),
+            ("CSS modules", "CSS Modules"),
+            ("platform theme", "platform theme"),
+        ):
+            with self.subTest(mechanism=mechanism, selection=selection):
+                self.assertTrue(checker.styling_matches_selection(mechanism, selection))
+        for mechanism, selection in (
+            ("plain CSS", "Tailwind CSS v4"),
+            ("CSS modules", "modern vanilla CSS"),
+            ("Tailwind CSS", "CSS Modules"),
+            ("magic", "magic CSS"),
+            ("plain CSS", ""),
+        ):
+            with self.subTest(mechanism=mechanism, selection=selection):
+                self.assertFalse(checker.styling_matches_selection(mechanism, selection))
+
+        stack = """
+# Stack Decisions
+## Frontend Technology Decision
+### Recorded or Approved Stack
+| Layer | Selection | Status | Authority / evidence | Why It Fits | Constraint / follow-up |
+| --- | --- | --- | --- | --- | --- |
+| Rendering model | SSG | Approved | Owner | Fits | None |
+| Component foundation | custom | Approved | Owner | Fits | None |
+| Styling approach | modern vanilla CSS | Approved | Owner | Fits | None |
+"""
+        semantics = {
+            "platform": "web",
+            "renderingModel": "SSG",
+            "componentFoundation": "custom",
+            "stylingMechanism": "modern vanilla CSS",
+        }
+        ui_view = {
+            "target_scope": {
+                "surfaces": [
+                    {"id": "UI-001", "surfaceClass": "hosted_web", "stackSemantics": dict(semantics)}
+                ]
+            }
+        }
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "stack-decisions.md"
+            path.write_text(stack, encoding="utf-8")
+            registry_data = registry(
+                schema="design-system/2",
+                stylingMechanism="plain CSS",
+                stackSemantics=dict(semantics),
+            )
+            self.assertFalse(
+                [item for item in checker.validate_registry(registry_data) if "stylingMechanism" in item]
+            )
+            problems: list[str] = []
+            checker._validate_stack_semantics(
+                registry_data, stack_path=path, ui_view=ui_view, problems=problems
+            )
+            self.assertEqual([], problems)
+
+            registry_data["stylingMechanism"] = "Tailwind CSS"
+            problems = []
+            checker._validate_stack_semantics(
+                registry_data, stack_path=path, ui_view=ui_view, problems=problems
+            )
+            self.assertTrue(
+                any("does not correspond to the Stack styling approach" in item for item in problems),
+                problems,
+            )
+
     def run_pair(
         self,
         markdown: str,

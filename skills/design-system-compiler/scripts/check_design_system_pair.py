@@ -110,6 +110,17 @@ VALID_STYLING_MECHANISMS = {
     "plain CSS",
     "platform theme",
 }
+# The closed stylingMechanism value must correspond to the verbatim Stack
+# "Styling approach" selection kept in stackSemantics. A value matches when the
+# casefolded selection equals it or contains one of its keywords.
+STYLING_SELECTION_KEYWORDS = {
+    "utility CSS": ("utility", "utilities"),
+    "Tailwind CSS": ("tailwind",),
+    "CSS-in-JS": ("css-in-js", "styled-components", "emotion"),
+    "CSS modules": ("css module",),
+    "plain CSS": ("plain css", "vanilla css", "modern css"),
+    "platform theme": ("platform theme", "component-library"),
+}
 VALID_ENFORCEMENT = {"blocking", "advisory"}
 
 
@@ -1155,6 +1166,19 @@ def _stack_semantics(
     return semantics
 
 
+def styling_matches_selection(mechanism: Any, selection: Any) -> bool:
+    """True when a closed stylingMechanism value names the Stack selection."""
+
+    if not isinstance(mechanism, str) or not isinstance(selection, str):
+        return False
+    text = selection.strip().casefold()
+    if not text:
+        return False
+    if text == mechanism.strip().casefold():
+        return True
+    return any(keyword in text for keyword in STYLING_SELECTION_KEYWORDS.get(mechanism, ()))
+
+
 def _validate_stack_semantics(
     registry: dict[str, Any],
     *,
@@ -1257,8 +1281,11 @@ def _validate_stack_semantics(
             problems.append("design-system.json stackSemantics.platform does not match approved UI surface class")
         if registry.get("platform") != recorded.get("platform"):
             problems.append("design-system.json platform must equal stackSemantics.platform")
-        if registry.get("stylingMechanism") != recorded.get("stylingMechanism"):
-            problems.append("design-system.json stylingMechanism must equal stackSemantics.stylingMechanism")
+        if not styling_matches_selection(registry.get("stylingMechanism"), recorded.get("stylingMechanism")):
+            problems.append(
+                "design-system.json stylingMechanism does not correspond to the "
+                "Stack styling approach in stackSemantics.stylingMechanism"
+            )
         if surface_items:
             target_semantics = surface_items[0].get("stackSemantics")
             if not isinstance(target_semantics, dict) or set(target_semantics) != required_keys | {"platform"}:
