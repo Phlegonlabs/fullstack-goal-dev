@@ -388,8 +388,17 @@ def execute(args: argparse.Namespace) -> int:
         url = _pre_push_recheck(root, request, authority)
         push_argv = _execution_argv(request)
         executable_argv = [git_executable(), *push_argv[1:]]
-        env = publication_environment(url, expected=request.get("credential_binding"))
-        pushed = subprocess.run(executable_argv, cwd=Path.cwd(), env=env, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300, check=False)
+        # The push runs in the checkout; point hooks at a fresh empty directory
+        # so no repository hook runs with the publication credentials.
+        hooks_dir = Path(tempfile.mkdtemp(prefix="harness-no-hooks-"))
+        try:
+            env = publication_environment(url, expected=request.get("credential_binding"), hooks_dir=str(hooks_dir))
+            pushed = subprocess.run(executable_argv, cwd=Path.cwd(), env=env, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300, check=False)
+        finally:
+            try:
+                hooks_dir.rmdir()
+            except OSError:
+                pass
         if pushed.returncode != 0:
             raise RuntimeError("trusted-host push failed")
         readback = _remote_head(url, request["branch_ref"], cwd=Path.cwd(), credentials=request.get("credential_binding"))
