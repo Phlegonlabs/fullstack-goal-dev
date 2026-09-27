@@ -109,6 +109,8 @@ NON_HUMAN_OWNERS = {
     "system",
 }
 VALID_TREATMENTS = {"none", "image", "motion", "image + motion"}
+# Code-only motion routes need no generated or reused media asset.
+CODE_MOTION_ROUTES = {"css-waapi", "motion", "gsap", "three.js", "native-framework"}
 VALID_MOTION_STATUSES = {"approved", "deferred"}
 VALID_MOTION_DIRECTIONS = {"not_required", "functional_only", "expressive"}
 VALID_WIREFRAME_DECISIONS = {"draft", "approved", "revision_requested", "blocked"}
@@ -2379,11 +2381,11 @@ def _resolve_motion_effect_evidence(
                 "trigger": intent.get("trigger"), "endState": evidence.get("endState"),
                 "states": surface.get("states", []), "targets": [str(t) for t in targets],
                 "provider": intent.get("generationRoute") if intent.get("generationRoute", "").casefold() not in {
-                    "css-waapi", "gsap", "native-framework", "none", "existing asset"
+                    *CODE_MOTION_ROUTES, "none", "existing asset"
                 } else None,
                 "assetAction": "reuse" if intent.get("generationRoute", "").casefold() == "existing asset" else None,
                 "assetRequired": intent.get("treatment", "").casefold() == "image + motion" or intent.get("generationRoute", "").casefold() not in {
-                    "css-waapi", "gsap", "native-framework", "none"
+                    *CODE_MOTION_ROUTES, "none"
                 },
             },
         )
