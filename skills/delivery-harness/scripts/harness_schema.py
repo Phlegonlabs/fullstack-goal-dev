@@ -183,6 +183,49 @@ UI_EVIDENCE_IMAGE_SUFFIXES = {".jpeg", ".jpg", ".png", ".webp"}
 # `push` is the only action bound to an exact head SHA: it publishes one verified
 # commit. Every other action either mutates local state or cleans it up.
 HEAD_BOUND_AUTHORIZATION_ACTIONS = {"push"}
+
+
+# RUN coordination paths name run bookkeeping files only. Product source and
+# frozen PLAN inputs never qualify, because a coordination-only commit after
+# the recorded integration head must not hide product changes.
+_COORDINATION_PATH_RES = (
+    re.compile(r"docs/(?:tasks|DOCUMENTS)\.md"),
+    re.compile(
+        r"docs/goal/(?:[^/]+/)?(?:PLAN|RUN|DECISIONS|REFINEMENT_BACKLOG|tasks)\.md"
+    ),
+    re.compile(r"docs/epics/[^/]+\.md"),
+)
+
+
+def supported_coordination_path(path: object) -> bool:
+    """Return whether ``path`` is an allowed run coordination file."""
+
+    return isinstance(path, str) and any(
+        pattern.fullmatch(path) is not None for pattern in _COORDINATION_PATH_RES
+    )
+
+
+def frozen_coordination_path(path: object, plan: object = None) -> bool:
+    """Return whether ``path`` is a frozen product/design or PLAN source."""
+
+    if not isinstance(path, str):
+        return False
+    if path.startswith(("docs/product/", "docs/design/")):
+        return True
+    sources = plan.get("sources", []) if isinstance(plan, dict) else []
+    if not isinstance(sources, list):
+        return False
+    for source in sources:
+        location = source.get("location") if isinstance(source, dict) else None
+        if (
+            isinstance(location, str)
+            and location == path
+            and "://" not in location
+            and not location.startswith("/")
+            and "\\" not in location
+        ):
+            return True
+    return False
 # Provider IDs record the current host identity, never a capability or model catalog.
 PROVIDER_ID_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 

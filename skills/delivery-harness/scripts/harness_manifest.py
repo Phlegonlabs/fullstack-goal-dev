@@ -52,6 +52,8 @@ from harness_schema import (
     TASK_ID_RE,
     TASK_PHASES,
     TARGET_RE,
+    frozen_coordination_path,
+    supported_coordination_path,
     version_at_least,
     WORKER_PHASES,
 )
@@ -6560,6 +6562,32 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                         "run.integration.coordination_paths",
                         "must contain repository-relative POSIX paths",
                     )
+            # Closeout accepts a newer branch head when only coordination
+            # files changed, so a product path listed here would hide
+            # untested product commits.
+            frozen_paths = sorted(
+                path for path in coordination_paths
+                if frozen_coordination_path(path, plan)
+            )
+            if frozen_paths:
+                _add(
+                    errors,
+                    "run.integration.coordination_paths",
+                    "frozen product/design sources cannot be coordination paths: "
+                    + ", ".join(frozen_paths),
+                )
+            unsupported_paths = sorted(
+                path for path in coordination_paths
+                if not frozen_coordination_path(path, plan)
+                and not supported_coordination_path(path)
+            )
+            if unsupported_paths:
+                _add(
+                    errors,
+                    "run.integration.coordination_paths",
+                    "RUN declares unsupported product-path coordination entries: "
+                    + ", ".join(unsupported_paths),
+                )
         retention = integration.get("retention")
         if retention is not None and retention not in {"persistent", "ephemeral"}:
             _add(errors, "run.integration.retention", "must be null, persistent, or ephemeral")

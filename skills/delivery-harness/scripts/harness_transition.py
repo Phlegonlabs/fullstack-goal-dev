@@ -52,6 +52,7 @@ from harness_manifest import (
 from harness_schema import RUN_DISPATCH_STATUSES, RUN_HEADING
 from harness_schema import archive_first_required, parse_harness_version, required_harness_version
 from harness_schema import version_at_least
+from harness_schema import frozen_coordination_path, supported_coordination_path
 from push_integration_branch import (
     make_push_request,
     validate_push_receipt,
@@ -173,39 +174,6 @@ def _coordination_commit_changes(
             raise ManifestError(f"coordination commit path {path!r} {reason}")
         changes.append((status, path))
     return changes
-
-
-def _forbidden_coordination_paths(plan: dict[str, Any]) -> set[str]:
-    """Names that never qualify as run coordination even if RUN lists them."""
-
-    forbidden: set[str] = set()
-    for source in plan.get("sources", []):
-        if not isinstance(source, dict):
-            continue
-        location = source.get("location")
-        if (
-            isinstance(location, str)
-            and location
-            and "://" not in location
-            and not location.startswith("/")
-            and "\\" not in location
-        ):
-            forbidden.add(location)
-    return forbidden
-
-
-def _supported_coordination_path(path: str) -> bool:
-    fixed_paths = {"docs/tasks.md", "docs/DOCUMENTS.md"}
-    goal_coordination = (
-        r"docs/goal/(?:[^/]+/)?"
-        r"(?:PLAN|RUN|DECISIONS|REFINEMENT_BACKLOG)\.md"
-    )
-    return (
-        path in fixed_paths
-        or re.fullmatch(goal_coordination, path) is not None
-        or re.fullmatch(r"docs/goal/(?:[^/]+/)?tasks.md", path) is not None
-        or re.fullmatch(r"docs/epics/[^/]+\.md", path) is not None
-    )
 
 
 def _git_entry_mode(root: Path, commit_sha: str, path: str) -> str | None:
@@ -3498,12 +3466,9 @@ def _reconcile_coordination_head(
         path for path in coordination_paths_value
         if isinstance(path, str) and validate_changed_path(path) is None
     }
-    forbidden_paths = _forbidden_coordination_paths(plan)
     listed_frozen_paths = sorted(
         path for path in exact_coordination_paths
-        if path in forbidden_paths
-        or path.startswith("docs/product/")
-        or path.startswith("docs/design/")
+        if frozen_coordination_path(path, plan)
     )
     if listed_frozen_paths:
         raise ManifestError(
@@ -3512,7 +3477,7 @@ def _reconcile_coordination_head(
         )
     unsupported_exact_paths = sorted(
         path for path in exact_coordination_paths
-        if not _supported_coordination_path(path)
+        if not supported_coordination_path(path)
     )
     if unsupported_exact_paths:
         raise ManifestError(

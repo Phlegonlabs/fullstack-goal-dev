@@ -340,6 +340,58 @@ class HarnessV11Tests(unittest.TestCase):
             subprocess.run(["git", "commit", "-qm", "code after review"], cwd=root, check=True)
             self.assertTrue(validate_integration_head_against_git(run, root))
 
+    def test_product_path_listed_as_coordination_still_stales_candidate(self) -> None:
+        """RUN cannot list product code as coordination to hide a newer head."""
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Harness Test"], cwd=root, check=True)
+            source = root / "src" / "app.ts"
+            source.parent.mkdir()
+            source.write_text("candidate\n", encoding="utf-8")
+            subprocess.run(["git", "add", "src/app.ts"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "candidate"], cwd=root, check=True)
+            candidate = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
+            source.write_text("untested change\n", encoding="utf-8")
+            subprocess.run(["git", "add", "src/app.ts"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "c2"], cwd=root, check=True)
+            branch = subprocess.check_output(["git", "branch", "--show-current"], cwd=root, text=True).strip()
+            run = {
+                "schema_version": 11,
+                "integration": {
+                    "branch": branch,
+                    "integration_head_sha": candidate,
+                    "coordination_paths": ["docs/goal/RUN.md", "src/app.ts"],
+                },
+            }
+
+            errors = validate_integration_head_against_git(run, root)
+            self.assertTrue(any("RUN.md is stale" in error for error in errors))
+
+    def test_validate_run_rejects_product_and_frozen_coordination_paths(self) -> None:
+        plan = valid_plan()
+        run = valid_run(plan)
+        self.assertEqual([], validate_run(plan, run))
+
+        run["integration"]["coordination_paths"].append("src/app.ts")
+        errors = validate_run(plan, run)
+        self.assertTrue(
+            any("unsupported product-path coordination entries: src/app.ts" in e for e in errors),
+            errors,
+        )
+
+        run["integration"]["coordination_paths"][-1] = "docs/product/PRD.md"
+        errors = validate_run(plan, run)
+        self.assertTrue(
+            any("frozen product/design sources cannot be coordination paths" in e for e in errors),
+            errors,
+        )
+
+        run["integration"]["coordination_paths"][-1] = "docs/epics/EPIC-1.md"
+        self.assertEqual([], validate_run(plan, run))
+
     def test_review_packet_is_bounded(self) -> None:
         plan = valid_plan()
         run = valid_run(plan)
