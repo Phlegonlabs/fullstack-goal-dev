@@ -3016,17 +3016,11 @@ def validate_texts(
                         if area == "ui structure / style":
                             if impact == "style":
                                 required_artifacts = {"ui-design.md"}
-                                required_gates = {
-                                    "style integration",
-                                    "impeccable",
-                                    "h1-h9",
-                                    "visual approval",
-                                }
+                                required_gates = {"visual approval"}
                             else:
                                 required_artifacts = {"wireframes.html", "ui-design.md"}
                                 required_gates = {
-                                    "copy freeze",
-                                    "wireframe approval",
+                                    "wireframe validation",
                                     "visual approval",
                                 }
                         else:

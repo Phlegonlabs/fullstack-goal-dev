@@ -1792,6 +1792,45 @@ Security scope: executable
             )
         )
 
+    def test_changed_ui_enhancement_uses_current_design_gates(self) -> None:
+        impacts = """
+## Enhancement Impact Record
+| Area | Impact | Affected IDs / decisions | Required refresh |
+| --- | --- | --- | --- |
+| Product scope / behavior | unchanged | none | none |
+| UI structure / style | {impact} | UI-001 | {refresh} |
+| Data / integrations | unchanged | none | none |
+| Architecture / stack | unchanged | none | none |
+| Data trust / AI | unchanged | none | none |
+| Security | unchanged | none | none |
+| Monetization / partner | unchanged | none | none |
+| Release / operations | unchanged | none | none |
+"""
+
+        def ui_problems(impact: str, refresh: str) -> list[str]:
+            prd = valid_prd(mode="enhancement").replace(
+                "## Problem Statement",
+                impacts.format(impact=impact, refresh=refresh) + "\n## Problem Statement",
+            )
+            return [item for item in self.validate(prd=prd) if "UI structure / style" in item]
+
+        structure_refresh = (
+            "wireframes.html and ui-design.md with copy completeness, "
+            "Wireframe Validation and Visual Approval"
+        )
+        for impact in ("structure", "both"):
+            with self.subTest(impact=impact):
+                self.assertEqual([], ui_problems(impact, structure_refresh))
+                retired = ui_problems(
+                    impact,
+                    "wireframes.html and ui-design.md with Copy Freeze, "
+                    "Wireframe Approval and Visual Approval",
+                )
+                self.assertTrue(any("wireframe validation" in item for item in retired))
+        self.assertEqual([], ui_problems("style", "ui-design.md and Visual Approval"))
+        missing = ui_problems("style", "ui-design.md with Style Integration and Impeccable H1-H9")
+        self.assertTrue(any("visual approval" in item for item in missing))
+
     def test_prefix_and_placeholder_bypasses_fail(self) -> None:
         nonevil = valid_prd().replace(
             "- Blocking items: none", "- Blocking items: nonevil hidden decision"
