@@ -128,7 +128,7 @@ HiFi surface evidence keeps method `sandboxed-offline-browser`. New packages req
 
 Proactively send one user-visible response with verified absolute Markdown links to the complete current schema-2 HiFi entrypoint, every manifest-listed sibling page, and the affected `ui-design.md` design handoff. Use the final logical paths in the authorized publication checkout for approval; after publication, link canonical files in the source checkout. Do not collect approval on `.ui-staging` paths. Say that the full approved scope is included, name what the owner should review, and ask explicitly for Visual Approval. A preview or panel open is convenience only and cannot replace the response or links; if any page or preview cannot be verified or opened, report that blockage instead of approval readiness.
 
-Wait for the owner's explicit decision. Record it as `approved`, `revision_requested`, or `blocked` in `ui-design.md`, with the decision owner and date. Approval proves visual-direction conformance, not representative-user usability or production readiness.
+Wait for the owner's explicit decision. Record it as `approved`, `revision_requested`, or `blocked` in `ui-design.md`, with the decision owner and date. The checker rejects an approval dated before the newest HiFi, Impeccable, grading or motion receipt; a repaired candidate needs a new owner decision. Approval proves visual-direction conformance, not representative-user usability or production readiness.
 
 ## Retention And Design System Need Gate
 

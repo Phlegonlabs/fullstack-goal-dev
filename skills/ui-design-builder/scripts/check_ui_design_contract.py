@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import argparse
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 import hashlib
 import json
 import re
@@ -1924,6 +1924,25 @@ def _resolve_evidence(
         _add(problems, f"{label} evidence owner must be human")
 
 
+def _receipt_date(value: str | None, repo_root: Path) -> date | None:
+    """Return the earliest calendar date of a PASS receipt's executedAt, if readable."""
+
+    match = EVIDENCE_RE.fullmatch((value or "").strip())
+    if match is None:
+        return None
+    try:
+        path = (repo_root / match.group("path")).resolve()
+        path.relative_to(repo_root.resolve())
+        receipt = json.loads(path.read_text(encoding="utf-8"))["receipt"]
+        executed = datetime.fromisoformat(str(receipt["executedAt"]).replace("Z", "+00:00"))
+    except (OSError, UnicodeError, ValueError, TypeError, KeyError):
+        return None
+    if executed.tzinfo is None:
+        return None
+    # UTC-12 gives the earliest local date for that instant, so no owner time zone is rejected.
+    return (executed.astimezone(timezone.utc) - timedelta(hours=12)).date()
+
+
 def _evidence_check(label: str, capture_mode: str | None) -> str | None:
     suffix = {
         "hosted-browser": "browser",
@@ -2925,6 +2944,19 @@ def _validate_impl(
             motion_intents_for_evidence,
             problems,
         )
+        decided_on = _field(visual, "Decided on")
+        if _date(decided_on):
+            review_section = _section(active, "## HiFi Review") or ""
+            receipt_dates = [
+                receipt_date
+                for value in [
+                    *(_field(review_section, name) for name in ("Impeccable critique", "Impeccable audit", "UI grading", "HiFi surface check")),
+                    *(f"PASS — evidence={item['path']} @ sha256:{item['sha256']}" for item in motion_effect_evidence.values()),
+                ]
+                if (receipt_date := _receipt_date(value, root)) is not None
+            ]
+            if receipt_dates and date.fromisoformat(decided_on.strip()) < max(receipt_dates):
+                _add(problems, "Visual Approval Decided on predates the newest HiFi review evidence; the owner must decide on the current candidate")
         for field_name in (
             "Impeccable critique",
             "Impeccable audit",

@@ -163,6 +163,24 @@ class StructurePublicationTests(unittest.TestCase):
                 hifi_path=hifi, require_structure_validated=True, require_visual_approved=True)
             self.assertIn("Frontend Design source snapshot", "\n".join(findings))
 
+    def test_visual_approval_cannot_predate_hifi_evidence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ui, prd, wf, hifi = modern_publication(root)
+            original = ui.read_text(encoding="utf-8")
+            start = original.index("## Visual Approval")
+            for decided, rejected in (("2019-12-01", True), ("2019-12-31", False)):
+                text = original[:start] + re.sub(r"^Decided on: .*$", "Decided on: " + decided,
+                                                 original[start:], count=1, flags=re.M)
+                text = re.sub(r"ui-design=docs/design/ui-design.md @ sha256:[0-9a-f]{64}",
+                              "ui-design=docs/design/ui-design.md @ sha256:" + checker.canonical_ui_approval_sha256(text), text)
+                ui.write_text(text, encoding="utf-8")
+                findings = "\n".join(checker.validate(ui, repo_root=root, prd_path=prd, wireframes_path=wf,
+                    hifi_path=hifi, require_structure_validated=True, require_visual_approved=True))
+                self.assertEqual(rejected, "predates the newest HiFi review evidence" in findings, findings)
+                if not rejected:
+                    self.assertEqual("", findings)
+
     def test_every_machine_receipt_binds_current_product_inputs(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
