@@ -342,7 +342,9 @@ def run_process_tree(
     """Finish the owned tree before reading output or returning to Git checks."""
     runner = _run_windows if IS_WINDOWS else _run_posix
     # Files avoid pipe backpressure and grandchildren keeping communicate() open.
-    with tempfile.TemporaryFile(mode="w+t") as stdout, tempfile.TemporaryFile(mode="w+t") as stderr:
+    # Decode as UTF-8, not the locale code page; bad bytes become U+FFFD.
+    with tempfile.TemporaryFile(mode="w+t", encoding="utf-8", errors="replace") as stdout, \
+            tempfile.TemporaryFile(mode="w+t", encoding="utf-8", errors="replace") as stderr:
         try:
             code, timed_out = runner(argv, cwd, environment, timeout_seconds, stdout, stderr)
         except (HostProcessError, OSError, ValueError, subprocess.SubprocessError) as exc:

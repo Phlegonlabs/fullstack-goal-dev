@@ -167,6 +167,15 @@ class HostVerifierTests(unittest.TestCase):
         self.assertEqual("stdout marker\n", result["stdout"])
         self.assertEqual("stderr marker", result["stderr"])
 
+    def test_non_ascii_host_output_passes_and_is_preserved(self):
+        result = self.execute(host_verifier(
+            "import sys; sys.stdout.buffer.write('通過\\n'.encode('utf-8')); "
+            "sys.stderr.buffer.write(b'\\xff bad byte')"
+        ))
+        self.assertEqual("PASS", result["status"])
+        self.assertEqual("通過\n", result["stdout"])
+        self.assertEqual("� bad byte", result["stderr"])
+
     @unittest.skipUnless(sys.platform == "win32", "forces a Windows job setup failure")
     def test_windows_containment_setup_failure_fails_closed(self):
         declaration = host_verifier()

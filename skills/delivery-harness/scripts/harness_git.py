@@ -569,6 +569,9 @@ def _raw_git(
 ) -> subprocess.CompletedProcess[Any]:
     """Run Git without remote-config preflight (used by the preflight itself)."""
 
+    # Git writes paths as UTF-8; never decode with the Windows code page.
+    if text and encoding is None:
+        encoding, errors = "utf-8", errors or "surrogateescape"
     return subprocess.run(
         git_argv(*arguments),
         cwd=root,

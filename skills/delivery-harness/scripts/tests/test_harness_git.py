@@ -257,6 +257,22 @@ class HarnessGitTests(unittest.TestCase):
                 with self.assertRaises(GitConfigurationError):
                     module.reject_dangerous_local_config(root)
 
+    def test_non_ascii_repository_and_untracked_paths_decode_as_utf8(self) -> None:
+        import archive_run
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "通過-repo"
+            root.mkdir()
+            self._repo(root)
+            (root / "docs").mkdir()
+            (root / "docs" / "通過.md").write_text("zh-TW\n", encoding="utf-8")
+            status = run_git(root, "status", "--porcelain=v1", "-z", "--untracked-files=all")
+            self.assertEqual(0, status.returncode, status.stderr)
+            self.assertIn("?? docs/通過.md", status.stdout.split("\0"))
+            archived = archive_run._git(root, "status", "--porcelain=v1", "-z", "--untracked-files=all")
+            self.assertIsNotNone(archived)
+            self.assertIn("?? docs/通過.md", archived.stdout.split("\0"))
+
     def test_linked_worktree_shared_and_worktree_config_count_as_local(self) -> None:
         import harness_git as module
 
