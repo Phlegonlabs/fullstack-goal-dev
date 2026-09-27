@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.54.5-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.55.0-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -635,6 +635,8 @@ HiFi 示例以固定 LF 换行维持跨平台字节哈希。Wireframe 的 Node �
 ## 版本历史
 
 每次发布都要更新本节，连同上面《发布》一节描述的版本号提升与 tag 一起完成。
+
+- **0.55.0** — 修正对七个 skill 进行多代理审查后发现的问题。破坏性变更与使用者需要做的事：重跑 finalize，并重新记录 Product Definition Approval 与 Stack Decision Checkpoint，因为 digest 现在覆盖含 fenced code、缩进行与 HTML 注释的原始文本；在 Mobile/Desktop stack 加上 `Styling approach` 行；Environment Status 的 Checked 值改用带时区的 RFC3339；在要求 0.55.0 的 run 中，清理类 lifecycle 节点（`archive_worker_tasks`、`remove_worktrees`、`delete_branches`）要有精确 target；Visual Approval 前完成 Impeccable critique 与 audit；enhancement 的 UI 行要写明 Wireframe Validation 与 Visual Approval。另外，trusted-host 与 legacy push 与 repository hooks 和 askpass 隔离，RUN、DOCUMENTS 与 design-system 的原子提交支持 macOS，installer 记录源 commit，并新增 macOS CI job。
 
 - **0.54.5** — 补上 2026-09-24 交接审计记录与 2026-09-26 分支整理记录。先以 tree 比对确认分支内容已在 main 发布，才删除本地与远端分支。
 

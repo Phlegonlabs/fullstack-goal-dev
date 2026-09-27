@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.54.5-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.55.0-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -634,6 +634,8 @@ Este repositorio está bajo la Licencia MIT — ver [LICENSE](LICENSE).
 ## Historial de versiones
 
 Actualiza esta sección con cada release, como parte del bump de versión y el tag descritos en Releasing arriba.
+
+- **0.55.0** — Correcciones de una revisión multiagente de los siete skills. Cambios breaking y qué deben hacer los consumidores: vuelve a ejecutar finalize y registra de nuevo Product Definition Approval y el Stack Decision Checkpoint, porque sus digests ahora cubren el texto crudo con code fences, líneas indentadas y comentarios HTML; añade una fila `Styling approach` a los stacks Mobile/Desktop; escribe los valores Checked de Environment Status en RFC3339 con zona horaria; da un target exacto a los nodos lifecycle de limpieza (`archive_worker_tasks`, `remove_worktrees`, `delete_branches`) en runs que requieren 0.55.0; completa Impeccable critique y audit antes de Visual Approval; nombra Wireframe Validation y Visual Approval en las filas UI de enhancement. Además aísla los pushes de trusted host y legacy de hooks y askpass del repositorio, mantiene commits atómicos de RUN, DOCUMENTS y design-system en macOS, registra el commit de origen de cada instalación y añade un job de CI en macOS.
 
 - **0.54.5** — Publica el registro de auditoría de entrega del 2026-09-24 y la reconciliación de ramas del 2026-09-26. Las ramas locales y remotas se borraron solo tras comprobar que su contenido ya estaba publicado en main.
 

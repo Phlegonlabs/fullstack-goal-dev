@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.54.5-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.55.0-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -635,6 +635,8 @@ This repository is licensed under the MIT License — see [LICENSE](LICENSE).
 ## Version history
 
 Update this section with each release, as part of the version bump and tag described in Releasing above.
+
+- **0.55.0** — Fixes from a multi-agent review of all seven skills. Breaking changes and what consumers must do: re-run finalize and re-record Product Definition Approval and the Stack Decision Checkpoint, because their digests now cover the raw text including fenced code, indented lines and HTML comments; add a `Styling approach` row to Mobile/Desktop stacks; write Environment Status Checked values as RFC3339 with a timezone; give cleanup lifecycle nodes (`archive_worker_tasks`, `remove_worktrees`, `delete_branches`) an exact target in runs that require 0.55.0; complete Impeccable critique and audit before Visual Approval; name Wireframe Validation and Visual Approval in enhancement UI rows. Also isolates trusted-host and legacy pushes from repository hooks and askpass, keeps atomic RUN, DOCUMENTS and design-system commits on macOS, records each install's source commit and adds a macOS CI job.
 
 - **0.54.5** — Publish the missing 2026-09-24 handoff-audit record and the 2026-09-26 branch reconciliation. Removed local and remote branches only after tree checks proved their content was already released on main.
 
