@@ -155,6 +155,7 @@ The saved lifecycle artifact is strict evidence, not a convenience copy:
 - record the mode (`baseline`, `growth_review`, or `traffic_drop`) and `Review type: lifecycle_public_release`;
 - bind one architecture production target, full source SHA, exact artifact/build identity, deployment identity and checked time, production domain, data cutoff, and human review owner;
 - bind the lowercase SHA-256 of the exact current `docs/ACTIVATION.md`;
+- require only the reviewed target to be `ready` in Activation; other release targets, such as an app still in store review, may stay pending;
 - list every verified `MS-*` source whose exact target, SHA, and artifact match, and no other source as verified evidence;
 - keep Search Console, GA4, production-page, demand, and first-party evidence roles separate; and
 - run `scripts/check_seo_review.py --review <path> --prd <PRD> --architecture <architecture> --stack-decisions <stack-decisions> --deployment <DEPLOYMENT> --activation <ACTIVATION> --repo-root <repository-root> --require-lifecycle`.
