@@ -70,7 +70,7 @@ Use this template as `docs/goal/PLAN.md` for managed work that needs durable coo
         "id": "final-check",
         "cwd": ".",
         "argv": ["<runner>", "<final-argument>"],
-        "pass_signal": "<literal pass signal>",
+        "pass_signal": "exit 0",
         "execution": {
           "parallel_safe": false,
           "resources": [],
@@ -81,7 +81,7 @@ Use this template as `docs/goal/PLAN.md` for managed work that needs durable coo
         "id": "final-closeout",
         "cwd": ".",
         "argv": ["<runner>", "<closeout-argument>"],
-        "pass_signal": "<literal pass signal>",
+        "pass_signal": "exit 0",
         "execution": {
           "parallel_safe": false,
           "resources": [],
@@ -243,7 +243,7 @@ Use this template as `docs/goal/PLAN.md` for managed work that needs durable coo
             "id": "mission-integration",
             "cwd": ".",
             "argv": ["<runner>", "<integration-argument>"],
-            "pass_signal": "<literal pass signal>",
+            "pass_signal": "exit 0",
             "execution": {
               "parallel_safe": false,
               "resources": [],
