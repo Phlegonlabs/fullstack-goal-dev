@@ -770,6 +770,7 @@ A product may add this section in a later revision after Frontend Technology Dec
 | Target operating systems | [iOS / Android / both / macOS / Windows / exact set] | [Required / Selected / Approved / Recommended / Provisional] | [Cited source] | [Reason] | [Constraint] |
 | Client strategy | [Platform-native / cross-platform] | [Required / Selected / Approved / Recommended / Provisional] | [Cited source] | [Reason] | [Constraint] |
 | Framework | [SwiftUI / Jetpack Compose / Flutter / React Native / Tauri / Electron / exact choice] | [Required / Selected / Approved / Recommended / Provisional] | [Cited source] | [Reason] | [Constraint] |
+| Styling approach | [platform theme / another exact choice] | [Required / Selected / Approved / Recommended / Provisional] | [Cited source] | [Reason] | [Constraint] |
 | Toolchain | [Xcode / Android Studio / Flutter-Dart / Expo or bare React Native / desktop equivalent] | [Required / Selected / Approved / Recommended / Provisional] | [Cited source] | [Reason] | [Constraint] |
 | Navigation and state | [Approach] | [Required / Selected / Approved / Recommended / Provisional] | [Cited source] | [Reason] | [Constraint] |
 | Local persistence | [Approach] | [Required / Selected / Approved / Recommended / Provisional] | [Cited source] | [Reason] | [Constraint] |
