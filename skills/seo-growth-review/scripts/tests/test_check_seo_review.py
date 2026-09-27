@@ -227,6 +227,28 @@ class SeoLifecycleReviewTests(unittest.TestCase):
             "\n".join(self.check(future_cutoff)),
         )
 
+    def test_schema2_date_only_data_cutoff_is_a_finding_not_a_crash(self) -> None:
+        date_only = valid_review_v2().replace(
+            "- Data cutoff: 2026-09-07T18:02:00Z", "- Data cutoff: 2026-09-07", 1
+        )
+        self.assertIn(
+            "Record: Data cutoff must be an RFC3339 timestamp",
+            "\n".join(self.check(date_only)),
+        )
+        # Source rows are still checked after the malformed cutoff.
+        self.assertIn(
+            "verified at must equal",
+            "\n".join(
+                self.check(
+                    date_only.replace(
+                        "| ga4 | 2026-09-07T18:02:00Z | 2026-09-07T18:02:00Z |",
+                        "| ga4 | 2026-09-07T17:02:00Z | 2026-09-07T18:02:00Z |",
+                        1,
+                    )
+                )
+            ),
+        )
+
     def test_release_domain_or_artifact_mismatch_is_rejected(self) -> None:
         domain = valid_review().replace("- Production domain: example.com", "- Production domain: https://example.com/path")
         artifact = valid_review().replace(

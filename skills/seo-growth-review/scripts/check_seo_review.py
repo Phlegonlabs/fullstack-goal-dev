@@ -516,7 +516,11 @@ def check_seo_review_text(
                 findings.append(f"Verified Sources: {source_id} verified at must be RFC3339")
             elif activation_source is not None and verified_instant != activation_source["latest_pass"]:
                 findings.append(f"Verified Sources: {source_id} verified at must equal the latest PASS Activation evidence timestamp")
-            if cutoff_instant is not None and cutoff_instant > data_cutoff:
+            if (
+                cutoff_instant is not None
+                and data_cutoff is not None
+                and cutoff_instant > data_cutoff
+            ):
                 findings.append(f"Verified Sources: {source_id} coverage through cannot exceed the global data cutoff")
         elif activation_source is not None and cutoff_instant != activation_source["latest_pass"]:
             findings.append(f"Verified Sources: {source_id} cutoff must equal the latest PASS Activation evidence timestamp")
