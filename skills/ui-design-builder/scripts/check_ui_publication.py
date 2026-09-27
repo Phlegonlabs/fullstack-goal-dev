@@ -45,6 +45,17 @@ def inventory(root: Path) -> dict[str, str]:
     return result
 
 
+def _approved_target(text: str) -> tuple[str, str] | None:
+    target = ui.parse_ui_contract_view(text)[0]["approved_target"]
+    return (target["path"], target["sha256"]) if target else None
+
+
+def _committed_target(source: Path) -> tuple[str, str] | None:
+    """Return the historical Approved target recorded in the committed ui-design.md."""
+    result = run_git(source, "show", "HEAD:docs/design/ui-design.md", encoding="utf-8", errors="strict")
+    return _approved_target(result.stdout) if result.returncode == 0 else None
+
+
 def validate(source: Path, root: Path, *, hifi: Path, required: bool = False,
              published: bool = False) -> list[str]:
     source, root = source.resolve(), root.resolve()
@@ -70,7 +81,11 @@ def validate(source: Path, root: Path, *, hifi: Path, required: bool = False,
                                     root / "docs/product/architecture.md",
                                     root / "docs/product/stack-decisions.md",
                                     repo_root=root, require_filled=True, require_approved=True)
-        modern = ui.is_structure_review((root / "docs/design/ui-design.md").read_text(encoding="utf-8"))
+        ui_text = (root / "docs/design/ui-design.md").read_text(encoding="utf-8")
+        modern = ui.is_structure_review(ui_text)
+        # Legacy ui-evidence/2 HiFi receipts stay valid only for the approval already committed.
+        current_target = _approved_target(ui_text)
+        historical = current_target is not None and current_target == _committed_target(source)
         problems += ui.validate(root / "docs/design/ui-design.md", repo_root=root,
                                 prd_path=root / "docs/product/PRD.md",
                                 wireframes_path=root / "docs/design/wireframes.html",
@@ -79,7 +94,8 @@ def validate(source: Path, root: Path, *, hifi: Path, required: bool = False,
                                 design_system_registry_path=root / "docs/design/design-system.json" if required else None,
                                 require_filled=True, require_wireframe_approved=not modern,
                                 require_structure_validated=modern,
-                                require_visual_approved=True)
+                                require_visual_approved=True,
+                                require_current_hifi_evidence=not modern and not historical)
         if required:
             # ui.validate above verifies the formal pair and its source bindings.
             # The view is derived; it must not drift or disappear during transfer.

@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import argparse
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 import hashlib
 import json
 import re
@@ -17,6 +17,7 @@ from typing import Any
 import check_wireframe_html
 from motion_evidence import motion_findings
 from review_evidence import (
+    HIFI_MANIFEST_RE,
     assessment_findings,
     author_artifact_findings,
     author_usage_findings,
@@ -98,11 +99,6 @@ WIREFRAME_DATA_RE = re.compile(
     r"(?P<data>[\s\S]*?)</script>",
     re.IGNORECASE,
 )
-HIFI_MANIFEST_RE = re.compile(
-    r'<script\s+id=["\']ui-hifi-manifest["\']\s+type=["\']application/json["\']\s*>'
-    r"(?P<data>[\s\S]*?)</script>",
-    re.IGNORECASE,
-)
 NON_HUMAN_OWNERS = {
     "ai",
     "agent",
@@ -131,6 +127,17 @@ STACK_PLATFORM_BY_SURFACE_CLASS = {
     "android": "android",
     "macos": "macos",
     "windows": "windows",
+    "desktop": "desktop",
+}
+CAPTURE_MODE_BY_SURFACE_CLASS = {
+    "hosted_web": "hosted-browser",
+    "browser_extension": "browser-extension",
+    "ios": "native",
+    "android": "native",
+    "react-native": "native",
+    "flutter": "native",
+    "macos": "desktop",
+    "windows": "desktop",
     "desktop": "desktop",
 }
 NON_HUMAN_TOKEN_RE = re.compile(
@@ -1581,17 +1588,7 @@ def _validate_target_scope_join(
         for target in release_contract.targets
         if isinstance(getattr(target, "surface", None), str)
     }
-    expected_modes_by_class = {
-        "hosted_web": "hosted-browser",
-        "browser_extension": "browser-extension",
-        "ios": "native",
-        "android": "native",
-        "react-native": "native",
-        "flutter": "native",
-        "macos": "desktop",
-        "windows": "desktop",
-        "desktop": "desktop",
-    }
+    expected_modes_by_class = CAPTURE_MODE_BY_SURFACE_CLASS
     expected = {expected_modes_by_class[item] for item in release_classes if item in expected_modes_by_class}
     surface_contracts = [item for item in scope.get("surfaces", []) if isinstance(item, dict) and "surfaceClass" in item]
     if surface_contracts:
@@ -1635,6 +1632,41 @@ def _screen_state_ids(screen: dict[str, Any]) -> set[str]:
 def _release_surface_class(target: Any) -> str | None:
     value = getattr(target, "surface_class", None)
     return value.casefold() if isinstance(value, str) else None
+
+
+def _release_classes(repo_root: Path, architecture_value: str | None) -> set[str]:
+    match = SOURCE_RE.fullmatch((architecture_value or "").strip())
+    if match is None:
+        return set()
+    try:
+        contract, _ = parse_release_targets((repo_root / match.group("path")).read_text(encoding="utf-8"))
+    except (OSError, UnicodeError):
+        return set()
+    return {item for target in contract.targets if (item := _release_surface_class(target)) is not None}
+
+
+def _wireframe_evidence_contract(data: dict[str, Any], release_classes: set[str]) -> tuple[str, dict[str, Any]]:
+    """Return the wireframe capture mode and case matrix used at both gates.
+
+    Both come from the wireframe and the typed Release Targets, never from the
+    later Approved target, so one honest wireframe receipt passes both gates.
+    """
+
+    matrix = {"cases": [
+        {"surface": screen["id"], "state": state["id"], "target": str(target)}
+        for screen in data.get("screens", [])
+        for state in screen.get("states", [])
+        for target in (data.get("responsiveBySurface", {}).get(screen["id"], {}).get("targets")
+                       or data.get("viewports") or data.get("sizeClasses") or [])
+    ]}
+    modes = {CAPTURE_MODE_BY_SURFACE_CLASS[item] for item in release_classes if item in CAPTURE_MODE_BY_SURFACE_CLASS}
+    if data.get("responsiveBySurface"):
+        mode = "mixed"
+    elif len(modes) == 1:
+        mode = next(iter(modes))
+    else:
+        mode = "hosted-browser" if data.get("viewports") else "native"
+    return mode, matrix
 
 
 def _relative_cli_path(path: Path, repo_root: Path, label: str, problems: list[str]) -> str | None:
@@ -1926,6 +1958,25 @@ def _resolve_evidence(
     owner = evidence.get("owner")
     if not machine and (not isinstance(owner, str) or not _human_owner(owner)):
         _add(problems, f"{label} evidence owner must be human")
+
+
+def _receipt_date(value: str | None, repo_root: Path) -> date | None:
+    """Return the earliest calendar date of a PASS receipt's executedAt, if readable."""
+
+    match = EVIDENCE_RE.fullmatch((value or "").strip())
+    if match is None:
+        return None
+    try:
+        path = (repo_root / match.group("path")).resolve()
+        path.relative_to(repo_root.resolve())
+        receipt = json.loads(path.read_text(encoding="utf-8"))["receipt"]
+        executed = datetime.fromisoformat(str(receipt["executedAt"]).replace("Z", "+00:00"))
+    except (OSError, UnicodeError, ValueError, TypeError, KeyError):
+        return None
+    if executed.tzinfo is None:
+        return None
+    # UTC-12 gives the earliest local date for that instant, so no owner time zone is rejected.
+    return (executed.astimezone(timezone.utc) - timedelta(hours=12)).date()
 
 
 def _evidence_check(label: str, capture_mode: str | None) -> str | None:
@@ -2774,6 +2825,7 @@ def _validate_impl(
     require_wireframe_approved: bool = False,
     require_structure_validated: bool = False,
     require_visual_approved: bool = False,
+    require_current_hifi_evidence: bool = False,
 ) -> list[str]:
     try:
         text = ui_design_path.read_text(encoding="utf-8")
@@ -2790,6 +2842,9 @@ def _validate_impl(
 
     active = active_text(text)
     modern = is_structure_review(active)
+    # A new or changed HiFi approval always needs current evidence; only an
+    # unchanged historical legacy approval keeps its ui-evidence/2 receipts.
+    current_hifi = modern or require_current_hifi_evidence
     needs_repo_root = require_filled or require_structure_validated or require_wireframe_approved or require_visual_approved
     approved_gate = require_structure_validated or require_wireframe_approved or require_visual_approved
     if needs_repo_root and repo_root is None:
@@ -2888,20 +2943,18 @@ def _validate_impl(
                 )
             ]
         }
-    if modern and checked_wireframe is not None and evidence_matrix is None:
+    # Legacy wireframe receipts keep their historical target-derived contract.
+    wireframe_capture_mode, wireframe_matrix = capture_mode, evidence_matrix
+    if modern and checked_wireframe is not None:
         data_for_matrix = _read_wireframe_data(checked_wireframe, problems)
         if isinstance(data_for_matrix, dict):
-            evidence_matrix = {"cases": [
-                {"surface": screen["id"], "state": state["id"], "target": str(target)}
-                for screen in data_for_matrix.get("screens", [])
-                for state in screen.get("states", [])
-                for target in (data_for_matrix.get("responsiveBySurface", {}).get(screen["id"], {}).get("targets")
-                               or data_for_matrix.get("viewports") or data_for_matrix.get("sizeClasses") or [])
-            ]}
-            capture_mode = "mixed" if data_for_matrix.get("responsiveBySurface") else (
-                "hosted-browser" if data_for_matrix.get("viewports") else "native")
+            wireframe_capture_mode, wireframe_matrix = _wireframe_evidence_contract(
+                data_for_matrix, _release_classes(root, source_values.get("Architecture source")))
     if modern and approved_gate:
         problems.extend(author_artifact_findings(root, active, require_hifi=require_visual_approved))
+    elif current_hifi and require_visual_approved:
+        # A legacy wireframe keeps its historical approval; it has no usage row to backfill.
+        problems.extend(author_artifact_findings(root, active, require_hifi=True, require_wireframe=False))
     if require_visual_approved:
         checked_hifi = _require_exact_cli_path(
             hifi_path,
@@ -2912,7 +2965,7 @@ def _validate_impl(
         )
         if checked_hifi is not None:
             _validate_hifi_surface(checked_hifi, problems, target_scope_for_evidence,
-                                   require_connected=True, require_reviewer_v3=modern)
+                                   require_connected=True, require_reviewer_v3=current_hifi)
             _resolve_source(
                 recorded_hifi,
                 repo_root=root,
@@ -2929,6 +2982,19 @@ def _validate_impl(
             motion_intents_for_evidence,
             problems,
         )
+        decided_on = _field(visual, "Decided on")
+        if _date(decided_on):
+            review_section = _section(active, "## HiFi Review") or ""
+            receipt_dates = [
+                receipt_date
+                for value in [
+                    *(_field(review_section, name) for name in ("Impeccable critique", "Impeccable audit", "UI grading", "HiFi surface check")),
+                    *(f"PASS — evidence={item['path']} @ sha256:{item['sha256']}" for item in motion_effect_evidence.values()),
+                ]
+                if (receipt_date := _receipt_date(value, root)) is not None
+            ]
+            if receipt_dates and date.fromisoformat(decided_on.strip()) < max(receipt_dates):
+                _add(problems, "Visual Approval Decided on predates the newest HiFi review evidence; the owner must decide on the current candidate")
         for field_name in (
             "Impeccable critique",
             "Impeccable audit",
@@ -2947,7 +3013,7 @@ def _validate_impl(
                 ),
                 expected_check=_evidence_check("HiFi UI grading" if field_name == "UI grading" else field_name, capture_mode),
                 expected_matrix=evidence_matrix,
-                require_machine=modern,
+                require_machine=current_hifi,
                 required_inputs=[identity for value in [*source_values.values(), recorded_wireframe] if (identity := _source_identity(value)) is not None],
                 recorded_scores={name: _score(_field(_section(active, "## HiFi Review") or "", name)) for name in ("HiFi score", "HiFi lowest dimension", "H2 score", "H4 score", "H5 score", "H7 score", "H8 score", "H9 score")} if field_name == "UI grading" else None,
             )
@@ -2958,7 +3024,7 @@ def _validate_impl(
             recorded_hifi,
             repo_root=root,
             problems=problems,
-            require_machine=modern,
+            require_machine=current_hifi,
             required_inputs=[identity for value in [*source_values.values(), recorded_wireframe]
                              if (identity := _source_identity(value)) is not None],
         )
@@ -2983,8 +3049,8 @@ def _validate_impl(
                     if SOURCE_RE.fullmatch((recorded_wireframe or "").strip())
                     else None
                 ),
-                expected_check=_evidence_check("Wireframe UI grading" if field_name == "UI grading" else field_name, capture_mode),
-                expected_matrix=evidence_matrix,
+                expected_check=_evidence_check("Wireframe UI grading" if field_name == "UI grading" else field_name, wireframe_capture_mode),
+                expected_matrix=wireframe_matrix,
                 require_machine=modern,
                 required_inputs=[identity for value in source_values.values()
                                  if (identity := _source_identity(value)) is not None],
@@ -3188,8 +3254,13 @@ def validate(
     require_wireframe_approved: bool = False,
     require_structure_validated: bool = False,
     require_visual_approved: bool = False,
+    require_current_hifi_evidence: bool = False,
 ) -> list[str]:
     """Validate a UI contract for normal publication.
+
+    ``require_current_hifi_evidence`` makes a legacy-heading contract meet the
+    current HiFi evidence rules. Publication sets it unless the Approved target
+    equals the one already recorded at HEAD.
 
     Pair verification is deliberately not a caller-selectable boolean.  The
     only pair-less route is the exact compiler preflight below, which requires
@@ -3208,6 +3279,7 @@ def validate(
         require_wireframe_approved=require_wireframe_approved,
         require_structure_validated=require_structure_validated,
         require_visual_approved=require_visual_approved,
+        require_current_hifi_evidence=require_current_hifi_evidence,
     )
 
 

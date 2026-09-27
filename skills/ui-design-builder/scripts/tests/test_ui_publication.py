@@ -74,6 +74,35 @@ class PublicationTests(unittest.TestCase):
                     "-c", "commit.gpgsign=false", "commit", "--allow-empty", "-qm", "drift")
                 self.assertIn("HEAD differs", " ".join(check()))
 
+    def test_new_or_changed_legacy_approval_needs_current_hifi_evidence(self):
+        for committed in ("absent", "other-target"):
+            with self.subTest(committed=committed), tempfile.TemporaryDirectory() as temp:
+                source, candidate = Path(temp) / "source", Path(temp) / "candidate"
+                source.mkdir()
+                materialize_publication(source, required=False)
+                ui_path = source / "docs/design/ui-design.md"
+                text = ui_path.read_text(encoding="utf-8")
+                def git(*args):
+                    subprocess.run(["git", "-C", str(source), *args], check=True, capture_output=True)
+                git("init", "-q")
+                git("add", ".")
+                if committed == "absent":
+                    git("rm", "-q", "--cached", "docs/design/ui-design.md")
+                else:
+                    target = publication.ui.parse_ui_contract_view(text)[0]["approved_target"]
+                    ui_path.write_text(text.replace("Approved target: " + target["path"] + " @ sha256:" + target["sha256"],
+                                                    "Approved target: " + target["path"] + " @ sha256:" + "0" * 64), encoding="utf-8")
+                    git("add", "docs/design/ui-design.md")
+                git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+                    "-c", "commit.gpgsign=false", "commit", "-qm", "fixture")
+                ui_path.write_text(text, encoding="utf-8")
+                shutil.copytree(source, candidate)
+                findings = "\n".join(publication.validate(
+                    source, candidate, hifi=Path("docs/design/ui-references/run-1/index.html")))
+                self.assertIn("requires ui-evidence/3 machine observation", findings)
+                self.assertIn("reviewer shell version 3", findings)
+                self.assertIn("Frontend Design Usage", findings)
+
     def test_digest_cli_is_stable_across_derived_linkage(self):
         text = "# UI\n\nApproved direction\nCompiled design system pair: pending\n"
         linked = text.replace("pending", "docs/design/pair @ sha256:" + "a" * 64)

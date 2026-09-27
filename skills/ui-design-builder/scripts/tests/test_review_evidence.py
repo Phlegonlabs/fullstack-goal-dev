@@ -79,6 +79,29 @@ class EvidenceTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 evidence.safe_path(self.root, value)
 
+    def test_upper_case_manifest_tag_still_binds_hifi_children(self):
+        child = self.root / "child.html"
+        child.write_text("<h1>Child</h1>", encoding="utf-8")
+        manifest = {"schema": "ui-hifi/2", "pages": [
+            {"path": "child.html", "sha256": hashlib.sha256(child.read_bytes()).hexdigest()}]}
+        entry = self.root / "candidate.html"
+        entry.write_text('<SCRIPT ID="ui-hifi-manifest" TYPE="application/json">' + json.dumps(manifest) + "</SCRIPT>",
+                         encoding="utf-8")
+        subject = {"path": "candidate.html", "sha256": hashlib.sha256(entry.read_bytes()).hexdigest()}
+        self.output.update(check="hifi-browser", subject=subject)
+        self.output["execution"]["artifacts"] = [subject]
+        receipt = {"executedAt": "2020-01-01T00:00:01Z", "tool": "playwright", "method": "browser-matrix"}
+        self.assertIn("execution lacks HiFi child identity: child.html",
+                      evidence.execution_findings(self.root, self.output, receipt, subject))
+
+    def test_hifi_check_without_manifest_fails(self):
+        self.output["check"] = "hifi-browser"
+        receipt = {"executedAt": "2020-01-01T00:00:01Z", "tool": "playwright", "method": "browser-matrix"}
+        self.assertIn("HiFi evidence subject has no ui-hifi/2 manifest",
+                      evidence.execution_findings(self.root, self.output, receipt, self.subject))
+        self.output["check"] = "wireframe-browser"
+        self.assertEqual([], evidence.execution_findings(self.root, self.output, receipt, self.subject))
+
     def test_assessment_needs_observation_artifacts_and_actual_scores(self):
         self.output["check"] = "wireframe-browser-grading"
         self.output["assessment"] = {"scores": {f"W{n}": 90 for n in range(1, 6)}, "blocks": [],

@@ -132,6 +132,14 @@ console.log("hybrid fallback and stale QA assertions completed");
         self.assertIn("Impeccable", rubric)
         self.assertIn("`H1`–`H9`", pass_guide)
 
+    def test_impeccable_is_required_and_declined_authorization_blocks(self):
+        skill = self.read("SKILL.md")
+        pass_guide = self.read("references/ui-design-pass.md")
+        for content in (skill, pass_guide):
+            self.assertNotIn("publication gate", content)
+            self.assertIn("`blocked`", content)
+        self.assertIn("required HiFi quality review", skill)
+
     def test_frontend_design_is_admitted_before_both_authoring_stages(self):
         prompt = self.read("agents/openai.yaml")
         skill = self.read("SKILL.md")
