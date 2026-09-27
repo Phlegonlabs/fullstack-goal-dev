@@ -272,7 +272,8 @@ def is_protected_branch_target(run: dict[str, Any], target: Any) -> bool:
     if branch.casefold() in {"main", "development"}:
         return True
     default_branch = _normalized_branch(observed_default_branch(run))
-    return default_branch is not None and branch == default_branch
+    # Loose refs on case-insensitive filesystems make "Master" name "master".
+    return default_branch is not None and branch.casefold() == default_branch.casefold()
 
 
 def _v10_push_is_current_and_safe(

@@ -18,7 +18,7 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 import harness_transition  # noqa: E402
 import manifest_fixtures as mf  # noqa: E402
-from harness_authorization import authorization_covers  # noqa: E402
+from harness_authorization import authorization_covers, is_protected_branch_target  # noqa: E402
 from harness_core import ManifestError  # noqa: E402
 from harness_manifest import plan_digest, validate_current_plan_run  # noqa: E402
 from harness_schema import EXACT_TARGET_LIFECYCLE_ACTIONS  # noqa: E402
@@ -195,6 +195,14 @@ class CleanupLifecycleTargetTests(unittest.TestCase):
         plan, run = lifecycle_pair("branch:main", ["*"])
         with self.assertRaisesRegex(ManifestError, "action_not_authorized"):
             reserve(plan, run)
+
+    def test_default_branch_protection_ignores_case(self) -> None:
+        run = {"observed": {"git": {"default_branch": "master"}}}
+        for target in ("branch:Master", "branch:refs/heads/MASTER", "branch:master"):
+            with self.subTest(target=target):
+                self.assertTrue(is_protected_branch_target(run, target))
+        self.assertFalse(is_protected_branch_target(run, "branch:master2"))
+        self.assertFalse(is_protected_branch_target(run, "branch:codex/done"))
 
     def test_wildcard_reservation_cannot_pass_but_can_block(self) -> None:
         plan, run = lifecycle_pair(None, ["*"])
