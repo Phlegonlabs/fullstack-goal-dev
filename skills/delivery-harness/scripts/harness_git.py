@@ -603,6 +603,22 @@ def reject_dangerous_local_config(
     if len(fields) % 2:
         raise GitConfigurationError("effective Git configuration listing is malformed")
     root_resolved = resolved
+    # In a linked worktree ``<root>/.git`` is a file.  Repository config then
+    # lives in the common dir (config) and the per-worktree git dir
+    # (config.worktree), so both count as local.
+    local_dirs = [root_resolved / ".git"]
+    try:
+        dirs = _raw_git(
+            resolved, "rev-parse", "--git-dir", "--git-common-dir",
+            environment=environment, timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise GitConfigurationError(f"cannot resolve repository Git directories: {exc}") from exc
+    if dirs.returncode != 0 or not isinstance(dirs.stdout, str):
+        raise GitConfigurationError("cannot resolve repository Git directories")
+    for line in dirs.stdout.splitlines():
+        if line.strip():
+            local_dirs.append((root_resolved / line.strip()).resolve(strict=False))
     for index in range(0, len(fields), 2):
         origin, name = fields[index], fields[index + 1]
         if not _dangerous_config_name(name):
@@ -627,7 +643,8 @@ def reject_dangerous_local_config(
                 origin_candidate = Path(origin_path)
                 if not origin_candidate.is_absolute():
                     origin_candidate = root_resolved / origin_candidate
-                local_config = _is_within(origin_candidate.resolve(strict=False), root_resolved / ".git")
+                origin_resolved = origin_candidate.resolve(strict=False)
+                local_config = any(_is_within(origin_resolved, local) for local in local_dirs)
             except OSError:
                 local_config = True
         # Repository-local helpers, URL rewrites, endpoint overrides, and

@@ -214,14 +214,39 @@ class HarnessGitTests(unittest.TestCase):
             # repository-local endpoint/config injection is rejected.
             import harness_git as module
 
-            with patch.object(
-                module,
-                "_raw_git",
-                return_value=subprocess.CompletedProcess(
+            def fake_git(_root, *arguments, **_kwargs):
+                if arguments[0] == "rev-parse":
+                    return subprocess.CompletedProcess(["git"], 0, ".git\n.git\n", "")
+                return subprocess.CompletedProcess(
                     ["git", "config"], 0, "file:/etc/gitconfig\x00http.proxy\x00", ""
-                ),
-            ):
+                )
+
+            with patch.object(module, "_raw_git", side_effect=fake_git):
                 module.reject_dangerous_local_config(root)
+
+    def test_linked_worktree_shared_and_worktree_config_count_as_local(self) -> None:
+        import harness_git as module
+
+        with tempfile.TemporaryDirectory() as temporary:
+            main = Path(temporary) / "main"
+            main.mkdir()
+            self._repo(main)
+            linked = Path(temporary) / "linked"
+            subprocess.run(["git", "worktree", "add", "-q", str(linked)], cwd=main, check=True)
+            module.reject_dangerous_local_config(linked)
+            for key, value in (
+                ("credential.helper", "!echo sentinel"),
+                ("core.hooksPath", str(Path(temporary) / "hooks")),
+            ):
+                with self.subTest(shared=key):
+                    subprocess.run(["git", "config", key, value], cwd=main, check=True)
+                    with self.assertRaisesRegex(GitConfigurationError, key.casefold()):
+                        module.reject_dangerous_local_config(linked)
+                    subprocess.run(["git", "config", "--unset-all", key], cwd=main, check=True)
+            subprocess.run(["git", "config", "extensions.worktreeConfig", "true"], cwd=main, check=True)
+            subprocess.run(["git", "config", "--worktree", "core.fsmonitor", "sentinel"], cwd=linked, check=True)
+            with self.assertRaisesRegex(GitConfigurationError, "core.fsmonitor"):
+                module.reject_dangerous_local_config(linked)
 
     @unittest.skipUnless(os.name != "nt", "POSIX ownership fixture only")
     def test_git_executable_rejects_writable_parent_component(self) -> None:
