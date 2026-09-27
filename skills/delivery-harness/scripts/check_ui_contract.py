@@ -441,7 +441,8 @@ def build_parser() -> argparse.ArgumentParser:
         dest="token_sources",
         metavar="PATH",
         help="Extra token-source path, added to the design system's tokenSources. "
-        "Raw color, dimension, and motion values are allowed only in these files.",
+        "Raw color, dimension, and motion values are allowed only in these files. "
+        "A run using this flag is not contract-clean and exits non-zero.",
     )
     parser.add_argument(
         "--primitive-source",
@@ -451,7 +452,8 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="PATH",
         help="Path that defines primitives, added to the design system's "
         "primitiveSources. Defining a control or surface selector is that file's "
-        "job, so page-local-control-style is not reported for it.",
+        "job, so page-local-control-style is not reported for it. A run using "
+        "this flag is not contract-clean and exits non-zero.",
     )
     parser.add_argument(
         "--rule",
@@ -498,6 +500,13 @@ def main(argv: list[str] | None = None) -> int:
         all_pass = not any(line.startswith("FAIL") for line in lines)
     for line in lines:
         print(line)
+    if args.token_sources or args.primitive_sources:
+        # Source roles must come from the frozen design-system.json alone.
+        print(
+            "NOT CONTRACT-CLEAN: --token-source/--primitive-source add source "
+            "roles outside design-system.json"
+        )
+        return 1
     return 0 if all_pass else 1
 
 
