@@ -80,6 +80,7 @@ _DANGEROUS_CONFIG_EXACT = {
     "http.proxycommand",
     "https.proxycommand",
     "credential.helper",
+    "core.askpass",
     "core.hookspath",
     "core.fsmonitor",
     "include.path",
@@ -94,6 +95,21 @@ _DANGEROUS_CONFIG_EXACT = {
     "http.extraheader",
     "https.extraheader",
 }
+
+# TLS and header keys, also in their URL-scoped form (http.<url>.<key>).
+_HTTP_TLS_KEYS = {
+    "sslverify",
+    "sslcainfo",
+    "sslcapath",
+    "sslcert",
+    "sslkey",
+    "extraheader",
+    "cookiefile",
+}
+
+
+def _http_tls_key(name: str) -> bool:
+    return name.startswith(("http.", "https.")) and name.rsplit(".", 1)[-1] in _HTTP_TLS_KEYS
 
 
 def _path_has_reparse_or_link(path: Path) -> bool:
@@ -452,7 +468,7 @@ def _dangerous_config_name(value: str) -> bool:
     """Return whether a local config key can retarget or execute a helper."""
 
     name = _normalise_config_name(value)
-    if name in _DANGEROUS_CONFIG_EXACT:
+    if name in _DANGEROUS_CONFIG_EXACT or _http_tls_key(name):
         return True
     # Includes can pull an attacker-controlled config file into the local
     # repository.  ``includeif`` is represented with a dotted suffix.
@@ -553,6 +569,9 @@ def _raw_git(
 ) -> subprocess.CompletedProcess[Any]:
     """Run Git without remote-config preflight (used by the preflight itself)."""
 
+    # Git writes paths as UTF-8; never decode with the Windows code page.
+    if text and encoding is None:
+        encoding, errors = "utf-8", errors or "surrogateescape"
     return subprocess.run(
         git_argv(*arguments),
         cwd=root,
@@ -565,6 +584,27 @@ def _raw_git(
         encoding=encoding,
         errors=errors,
     )
+
+
+def _repository_config_dirs(root: Path, environment: Mapping[str, str] | None) -> list[Path]:
+    """Return directories whose config files are repository-local.
+
+    In a linked worktree ``<root>/.git`` is a file.  Repository config then
+    lives in the common dir (config) and the per-worktree git dir
+    (config.worktree), so both count as local.
+    """
+
+    try:
+        dirs = _raw_git(root, "rev-parse", "--git-dir", "--git-common-dir", environment=environment, timeout=10)
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise GitConfigurationError(f"cannot resolve repository Git directories: {exc}") from exc
+    if dirs.returncode != 0 or not isinstance(dirs.stdout, str):
+        raise GitConfigurationError("cannot resolve repository Git directories")
+    local = [root / ".git"]
+    for line in dirs.stdout.splitlines():
+        if line.strip():
+            local.append((root / line.strip()).resolve(strict=False))
+    return local
 
 
 def reject_dangerous_local_config(
@@ -603,6 +643,7 @@ def reject_dangerous_local_config(
     if len(fields) % 2:
         raise GitConfigurationError("effective Git configuration listing is malformed")
     root_resolved = resolved
+    local_dirs: list[Path] | None = None
     for index in range(0, len(fields), 2):
         origin, name = fields[index], fields[index + 1]
         if not _dangerous_config_name(name):
@@ -627,7 +668,10 @@ def reject_dangerous_local_config(
                 origin_candidate = Path(origin_path)
                 if not origin_candidate.is_absolute():
                     origin_candidate = root_resolved / origin_candidate
-                local_config = _is_within(origin_candidate.resolve(strict=False), root_resolved / ".git")
+                origin_resolved = origin_candidate.resolve(strict=False)
+                if local_dirs is None:
+                    local_dirs = _repository_config_dirs(resolved, environment)
+                local_config = any(_is_within(origin_resolved, local) for local in local_dirs)
             except OSError:
                 local_config = True
         # Repository-local helpers, URL rewrites, endpoint overrides, and
@@ -635,15 +679,14 @@ def reject_dangerous_local_config(
         # policy remains available for corporate proxies and credential
         # helpers, but command-line/config-injection origins are rejected.
         remote_rewrite = normalized.startswith("url.") and normalized.endswith((".insteadof", ".pushinsteadof"))
-        always_reject = remote_rewrite or normalized in {
-            "http.sslverify",
-            "https.sslverify",
-            "http.extraheader",
-            "https.extraheader",
-        }
+        always_reject = remote_rewrite or (
+            _http_tls_key(normalized)
+            and normalized.rsplit(".", 1)[-1] in {"sslverify", "extraheader"}
+        )
         proxy_or_tls = (
             normalized.endswith((".proxy", ".proxycommand"))
             or normalized in _DANGEROUS_CONFIG_EXACT
+            or _http_tls_key(normalized)
         )
         if local_only_helper or proxy_or_tls or remote_rewrite:
             if always_reject or local_config or origin.startswith(("command:", "blob:", "stdin:")):

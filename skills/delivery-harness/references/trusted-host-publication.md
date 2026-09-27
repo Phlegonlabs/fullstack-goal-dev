@@ -114,6 +114,22 @@ that evidence to the recovery host only through the already-bound external path,
 then run the documented `push_archived_candidate.py recover` command. Never edit
 request, attempt, signature, or evidence bytes by hand.
 
+The push runs inside the checkout, so it adds command-line config that outranks
+repository config: `core.hooksPath` points at a fresh empty directory,
+`core.fsmonitor=false`, and `GIT_ASKPASS` is empty. Repository hooks, fsmonitor
+and askpass never run with publication credentials. The local-config preflight
+also counts a linked worktree's shared `config` and `config.worktree` as
+repository config.
+
+Residual window: the remote pre-state is read just before the push, and the
+push is a plain no-force push without a lease. If another actor with push
+access creates or fast-forwards the run branch to an ancestor of A inside that
+short window, the push still fast-forwards, read-back equals A, and the
+evidence records the request's pre-state, not the value it replaced. A
+non-fast-forward change is still refused. Keep push access to the run branch
+limited to the trusted host while a publication is in flight. The Harness
+never adds a force or lease flag to close this window.
+
 Evidence records must conform to `trusted-host-publication.schema.json` and are
 verified by `push_archived_candidate.py recover` before a receipt can close.
 
