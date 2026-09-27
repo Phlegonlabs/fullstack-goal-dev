@@ -391,6 +391,43 @@ class OutcomeReviewTests(unittest.TestCase):
             self.assertEqual(1, rewritten.returncode)
             self.assertIn("Prior outcome sha256", rewritten.stderr)
 
+    def test_prior_outcome_digest_uses_raw_file_bytes(self) -> None:
+        prior_text = schema2_outcome()
+        crlf_bytes = prior_text.replace("\n", "\r\n").encode("utf-8")
+        raw_digest = hashlib.sha256(crlf_bytes).hexdigest()
+        text_digest = hashlib.sha256(prior_text.encode("utf-8")).hexdigest()
+        self.assertNotEqual(raw_digest, text_digest)
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            current = root / "current.md"
+            prior = root / "prior.md"
+            prior.write_bytes(crlf_bytes)
+            for name, content in {
+                "PRD.md": PRD,
+                "architecture.md": ARCHITECTURE,
+                "DEPLOYMENT.md": DEPLOYMENT,
+                "ACTIVATION.md": ACTIVATION,
+            }.items():
+                (root / name).write_text(content, encoding="utf-8")
+            command = [
+                sys.executable,
+                str(SCRIPTS_DIR / "check_outcome_review.py"),
+                "--outcome", str(current),
+                "--prd", str(root / "PRD.md"),
+                "--architecture", str(root / "architecture.md"),
+                "--deployment", str(root / "DEPLOYMENT.md"),
+                "--activation", str(root / "ACTIVATION.md"),
+                "--prior-outcome", str(prior),
+            ]
+            appended = append_schema2_history(prior_text)
+            current.write_bytes(appended.replace(text_digest, raw_digest).encode("utf-8"))
+            accepted = subprocess.run(command, capture_output=True, text=True, check=False)
+            self.assertNotIn("prior", (accepted.stdout + accepted.stderr).casefold())
+            current.write_bytes(appended.encode("utf-8"))
+            rejected = subprocess.run(command, capture_output=True, text=True, check=False)
+            self.assertEqual(1, rejected.returncode)
+            self.assertIn("Prior outcome sha256", rejected.stderr)
+
     def test_schema2_prior_append_requires_typed_derived_row(self) -> None:
         prior = schema2_outcome()
         appended = append_schema2_history(prior)
