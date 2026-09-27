@@ -311,7 +311,7 @@ Research Gate: [go / clarify / stop / skipped] — [assessment date and findings
 ### Product Definition Approval
 - Package mode: [new / enhancement]
 - Package revision: [Stable revision label for this candidate]
-- Package digest: [sha256:<64 lowercase hex> over canonical PRD/architecture/stack bytes, excluding this approval block]
+- Package digest: [sha256:<64 lowercase hex> over the raw PRD/architecture/stack text, including fenced, indented and commented content; only this approval block is excluded]
 - Decision: [approved / revision_requested / blocked]
 - Decision owner: [Human product owner]
 - Decided on: [YYYY-MM-DD]
@@ -707,7 +707,7 @@ Use this structure:
 - Approved areas: [Frontend / Mobile or desktop / Backend or data / AI or automation / Monetization or partner channel / Toolchain / none]
 - Delegated choices: [None / exact decision classes explicitly delegated and source]
 - Open areas: [None / exact unresolved areas]
-- Checkpoint digest: [sha256:<64 lowercase hex> over canonical stack bytes, excluding this checkpoint block]
+- Checkpoint digest: [sha256:<64 lowercase hex> over the raw stack text, including fenced, indented and commented content; only this checkpoint block is excluded]
 - Applicable areas: [Exact release-surface and gate applicability]
 - Resolved areas: [Exact areas closed by this checkpoint]
 - Approved option map: [OPT-ID=layer=>selection;layer=>selection entries, exactly matching approved executable layer selections. Use the explicit `||` map form `||OPT-ID=...||OPT-ID=...||` when a layer name or selection contains a comma; comma-only legacy maps remain readable. `render_stack_option_map.py` may produce this candidate from existing rows before review; only the owner's accepted checkpoint and canonical digest binding make it approved]

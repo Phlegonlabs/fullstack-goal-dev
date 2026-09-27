@@ -808,6 +808,44 @@ class ProductPackageCheckerTests(unittest.TestCase):
         )
         self.assertIn("Package digest does not match", "\n".join(findings))
 
+    def test_strict_approval_digest_covers_fenced_indented_and_comment_text(self) -> None:
+        extra = (
+            "\n```sql\nCREATE TABLE notes (id int);\n```\n"
+            "- Retention rule\n    - delete after 30 days\n"
+            "<!-- PII stored encrypted -->\n"
+        )
+        prd, architecture, stack = strictize_approved_package(
+            valid_prd() + extra, valid_architecture() + extra, valid_stack() + extra
+        )
+        self.assertEqual([], check_product_package.validate_texts(
+            prd, architecture, stack, require_filled=True, require_approved=True
+        ))
+        # A CRLF checkout of the same approved text keeps the same digests.
+        self.assertEqual([], check_product_package.validate_texts(
+            *(text.replace("\n", "\r\n") for text in (prd, architecture, stack)),
+            require_filled=True, require_approved=True,
+        ))
+        for old, new in (
+            ("id int", "id bigint"),
+            ("delete after 30 days", "keep forever"),
+            ("PII stored encrypted", "PII stored in plaintext"),
+        ):
+            with self.subTest(edit=new):
+                for texts in (
+                    (prd.replace(old, new), architecture),
+                    (prd, architecture.replace(old, new)),
+                ):
+                    findings = "\n".join(check_product_package.validate_texts(
+                        *texts, stack, require_filled=True, require_approved=True,
+                    ))
+                    self.assertIn("Package digest does not match", findings)
+                findings = "\n".join(check_product_package.validate_texts(
+                    prd, architecture, stack.replace(old, new),
+                    require_filled=True, require_approved=True,
+                ))
+                self.assertIn("Checkpoint digest does not match", findings)
+                self.assertIn("Package digest does not match", findings)
+
     def test_strict_approval_revision_is_an_exact_digest_binding(self) -> None:
         prd, architecture, stack = strictize_approved_package(
             valid_prd(), valid_architecture(), valid_stack()
