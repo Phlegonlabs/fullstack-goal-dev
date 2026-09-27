@@ -300,6 +300,7 @@ class HarnessTransitionTaskViewTests(unittest.TestCase):
                 "reject-worker-result",
                 "record-integration",
                 "reconcile-candidate-head",
+                "reconcile-coordination-head",
                 "reconcile-interrupted",
                 "reconcile-interrupted-reviews",
                 "close-wave",
