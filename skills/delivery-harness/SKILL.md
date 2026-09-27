@@ -15,7 +15,7 @@ Project `AGENTS.md` also requires Repository Change Checkpoints at task start, s
 
 ## Design And Maintenance Routing
 
-Classify UI work with `ui-design-builder/references/review-workflow.md`. Initial design and enhancements use the applicable design gates. Routine maintenance updates current product and effective requirements, verifies the change, and preserves historical design artifacts. A new product or stack decision returns upstream. Frozen RUNs keep their pinned contracts until a task boundary.
+Classify UI work with `ui-design-builder/references/review-workflow.md`. Initial design, enhancements and `structure`/`both` changes use the affected design gates. Routine maintenance (UI impact `none` or `style`) updates current product and requirements and keeps historical design artifacts. Product or stack decisions return upstream. Frozen RUNs keep pinned contracts until a task boundary.
 
 Optional context: `references/reference-selection.md` (`references/option-library/`).
 
