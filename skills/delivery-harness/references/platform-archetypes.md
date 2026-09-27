@@ -85,7 +85,7 @@ Common missions: `M1 workspace-foundation` (above), then the archetype's own lis
 
 ### Worked `M1 workspace-foundation` Mission Object
 
-This is a complete, copy-paste-ready PLAN-v6 mission object for the scaffold mission above. Every field keeps the meaning and default that `assets/templates/HARNESS_PLAN.template.md` already explains for its main worked mission — only `objective`, `write_scope`, `stop_conditions`, the verifier commands, and `tasks` actually differ for a scaffold mission.
+This is a worked PLAN-v6 mission object for the scaffold mission above. Every field keeps the meaning and default that `assets/templates/HARNESS_PLAN.template.md` already explains for its main worked mission — only `objective`, `write_scope`, `stop_conditions`, the verifier commands, and `tasks` actually differ for a scaffold mission. Fill the task fields it leaves out, such as `acceptance_matrix` and `trace_ids`, from that template. Every verifier carries the required `execution` block. The runtime decides PASS from the exit code alone, so `pass_signal` is `exit 0`; a condition the command does not check needs its own verifier.
 
 ```json
 {
@@ -95,7 +95,7 @@ This is a complete, copy-paste-ready PLAN-v6 mission object for the scaffold mis
   "priority": 100,
   "merge_rank": 10,
   "trace_ids": ["PRD-<architecture-decision-trace>"],
-  "write_scope": ["package.json", "<lockfile>", "apps/web/**", ".env.example", ".gitignore"],
+  "write_scope": ["package.json", "<lockfile>", "apps/web/**", ".env.example", ".gitignore", "scripts/check-env-example.<ext>"],
   "deny_scope": ["docs/goal/PLAN.md", "docs/goal/RUN.md"],
   "resource_inventory_complete": true,
   "serialized_resources": [],
@@ -110,7 +110,9 @@ This is a complete, copy-paste-ready PLAN-v6 mission object for the scaffold mis
       "id": "m1-typecheck",
       "cwd": ".",
       "argv": ["<package-manager>", "run", "typecheck"],
-      "pass_signal": "Typecheck exits 0"
+      "pass_signal": "exit 0",
+      "read_only": true,
+      "execution": {"parallel_safe": false, "resources": [], "isolation": "host"}
     }
   ],
   "integration_verifiers": [
@@ -118,7 +120,8 @@ This is a complete, copy-paste-ready PLAN-v6 mission object for the scaffold mis
       "id": "m1-build",
       "cwd": ".",
       "argv": ["<package-manager>", "run", "build"],
-      "pass_signal": "Build exits 0 with every approved layer (language, package manager, framework, UI library, component foundation, styling, and build tool) wired and locally runnable"
+      "pass_signal": "exit 0",
+      "execution": {"parallel_safe": false, "resources": [], "isolation": "host"}
     }
   ],
   "tasks": [
@@ -128,7 +131,7 @@ This is a complete, copy-paste-ready PLAN-v6 mission object for the scaffold mis
       "objective": "Initialize the workspace manager, lockfile, and root script contract.",
       "depends_on": [],
       "write_scope": ["package.json", "<lockfile>"],
-      "verifiers": [{"id": "m1-t01", "cwd": ".", "argv": ["<package-manager>", "ci"], "pass_signal": "Frozen install exits 0"}]
+      "verifiers": [{"id": "m1-t01", "cwd": ".", "argv": ["<package-manager>", "ci"], "pass_signal": "exit 0", "read_only": true, "execution": {"parallel_safe": false, "resources": [], "isolation": "host"}}]
     },
     {
       "id": "M1/T02",
@@ -136,21 +139,21 @@ This is a complete, copy-paste-ready PLAN-v6 mission object for the scaffold mis
       "objective": "Install and wire the approved language, framework, UI library, component foundation, styling approach, and build tool together.",
       "depends_on": ["M1/T01"],
       "write_scope": ["apps/web/**"],
-      "verifiers": [{"id": "m1-t02", "cwd": ".", "argv": ["<package-manager>", "run", "build"], "pass_signal": "Build exits 0 and the dev server serves a page locally"}]
+      "verifiers": [{"id": "m1-t02", "cwd": ".", "argv": ["<package-manager>", "run", "build"], "pass_signal": "exit 0", "read_only": true, "execution": {"parallel_safe": false, "resources": [], "isolation": "host"}}]
     },
     {
       "id": "M1/T03",
       "alias": "environment-configuration",
       "objective": "Reserve every known environment variable in a tracked .env.example with placeholder values, and git-ignore the real local secret file.",
       "depends_on": ["M1/T02"],
-      "write_scope": [".env.example", ".gitignore"],
-      "verifiers": [{"id": "m1-t03", "cwd": ".", "argv": ["<package-manager>", "run", "typecheck"], "pass_signal": "Typecheck exits 0 with no committed .env, and .env.example lists every variable read by the scaffolded app with a placeholder, not a real value"}]
+      "write_scope": [".env.example", ".gitignore", "scripts/check-env-example.<ext>"],
+      "verifiers": [{"id": "m1-t03", "cwd": ".", "argv": ["<runtime>", "scripts/check-env-example.<ext>"], "pass_signal": "exit 0", "read_only": true, "execution": {"parallel_safe": false, "resources": [], "isolation": "host"}}]
     }
   ]
 }
 ```
 
-`M1/T03` is a worked example, not a fixed template: list only the environment variables the scaffolded layers actually read at this point (for example a database connection string or an auth provider client ID), one placeholder line each, and add more entries in later tasks/missions exactly when they introduce a new read — see `commit-convention.md`'s atomic-boundary rule and the Environment configuration paragraph above.
+`M1/T03`'s `scripts/check-env-example.<ext>` is a small project script that exits non-zero when `.env` is tracked or `.env.example` misses a variable the app reads or holds a real value. `M1/T03` is a worked example, not a fixed template: list only the environment variables the scaffolded layers actually read at this point (for example a database connection string or an auth provider client ID), one placeholder line each, and add more entries in later tasks/missions exactly when they introduce a new read — see `commit-convention.md`'s atomic-boundary rule and the Environment configuration paragraph above.
 
 ## Authenticated App, Dashboard, Internal Tool, SaaS
 

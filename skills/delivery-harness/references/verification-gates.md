@@ -191,7 +191,7 @@ Optional container verifier declarations include the full execution policy:
 }
 ```
 
-`session_exact` is opt-in and accepts only literal `pass_signal: "exit 0"`.
+The runtime decides PASS from exit code 0 alone; `pass_signal` records that signal and is not a separate check. Write it as `exit 0`, and give any other condition its own verifier argv. `session_exact` is opt-in and accepts only literal `pass_signal: "exit 0"`.
 
 There is no disk verifier cache; a `cache_root` field in an older request is accepted and ignored. Keep verifier request and result artifacts repository-external. Within one batch, read-only task/worker declarations may opt into PASS reuse with `session_exact` and `deterministic_local: true`. Equivalent concurrent requests share one execution; each consumer freshly verifies its live guard and runtime/image identity and keeps its own reservation and attestations. The origin must arrive in the same parent-observed result batch, with matching context and output hashes; historical RUN rows cannot authorize new reuse. After acceptance, RUN retains both origin and consumer for later validation. The exact execution key binds run ID, PLAN revision/digest, graph revision, batch base, exact head, changed-file digest, trust domain, checkout role, cwd, ordered argv, pinned image policy, observed runtime executable/hash/version/RepoDigest, OS/architecture, pass signal, and selected environment-value digests. The in-memory cache also binds the canonical checkout and protected Git inputs; it cannot bypass the container boundary.
 
