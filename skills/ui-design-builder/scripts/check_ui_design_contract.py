@@ -17,6 +17,7 @@ from typing import Any
 import check_wireframe_html
 from motion_evidence import motion_findings
 from review_evidence import (
+    HIFI_MANIFEST_RE,
     assessment_findings,
     author_artifact_findings,
     author_usage_findings,
@@ -95,11 +96,6 @@ MM_SCOPE_RE = re.compile(
 )
 WIREFRAME_DATA_RE = re.compile(
     r'<script\s+id=["\']wireframe-data["\']\s+type=["\']application/json["\']\s*>'
-    r"(?P<data>[\s\S]*?)</script>",
-    re.IGNORECASE,
-)
-HIFI_MANIFEST_RE = re.compile(
-    r'<script\s+id=["\']ui-hifi-manifest["\']\s+type=["\']application/json["\']\s*>'
     r"(?P<data>[\s\S]*?)</script>",
     re.IGNORECASE,
 )
