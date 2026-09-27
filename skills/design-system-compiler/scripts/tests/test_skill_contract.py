@@ -104,6 +104,16 @@ class DesignSystemCompilerSkillContractTests(unittest.TestCase):
         self.assertIn("scripts/check_color_contrast.py", skill)
         self.assertIn("scripts/check_type_scale.py", skill)
 
+    def test_pair_less_preflight_runs_inside_the_pair_checker(self) -> None:
+        skill = self.read("SKILL.md")
+        guide = self.read("references/design-system-guide.md")
+        self.assertIn(
+            "pair-less preflight has no separate command; it runs inside `check_design_system_pair.py --repo-root`",
+            skill,
+        )
+        self.assertIn("there is no separate preflight command", guide)
+        self.assertNotIn("Run the UI builder's exact pair-less preflight", skill)
+
     def test_responsive_contract_matches_approved_sources_and_blocks_overlap(self) -> None:
         skill = self.read("SKILL.md")
         guide = self.read("references/design-system-guide.md")

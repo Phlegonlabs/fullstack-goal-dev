@@ -8,7 +8,7 @@ The design system exists so frontend implementation can follow one set of tokens
 
 ## Drafting Order
 
-1. Confirm that `docs/design/ui-design.md` records `Design System Need Gate: required`, then run the exact pair-less preflight when its compiled-pair field is `pending — design-system-compiler`. Load `design-system-compiler` and `frontend-design` together. If `frontend-design` is unavailable, stop instead of creating or revising the pair through a fallback path.
+1. Confirm that `docs/design/ui-design.md` records `Design System Need Gate: required`. Its compiled-pair field may stay `pending — design-system-compiler` until the pair-less preflight built into `scripts/check_design_system_pair.py --repo-root` passes; there is no separate preflight command. Load `design-system-compiler` and `frontend-design` together. If `frontend-design` is unavailable, stop instead of creating or revising the pair through a fallback path.
 2. Confirm that the PRD UI Surface Contract is complete and frozen and that `docs/design/ui-design.md` records validated structure and approved Visual decision for the complete responsive browser matrix and immutable target.
 3. Consume the selected direction, Style Integration rules, Impeccable review evidence, H1-H9 result, and human approval from `ui-design.md`. Do not rerun `frontend-design`, Impeccable, direction generation, or the HiFi review during normal compilation.
 4. Translate the approved direction, real controls, repeated compositions, states, and responsive needs into `design-system.json` without changing the target. `frontend-design` supplies the approved direction; it is not a compiler mode.
