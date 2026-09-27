@@ -73,6 +73,26 @@ def render_packet(
         and version_gate.get("status") == "adopted"
         else None
     )
+    # A security reviewer returns each PLAN required check with the key of
+    # its one PASS execution at the reviewed head (null when there is none).
+    required_checks = []
+    security_policy = plan.get("security_review")
+    if review["type"] == "security" and isinstance(security_policy, dict):
+        for check_id in security_policy.get("required_checks", []):
+            keys = [
+                execution.get("execution_key")
+                for execution in run.get("verifier_executions", [])
+                if isinstance(execution, dict)
+                and execution.get("verifier_id") == check_id
+                and execution.get("layer") in {"batch", "final"}
+                and execution.get("status") == "PASS"
+                and execution.get("exit_code") == 0
+                and isinstance(execution.get("context"), dict)
+                and execution["context"].get("head_sha") == head
+            ]
+            required_checks.append(
+                {"id": check_id, "execution_key": keys[0] if len(keys) == 1 else None}
+            )
     packet_lines = [
         f"# Review packet: {node_id}",
         "",
@@ -127,6 +147,7 @@ def render_packet(
                 ),
                 "required_evidence": review["required_evidence"],
                 "required_tools": review.get("required_tools", []),
+                "required_checks": required_checks,
                 "reviewer_tool_capabilities": {
                     tool_name: run.get("runtime_capabilities", {})
                     .get("reviewer_tools", {})
