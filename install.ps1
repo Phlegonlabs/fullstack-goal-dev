@@ -1,6 +1,7 @@
 # Install the seven Product Delivery Harness skills into a user skills directory.
 # The source is staged and verified before mutation. Existing managed copies are
-# moved to one timestamped backup, and any failure restores that backup.
+# moved to one timestamped backup, and any failure restores that backup. The
+# source commit and uncommitted skills/ state are printed and saved beside it.
 param(
     [string]$Destination = "$HOME\.agents\skills",
     [string]$BackupRoot = "$HOME\.agents\skill-backups\product-delivery-harness",
@@ -377,6 +378,19 @@ try {
         # Reject non-regular tracked entries before any destination mutation.
         $null = Get-TrackedRelativeFiles $Skill
     }
+    # Name the commit the installed bytes come from. Uncommitted edits to
+    # tracked skills/ files are installed as they are, so say whether any exist.
+    $sourceHead = & git -C $RepoRoot rev-parse HEAD
+    if ($LASTEXITCODE -ne 0) {
+        throw "could not read the source commit"
+    }
+    $sourceChanges = @(& git --no-optional-locks -C $RepoRoot status --porcelain --untracked-files=no -- skills)
+    if ($LASTEXITCODE -ne 0) {
+        throw "could not read the source status"
+    }
+    $sourceDirty = if ($sourceChanges.Count -gt 0) { "yes" } else { "no" }
+    $sourceLine = "source commit $sourceHead, uncommitted skills/ changes: $sourceDirty"
+    Write-Host $sourceLine
     $destinationFull = [IO.Path]::GetFullPath($Destination).TrimEnd('\', '/')
     $skillsSourceFull = [IO.Path]::GetFullPath($SkillsSrc).TrimEnd('\', '/')
     $separator = [IO.Path]::DirectorySeparatorChar
@@ -533,6 +547,16 @@ try {
     Assert-NoReparseComponents $StageRoot
     Remove-Item -LiteralPath $StageRoot -Recurse -Force
     $StageRoot = $null
+    # Keep the source line next to the backup this install replaced. The
+    # install is already verified, so a failed write only warns.
+    if ($null -ne $BackupDir) {
+        try {
+            [IO.File]::WriteAllText("$BackupDir.source", "$sourceLine`n")
+        }
+        catch {
+            Write-Warning "could not write $BackupDir.source"
+        }
+    }
     Write-Host "done. start a fresh host session so it discovers the skills."
 }
 catch {

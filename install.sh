@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Install the seven Product Delivery Harness skills into a user skills directory.
 # The source is staged and verified before mutation. Existing managed copies are
-# moved to one timestamped backup, and any failure restores that backup.
+# moved to one timestamped backup, and any failure restores that backup. The
+# source commit and uncommitted skills/ state are printed and saved beside it.
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -350,6 +351,18 @@ for skill in "${skills[@]}"; do
   check_untracked_source_files "$skill"
 done
 
+# Name the commit the installed bytes come from. Uncommitted edits to tracked
+# skills/ files are installed as they are, so say whether any exist.
+source_head="$(git -C "$repo_root" rev-parse HEAD)"
+source_changes="$(git --no-optional-locks -C "$repo_root" status --porcelain --untracked-files=no -- skills)"
+if [ -n "$source_changes" ]; then
+  source_dirty=yes
+else
+  source_dirty=no
+fi
+source_line="source commit $source_head, uncommitted skills/ changes: $source_dirty"
+echo "$source_line"
+
 assert_no_reparse_components "$skills_src"
 assert_no_reparse_components "$skills_dest"
 assert_no_reparse_components "$backup_root"
@@ -482,5 +495,11 @@ rm -rf -- "$stage_root"
 stage_root=""
 release_lock
 trap - EXIT HUP INT TERM
+
+# Keep the source line next to the backup this install replaced.
+if [ -n "$backup_dir" ]; then
+  printf '%s\n' "$source_line" >"$backup_dir.source" ||
+    echo "warning: could not write $backup_dir.source" >&2
+fi
 
 echo "done. start a fresh host session so it discovers the skills."

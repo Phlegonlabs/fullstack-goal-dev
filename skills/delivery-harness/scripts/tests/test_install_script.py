@@ -574,6 +574,59 @@ class InstallScriptTests(unittest.TestCase):
             self.assertNotEqual(0, result.returncode)
             self.assertIn("untracked or ignored source artifact is not installable", result.stderr + result.stdout)
 
+    def assert_source_line_recorded(self, source: Path, install) -> None:
+        head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=source, capture_output=True, text=True, check=True
+        ).stdout.strip()
+        # A clean first install makes no backup, so the line is only printed.
+        first = install()
+        self.assertEqual(0, first.returncode, first.stderr or first.stdout)
+        self.assertIn(f"source commit {head}, uncommitted skills/ changes: no", first.stdout)
+        self.assertFalse(self.backup_root.exists() and any(self.backup_root.iterdir()))
+
+        # An uncommitted tracked edit is installed, reported, and recorded
+        # next to the backup of the copy it replaced.
+        (source / "skills" / "ui-design-builder" / "SKILL.md").write_text(
+            "# dirty ui-design-builder\n", encoding="utf-8", newline="\n"
+        )
+        second = install()
+        self.assertEqual(0, second.returncode, second.stderr or second.stdout)
+        line = f"source commit {head}, uncommitted skills/ changes: yes"
+        self.assertIn(line, second.stdout)
+        backups = [child for child in self.backup_root.iterdir() if child.is_dir()]
+        self.assertEqual(1, len(backups))
+        record = backups[0].with_name(backups[0].name + ".source")
+        self.assertEqual(line + "\n", record.read_text(encoding="utf-8"))
+        self.assertEqual(
+            "# dirty ui-design-builder\n",
+            (self.destination / "ui-design-builder" / "SKILL.md").read_text(encoding="utf-8"),
+        )
+
+    @unittest.skipIf(BASH is None, "no usable bash is available")
+    def test_bash_prints_and_records_source_commit_and_dirty_state(self) -> None:
+        source = self.make_minimal_repo()
+        self.assert_source_line_recorded(
+            source,
+            lambda: self.run_bash(
+                {"SKILL_BACKUP_ROOT": str(self.backup_root)}, installer=source / "install.sh"
+            ),
+        )
+
+    @unittest.skipIf(POWERSHELL is None, "neither pwsh nor powershell is available")
+    def test_powershell_prints_and_records_source_commit_and_dirty_state(self) -> None:
+        source = self.make_minimal_repo()
+        command = [
+            POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+            str(source / "install.ps1"), "-Destination", str(self.destination),
+            "-BackupRoot", str(self.backup_root),
+        ]
+        self.assert_source_line_recorded(
+            source,
+            lambda: subprocess.run(
+                command, capture_output=True, text=True, cwd=self.home, timeout=180
+            ),
+        )
+
     @unittest.skipIf(POWERSHELL is None, "neither pwsh nor powershell is available")
     def test_powershell_has_migration_rollback_and_complete_install_parity(self) -> None:
         self.seed_managed_copies()
