@@ -110,6 +110,7 @@ from harness_graph import (
     _cycle_nodes,
     _validate_graph,
     _validate_graph_state,
+    validate_cleanup_lifecycle_targets,
 )
 from harness_ui_evidence import (
     _validate_ui_evidence,
@@ -6709,6 +6710,10 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
 
     if graph_run:
         _validate_graph_state(errors, plan, run)
+    if schema_version == 11 and version_at_least(
+        run_required_harness_version(run), EXACT_RECEIPT_REQUIRED_VERSION
+    ):
+        validate_cleanup_lifecycle_targets(errors, plan.get("graph"))
 
     task_states = run["task_states"]
     task_state_keys = {

@@ -23,6 +23,7 @@ from harness_core import ManifestError  # noqa: E402
 from harness_manifest import (  # noqa: E402
     plan_digest,
     validate_current_plan_run,
+    validate_plan,
     validate_run,
 )
 from harness_schema import EXACT_TARGET_LIFECYCLE_ACTIONS  # noqa: E402
@@ -165,8 +166,10 @@ class CleanupLifecycleTargetTests(unittest.TestCase):
         self.assertEqual([], validate_current_plan_run(plan, run))
 
     def test_reserve_requires_exact_target_and_records_it(self) -> None:
+        # The selector defers a target-less cleanup node for every RUN, so
+        # reserve refuses it even where the PLAN rule does not apply.
         plan, run = lifecycle_pair(None, ["*"])
-        with self.assertRaisesRegex(ManifestError, "requires an exact non-wildcard authorization target"):
+        with self.assertRaisesRegex(ManifestError, r"not dispatchable \(action_not_authorized\)"):
             reserve(plan, run)
 
         plan, run = lifecycle_pair("branch:codex/done", ["*"])
@@ -178,16 +181,21 @@ class CleanupLifecycleTargetTests(unittest.TestCase):
         record(plan, run, "pass")
         self.assertEqual([], validate_current_plan_run(plan, run))
 
-    def test_plan_rejects_cleanup_node_without_target(self) -> None:
+    def test_cleanup_node_without_target_is_rejected_only_from_0_55(self) -> None:
+        # PLAN-only validation (also run on archived candidates) never checks
+        # this; validate_run checks it for 0.55.0+ RUNs only.
         for ref in sorted(EXACT_TARGET_LIFECYCLE_ACTIONS):
             with self.subTest(ref=ref):
                 plan, run = lifecycle_pair(None, ["*"], ref=ref)
-                errors = validate_current_plan_run(plan, run)
-                self.assertIn(
+                message = (
                     "plan.graph.nodes[7].target: "
-                    f"{ref} requires an exact non-wildcard authorization target",
-                    errors,
+                    f"{ref} requires an exact non-wildcard authorization target"
                 )
+                self.assertNotIn(message, validate_plan(plan))
+                set_required_version(run, "0.54.5")
+                self.assertNotIn(message, validate_run(plan, run))
+                set_required_version(run, "0.55.0")
+                self.assertIn(message, validate_run(plan, run))
 
     def test_selector_never_dispatches_cleanup_node_without_target(self) -> None:
         plan, run = lifecycle_pair(None, ["*"])
