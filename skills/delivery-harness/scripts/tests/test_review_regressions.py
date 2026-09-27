@@ -178,6 +178,21 @@ class MalformedRunTests(unittest.TestCase):
 
                 self.assertIn("run.runtime_capabilities: must be an object", errors)
 
+    def test_non_int_attempts_on_a_terminal_node_returns_errors_instead_of_raising(self) -> None:
+        # The terminal-node check compared attempts < 1 without a type guard,
+        # so a string count raised TypeError instead of reporting an error.
+        plan = valid_current_plan()
+        run = valid_current_run(plan)
+        mark_complete(plan, run)
+        run["graph_state"]["node_states"]["N-FINAL"]["attempts"] = "1"
+
+        errors = validate_run(plan, run)
+
+        self.assertIn(
+            "run.graph_state.node_states.N-FINAL.attempts: must be a non-negative integer",
+            errors,
+        )
+
 
 class StreamingGuardTests(unittest.TestCase):
     def state(self):
