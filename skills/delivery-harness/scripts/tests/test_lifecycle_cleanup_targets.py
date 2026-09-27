@@ -1,0 +1,197 @@
+#!/usr/bin/env python3
+"""Cleanup lifecycle nodes record exact targets and never delete protected branches."""
+
+from __future__ import annotations
+
+import sys
+import unittest
+from argparse import Namespace
+from pathlib import Path
+
+
+TESTS_DIR = Path(__file__).resolve().parent
+SCRIPTS_DIR = TESTS_DIR.parent
+if str(TESTS_DIR) not in sys.path:
+    sys.path.insert(0, str(TESTS_DIR))
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+
+import harness_transition  # noqa: E402
+import manifest_fixtures as mf  # noqa: E402
+from harness_authorization import authorization_covers  # noqa: E402
+from harness_core import ManifestError  # noqa: E402
+from harness_manifest import plan_digest, validate_current_plan_run  # noqa: E402
+
+
+NODE_ID = "N-DELETE-BRANCH"
+
+
+def lifecycle_pair(target: str | None, grant_targets: list[str]):
+    """Return a running PLAN/RUN pair with one dormant delete_branches root node."""
+
+    plan = mf.valid_plan()
+    run = mf.valid_run(plan)
+    mf.authorize_execution(run, ["M1", "M2"])
+    run.update({"status": "running", "plan_readiness": "ready"})
+    run["observed"]["git"].update(
+        {
+            "parent_branch": "codex/test",
+            "parent_head_sha": "a" * 40,
+            "parent_dirty": False,
+            "default_branch": "trunk",
+        }
+    )
+    run["integration"].update(
+        {
+            "branch": "codex/test",
+            "batch_base_sha": "a" * 40,
+            "integration_head_sha": "a" * 40,
+        }
+    )
+    node = {
+        "id": NODE_ID,
+        "kind": "lifecycle",
+        "ref": "delete_branches",
+        "executor": "harness_parent",
+        "allowed_outcomes": ["pass", "blocked"],
+        "max_attempts": 2,
+        "runtime": None,
+    }
+    if target is not None:
+        node["target"] = target
+    plan["graph"]["nodes"].append(node)
+    plan["graph"]["entry_nodes"].append(NODE_ID)
+    run["graph_state"]["node_states"][NODE_ID] = {
+        "phase": "dormant",
+        "attempts": 0,
+        "last_attempt_id": None,
+        "last_outcome": None,
+        "bound_worker_id": None,
+        "blockers": [],
+    }
+    digest = plan_digest(plan)
+    run["plan"]["digest_sha256"] = digest
+    run["execution_authorization_scope"]["plan_digest_sha256"] = digest
+    run["observed"]["sandbox"]["plan_digest_sha256"] = digest
+    mf.authorize_action(run, "delete_branches", ["M1", "M2"], grant_targets)
+    return plan, run
+
+
+def reserve(plan, run, attempt_id: str = "ATT-DELETE"):
+    return harness_transition._reserve_node_attempt(
+        plan,
+        run,
+        Namespace(node_id=NODE_ID, attempt_id=attempt_id, evidence=["reserve"]),
+    )
+
+
+def record(plan, run, outcome: str, attempt_id: str = "ATT-DELETE"):
+    return harness_transition._record_node_result(
+        plan,
+        run,
+        Namespace(
+            node_id=NODE_ID,
+            attempt_id=attempt_id,
+            outcome=outcome,
+            evidence=["branch deleted"],
+            blocker=[] if outcome == "pass" else ["side effect uncertain"],
+            verifier_result=[],
+            repo_root=None,
+        ),
+    )
+
+
+def reserve_legacy_wildcard(run, attempt_id: str = "ATT-LEGACY") -> None:
+    """Record a pre-fix reservation that has no exact target."""
+
+    run["graph_state"]["node_states"][NODE_ID].update(
+        {"phase": "running", "attempts": 1, "last_attempt_id": attempt_id}
+    )
+    run["attempt_log"].append(
+        {
+            "attempt_id": attempt_id,
+            "node_id": NODE_ID,
+            "mission_id": None,
+            "task_id": None,
+            "lease_id": None,
+            "kind": "node_attempt",
+            "result": "reserved",
+            "evidence": ["legacy reserve"],
+            "node_dispatch": {"target": "*", "authorized_head_sha": None},
+        }
+    )
+
+
+class CleanupLifecycleTargetTests(unittest.TestCase):
+    def test_wildcard_grant_covers_exact_branch_but_not_protected_ones(self) -> None:
+        _plan, run = lifecycle_pair("branch:codex/done", ["*"])
+        self.assertTrue(
+            authorization_covers(run, "delete_branches", "M1", "branch:codex/done")
+        )
+        for protected in (
+            "branch:main",
+            "branch:refs/heads/main",
+            "branch:development",
+            "branch:trunk",
+            "branch:refs/heads/trunk",
+        ):
+            with self.subTest(target=protected):
+                self.assertFalse(
+                    authorization_covers(run, "delete_branches", "M1", protected)
+                )
+
+    def test_ledger_rejects_protected_delete_branch_targets(self) -> None:
+        for protected in ("branch:main", "branch:development", "branch:refs/heads/trunk"):
+            with self.subTest(target=protected):
+                plan, run = lifecycle_pair("branch:codex/done", [protected])
+                errors = validate_current_plan_run(plan, run)
+                self.assertTrue(
+                    any("delete_branches cannot target main" in error for error in errors),
+                    errors,
+                )
+        plan, run = lifecycle_pair("branch:codex/done", ["*", "branch:codex/done"])
+        self.assertEqual([], validate_current_plan_run(plan, run))
+
+    def test_reserve_requires_exact_target_and_records_it(self) -> None:
+        plan, run = lifecycle_pair(None, ["*"])
+        with self.assertRaisesRegex(ManifestError, "must declare an exact PLAN target"):
+            reserve(plan, run)
+
+        plan, run = lifecycle_pair("branch:codex/done", ["*"])
+        receipt = reserve(plan, run)
+        self.assertEqual("running", receipt["phase"])
+        self.assertEqual(
+            "branch:codex/done", run["attempt_log"][-1]["node_dispatch"]["target"]
+        )
+        record(plan, run, "pass")
+        self.assertEqual([], validate_current_plan_run(plan, run))
+
+    def test_reserve_refuses_protected_branch_under_wildcard_grant(self) -> None:
+        plan, run = lifecycle_pair("branch:main", ["*"])
+        with self.assertRaisesRegex(ManifestError, "action_not_authorized"):
+            reserve(plan, run)
+
+    def test_wildcard_reservation_cannot_pass_but_can_block(self) -> None:
+        plan, run = lifecycle_pair(None, ["*"])
+        reserve_legacy_wildcard(run)
+        with self.assertRaisesRegex(ManifestError, "requires an exact PLAN target"):
+            record(plan, run, "pass", attempt_id="ATT-LEGACY")
+        receipt = record(plan, run, "blocked", attempt_id="ATT-LEGACY")
+        self.assertEqual("blocked", receipt["phase"])
+
+    def test_validate_rejects_wildcard_cleanup_pass(self) -> None:
+        plan, run = lifecycle_pair(None, ["*"])
+        reserve_legacy_wildcard(run)
+        run["graph_state"]["node_states"][NODE_ID].update(
+            {"phase": "succeeded", "last_outcome": "pass"}
+        )
+        run["attempt_log"][-1]["result"] = "pass"
+        errors = validate_current_plan_run(plan, run)
+        self.assertTrue(
+            any("delete_branches PASS requires an exact recorded target" in e for e in errors),
+            errors,
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -183,6 +183,14 @@ UI_EVIDENCE_IMAGE_SUFFIXES = {".jpeg", ".jpg", ".png", ".webp"}
 # `push` is the only action bound to an exact head SHA: it publishes one verified
 # commit. Every other action either mutates local state or cleans it up.
 HEAD_BOUND_AUTHORIZATION_ACTIONS = {"push"}
+# Cleanup lifecycle nodes must name the exact task, worktree, or branch they
+# act on. A run-wide "*" grant may still cover them, but the node attempt and
+# its result must record which object was archived, removed, or deleted.
+EXACT_TARGET_LIFECYCLE_ACTIONS = {
+    "archive_worker_tasks",
+    "remove_worktrees",
+    "delete_branches",
+}
 
 
 # RUN coordination paths name run bookkeeping files only. Product source and

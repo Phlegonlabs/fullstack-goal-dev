@@ -299,13 +299,13 @@ def _validate_graph(
                 if valid_ref and ref not in authorization_actions:
                     _add(errors, f"{node_path}.ref", "must reference an authorization action")
                 # `target` is optional so PLANs written before this field existed
-                # stay valid (they keep resolving to the "*" default, exactly as
-                # before). When present it must be the exact authorization
-                # target select_ready_nodes.py checks the RUN ledger against —
-                # schema v10 rejects "*" scope targets for every one of these
-                # actions, so a lifecycle node with no target is permanently
-                # unauthorized there; declaring one is how a PLAN makes the node
-                # reachable.
+                # stay valid; a missing target resolves to "*". When present it
+                # must be the exact authorization target select_ready_nodes.py
+                # checks the RUN ledger against. The ledger rejects a "*" grant
+                # only for push, so a push node needs a target. Cleanup refs
+                # (archive_worker_tasks, remove_worktrees, delete_branches) may
+                # use a "*" grant, but reserve-node-attempt refuses them
+                # without an exact target so the attempt records what it acts on.
                 target = node.get("target")
                 if target is not None and (
                     not _nonempty_string(target)

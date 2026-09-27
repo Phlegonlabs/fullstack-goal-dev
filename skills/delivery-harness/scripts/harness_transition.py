@@ -49,7 +49,7 @@ from harness_manifest import (
     mission_has_ui_authoring_action,
     validate_current_plan_run,
 )
-from harness_schema import RUN_DISPATCH_STATUSES, RUN_HEADING
+from harness_schema import EXACT_TARGET_LIFECYCLE_ACTIONS, RUN_DISPATCH_STATUSES, RUN_HEADING
 from harness_schema import archive_first_required, parse_harness_version, required_harness_version
 from harness_schema import version_at_least
 from harness_schema import frozen_coordination_path, supported_coordination_path
@@ -1800,6 +1800,10 @@ def _reserve_node_attempt(
             raise ManifestError(
                 f"lifecycle action {node.get('ref')!r} is not currently authorized"
             )
+        if node.get("ref") in EXACT_TARGET_LIFECYCLE_ACTIONS and not node.get("target"):
+            raise ManifestError(
+                f"{node.get('ref')} lifecycle node must declare an exact PLAN target"
+            )
         if node.get("ref") == "push":
             _validate_push_side_effect(
                 run, getattr(args, "repo_root", None), entry.get("authorized_head_sha")
@@ -1976,6 +1980,11 @@ def _record_node_result(
         # an uncertain attempt and must remain recordable after revocation or
         # head drift so the node does not stay permanently running.
         if outcome not in {"blocked", "contract_gap"}:
+            if action in EXACT_TARGET_LIFECYCLE_ACTIONS and expected_target == "*":
+                raise ManifestError(
+                    f"{action} lifecycle result requires an exact PLAN target; "
+                    "record the attempt as blocked"
+                )
             current_entry = run.get("authorizations", {}).get(action)
             if (
                 not isinstance(current_entry, dict)

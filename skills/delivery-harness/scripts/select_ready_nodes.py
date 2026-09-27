@@ -1151,12 +1151,13 @@ def _dispatch_reasons(
             ):
                 reasons.add("action_not_authorized")
     if node["kind"] == "lifecycle":
-        # A bare "*" target is unreachable for `push`: schema v10 rejects a
-        # wildcard scope for every HEAD_BOUND_AUTHORIZATION_ACTIONS entry
-        # (harness_authorization.py). node["target"], when the PLAN declares
-        # one, is the exact target the RUN ledger was actually granted against.
-        # Falling back to "*" when it is absent keeps already-valid PLANs
-        # (authored before this field existed) unchanged.
+        # A bare "*" target is unreachable for `push`: RUN validation rejects a
+        # wildcard grant for every HEAD_BOUND_AUTHORIZATION_ACTIONS entry
+        # (harness_manifest.py). Other actions may hold a run-wide "*" grant.
+        # node["target"], when the PLAN declares one, is the exact target the
+        # RUN ledger is checked against; falling back to "*" keeps older PLANs
+        # valid. Cleanup refs without a target are refused later by
+        # reserve-node-attempt, not here.
         target = node.get("target") or "*"
         mission_ids = sorted(run["mission_states"])
         current_head = _current_authorized_head(run)

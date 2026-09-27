@@ -17,6 +17,7 @@ from harness_schema import (
     CAPABILITY_PROBE_KEYS,
     DRIVER_CAPABILITY_REQUIREMENTS,
     CURRENT_SCHEMA_PAIR,
+    EXACT_TARGET_LIFECYCLE_ACTIONS,
     EXPIRY_BOUNDARIES,
     GATE_VALUES,
     HEAD_BOUND_AUTHORIZATION_ACTIONS,
@@ -102,6 +103,7 @@ from harness_authorization import (
     authorization_covers,
     execution_covers,
     is_explicit_remote_intent,
+    is_protected_branch_target,
     wave_scope_matches_current,
 )
 from harness_graph import (
@@ -4191,6 +4193,18 @@ def _validate_run_attempt_log(
                                     f"{path}.node_dispatch.target",
                                     "must be an exact target or *",
                                 )
+                            # A cleanup PASS must name what it archived,
+                            # removed, or deleted.
+                            if (
+                                node.get("ref") in EXACT_TARGET_LIFECYCLE_ACTIONS
+                                and target == "*"
+                                and attempt.get("result") == "pass"
+                            ):
+                                _add(
+                                    errors,
+                                    f"{path}.node_dispatch.target",
+                                    f"{node.get('ref')} PASS requires an exact recorded target, not *",
+                                )
                             _optional_sha(
                                 errors,
                                 f"{path}.node_dispatch.authorized_head_sha",
@@ -5875,6 +5889,22 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                             errors,
                             f"{path}.scope.targets",
                             "RUN-v11 push authorization cannot target retired development",
+                        )
+                if action == "delete_branches" and entry["authorized"]:
+                    delete_scope = entry.get("scope")
+                    delete_targets = (
+                        delete_scope.get("targets")
+                        if isinstance(delete_scope, dict)
+                        else None
+                    )
+                    if isinstance(delete_targets, list) and any(
+                        is_protected_branch_target(run, target)
+                        for target in delete_targets
+                    ):
+                        _add(
+                            errors,
+                            f"{path}.scope.targets",
+                            "delete_branches cannot target main, development, or the observed default branch",
                         )
                 if schema_version in {10, 11} and action in HEAD_BOUND_AUTHORIZATION_ACTIONS:
                     authorized_head = entry.get("authorized_head_sha")
