@@ -490,7 +490,7 @@ UI 批准使用另行授权的 publication checkout，保留源 HEAD、完整 Gi
 
 Private HTTPS 发布可使用 `trusted-host-publication.md` 定义的管理员 credential-helper policy，只允许精确 endpoint。Request 绑定 policy/helper hash，prepare、trusted-host push 与 recovery 都拒绝漂移，也不继承任意 repo/user helper；evidence 不含凭证。Activation 可在固定 implementation SHA 下准备另行授权的部署前置设置；readiness 与 verified measurement handoff 仍要求精确 deployment evidence。Activation checker 命令须包含 PRD、architecture、deployment、stack-decisions、activation 路径与 repository root。
 
-Trusted-host publication 与 legacy（0.38 以前）run-branch push 都与 repository hooks、fsmonitor 和 askpass 隔离：`core.hooksPath` 指向全新空目录，`core.fsmonitor` 关闭，askpass 为空。Git config preflight 把 linked worktree 的共享 config 与 `config.worktree` 视为 repository config，并拒绝仓库内的 `core.askPass` 以及限定 URL 的 TLS、header 与 cookie 设置。Git 与 verifier 输出以 UTF-8 读取。远端重新检查与 no-force push 之间仍有短暂空窗，其他人可能把 run branch fast-forward 到 A 的祖先，因此 run-branch push 权限应只给 trusted host。Run-branch publication 使用 trusted host，是因为它的签名 evidence 属于 archive 状态；`main` promotion 是另行授权的普通 no-force push，不需要先把 A 发布到 run branch。
+Trusted-host publication 与 legacy（0.38 以前）run-branch push 都与 repository hooks、fsmonitor 和 askpass 隔离：`core.hooksPath` 指向全新空目录，`core.fsmonitor` 关闭，askpass 为空。Git config preflight 把 linked worktree 的共享 config 与 `config.worktree` 视为 repository config，并拒绝仓库内的 `core.askPass`；限定 URL 的 TLS、header 与 cookie 设置在远端访问和发布时会被拒绝，CI checkout 中的本地读取仍可正常进行。Git 与 verifier 输出以 UTF-8 读取。远端重新检查与 no-force push 之间仍有短暂空窗，其他人可能把 run branch fast-forward 到 A 的祖先，因此 run-branch push 权限应只给 trusted host。Run-branch publication 使用 trusted host，是因为它的签名 evidence 属于 archive 状态；`main` promotion 是另行授权的普通 no-force push，不需要先把 A 发布到 run branch。
 
 ## 常见提示词
 
