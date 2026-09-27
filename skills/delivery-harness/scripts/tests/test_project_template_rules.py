@@ -46,6 +46,19 @@ class ProjectTemplateRuleTests(unittest.TestCase):
         self.assertNotIn("never assume its name", template)
         self.assertNotIn("real default branch", template)
 
+    def test_repo_restore_rule_uses_the_installer(self) -> None:
+        # The installers have no restore mode, and manual moves are banned, so
+        # a bad install is replaced by installing the previous release.
+        agents = REPO_ROOT / "AGENTS.md"
+        if not (agents.is_file() and (REPO_ROOT / "install.sh").is_file()):
+            self.skipTest("no source repository checkout")
+        text = agents.read_text(encoding="utf-8")
+        self.assertIn(
+            "restore by re-running the installer from a checkout of the previous release tag",
+            text,
+        )
+        self.assertNotIn("Restore the backup if verification fails", text)
+
 
 if __name__ == "__main__":
     unittest.main()

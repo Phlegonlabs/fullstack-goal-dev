@@ -161,7 +161,7 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         runtime = documents["runtime-upgrades.md"]
         self.assertIn("never overwrite or delete", agents)
         self.assertIn("Never overwrite or delete", runtime)
-        self.assertIn("Restore the backup if verification fails", agents)
+        self.assertIn("previous release tag", agents)
         self.assertIn("Restore the backup if verification fails", runtime)
         readme_backup_phrases = {
             "README.md": "archive the legacy directories under their original IDs",
