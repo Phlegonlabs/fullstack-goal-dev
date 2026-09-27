@@ -158,6 +158,48 @@ class SeoLifecycleReviewTests(unittest.TestCase):
         self.assertEqual(stack_text, activation_check.call_args.kwargs["stack_text"])
         self.assertEqual(repo_root, activation_check.call_args.kwargs["repo_root"])
 
+    def test_package_and_deployment_are_validated_once(self) -> None:
+        with patch(
+            "check_product_package.validate_texts", return_value=["bad stack"]
+        ) as package_check, patch(
+            "check_deployment.check_deployment_text", return_value=["bad deploy"]
+        ) as deployment_check:
+            findings = check_seo_review.check_seo_review_text(
+                valid_review_v2(),
+                prd_text=PRD,
+                architecture_text=ARCHITECTURE,
+                deployment_text=DEPLOYMENT,
+                activation_text=ACTIVATION,
+                stack_text="# Stack Decisions: Example\n",
+                repo_root=Path(__file__).resolve().parents[4],
+            )
+        self.assertEqual(1, package_check.call_count)
+        self.assertEqual(1, deployment_check.call_count)
+        self.assertEqual(1, findings.count("Product package: bad stack"))
+        self.assertEqual(1, findings.count("Deployment: bad deploy"))
+        self.assertFalse(any(item.startswith("Activation: Product package") for item in findings))
+
+    def test_activation_still_validates_package_unless_told_otherwise(self) -> None:
+        check_activation = sys.modules["check_activation"]
+        for validated, expected_calls in ((False, 1), (True, 0)):
+            with self.subTest(package_validated=validated), patch(
+                "check_product_package.validate_texts", return_value=[]
+            ) as package_check, patch(
+                "check_deployment.check_deployment_text", return_value=[]
+            ) as deployment_check:
+                check_activation.check_activation_text(
+                    activation_fixtures.valid_record_v2(),
+                    prd_text=activation_fixtures.APPROVED_PRD,
+                    architecture_text=ARCHITECTURE,
+                    deployment_text=DEPLOYMENT,
+                    stack_text="# Stack Decisions: Example",
+                    repo_root=Path.cwd(),
+                    require_ready=("web-prod",),
+                    package_validated=validated,
+                )
+            self.assertEqual(expected_calls, package_check.call_count)
+            self.assertEqual(expected_calls, deployment_check.call_count)
+
     def test_valid_lifecycle_review_passes_exact_bindings(self) -> None:
         self.assertEqual([], self.check(valid_review()))
 
@@ -339,6 +381,18 @@ class SeoLifecycleReviewTests(unittest.TestCase):
             )
             self.assertEqual(2, gated.returncode)
             self.assertIn("requires --stack-decisions", gated.stderr)
+
+            (root / "stack-decisions.md").write_text("# Stack Decisions: Example\n", encoding="utf-8")
+            with_stack = [
+                part if part != str(review) else str(dated) for part in command
+            ] + ["--stack-decisions", str(root / "stack-decisions.md")]
+            package = subprocess.run(with_stack, text=True, capture_output=True, check=False)
+            self.assertEqual(1, package.returncode)
+            # Package findings print once on stdout next to the review findings.
+            self.assertIn(": Product package: ", package.stdout)
+            self.assertNotIn("Activation: Product package", package.stdout)
+            self.assertIn(": Activation: ", package.stdout)
+            self.assertEqual("", package.stderr)
 
 
 if __name__ == "__main__":

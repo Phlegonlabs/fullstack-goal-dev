@@ -1520,11 +1520,13 @@ def check_activation_text(
     require_filled: bool = False,
     require_verified_sources: bool = False,
     require_ready: tuple[str, ...] = (),
+    package_validated: bool = False,
 ) -> list[str]:
     authority_required = require_verified_sources or bool(require_ready)
     require_filled = require_filled or authority_required
     findings: list[str] = []
-    if stack_text is not None:
+    # A caller that already validated the package and Deployment skips a rerun.
+    if stack_text is not None and not package_validated:
         if repo_root is None:
             findings.append("Product package: stack validation requires repository root")
         from check_product_package import validate_texts
