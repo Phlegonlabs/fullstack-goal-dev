@@ -1,5 +1,6 @@
 """Seeded project rules must agree with the canonical Harness contracts."""
 
+import re
 import unittest
 from pathlib import Path
 
@@ -58,6 +59,30 @@ class ProjectTemplateRuleTests(unittest.TestCase):
             text,
         )
         self.assertNotIn("Restore the backup if verification fails", text)
+
+    def test_repo_instructions_cover_every_shared_template_section(self) -> None:
+        # The handoff audit compares repo AGENTS.md/CLAUDE.md with the seeded
+        # templates. Each template section is present or named as a
+        # deliberate source-repo omission, so the audit has a clear answer.
+        agents = REPO_ROOT / "AGENTS.md"
+        if not (agents.is_file() and (REPO_ROOT / "install.sh").is_file()):
+            self.skipTest("no source repository checkout")
+        root_agents = agents.read_text(encoding="utf-8")
+        omitted = root_agents.split("This source repository intentionally omits", 1)[1]
+        omitted = omitted.split("\n", 1)[0]
+        headings = re.findall(r"^## (.+)$", root_agents, re.MULTILINE)
+        template = read("assets/templates/PROJECT_AGENTS.template.md")
+        for heading in re.findall(r"^## (.+)$", template, re.MULTILINE):
+            with self.subTest(heading=heading):
+                self.assertTrue(heading in headings or heading in omitted, heading)
+        self.assertIn("Select the record before implementation", root_agents)
+
+        root_claude = (REPO_ROOT / "CLAUDE.md").read_text(encoding="utf-8")
+        claude_template = read("assets/templates/PROJECT_CLAUDE.template.md")
+        for line in claude_template.splitlines():
+            if line.startswith("- "):
+                with self.subTest(line=line[:60]):
+                    self.assertIn(line, root_claude)
 
 
 if __name__ == "__main__":

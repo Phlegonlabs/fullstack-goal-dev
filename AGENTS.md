@@ -5,12 +5,15 @@
 - This file contains shared repository governance. Preserve the current host's effective instruction discovery and precedence.
 - Use `skills/delivery-harness/references/runtime-adapters.md` for observed native capabilities, authorization, isolation and result contracts. Map the actual tools available to the session; capability does not grant an action.
 - Managed rules apply only after work is routed into PLAN/RUN. Direct source maintenance follows the shared principles, Git safety and required verification below without creating managed state.
+- This source repository intentionally omits the template's Skill Bindings (it has no consumer stage slots), Deployment and Post-Delivery Activation (it deploys and activates no product), and the delivery-acceptance bullet (it has no product accounts or data). Its Git Flow replaces the template's Git Safety, and its Required Reading replaces the template's. Treat these as local choices, not drift, in the handoff audit.
 
 ## Project Entry And Current Work
 
 Start with the effective repository instructions, `docs/DOCUMENTS.md` when present, current product/design sources and relevant unfinished work. At the first work in a new session and every skill invocation, apply `delivery-harness/references/document-sync-contract.md` (under `skills/` in this source repository). Observe loaded versus installed skill identity; unknown means unknown, not the current disk version.
 
 Keep one current PRD. Complete enhancements use `docs/epics/EPIC-<id>.md`, indexed in `docs/DOCUMENTS.md`, to record the problem, baseline, accepted outcome, requirement references, dependencies, document impact and result. Small fixes append to the relevant Epic; detailed direct-task evidence may be linked from it. Follow `delivery-harness/references/bounded-enhancement.md`; an Epic never duplicates PRD or RUN and never grants actions.
+
+Select the record before implementation: a new accepted outcome gets a new Epic; same-outcome fixes append to its Change Log; an isolated small fix gets a bounded Epic entry that may link detailed direct-task evidence. Log the reason, affected scope, commit, tests and remaining work. Do not rewrite closed history. UI enhancements add or patch only named Wireframe/HiFi pages and necessary connecting controls; retain every unaffected product page, style and ID. Full package coverage is not an instruction to redraw the product.
 
 Derive the goal, write scope, design source, dependencies and acceptance checks in the existing task record or PLAN/RUN. Use direct work when one writer and one coherent verification sequence suffice; use managed coordination only when durable handoff, isolated integration or a bounded graph requires it. Preserve valid decisions and authorizations; ask only about a concrete missing dependency.
 
@@ -58,6 +61,16 @@ The handoff names the repository, branch, HEAD and working-tree status, the temp
 - Make the smallest change that satisfies the request.
 - Do not add speculative abstractions or unrelated cleanup.
 - Write short, direct documentation, comments, commit messages, and reports.
+
+## Core Development Principles
+
+- Follow `delivery-harness/references/bounded-enhancement.md`: reuse the accepted scope and valid action grants for repairs, document synchronization, module replacement and retesting. Do not repeat approvals for unchanged decisions. Never infer external, destructive, publication or installation authority.
+- A module that fails accepted requirements may be replaced inside its write scope; preserve required interfaces, unaffected requirements, data and recoverable history. Bound repair attempts and keep unresolved gaps for the next round; ending a round is not a PASS.
+- Reason from the problem's actual constraints, not from habit, inherited patterns, or how another project solved it.
+- At 500 lines, review whether a module has more than one responsibility. Split when it improves ownership and verification; otherwise record why it stays together. This is a checkpoint, not a hard limit.
+- Don't add hacks, shims, or dual-path logic unless a frozen contract requires compatibility. Don't break an existing interface as unrelated cleanup; when an authorized change removes one, update its consumers and tests in the same change. Remove code only when verification proves it is dead.
+- For multi-step, high-risk, or ambiguous work, state a brief approach, acceptance criteria, and test plan before editing. Small bounded work may proceed directly.
+- Every change must be verifiable. For bug fixes, add or update a regression test when practical; otherwise explain the verification used.
 
 ## Keep Product Contracts Current
 
@@ -142,3 +155,7 @@ Treat these as blocking findings:
 - Any behavior change without focused tests, or any test/workflow command that does not run from the repository root.
 
 Do not report formatting preferences as blockers. Focus on correctness, authorization boundaries, stale-state safety, data preservation, and missing verification.
+
+## Completion
+
+Update the affected skills, references, READMEs and Epic records under existing authority. Preserve untouched rules, IDs, decisions and historical evidence. Report the actual SHA, checks, independent review, release/installation state and unresolved obligations. Required failures, stale evidence or skipped checks prevent a complete delivery claim.
