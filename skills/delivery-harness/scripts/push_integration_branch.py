@@ -7,8 +7,10 @@ import argparse
 import hashlib
 import json
 import re
+import os
 import subprocess
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -41,6 +43,32 @@ def _git(
         timeout=30,
         check=False,
     )
+
+
+def _isolated_push(
+    root: Path, push_url: str, refspec: str
+) -> subprocess.CompletedProcess[str]:
+    """Run ``git push`` with repository hooks, fsmonitor, and askpass off.
+
+    This matches the trusted-host push. Command-line config outranks
+    repository config, and hooks point at a fresh empty directory, so no
+    repository hook runs during the push.
+    """
+
+    hooks_dir = tempfile.mkdtemp(prefix="harness-no-hooks-")
+    try:
+        return _git(
+            root,
+            "-c", f"core.hooksPath={Path(hooks_dir).as_posix()}",
+            "-c", "core.fsmonitor=false",
+            "-c", "core.askPass=",
+            "push", "--", push_url, refspec,
+        )
+    finally:
+        try:
+            os.rmdir(hooks_dir)
+        except OSError:
+            pass
 
 
 def _canonical(value: Any) -> bytes:
@@ -588,7 +616,7 @@ def push_authorized_head(
             raise ManifestError("configured push URL changed before the remote write")
 
     refspec = f"{target['head_sha']}:{target['branch_ref']}"
-    push = _git(root, "push", "--", push_url, refspec)
+    push = _isolated_push(root, push_url, refspec)
     if push.returncode != 0:
         detail = push.stderr.strip() or push.stdout.strip() or "unknown git push error"
         raise ManifestError(f"git push frozen URL {refspec} failed: {detail}")
