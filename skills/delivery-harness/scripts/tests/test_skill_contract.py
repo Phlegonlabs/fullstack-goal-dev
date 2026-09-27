@@ -1209,7 +1209,7 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         core = self.read("SKILL.md")
         runtime = self.read("scripts/verifier_runtime.py")
 
-        self.assertIn("pass_signal_not_cacheable", runtime)
+        self.assertIn('and normalized_verifier["pass_signal"] == "exit 0"', runtime)
         self.assertIn("Container `session_exact` reuse requires `exit 0`", core)
 
 

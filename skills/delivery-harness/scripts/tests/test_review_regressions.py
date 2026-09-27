@@ -118,7 +118,6 @@ def real_verifier_record(**cache_extra):
             verifier,
             context,
             checkout_root=checkout,
-            cache_root=root / "cache",
             environment={},
             sandbox_preflight=sandbox_preflight,
         )

@@ -24,7 +24,6 @@ if str(SCRIPTS_DIR) not in sys.path:
 import verifier_runtime  # noqa: E402
 from verifier_runtime import (  # noqa: E402
     BATCH_PROTOCOL,
-    CACHE_BANNED_LAYERS,
     PROTOCOL,
     VerifierRuntimeError,
     _ContainerResultCache,
@@ -38,6 +37,8 @@ from verifier_runtime import (  # noqa: E402
 )
 
 
+# Layers where PLAN validation bans session_exact reuse by default.
+CACHE_BANNED_LAYERS = {"mission_integration", "batch", "final"}
 SHA_A = "a" * 40
 SHA_B = "b" * 40
 DIGEST = "c" * 64
@@ -996,14 +997,12 @@ class VerifierRuntimeTests(unittest.TestCase):
             verifier(counter, identifier="task-focused"),
             task_context,
             checkout_root=self.checkout,
-            cache_root=self.cache,
             environment=self.environment,
         )
         worker = run_verifier(
             verifier(counter, identifier="mission-focused"),
             cacheable_context(),
             checkout_root=self.checkout,
-            cache_root=self.cache,
             environment=self.environment,
         )
         self.assertEqual(first["status"], "PASS")
@@ -1064,7 +1063,6 @@ class VerifierRuntimeTests(unittest.TestCase):
             verifier(self.root / "counter.txt"),
             context(),
             checkout_root=self.checkout,
-            cache_root=self.cache,
             environment=self.environment,
         )
         baseline_key = baseline["execution_key"]
@@ -1074,7 +1072,6 @@ class VerifierRuntimeTests(unittest.TestCase):
                     candidate_verifier,
                     candidate_context,
                     checkout_root=self.checkout,
-                    cache_root=self.cache,
                     environment=candidate_environment,
                 )
                 self.assertEqual(result["status"], "PASS")
@@ -1133,7 +1130,6 @@ class VerifierRuntimeTests(unittest.TestCase):
                     verifier(counter),
                     banned,
                     checkout_root=self.checkout,
-                    cache_root=self.cache,
                     environment=self.environment,
                 )
                 self.assertEqual(result["status"], "PASS")
@@ -1159,7 +1155,6 @@ class VerifierRuntimeTests(unittest.TestCase):
                 attested,
                 banned,
                 checkout_root=self.checkout,
-                cache_root=self.cache,
                 environment=self.environment,
             )
             self.assertEqual(result["status"], "PASS")
@@ -1173,7 +1168,6 @@ class VerifierRuntimeTests(unittest.TestCase):
             verifier(counter),
             cacheable_context(),
             checkout_root=self.checkout,
-            cache_root=self.cache,
             environment=self.environment,
         )
         dirty = cacheable_context()
@@ -1182,14 +1176,13 @@ class VerifierRuntimeTests(unittest.TestCase):
             verifier(counter),
             dirty,
             checkout_root=self.checkout,
-            cache_root=self.cache,
             environment=self.environment,
         )
         self.assertEqual(result["cache_status"], "bypassed")
         self.assertEqual(result["cache_reason"], "container_disk_cache_disabled")
         self.assertEqual(self.read_count(counter), 2)
 
-    def test_failure_timeout_and_missing_cache_root_never_reuse(self) -> None:
+    def test_failure_and_timeout_never_reuse(self) -> None:
         failure_counter = self.root / "failure.txt"
         failing = verifier(failure_counter)
         failing["argv"] = counter_command(failure_counter, exit_code=1)
@@ -1197,14 +1190,12 @@ class VerifierRuntimeTests(unittest.TestCase):
             failing,
             context(),
             checkout_root=self.checkout,
-            cache_root=self.cache,
             environment=self.environment,
         )
         second = run_verifier(
             failing,
             context(),
             checkout_root=self.checkout,
-            cache_root=self.cache,
             environment=self.environment,
         )
         self.assertEqual((first["status"], second["status"]), ("FAIL", "FAIL"))
@@ -1217,7 +1208,6 @@ class VerifierRuntimeTests(unittest.TestCase):
             slow,
             context(),
             checkout_root=self.checkout,
-            cache_root=self.cache,
             timeout_seconds=0.01,
             environment=self.environment,
         )
@@ -1225,7 +1215,6 @@ class VerifierRuntimeTests(unittest.TestCase):
             slow,
             context(),
             checkout_root=self.checkout,
-            cache_root=self.cache,
             timeout_seconds=0.01,
             environment=self.environment,
         )
@@ -1237,7 +1226,6 @@ class VerifierRuntimeTests(unittest.TestCase):
                 verifier(uncached_counter),
                 cacheable_context(),
                 checkout_root=self.checkout,
-                cache_root=None,
                 environment=self.environment,
             )
             self.assertEqual(result["cache_reason"], "container_disk_cache_disabled")
@@ -1261,7 +1249,6 @@ class VerifierRuntimeTests(unittest.TestCase):
                 candidate,
                 cacheable_context(),
                 checkout_root=self.checkout,
-                cache_root=self.cache,
                 environment=self.environment,
             )
             self.assertEqual(result["cache_status"], "bypassed")
@@ -1277,7 +1264,6 @@ class VerifierRuntimeTests(unittest.TestCase):
             verifier(counter),
             unsafe,
             checkout_root=self.checkout,
-            cache_root=self.cache,
             environment=self.environment,
         )
         self.assertEqual(result["cache_reason"], "container_disk_cache_disabled")
@@ -1287,7 +1273,6 @@ class VerifierRuntimeTests(unittest.TestCase):
             verifier(inside_counter),
             cacheable_context(),
             checkout_root=self.checkout,
-            cache_root=self.checkout / ".cache",
             environment=self.environment,
         )
         self.assertEqual(result["cache_reason"], "container_disk_cache_disabled")
@@ -1355,7 +1340,6 @@ class VerifierRuntimeTests(unittest.TestCase):
             declaration,
             task_context,
             checkout_root=self.checkout,
-            cache_root=self.cache,
             environment=self.environment,
             git_guard=self.git_guard(),
             container_result_cache=cache,
@@ -1371,7 +1355,6 @@ class VerifierRuntimeTests(unittest.TestCase):
                 declaration,
                 second_context,
                 checkout_root=self.checkout,
-                cache_root=self.cache,
                 environment=self.environment,
                 git_guard=self.git_guard(),
                 reservation={"node_id": "N", "attempt_id": "A2", "nonce": "x"},
@@ -1894,7 +1877,7 @@ class VerifierRuntimeTests(unittest.TestCase):
 
         self.assertEqual(result["protocol"], BATCH_PROTOCOL)
         self.assertEqual(result["status"], "PASS")
-        self.assertEqual(result["metrics"]["waves"], 1)
+        self.assertNotIn("waves", result["metrics"])
         self.assertEqual(result["metrics"]["max_parallel"], 2)
         self.assertEqual(peak, 2)
         self.assertEqual([item["job_id"] for item in result["results"]], ["V1", "V2"])
@@ -1913,7 +1896,6 @@ class VerifierRuntimeTests(unittest.TestCase):
                 max_parallel=2,
             )
 
-        self.assertEqual(result["metrics"]["waves"], 2)
         self.assertEqual(result["metrics"]["max_parallel"], 1)
 
     def test_parallel_batch_groups_unmarked_verifiers(self) -> None:
@@ -1945,7 +1927,6 @@ class VerifierRuntimeTests(unittest.TestCase):
                 max_parallel=2,
             )
 
-        self.assertEqual(result["metrics"]["waves"], 1)
         self.assertEqual(result["metrics"]["max_parallel"], 2)
         self.assertEqual(2, peak)
 
@@ -1963,7 +1944,23 @@ class VerifierRuntimeTests(unittest.TestCase):
                 max_parallel=2,
             )
 
-        self.assertEqual(result["metrics"]["waves"], 2)
+        self.assertEqual(result["metrics"]["max_parallel"], 1)
+
+    def test_batch_job_cache_root_is_optional_and_ignored(self) -> None:
+        # Older requests may still send cache_root; there is no disk cache.
+        without_root = self.batch_job("V1")
+        without_root.pop("cache_root")
+        with_root = self.batch_job("V2")
+        with_root["cache_root"] = str(self.cache)
+        with patch(
+            "verifier_runtime.run_verifier",
+            return_value={"protocol": PROTOCOL, "status": "PASS", "metrics": {"executed": 1, "reused": 0}},
+        ) as run:
+            result = run_verifier_batch([without_root, with_root], max_parallel=1)
+        self.assertEqual(result["status"], "PASS")
+        for call in run.call_args_list:
+            self.assertNotIn("cache_root", call.kwargs)
+        self.assertFalse(self.cache.exists())
 
 
 if __name__ == "__main__":
