@@ -401,6 +401,8 @@ flowchart TB
 
 所有 host 共用 `delivery-harness/references/runtime-adapters.md` 的能力契約。Agent 讀取當前原生工具說明、觀察能力，再把實際呼叫對應到 `app_threads`、`subagents` 或 `sequential_parent`。不再提供平台專屬 adapter、固定模型預設或原生 workflow 腳本。
 
+以 lazy filesystem reference 提供技能的 host，可能無法得知 session 啟動時實際載入的七技能 bundle。在 owner 授權的靜止邊界，RUN-v11 可改記錄 `adopted` receipt：parent 提供已審閱 digest、owner 來源與閱讀證據；transition 檢查正在執行的 Harness 版本，若新算出的安裝 digest 不同就拒絕寫入。歷史 loaded digest 保持 null。Runtime-worker 選擇時會重新檢查一次 live digest，漂移即阻擋派發；每個新 worker/reviewer 也必須自行重算、閱讀並回報固定契約。Owner 與閱讀證據是 attestation，不是模型攝入內容的密碼學證明。
+
 Provider 身分只控制 PLAN 明確允許的 host。Driver 順序由觀察到的適用能力決定；平台名稱不代表能力。委派必須有任務建立、結果回傳及適用工作目錄的證據。能力未知就不能啟動。模型與 effort 為 null 時保留已安裝的角色、模型與 fallback；明確指定但不支援的選項會阻擋該節點，不會偷偷替換。
 
 授權、PLAN/RUN、lease、隔離寫入、精確 SHA 驗證與循序整合仍由 parent 掌握。Reviewer 使用新 context，所需工具必須在它自己的 session 內驗證。原生完成、重試與快取不取代這些關卡。明確要求的獨立 app task 不能默默換成直接子代理。

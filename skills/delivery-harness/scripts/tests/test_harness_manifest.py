@@ -2215,6 +2215,70 @@ class RunValidationTests(unittest.TestCase):
             "run.runtime_capabilities.runtime_adapter: unknown keys: external_runtimes",
         )
 
+    def test_runtime_contract_adoption_is_distinct_from_loaded_current(self) -> None:
+        plan = valid_plan()
+        run = valid_run(plan)
+        gate = run["runtime_capabilities"]["runtime_adapter"]["version_gate"]
+        gate.update(
+            {
+                "loaded_contract_digest": None,
+                "installed_contract_digest": "a" * 64,
+                "status": "adopted",
+                "contract_adoption": {
+                    "session_id": gate["session_id"],
+                    "adopted_at": "2026-09-27T00:00:00Z",
+                    "contract_digest_sha256": "a" * 64,
+                    "owner_source": "owner instruction in this task",
+                    "reading_evidence": ["read the fixed seven-skill contract"],
+                },
+                "contract_adoption_history": [],
+            }
+        )
+
+        self.assertEqual([], validate_run(plan, run))
+
+        loaded = copy.deepcopy(run)
+        loaded_gate = loaded["runtime_capabilities"]["runtime_adapter"]["version_gate"]
+        loaded_gate["loaded_contract_digest"] = "b" * 64
+        self.assert_run_error_contains(
+            plan,
+            loaded,
+            "adopted preserves an unknown loaded digest as null",
+        )
+
+        mismatched = copy.deepcopy(run)
+        mismatched["runtime_capabilities"]["runtime_adapter"]["version_gate"][
+            "installed_contract_digest"
+        ] = "b" * 64
+        self.assert_run_error_contains(
+            plan,
+            mismatched,
+            "adopted requires matching installed and adoption digests",
+        )
+
+        relabeled = copy.deepcopy(run)
+        relabeled["runtime_capabilities"]["runtime_adapter"]["version_gate"][
+            "status"
+        ] = "current"
+        self.assert_run_error_contains(
+            plan,
+            relabeled,
+            "contract_adoption is valid only with status adopted",
+        )
+
+    def test_runtime_contract_adoption_is_rejected_on_run_v10(self) -> None:
+        plan = valid_plan()
+        plan["schema_version"] = 5
+        run = valid_run(plan)
+        gate = run["runtime_capabilities"]["runtime_adapter"]["version_gate"]
+        gate["status"] = "adopted"
+
+        self.assert_run_error_contains(
+            plan,
+            run,
+            "adopted contract receipts require RUN schema v11",
+        )
+
     def test_runtime_version_gate_validates_status_and_evidence(self) -> None:
         plan = valid_plan()
         run = valid_run(plan)

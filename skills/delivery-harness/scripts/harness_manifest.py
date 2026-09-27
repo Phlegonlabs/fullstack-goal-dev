@@ -5406,6 +5406,75 @@ def _validate_run_workers(
                         f"{path}.nested_review_evidence",
                         "is allowed only for an enabled nested-subagent policy",
                     )
+def _validate_contract_adoption(
+    errors: list[str],
+    path: str,
+    version_gate: dict[str, Any],
+) -> bool:
+    """Validate explicit fixed-contract adoption receipts without rewriting history."""
+
+    keys = {
+        "session_id",
+        "adopted_at",
+        "contract_digest_sha256",
+        "owner_source",
+        "reading_evidence",
+    }
+
+    def validate_item(item: Any, item_path: str) -> bool:
+        if not _keys(errors, item_path, item, keys):
+            return False
+        valid = True
+        if not _nonempty_string(item["session_id"]):
+            _add(errors, f"{item_path}.session_id", "must be a non-empty string")
+            valid = False
+        if not _nonempty_string(item["adopted_at"]):
+            _add(errors, f"{item_path}.adopted_at", "must be a non-empty string")
+            valid = False
+        if not (
+            isinstance(item["contract_digest_sha256"], str)
+            and SHA256_RE.fullmatch(item["contract_digest_sha256"])
+        ):
+            _add(
+                errors,
+                f"{item_path}.contract_digest_sha256",
+                "must be a lowercase SHA-256 digest",
+            )
+            valid = False
+        if not _nonempty_string(item["owner_source"]):
+            _add(errors, f"{item_path}.owner_source", "must be a non-empty string")
+            valid = False
+        if (
+            not isinstance(item["reading_evidence"], list)
+            or not item["reading_evidence"]
+            or any(not _nonempty_string(entry) for entry in item["reading_evidence"])
+        ):
+            _add(
+                errors,
+                f"{item_path}.reading_evidence",
+                "must be a non-empty list of non-empty strings",
+            )
+            valid = False
+        elif len(item["reading_evidence"]) != len(set(item["reading_evidence"])):
+            _add(errors, f"{item_path}.reading_evidence", "must not contain duplicates")
+            valid = False
+        return valid
+
+    valid = True
+    adoption = version_gate.get("contract_adoption")
+    if adoption is not None and not validate_item(adoption, f"{path}.contract_adoption"):
+        valid = False
+    history = version_gate.get("contract_adoption_history", [])
+    if not isinstance(history, list):
+        _add(errors, f"{path}.contract_adoption_history", "must be a list")
+        valid = False
+    else:
+        for index, prior in enumerate(history):
+            if not validate_item(prior, f"{path}.contract_adoption_history[{index}]"):
+                valid = False
+    return valid
+
+
 def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
     """Validate a plan-backed harness_run object and cross-plan consistency."""
 
@@ -6122,11 +6191,18 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                         "installed_contract_digest",
                     }
                 )
+                optional_version_keys = {
+                    "contract_adoption",
+                    "contract_adoption_history",
+                }
+            else:
+                optional_version_keys = set()
             if version_gate is not None and _keys(
                 errors,
                 version_path,
                 version_gate,
                 required_version_keys,
+                optional_version_keys,
             ):
                 for field in (
                     "host_version",
@@ -6146,6 +6222,12 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                     or version_gate["status"] not in RUNTIME_VERSION_STATUSES
                 ):
                     _add(errors, f"{version_path}.status", "has an unsupported value")
+                if schema_version != 11 and version_gate["status"] == "adopted":
+                    _add(
+                        errors,
+                        f"{version_path}.status",
+                        "adopted contract receipts require RUN schema v11",
+                    )
                 if not _nonempty_string(version_gate["evidence"]):
                     _add(errors, f"{version_path}.evidence", "must be a non-empty string")
                 if schema_version == 11:
@@ -6160,6 +6242,10 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                     loaded = version_gate["loaded_contract_digest"]
                     installed = version_gate["installed_contract_digest"]
                     status = version_gate["status"]
+                    adoption_valid = _validate_contract_adoption(
+                        errors, version_path, version_gate
+                    )
+                    adoption = version_gate.get("contract_adoption")
                     if status == "current" and (
                         loaded is None or installed is None or loaded != installed
                     ):
@@ -6167,6 +6253,37 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                             errors,
                             f"{version_path}.status",
                             "current requires matching loaded and installed contract digests",
+                        )
+                    if status == "adopted" and adoption_valid:
+                        if adoption is None:
+                            _add(
+                                errors,
+                                f"{version_path}.status",
+                                "adopted requires contract_adoption",
+                            )
+                        elif loaded is not None:
+                            _add(
+                                errors,
+                                f"{version_path}.status",
+                                "adopted preserves an unknown loaded digest as null",
+                            )
+                        elif installed != adoption["contract_digest_sha256"]:
+                            _add(
+                                errors,
+                                f"{version_path}.status",
+                                "adopted requires matching installed and adoption digests",
+                            )
+                        elif adoption["session_id"] != version_gate["session_id"]:
+                            _add(
+                                errors,
+                                f"{version_path}.status",
+                                "adopted requires the adoption and version-gate sessions to match",
+                            )
+                    if adoption is not None and status != "adopted":
+                        _add(
+                            errors,
+                            f"{version_path}.status",
+                            "contract_adoption is valid only with status adopted",
                         )
                     if loaded is not None and installed is not None and loaded != installed and status != "restart_required":
                         _add(

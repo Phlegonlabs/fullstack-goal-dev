@@ -188,7 +188,9 @@ Unary ineligibility or deferral belongs on the node entry, not on a graph edge. 
 - `run_cancelled` — RUN-v11 control records a cancelled desired state.
 - `run_paused` — RUN-v11 control records a paused desired state.
 - `run_status_not_dispatchable` — RUN status is terminal or otherwise not one of the executable `ready`/`running` states.
-- `runtime_contract_unobserved` — the installed harness contract digest is not observed for the loaded runtime.
+- `runtime_contract_drift` — an adopted harness contract no longer matches the live installed seven-skill digest.
+- `runtime_contract_invalid` — an adopted receipt conflicts with its session or the still-null loaded-at-start identity.
+- `runtime_contract_unobserved` — the installed harness contract digest is not observed for the loaded runtime, or an adopted receipt cannot be checked.
 - `runtime_restart_required` — the runtime upgraded but has not restarted onto the loaded contract.
 - `runtime_unavailable` — the node's allowed providers exclude the current host.
 - `runtime_upgrade_pending` — the runtime is compatible-but-old and no wave is active, so the upgrade should run first.

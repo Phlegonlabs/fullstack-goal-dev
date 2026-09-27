@@ -64,6 +64,15 @@ def render_packet(
         for mission in missions
         for task in mission["tasks"]
     ]
+    version_gate = (
+        run.get("runtime_capabilities", {}).get("runtime_adapter", {}).get("version_gate")
+    )
+    contract_adoption = (
+        version_gate.get("contract_adoption")
+        if isinstance(version_gate, dict)
+        and version_gate.get("status") == "adopted"
+        else None
+    )
     packet_lines = [
         f"# Review packet: {node_id}",
         "",
@@ -124,6 +133,7 @@ def render_packet(
                     .get(tool_name)
                     for tool_name in review.get("required_tools", [])
                 },
+                "contract_adoption": contract_adoption,
                 "acceptance": acceptance,
                 "failure_families": lineage["failure_families"],
                 "owner_decisions": lineage["owner_decisions"],
@@ -132,6 +142,14 @@ def render_packet(
             ensure_ascii=False,
         ),
         "```",
+        (
+            "Before any review action, independently recompute the seven-skill contract"
+            " digest, compare it with `contract_adoption.contract_digest_sha256`, read"
+            " the supplied fixed contract, and include that fresh reading evidence in"
+            " the review result. An adoption receipt is not loaded-at-start evidence."
+            if contract_adoption is not None
+            else ""
+        ),
         "",
         f"## Diff{' (truncated)' if truncated else ''}",
         "",

@@ -208,6 +208,7 @@ RUNTIME_DRIVERS = {
 RUNTIME_DETECTION_SOURCES = {"observed", "explicit", "fallback"}
 RUNTIME_VERSION_STATUSES = {
     "unobserved",
+    "adopted",
     "current",
     "compatible_old",
     "upgrade_required",

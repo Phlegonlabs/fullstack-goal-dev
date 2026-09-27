@@ -359,6 +359,21 @@ class HarnessV11Tests(unittest.TestCase):
             run["integration"]["batch_base_sha"] = base
             run["integration"]["integration_head_sha"] = head
             run["mission_states"]["M1"]["head_sha"] = head
+            gate = run["runtime_capabilities"]["runtime_adapter"]["version_gate"]
+            gate.update(
+                {
+                    "loaded_contract_digest": None,
+                    "installed_contract_digest": "a" * 64,
+                    "status": "adopted",
+                    "contract_adoption": {
+                        "session_id": gate["session_id"],
+                        "adopted_at": "2026-09-27T00:00:00Z",
+                        "contract_digest_sha256": "a" * 64,
+                        "owner_source": "owner instruction in this task",
+                        "reading_evidence": ["parent re-read the fixed contract"],
+                    },
+                }
+            )
 
             packet = render_packet(plan, run, "N-REVIEW-M1", root, max_diff_bytes=64)
 
@@ -372,6 +387,8 @@ class HarnessV11Tests(unittest.TestCase):
                              full_packet.split("## Contract")[1].split("## Diff")[0])
             self.assertIn("REVIEW-M1", packet)
             self.assertIn('"required_tools": []', packet)
+            self.assertIn('"contract_adoption"', packet)
+            self.assertIn("independently recompute the seven-skill contract digest", packet)
             self.assertNotIn('"harness_plan"', packet)
 
             for node in plan["graph"]["nodes"]:

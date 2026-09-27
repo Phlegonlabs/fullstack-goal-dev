@@ -20,6 +20,7 @@ Runtime:
 - Worktree and branch/ref: <exact values>
 - Host-specific repository context: <ordered paths>
 - Runtime-specific worker contract: <matching adapter contract>
+- Runtime-contract adoption: <contract_adoption receipt or none>
 - Context handoff: <fresh bounded packet or host-native task context>
 - Context sources: <ordered paths>
 - Result contract: <absolute or readable path to references/worker-result-contract.md>
@@ -47,10 +48,11 @@ Repair context (omit for an initial implementation):
 ## Launch
 
 1. Enter the assigned worktree. Read the ordered repository context and only the named skills. Keep automatic context discovery enabled.
-2. Treat this handoff as the complete live task. Do not reconstruct or continue the parent conversation; open PLAN/RUN only when the packet names a specific field that cannot be supplied directly.
-3. Verify repository, branch/ref, base SHA, clean starting state, plan digest, lease, scope, resources, permission boundary, and authorizations. Stop on a missing, stale, or contradictory value.
-4. Apply only the matching host contract. Do not borrow another host's model, role, context, or launch mechanics.
-5. Confirm required temp/cache paths, network, local bindings, and sockets fit the inherited boundary.
+2. When a contract-adoption receipt is supplied, independently recompute the seven-skill contract digest and compare it with the receipt before acting. Then read the supplied fixed contract and record that fresh reading evidence in the terminal result; the parent's adoption is not loaded-at-start evidence.
+3. Treat this handoff as the complete live task. Do not reconstruct or continue the parent conversation; open PLAN/RUN only when the packet names a specific field that cannot be supplied directly.
+4. Verify repository, branch/ref, base SHA, clean starting state, plan digest, lease, scope, resources, permission boundary, and authorizations. Stop on a missing, stale, or contradictory value.
+5. Apply only the matching host contract. Do not borrow another host's model, role, context, or launch mechanics.
+6. Confirm required temp/cache paths, network, local bindings, and sockets fit the inherited boundary.
 
 ## Work
 
@@ -103,6 +105,7 @@ Do not spawn, create, or delegate to another agent. All explorers, writers, and 
 - [ ] PLAN schema v6 and RUN schema v11 validate and match the supplied digest.
 - [ ] Lease, base, worktree, branch/ref, permission boundary, and required actions are current.
 - [ ] Host-specific repository context and matching adapter contract were read.
+- [ ] Any supplied runtime-contract adoption digest was independently recomputed, matched, read in this worker, and reported with fresh evidence.
 - [ ] Exact skills, write/deny scope, resources, stop conditions, and verifiers are known.
 - [ ] No nested delegation is permitted.
 - [ ] The result-contract path is readable.

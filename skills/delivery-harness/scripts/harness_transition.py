@@ -13,6 +13,7 @@ import copy
 import hashlib
 import json
 import os
+import re
 import secrets
 import subprocess
 import sys
@@ -34,6 +35,7 @@ from harness_core import (
     path_in_scopes,
     validate_changed_path,
 )
+from harness_contract import contract_digest
 from harness_git import GitMetadataError, reject_object_substitution, run_git
 from harness_manifest import (
     _verifier_owners,
@@ -48,7 +50,8 @@ from harness_manifest import (
     validate_current_plan_run,
 )
 from harness_schema import RUN_DISPATCH_STATUSES, RUN_HEADING
-from harness_schema import archive_first_required, required_harness_version
+from harness_schema import archive_first_required, parse_harness_version, required_harness_version
+from harness_schema import version_at_least
 from push_integration_branch import (
     make_push_request,
     validate_push_receipt,
@@ -179,6 +182,7 @@ DEFAULT_LOCK_STALE_MINUTES = 15
 # Dispatching the write path is single-writer work: these commands require
 # the calling session to already hold the run lock.
 DISPATCH_COMMANDS = {
+    "adopt-runtime-contract",
     "accept-wave",
     "lease-worker",
     "record-worker-result",
@@ -849,6 +853,142 @@ def _record_observation(
                 evidence.strip(),
             ],
         })
+
+
+def _adopt_runtime_contract(
+    plan: dict[str, Any], run: dict[str, Any], args: argparse.Namespace
+) -> None:
+    """Record an owner-authorized fixed-contract re-read at a quiet boundary."""
+
+    if plan.get("schema_version") != 6 or run.get("schema_version") != 11:
+        raise ManifestError("runtime-contract adoption requires PLAN v6 with RUN v11")
+    control = run.get("control")
+    desired_state = control.get("desired_state") if isinstance(control, dict) else None
+    if run.get("status") == "complete" or desired_state == "cancelled":
+        raise ManifestError(
+            "runtime-contract adoption refuses a complete or cancelled run"
+        )
+
+    wave = run.get("active_wave")
+    if isinstance(wave, dict) and wave.get("status") in {"proposed", "active"}:
+        raise ManifestError(
+            "runtime-contract adoption refuses an active or proposed wave"
+        )
+    live_workers = sorted(
+        str(worker.get("worker_id"))
+        for worker in [*run.get("workers", []), *run.get("review_workers", [])]
+        if isinstance(worker, dict)
+        and worker.get("phase") in {"leased", "worker_running"}
+    )
+    running_nodes = sorted(
+        str(node_id)
+        for node_id, state in run.get("graph_state", {}).get("node_states", {}).items()
+        if isinstance(state, dict) and state.get("phase") == "running"
+    )
+    reserved_attempts = sorted(
+        str(attempt.get("attempt_id"))
+        for attempt in run.get("attempt_log", [])
+        if isinstance(attempt, dict)
+        and attempt.get("kind") == "node_attempt"
+        and attempt.get("result") == "reserved"
+    )
+    active_work = [*live_workers, *running_nodes, *reserved_attempts]
+    if active_work:
+        raise ManifestError(
+            "runtime-contract adoption requires a quiescent run; reconcile first: "
+            + ", ".join(active_work)
+        )
+
+    adapter = run.get("runtime_capabilities", {}).get("runtime_adapter")
+    gate = adapter.get("version_gate") if isinstance(adapter, dict) else None
+    if not isinstance(gate, dict):
+        raise ManifestError("RUN has no runtime version gate")
+    if gate.get("loaded_contract_digest") is not None:
+        raise ManifestError(
+            "runtime-contract adoption applies only when loaded identity is unknown"
+        )
+    if gate.get("status") not in {"unobserved", "adopted"}:
+        raise ManifestError(
+            f"runtime version status {gate.get('status')!r} cannot be replaced by adoption"
+        )
+    harness_version = (
+        Path(__file__).resolve().parent.parent / "VERSION"
+    ).read_text(encoding="utf-8").strip()
+    required_version = required_harness_version(run)
+    parsed_harness_version = parse_harness_version(harness_version)
+    if not _nonempty_string(harness_version) or parsed_harness_version is None or required_version is None:
+        raise ManifestError("runtime-contract adoption requires Harness version evidence")
+    if not version_at_least(harness_version, required_version):
+        raise ManifestError(
+            "runtime-contract adoption cannot mark a Harness older than the RUN pin current"
+        )
+
+    owner_source = getattr(args, "owner_source", None)
+    reading_evidence = list(getattr(args, "reading_evidence", []) or [])
+    if not _nonempty_string(owner_source):
+        raise ManifestError("runtime-contract adoption requires --owner-source")
+    if not reading_evidence or any(not _nonempty_string(item) for item in reading_evidence):
+        raise ManifestError(
+            "runtime-contract adoption requires at least one --reading-evidence entry"
+        )
+
+    expected_digest = getattr(args, "expected_contract_digest", None)
+    if not isinstance(expected_digest, str) or re.fullmatch(r"[0-9a-f]{64}", expected_digest) is None:
+        raise ManifestError(
+            "runtime-contract adoption requires --expected-contract-digest as a lowercase SHA-256"
+        )
+    installed_digest = contract_digest()
+    if installed_digest != expected_digest:
+        raise ManifestError(
+            "installed runtime contract differs from --expected-contract-digest; re-read before adopting"
+        )
+    prior = gate.get("contract_adoption")
+    prior_same_session = (
+        isinstance(prior, dict)
+        and prior.get("contract_digest_sha256") == installed_digest
+        and prior.get("session_id") == args.session_id
+    )
+    if prior_same_session:
+        raise ManifestError("this installed runtime contract is already adopted")
+
+    adopted_at = _now()
+    adoption = {
+        "session_id": args.session_id,
+        "adopted_at": adopted_at,
+        "contract_digest_sha256": installed_digest,
+        "owner_source": owner_source,
+        "reading_evidence": reading_evidence,
+    }
+    if isinstance(prior, dict):
+        gate.setdefault("contract_adoption_history", []).append(copy.deepcopy(prior))
+    gate["session_id"] = args.session_id
+    gate.setdefault("contract_adoption_history", [])
+    gate["contract_adoption"] = adoption
+    gate["harness_version"] = harness_version
+    gate["installed_contract_digest"] = installed_digest
+    gate["status"] = "adopted"
+    gate["evidence"] = (
+            "owner-adopted fixed contract after explicit lazy-filesystem re-read; "
+        "loaded-at-start digest remains unobserved"
+    )
+    run["attempt_log"].append(
+        {
+            "attempt_id": (
+                f"RUNTIME-CONTRACT-{adopted_at}-{len(run['attempt_log']) + 1}"
+            ),
+            "mission_id": None,
+            "task_id": None,
+            "lease_id": None,
+            "kind": "runtime_contract_adoption",
+            "result": "adopted",
+            "evidence": [
+                f"owner_source={owner_source}",
+                f"installed_contract_digest={installed_digest}",
+                "loaded_contract_digest=null",
+                *reading_evidence,
+            ],
+        }
+    )
 
 
 
@@ -4312,6 +4452,10 @@ def build_parser() -> argparse.ArgumentParser:
     observation_parser.add_argument("--available-worker-slots", type=int)
     observation_parser.add_argument("--isolation-capacity", type=int)
     observation_parser.add_argument("--capacity-evidence")
+    adoption_parser = subparsers.add_parser("adopt-runtime-contract")
+    adoption_parser.add_argument("--owner-source", required=True)
+    adoption_parser.add_argument("--reading-evidence", action="append", required=True)
+    adoption_parser.add_argument("--expected-contract-digest", required=True)
     wave_command = subparsers.add_parser("accept-wave")
     wave_command.add_argument("--wave-id", required=True)
     wave_command.add_argument("--mission-id", action="append", required=True)
@@ -4500,6 +4644,8 @@ def _transition_under_lock(
         _skip_integration_review(plan, run, args)
     elif args.command == "record-observation":
         _record_observation(plan, run, args)
+    elif args.command == "adopt-runtime-contract":
+        _adopt_runtime_contract(plan, run, args)
     elif args.command == "accept-wave":
         _accept_wave(plan, run, args)
     elif args.command == "close-wave":

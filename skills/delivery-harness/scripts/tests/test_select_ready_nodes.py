@@ -2678,6 +2678,73 @@ class SelectReadyNodesTests(unittest.TestCase):
         }
         self.assertIn("runtime_restart_required", deferred["N-M1"])
 
+    def test_adopted_contract_dispatch_rechecks_live_digest_once(self) -> None:
+        plan, run = self._authorized_conflict_free_pair()
+        gate = run["runtime_capabilities"]["runtime_adapter"]["version_gate"]
+        gate.update(
+            {
+                "loaded_contract_digest": None,
+                "installed_contract_digest": "a" * 64,
+                "status": "adopted",
+                "contract_adoption": {
+                    "session_id": gate["session_id"],
+                    "adopted_at": "2026-09-27T00:00:00Z",
+                    "contract_digest_sha256": "a" * 64,
+                    "owner_source": "owner instruction in this task",
+                    "reading_evidence": ["parent re-read the fixed contract"],
+                },
+                "contract_adoption_history": [],
+            }
+        )
+        self.assertEqual([], validate_run(plan, run))
+        calls = []
+
+        def observed_digest():
+            calls.append("digest")
+            return "a" * 64
+
+        with patch("select_ready_nodes.contract_digest", side_effect=observed_digest):
+            selected = select_ready_nodes(plan, run)
+
+        self.assertEqual(["digest"], calls)
+        self.assertIn("N-M1", [item["node_id"] for item in selected["dispatchable_nodes"]])
+        runtime_directives = [
+            item
+            for item in selected["dispatchable_nodes"]
+            if item.get("launch_kind") in {"spawn_subagent", "run_parent", "create_thread"}
+        ]
+        self.assertTrue(runtime_directives)
+        for directive in runtime_directives:
+            self.assertEqual(
+                gate["contract_adoption"], directive["contract_adoption"]
+            )
+
+    def test_adopted_contract_drift_defers_every_runtime_node(self) -> None:
+        plan, run = self._authorized_conflict_free_pair()
+        gate = run["runtime_capabilities"]["runtime_adapter"]["version_gate"]
+        gate.update(
+            {
+                "loaded_contract_digest": None,
+                "installed_contract_digest": "a" * 64,
+                "status": "adopted",
+                "contract_adoption": {
+                    "session_id": gate["session_id"],
+                    "adopted_at": "2026-09-27T00:00:00Z",
+                    "contract_digest_sha256": "a" * 64,
+                    "owner_source": "owner instruction in this task",
+                    "reading_evidence": ["parent re-read the fixed contract"],
+                },
+                "contract_adoption_history": [],
+            }
+        )
+
+        with patch("select_ready_nodes.contract_digest", return_value="b" * 64):
+            selected = select_ready_nodes(plan, run)
+
+        self.assertEqual([], selected["dispatchable_nodes"])
+        deferred = {item["node_id"]: item["reason_codes"] for item in selected["deferred_nodes"]}
+        self.assertIn("runtime_contract_drift", deferred["N-M1"])
+
     def test_a_missing_digest_observes_before_dispatch(self) -> None:
         plan, run = self._authorized_conflict_free_pair()
         run["runtime_capabilities"]["runtime_adapter"]["version_gate"] = {
