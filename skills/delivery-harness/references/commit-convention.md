@@ -88,6 +88,8 @@ Record the final hash after commit creation. Do not amend a task commit merely t
 
 Commit `PLAN.md`/`RUN.md` themselves to git at every mission integration or wave close — do not let "the next authorized checkpoint" drift into several missions' or a full day's worth of code landing in git while the plan/run bookkeeping that explains those changes remains only a local uncommitted file. A crash, fresh clone, or reset before that commit permanently severs the integrated code from the record of why it was integrated, what it was reviewed against, and what revision authorized it.
 
+After creating that one ordinary direct bookkeeping child, run `record-observation`, then `reconcile-coordination-head --candidate-sha <bookkeeping SHA> --source <parent source>` before selecting later work. The transition changes no Git state. It accepts only exact declared coordination paths, keeps frozen product/design sources forbidden, proves every other path byte-identical, preserves the prior integration head and evidence, and re-arms current integration-review/final-gate projections for the new exact SHA. Isolated in-flight mission workers may continue; live integration reviewers and parent-owned running checks must be quiescent.
+
 ## Integration Commits
 
 When the parent creates a merge or integration-only commit, do not pretend it is a task commit. Use a mission-level body:

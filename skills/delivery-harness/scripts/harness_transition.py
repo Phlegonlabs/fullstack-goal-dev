@@ -136,6 +136,149 @@ def _candidate_changed_paths(root: Path, base_sha: str, head_sha: str) -> list[s
     return sorted(set(paths))
 
 
+def _coordination_commit_changes(
+    root: Path, base_sha: str, head_sha: str
+) -> list[tuple[str, str]]:
+    """Return literal path/status pairs for one coordination bookkeeping commit."""
+
+    try:
+        reject_object_substitution(root)
+        result = run_git(
+            root,
+            "diff",
+            "--name-status",
+            "-z",
+            "--no-renames",
+            f"{base_sha}..{head_sha}",
+            text=False,
+        )
+    except GitMetadataError as exc:
+        raise ManifestError(str(exc)) from exc
+    if result.returncode != 0:
+        raise ManifestError("cannot observe coordination commit paths from Git")
+    try:
+        output = result.stdout.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ManifestError("coordination commit paths are not valid UTF-8") from exc
+    fields = output.split("\0")
+    if fields[-1:] == [""]:
+        fields.pop()
+    if not fields or len(fields) % 2:
+        raise ManifestError("coordination commit path observation is malformed")
+    changes: list[tuple[str, str]] = []
+    for index in range(0, len(fields), 2):
+        status, path = fields[index], fields[index + 1]
+        reason = validate_changed_path(path)
+        if reason:
+            raise ManifestError(f"coordination commit path {path!r} {reason}")
+        changes.append((status, path))
+    return changes
+
+
+def _forbidden_coordination_paths(plan: dict[str, Any]) -> set[str]:
+    """Names that never qualify as run coordination even if RUN lists them."""
+
+    forbidden: set[str] = set()
+    for source in plan.get("sources", []):
+        if not isinstance(source, dict):
+            continue
+        location = source.get("location")
+        if (
+            isinstance(location, str)
+            and location
+            and "://" not in location
+            and not location.startswith("/")
+            and "\\" not in location
+        ):
+            forbidden.add(location)
+    return forbidden
+
+
+def _supported_coordination_path(path: str) -> bool:
+    fixed_paths = {"docs/tasks.md", "docs/DOCUMENTS.md"}
+    goal_coordination = (
+        r"docs/goal/(?:[^/]+/)?"
+        r"(?:PLAN|RUN|DECISIONS|REFINEMENT_BACKLOG)\.md"
+    )
+    return (
+        path in fixed_paths
+        or re.fullmatch(goal_coordination, path) is not None
+        or re.fullmatch(r"docs/goal/(?:[^/]+/)?tasks.md", path) is not None
+        or re.fullmatch(r"docs/epics/[^/]+\.md", path) is not None
+    )
+
+
+def _git_entry_mode(root: Path, commit_sha: str, path: str) -> str | None:
+    output = _git_out(root, "ls-tree", commit_sha, "--", path).strip()
+    if not output:
+        return None
+    entry = output.split("\0", 1)[0].split(" ", 1)[0]
+    return entry if entry else None
+
+
+def _require_regular_coordination_entries(
+    root: Path, old_head: str, new_head: str, paths: set[str]
+) -> None:
+    for path in sorted(paths):
+        old_mode = _git_entry_mode(root, old_head, path)
+        new_mode = _git_entry_mode(root, new_head, path)
+        if old_mode is not None and new_mode is not None and old_mode != new_mode:
+            raise ManifestError(
+                f"coordination entry {path!r} changed Git mode or type"
+            )
+        if new_mode != "100644":
+            raise ManifestError(
+                f"coordination entry {path!r} must be a regular file in the checkpoint"
+            )
+
+
+def _require_generated_task_views(
+    root: Path, run: dict[str, Any], paths: set[str]
+) -> None:
+    from render_tasks_view import GENERATED_MARKER
+
+    expected_identity = f"Human view of run `{run.get('run_id')}` "
+    for path in sorted(paths):
+        if not path.endswith("/tasks.md") and path != "docs/tasks.md":
+            continue
+        try:
+            content = (root / Path(path)).read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as exc:
+            raise ManifestError(f"generated tasks view {path!r} is unreadable") from exc
+        if GENERATED_MARKER not in content or expected_identity not in content:
+            raise ManifestError(
+                f"tasks view {path!r} lacks this RUN's generated identity"
+            )
+
+
+def _require_observed_plan_identity(
+    plan: dict[str, Any], run: dict[str, Any], operation: str
+) -> None:
+    expected_revision = plan.get("revision")
+    expected_digest = plan_digest(plan)
+    run_plan = run.get("plan")
+    if not isinstance(run_plan, dict) or (
+        run_plan.get("id") != plan.get("plan_id")
+        or run_plan.get("revision") != expected_revision
+        or run_plan.get("digest_sha256") != expected_digest
+    ):
+        raise ManifestError(f"{operation} requires RUN and live PLAN identities to match")
+
+    observed = run.get("observed")
+    if not isinstance(observed, dict) or not _nonempty_string(observed.get("captured_at")):
+        raise ManifestError(f"{operation} requires a fresh parent observation")
+    for field in ("sandbox", "host_runtime"):
+        snapshot = observed.get(field)
+        if (
+            not isinstance(snapshot, dict)
+            or snapshot.get("plan_revision") != expected_revision
+            or snapshot.get("plan_digest_sha256") != expected_digest
+        ):
+            raise ManifestError(
+                f"{operation} requires a fresh observation for the live PLAN revision"
+            )
+
+
 def _candidate_allowed_scopes(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
     scopes: list[str] = []
     for mission in plan.get("missions", []):
@@ -191,6 +334,7 @@ DISPATCH_COMMANDS = {
     "bind-review-task-thread",
     "record-integration",
     "reconcile-candidate-head",
+    "reconcile-coordination-head",
     "close-wave",
     "reserve-node-attempt",
     "record-node-result",
@@ -201,6 +345,7 @@ TASK_VIEW_CHECKPOINTS = {
     "reject-worker-result",
     "record-integration",
     "reconcile-candidate-head",
+    "reconcile-coordination-head",
     "reconcile-interrupted",
     "reconcile-interrupted-reviews",
     "close-wave",
@@ -3179,6 +3324,280 @@ def _reconcile_candidate_head(
     }
 
 
+def _reconcile_coordination_head(
+    plan: dict[str, Any], run: dict[str, Any], args: argparse.Namespace
+) -> None:
+    """Bind one committed coordination-only checkpoint to the current RUN.
+
+    This is not a product-candidate repair and changes no Git state. It lets the
+    documented integration/wave-close bookkeeping commit advance the live parent
+    head while retaining the prior integration head and all old evidence.
+    """
+
+    if plan.get("schema_version") != 6 or run.get("schema_version") != 11:
+        raise ManifestError("reconcile-coordination-head requires PLAN v6 and RUN v11")
+    if args.repo_root is None:
+        raise ManifestError("reconcile-coordination-head requires --repo-root")
+    if not _nonempty_string(getattr(args, "source", None)):
+        raise ManifestError("reconcile-coordination-head requires a non-empty --source")
+    candidate_sha = getattr(args, "candidate_sha", None)
+    if not is_full_sha(candidate_sha):
+        raise ManifestError("reconcile-coordination-head requires a full --candidate-sha")
+    if run.get("status") not in RUN_DISPATCH_STATUSES:
+        raise ManifestError("reconcile-coordination-head requires a ready or running RUN")
+    if run.get("control", {}).get("desired_state") != "running":
+        raise ManifestError("reconcile-coordination-head requires desired_state running")
+
+    integration = run.get("integration")
+    current_head = (
+        integration.get("integration_head_sha")
+        if isinstance(integration, dict)
+        else None
+    )
+    if not is_full_sha(current_head):
+        raise ManifestError("reconcile-coordination-head requires a current integration head")
+    if candidate_sha == current_head:
+        raise ManifestError(
+            "candidate SHA already equals integration_head_sha; no reconciliation is needed"
+        )
+    prior_heads = integration.get("prior_head_shas", [])
+    replay_event = any(
+        isinstance(item, dict)
+        and item.get("kind") == "coordination_head_reconciliation"
+        and item.get("result") == "recorded"
+        and f"new_head_sha={candidate_sha}" in item.get("evidence", [])
+        for item in run.get("attempt_log", [])
+    )
+    if (isinstance(prior_heads, list) and candidate_sha in prior_heads) or replay_event:
+        raise ManifestError("coordination head was already reconciled; replay is refused")
+
+    root = Path(args.repo_root).resolve()
+    repo_top_level = Path(_git_out(root, "rev-parse", "--show-toplevel").strip()).resolve()
+    if not _same_path(root, repo_top_level):
+        raise ManifestError("--repo-root must be the exact repository top-level checkout")
+    _require_observed_plan_identity(plan, run, "reconcile-coordination-head")
+    observed = run.get("observed")
+    observed_git = observed.get("git") if isinstance(observed, dict) else None
+    observed_path = (
+        observed_git.get("parent_worktree_path")
+        if isinstance(observed_git, dict)
+        else None
+    )
+    if not isinstance(observed_path, str) or not _same_path(root, observed_path):
+        raise ManifestError(
+            f"--repo-root {root} is not the observed parent worktree {observed_path!r}"
+        )
+    expected_branch = _require_non_default_integration_branch(run)
+    live_branch = _git_branch_name(root)
+    observed_branch = (
+        _normalized_branch(observed_git.get("parent_branch"))
+        if isinstance(observed_git, dict)
+        else None
+    )
+    if _normalized_branch(live_branch) != expected_branch or observed_branch != expected_branch:
+        raise ManifestError(
+            "reconcile-coordination-head requires the live and observed parent branch "
+            "to equal the non-default integration branch"
+        )
+    live_head = _git_out(root, "rev-parse", "HEAD").strip()
+    observed_head = (
+        observed_git.get("parent_head_sha")
+        if isinstance(observed_git, dict)
+        else None
+    )
+    if live_head != candidate_sha or observed_head != candidate_sha:
+        raise ManifestError(
+            "reconcile-coordination-head requires --candidate-sha to equal both the "
+            "live and freshly observed parent HEAD"
+        )
+    if (
+        not isinstance(observed_git, dict)
+        or observed_git.get("parent_dirty") is not False
+        or _git_status_excluding_run(root, getattr(args, "run", None), run).strip()
+    ):
+        raise ManifestError(
+            "reconcile-coordination-head requires a clean product tree apart from RUN "
+            "and its declared generated tasks view"
+        )
+
+    parent_output = _git_out(root, "rev-list", "--parents", "-n", "1", candidate_sha).split()
+    if len(parent_output) != 2 or parent_output[1] != current_head:
+        raise ManifestError(
+            "coordination head must be one ordinary direct child of the recorded integration head"
+        )
+    batch_base = integration.get("batch_base_sha")
+    if not is_full_sha(batch_base) or not _git_is_ancestor(root, batch_base, candidate_sha):
+        raise ManifestError(
+            "coordination checkpoint must retain the run batch base as an ancestor"
+        )
+
+    review_nodes = {
+        node.get("id"): node
+        for node in plan.get("graph", {}).get("nodes", [])
+        if isinstance(node, dict) and isinstance(node.get("review"), dict)
+    }
+    live_review_workers = []
+    for worker in run.get("review_workers", []):
+        if not (
+            isinstance(worker, dict)
+            and worker.get("phase") in {"leased", "worker_running"}
+        ):
+            continue
+        review_node = review_nodes.get(worker.get("node_id"))
+        if (
+            not isinstance(review_node, dict)
+            or review_node.get("review", {}).get("stage", "preintegration")
+            == "integration"
+        ):
+            live_review_workers.append(str(worker.get("worker_id")))
+    if live_review_workers:
+        raise ManifestError(
+            "reconcile-coordination-head refuses live reviewers: "
+            + ", ".join(live_review_workers)
+        )
+    running_parent_nodes = sorted(
+        str(node_id)
+        for node_id, state in run.get("graph_state", {}).get("node_states", {}).items()
+        if isinstance(state, dict)
+        and state.get("phase") == "running"
+        and not state.get("bound_worker_id")
+    )
+    if running_parent_nodes:
+        raise ManifestError(
+            "reconcile-coordination-head refuses running parent-owned nodes: "
+            + ", ".join(running_parent_nodes)
+        )
+    nonisolated_writers = []
+    for worker in run.get("workers", []):
+        if not (
+            isinstance(worker, dict)
+            and worker.get("phase") in {"leased", "worker_running"}
+        ):
+            continue
+        worktree = worker.get("worktree_path")
+        if (
+            worker.get("workspace_mode") not in {
+                "parent_managed_worktree",
+                "app_managed_worktree",
+            }
+            or not isinstance(worktree, str)
+            or not worktree
+            or _same_path(worktree, root)
+        ):
+            nonisolated_writers.append(str(worker.get("worker_id")))
+    if nonisolated_writers:
+        raise ManifestError(
+            "in-flight writers must use isolated worktrees; parent checkout writers: "
+            + ", ".join(sorted(nonisolated_writers))
+        )
+
+    coordination_paths_value = integration.get("coordination_paths", [])
+    if not isinstance(coordination_paths_value, list):
+        raise ManifestError("RUN coordination paths are invalid")
+    exact_coordination_paths = {
+        path for path in coordination_paths_value
+        if isinstance(path, str) and validate_changed_path(path) is None
+    }
+    forbidden_paths = _forbidden_coordination_paths(plan)
+    listed_frozen_paths = sorted(
+        path for path in exact_coordination_paths
+        if path in forbidden_paths
+        or path.startswith("docs/product/")
+        or path.startswith("docs/design/")
+    )
+    if listed_frozen_paths:
+        raise ManifestError(
+            "frozen product/design sources cannot be coordination paths: "
+            + ", ".join(listed_frozen_paths)
+        )
+    unsupported_exact_paths = sorted(
+        path for path in exact_coordination_paths
+        if not _supported_coordination_path(path)
+    )
+    if unsupported_exact_paths:
+        raise ManifestError(
+            "RUN declares unsupported product-path coordination entries: "
+            + ", ".join(unsupported_exact_paths)
+        )
+    changes = _coordination_commit_changes(root, current_head, candidate_sha)
+    if not changes:
+        raise ManifestError("coordination checkpoint changes no declared files")
+    deleted = sorted(path for status, path in changes if status.startswith("D"))
+    if deleted:
+        raise ManifestError(
+            "coordination checkpoint must not delete files: " + ", ".join(deleted)
+        )
+    changed_paths = {path for _, path in changes}
+    outside_coordination = sorted(changed_paths - exact_coordination_paths)
+    if outside_coordination:
+        raise ManifestError(
+            "coordination checkpoint changed files outside exact declared paths: "
+            + ", ".join(outside_coordination)
+        )
+    _require_regular_coordination_entries(
+        root, current_head, candidate_sha, changed_paths
+    )
+    _require_generated_task_views(root, run, changed_paths)
+
+    _require_candidate_revalidation_budget(plan, run)
+
+    final_branch = _git_branch_name(root)
+    final_head = _git_out(root, "rev-parse", "HEAD").strip()
+    final_dirty = _git_status_excluding_run(root, getattr(args, "run", None), run).strip()
+    if (
+        _normalized_branch(final_branch) != expected_branch
+        or final_head != candidate_sha
+        or final_dirty
+    ):
+        raise ManifestError(
+            "repository branch, HEAD, or product tree changed during coordination "
+            "reconciliation; refresh observation and retry"
+        )
+
+    authorizations_before = copy.deepcopy(run.get("authorizations"))
+    execution_authorization_before = (
+        run.get("execution_authorized"),
+        copy.deepcopy(run.get("execution_authorization_scope")),
+        run.get("execution_authorization_source"),
+    )
+    prior_heads = integration.setdefault("prior_head_shas", [])
+    if current_head not in prior_heads:
+        prior_heads.append(current_head)
+    _invalidate_stale_current_projections(plan, run, current_head, candidate_sha)
+    integration["integration_head_sha"] = candidate_sha
+    continuity = run.get("landing", {}).get("continuity")
+    if isinstance(continuity, dict) and continuity.get("status") == "preserved":
+        continuity["head_sha"] = candidate_sha
+    if run.get("authorizations") != authorizations_before or (
+        run.get("execution_authorized"),
+        run.get("execution_authorization_scope"),
+        run.get("execution_authorization_source"),
+    ) != execution_authorization_before:
+        raise ManifestError("coordination reconciliation must not change authorization")
+
+    event_id = (
+        f"COORDINATION-HEAD-{candidate_sha[:12]}-{len(run.get('attempt_log', [])) + 1}"
+    )
+    run.setdefault("attempt_log", []).append(
+        {
+            "attempt_id": event_id,
+            "mission_id": None,
+            "task_id": None,
+            "lease_id": None,
+            "kind": "coordination_head_reconciliation",
+            "result": "recorded",
+            "evidence": [
+                f"source={args.source}",
+                f"old_head_sha={current_head}",
+                f"new_head_sha={candidate_sha}",
+                "changed_paths=" + ",".join(sorted(changed_paths)),
+                f"observed_at={observed.get('captured_at')}",
+                "product_tree=unchanged outside declared coordination paths",
+            ],
+        }
+    )
+
+
 def _git_tree(repo_root: Path, sha: str) -> str:
     """Resolve a commit's tree SHA from live Git; the skip proof is real or absent."""
 
@@ -4522,6 +4941,9 @@ def build_parser() -> argparse.ArgumentParser:
     candidate.add_argument("--repair-node-id", required=True)
     candidate.add_argument("--repair-attempt-id", required=True)
     candidate.add_argument("--repair-task-id", required=True)
+    coordination = subparsers.add_parser("reconcile-coordination-head")
+    coordination.add_argument("--candidate-sha", required=True)
+    coordination.add_argument("--source", required=True)
     watchdog = subparsers.add_parser("watchdog")
     watchdog.add_argument("--stale-after-minutes", type=float, default=DEFAULT_LOCK_STALE_MINUTES)
     watchdog.add_argument("--reclaim", action="store_true")
@@ -4664,6 +5086,8 @@ def _transition_under_lock(
         _record_integration(plan, run, args)
     elif args.command == "reconcile-candidate-head":
         receipt = _reconcile_candidate_head(plan, run, args)
+    elif args.command == "reconcile-coordination-head":
+        _reconcile_coordination_head(plan, run, args)
     elif args.command == "acquire-run-lock":
         _acquire_run_lock(run, args)
     elif args.command == "release-run-lock":
