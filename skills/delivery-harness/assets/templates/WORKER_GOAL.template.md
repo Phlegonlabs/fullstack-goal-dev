@@ -77,7 +77,7 @@ For any UI-touching mission, classify the completed change against frozen produc
 
 Select focused checks from parent-observed changed files using `selection.mode: "changed_files"`. Run each declared verifier through `scripts/verifier_runtime.py` so the result includes an `execution_key`; a free-form shell transcript is not verifier evidence. A required security check without its tool or retained evidence is blocked, not skipped.
 
-Use a repository-external cache only when the parent supplies it and the command is an opted-in deterministic `exit 0` check with exact immutable inputs. Otherwise use `cache_root=None`.
+There is no disk verifier cache; do not pass `cache_root`.
 
 ## Return
 

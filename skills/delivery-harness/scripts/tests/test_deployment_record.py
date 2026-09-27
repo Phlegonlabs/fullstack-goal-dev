@@ -62,7 +62,7 @@ GOOD_DEPLOYMENT = f"""# Deployment
 
 | Environment | URL | Expected head | Deployed SHA | Checked | Status |
 | --- | --- | --- | --- | --- | --- |
-| development | https://abc.example.pages.dev | {"a" * 40} | {"a" * 40} | 2026-09-03 | PASS |
+| development | https://abc.example.pages.dev | {"a" * 40} | {"a" * 40} | 2026-09-03T10:00:00Z | PASS |
 | production | | | | | |
 """
 
@@ -119,7 +119,7 @@ BAD_DEPLOYMENT = """# Deployment
 
 | Environment | URL | Expected head | Deployed SHA | Checked | Status |
 | --- | --- | --- | --- | --- | --- |
-| production | https://example.com | short | nope | 2026-09-03 | |
+| production | https://example.com | short | nope | 2026-09-03T10:00:00Z | |
 """
 
 CI_CONNECTED_DEPLOYMENT = f"""# Deployment
@@ -155,7 +155,7 @@ CI_CONNECTED_DEPLOYMENT = f"""# Deployment
 
 | Environment | URL | Expected head | Deployed SHA | Checked | Status |
 | --- | --- | --- | --- | --- | --- |
-| development | https://abc.example.pages.dev | {"b" * 40} | {"b" * 40} | 2026-09-03 | PASS |
+| development | https://abc.example.pages.dev | {"b" * 40} | {"b" * 40} | 2026-09-03T10:00:00Z | PASS |
 | production | | | | | |
 """
 
@@ -572,8 +572,8 @@ class DeploymentRecordTests(unittest.TestCase):
 
     def test_a_pass_with_mismatched_expected_and_deployed_shas_fails(self) -> None:
         deployment = GOOD_DEPLOYMENT.replace(
-            f'| development | https://abc.example.pages.dev | {"a" * 40} | {"a" * 40} | 2026-09-03 | PASS |',
-            f'| development | https://abc.example.pages.dev | {"a" * 40} | {"b" * 40} | 2026-09-03 | PASS |',
+            f'| development | https://abc.example.pages.dev | {"a" * 40} | {"a" * 40} | 2026-09-03T10:00:00Z | PASS |',
+            f'| development | https://abc.example.pages.dev | {"a" * 40} | {"b" * 40} | 2026-09-03T10:00:00Z | PASS |',
             1,
         )
 
@@ -586,9 +586,9 @@ class DeploymentRecordTests(unittest.TestCase):
     def test_environment_status_uses_a_closed_vocabulary(self) -> None:
         deployment = GOOD_DEPLOYMENT.replace(
             "| development | https://abc.example.pages.dev | "
-            f'{"a" * 40} | {"a" * 40} | 2026-09-03 | PASS |',
+            f'{"a" * 40} | {"a" * 40} | 2026-09-03T10:00:00Z | PASS |',
             "| development | https://abc.example.pages.dev | "
-            f'{"a" * 40} | {"a" * 40} | 2026-09-03 | verified |',
+            f'{"a" * 40} | {"a" * 40} | 2026-09-03T10:00:00Z | verified |',
             1,
         )
 
@@ -606,6 +606,33 @@ class DeploymentRecordTests(unittest.TestCase):
         findings = "\n".join(check_deployment.check_deployment_text(deployment))
 
         self.assertIn("status 'PASS' requires a Checked value", findings)
+
+    def test_a_pass_row_without_url_or_checked_time_fails(self) -> None:
+        # An empty URL and Checked cell must not skip the status and SHA checks.
+        deployment = GOOD_DEPLOYMENT.replace(
+            "| production | | | | | |",
+            f'| production | | {"a" * 40} | {"b" * 40} | | PASS |',
+            1,
+        )
+
+        findings = "\n".join(check_deployment.check_deployment_text(deployment))
+
+        self.assertIn("production is recorded but has no URL", findings)
+        self.assertIn("status 'PASS' requires a Checked value", findings)
+        self.assertIn(
+            "PASS requires Expected head and Deployed SHA to be identical", findings
+        )
+
+    def test_a_checked_value_must_be_an_rfc3339_time(self) -> None:
+        deployment = GOOD_DEPLOYMENT.replace(
+            "| 2026-09-03T10:00:00Z | PASS |", "| yesterday-ish | PASS |", 1
+        )
+
+        findings = "\n".join(check_deployment.check_deployment_text(deployment))
+
+        self.assertIn(
+            "development Checked must be RFC3339 with a real timezone", findings
+        )
 
     def test_missing_handoff_sections_fail(self) -> None:
         findings = check_deployment.check_deployment_text(BAD_DEPLOYMENT)

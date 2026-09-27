@@ -1,3 +1,5 @@
+import contextlib
+import io
 import json
 import sys
 import tempfile
@@ -271,6 +273,36 @@ class RuleTests(unittest.TestCase):
     def test_comments_are_not_scanned(self) -> None:
         self.assertEqual(self.rules("<!-- color: #ff0000 -->"), [])
 
+    def test_bare_root_and_reduced_motion_blocks_may_hold_raw_values(self) -> None:
+        css = (
+            ":root { --ink: #101010; --space-4: 16px; }\n"
+            ':root[data-theme="dark"] { --ink: #fafafa; }\n'
+            "@media (prefers-color-scheme: dark) { :root { --ink: #eeeeee; } }\n"
+            "@media (prefers-reduced-motion: reduce) { * { transition: none 0ms; } }\n"
+        )
+        self.assertEqual(self.rules(css, "theme.css"), [])
+
+    def test_root_prefixed_page_rules_are_not_token_blocks(self) -> None:
+        for css in (
+            ":root .hero { padding: 13px; color: #ff0000; }",
+            ":root, .hero { padding: 13px; color: #ff0000; }",
+            ".page :root { padding: 13px; color: #ff0000; }",
+        ):
+            with self.subTest(css=css):
+                rules = self.rules(css, "page.css")
+                self.assertIn("raw-color", rules)
+                self.assertIn("raw-dimension", rules)
+
+    def test_only_reduce_motion_media_is_exempt(self) -> None:
+        css = (
+            "@media (prefers-reduced-motion: no-preference) {"
+            " .hero { padding: 13px; color: #ff0000; transition: opacity 300ms; } }"
+        )
+        rules = self.rules(css, "page.css")
+        self.assertIn("raw-color", rules)
+        self.assertIn("raw-dimension", rules)
+        self.assertIn("call-site-motion", rules)
+
     def test_unreadable_file_is_rejected(self) -> None:
         with self.assertRaises(UiContractError):
             check_file(self.root / "missing.html", self.registry, False)
@@ -331,26 +363,45 @@ class MainCliTests(unittest.TestCase):
         self.assertEqual(self.run_cli(str(page), "--rule", "raw-color"), 0)
         self.assertEqual(self.run_cli(str(page), "--rule", "raw-dimension"), 1)
 
-    def test_extra_token_source_relaxes_raw_values(self) -> None:
-        # A raw value outside a :root block is a violation in a page file and
-        # allowed once the file is declared a token source.
+    def run_cli_output(self, *args: str) -> tuple[int, str]:
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            code = self.run_cli(*args)
+        return code, output.getvalue()
+
+    def test_extra_token_source_is_not_contract_clean(self) -> None:
+        # The flag still gives the file its token role, but a run that adds
+        # roles outside design-system.json never exits 0.
         tokens = self.write("theme/vars.css", ".theme-dark { --ink: #101010; }")
         self.assertEqual(self.run_cli(str(tokens)), 1)
-        self.assertEqual(self.run_cli(str(tokens), "--token-source", "theme/vars.css"), 0)
+        code, output = self.run_cli_output(
+            str(tokens), "--token-source", "theme/vars.css"
+        )
+        self.assertEqual(code, 1)
+        self.assertIn("(token source)", output)
+        self.assertIn("NOT CONTRACT-CLEAN", output)
 
     def test_root_block_is_always_a_token_region(self) -> None:
         tokens = self.write("styles/theme.css", ":root { --ink: #101010; --space-4: 16px; }")
         self.assertEqual(self.run_cli(str(tokens)), 0)
 
-    def test_primitive_source_may_define_control_selectors(self) -> None:
-        # An undeclared file defining .btn is a page-local control style; the
-        # same file becomes legal once it is declared a primitive source, either
-        # on the command line or in the design system's primitiveSources.
+    def test_extra_primitive_source_is_not_contract_clean(self) -> None:
+        # An undeclared file defining .btn is a page-local control style. The
+        # flag gives it the primitive role, but the run is still not clean.
         undeclared = self.write("ui/extra-controls.css", ".btn { border: 1px solid; }")
         self.assertEqual(self.run_cli(str(undeclared)), 1)
-        self.assertEqual(
-            self.run_cli(str(undeclared), "--primitive-source", "ui/extra-controls.css"), 0
+        code, output = self.run_cli_output(
+            str(undeclared), "--primitive-source", "ui/extra-controls.css"
         )
+        self.assertEqual(code, 1)
+        self.assertIn("(primitive source)", output)
+        self.assertIn("NOT CONTRACT-CLEAN", output)
+
+    def test_clean_run_without_role_flags_has_no_marker(self) -> None:
+        page = self.write("clean.html", "<p>ok</p>")
+        code, output = self.run_cli_output(str(page))
+        self.assertEqual(code, 0)
+        self.assertNotIn("NOT CONTRACT-CLEAN", output)
 
     def test_design_system_primitive_sources_exempt_a_file_without_a_flag(self) -> None:
         declared = self.write("ui/primitives.css", ".btn { border: 1px solid; }")

@@ -41,17 +41,6 @@ from harness_git import (
 
 PROTOCOL = "harness-verifier-execution-v2"
 BATCH_PROTOCOL = "harness-verifier-batch-v1"
-# Container reuse is batch-local and opt-in, with fresh consumer attestations.
-CACHE_BANNED_LAYERS = {"mission_integration", "batch", "final"}
-CACHE_ENTRY_FIELDS = {
-    "protocol",
-    "execution_key",
-    "status",
-    "exit_code",
-    "stdout",
-    "stderr",
-    "executable_identity",
-}
 CONTEXT_FIELDS = {
     "run_id",
     "plan_revision",
@@ -77,10 +66,11 @@ BATCH_JOB_FIELDS = {
     "verifier",
     "context",
     "checkout_root",
-    "cache_root",
     "timeout_seconds",
 }
+# cache_root is accepted from older requests and ignored; there is no disk cache.
 BATCH_JOB_OPTIONAL_FIELDS = {
+    "cache_root",
     "git_guard",
     "reservation",
     "request_sha256",
@@ -1770,47 +1760,6 @@ def _run_container_verifier(
     }
 
 
-def _cache_path(cache_root: Path, execution_key: str) -> Path:
-    return cache_root / PROTOCOL / f"{execution_key}.json"
-
-
-def _load_cache_entry(
-    path: Path,
-    execution_key: str,
-    expected_executable_identity: dict[str, Any],
-) -> tuple[dict[str, Any] | None, str]:
-    if not path.exists():
-        return None, "cache_entry_missing"
-    try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
-        return None, "cache_entry_malformed"
-    if not isinstance(value, dict) or set(value) != CACHE_ENTRY_FIELDS:
-        return None, "cache_entry_malformed"
-    if (
-        value.get("protocol") != PROTOCOL
-        or value.get("execution_key") != execution_key
-        or value.get("status") != "PASS"
-        or value.get("exit_code") != 0
-        or not isinstance(value.get("stdout"), str)
-        or not isinstance(value.get("stderr"), str)
-        or value.get("executable_identity") != expected_executable_identity
-    ):
-        return None, "cache_entry_invalid"
-    return value, "exact_input_hit"
-
-
-def _write_cache_entry(path: Path, entry: dict[str, Any]) -> bool:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        with path.open("x", encoding="utf-8", newline="\n") as handle:
-            json.dump(entry, handle, sort_keys=True, separators=(",", ":"))
-            handle.write("\n")
-    except FileExistsError:
-        return False
-    return True
-
-
 def _container_reuse_allowed(
     *,
     container_mode: bool,
@@ -2022,7 +1971,6 @@ def run_verifier(
     context: dict[str, Any],
     *,
     checkout_root: Path,
-    cache_root: Path | None = None,
     timeout_seconds: float = 120.0,
     environment: Mapping[str, str] | None = None,
     git_guard: dict[str, Any] | None = None,
@@ -2273,99 +2221,6 @@ def run_verifier(
                             else {}
                         ),
                     }
-        cache_mode = normalized_verifier["cache"]["mode"]
-        cache_status = "bypassed"
-        cache_reason = "cache_disabled"
-        cache_path: Path | None = None
-        can_reuse = cache_mode == "session_exact"
-        if container_mode and can_reuse:
-            can_reuse = False
-            cache_reason = "container_disk_cache_disabled"
-        if host_mode and cache_mode == "session_exact":
-            can_reuse = False
-            cache_reason = "host_cache_disabled"
-        if (
-            can_reuse
-            and key_inputs["context"]["layer"] in CACHE_BANNED_LAYERS
-            and not normalized_verifier["cache"].get("deterministic_local", False)
-        ):
-            can_reuse = False
-            cache_reason = "layer_not_cacheable"
-        elif can_reuse and normalized_verifier["pass_signal"] != "exit 0":
-            can_reuse = False
-            cache_reason = "pass_signal_not_cacheable"
-        elif can_reuse and not key_inputs["context"]["cache_safe"]:
-            can_reuse = False
-            cache_reason = "not_declared_deterministic_local"
-        elif can_reuse and key_inputs["context"]["checkout_dirty"]:
-            can_reuse = False
-            cache_reason = "checkout_dirty"
-        elif can_reuse and cache_root is None:
-            can_reuse = False
-            cache_reason = "cache_root_missing"
-        elif can_reuse:
-            root = cache_root.resolve()
-            checkout = checkout_root.resolve()
-            try:
-                root.relative_to(checkout)
-            except ValueError:
-                cache_path = _cache_path(root, execution_key)
-                entry, cache_reason = _load_cache_entry(
-                    cache_path,
-                    execution_key,
-                    key_document["executable_identity"],
-                )
-                if entry is not None:
-                    cache_lookup_ms = max(
-                        0,
-                        round((time.perf_counter() - cache_started) * 1000),
-                    )
-                    return {
-                        "protocol": PROTOCOL,
-                        "verifier_id": normalized_verifier["id"],
-                        "status": "PASS",
-                        "exit_code": 0,
-                        "stdout": entry["stdout"],
-                        "stderr": entry["stderr"],
-                        "execution_key": execution_key,
-                        "evidence_key": execution_key,
-                        "verifier": normalized_verifier,
-                        "context": key_inputs["context"],
-                        "key_document": key_document,
-                        "cache_status": "reused",
-                        "cache_reason": cache_reason,
-                        "duration_ms": 0,
-                        "metrics": {"executed": 0, "reused": 1},
-                        "timings": _timings(
-                            entry_started,
-                            time.perf_counter(),
-                            setup_ms=setup_ms,
-                            git_guard_ms=guard_ms,
-                            cache_lookup_ms=cache_lookup_ms,
-                            snapshot_ms=0,
-                            command_ms=0,
-                            postcheck_ms=0,
-                        ),
-                        **(
-                            {"reservation": checked_reservation}
-                            if checked_reservation is not None
-                            else {}
-                        ),
-                        **(
-                            {"dispatch_attestation": dispatch_attestation}
-                            if dispatch_attestation is not None
-                            else {}
-                        ),
-                        **(
-                            {"git_guard_attestation": git_guard_attestation}
-                            if git_guard_attestation is not None
-                            else {}
-                        ),
-                    }
-                cache_status = "miss"
-            else:
-                can_reuse = False
-                cache_reason = "cache_root_inside_checkout"
         cache_lookup_ms = max(
             0,
             round((time.perf_counter() - cache_started) * 1000),
@@ -2405,43 +2260,36 @@ def run_verifier(
                     sandbox_preflight=checked_sandbox_preflight,
                 )
             else:
-                if host_mode:
-                    assert checked_host_preflight is not None
-                    _verify_host_runtime_identity(
-                        argv[0],
-                        execution_cwd,
-                        execution_environment,
-                        checked_host_preflight,
+                # _execution_policy admits only container or host isolation.
+                if not host_mode or checked_host_preflight is None:
+                    raise VerifierRuntimeError(
+                        "verifier execution requires container or host isolation"
                     )
-                    host_result = host_process.run_process_tree(
+                _verify_host_runtime_identity(
+                    argv[0],
+                    execution_cwd,
+                    execution_environment,
+                    checked_host_preflight,
+                )
+                host_result = host_process.run_process_tree(
+                    execution_argv,
+                    cwd=execution_cwd,
+                    environment=execution_environment,
+                    timeout_seconds=timeout_seconds,
+                )
+                if host_result.timeout:
+                    raise subprocess.TimeoutExpired(
                         execution_argv,
-                        cwd=execution_cwd,
-                        environment=execution_environment,
-                        timeout_seconds=timeout_seconds,
+                        timeout_seconds,
+                        output=host_result.stdout,
+                        stderr=host_result.stderr,
                     )
-                    if host_result.timeout:
-                        raise subprocess.TimeoutExpired(
-                            execution_argv,
-                            timeout_seconds,
-                            output=host_result.stdout,
-                            stderr=host_result.stderr,
-                        )
-                    completed = subprocess.CompletedProcess(
-                        execution_argv,
-                        host_result.exit_code,
-                        host_result.stdout,
-                        host_result.stderr,
-                    )
-                else:
-                    completed = subprocess.run(
-                        execution_argv,
-                        cwd=execution_cwd,
-                        env=execution_environment,
-                        text=True,
-                        capture_output=True,
-                        check=False,
-                        timeout=timeout_seconds,
-                    )
+                completed = subprocess.CompletedProcess(
+                    execution_argv,
+                    host_result.exit_code,
+                    host_result.stdout,
+                    host_result.stderr,
+                )
             status = "PASS" if completed.returncode == 0 else "FAIL"
             exit_code = completed.returncode
             stdout = completed.stdout
@@ -2508,22 +2356,6 @@ def run_verifier(
                 stderr = (stderr + "\n" if stderr else "") + str(exc)
         duration_ms = max(0, round((time.perf_counter() - started) * 1000))
 
-        if status == "PASS" and can_reuse and cache_path is not None:
-            entry = {
-                "protocol": PROTOCOL,
-                "execution_key": execution_key,
-                "status": "PASS",
-                "exit_code": 0,
-                "stdout": stdout,
-                "stderr": stderr,
-                "executable_identity": key_document["executable_identity"],
-            }
-            if _write_cache_entry(cache_path, entry):
-                cache_status = "stored"
-                cache_reason = "successful_exact_execution"
-            elif cache_reason == "cache_entry_missing":
-                cache_reason = "cache_entry_race"
-
         if (
             status == "PASS"
             and container_reuse_allowed
@@ -2542,15 +2374,14 @@ def run_verifier(
                     "sandbox_attestation": copy_json(sandbox_attestation),
                 }
             )
+        cache_status = "bypassed"
         if container_mode:
-            cache_status = "bypassed"
             cache_reason = (
                 "same_runner_container_origin"
                 if container_reuse_allowed
                 else "container_disk_cache_disabled"
             )
-        elif host_mode:
-            cache_status = "bypassed"
+        else:
             cache_reason = "host_cache_disabled"
 
         return {
@@ -2645,7 +2476,7 @@ def run_verifier_batch(
         ):
             raise VerifierRuntimeError(
                 "each job must contain exactly job_id, verifier, context, checkout_root, "
-                "cache_root, and timeout_seconds; task/worker jobs also require git_guard"
+                "and timeout_seconds; task/worker jobs also require git_guard"
             )
         job_id = _require_string(job["job_id"], "job.job_id")
         if job_id in job_ids:
@@ -2664,8 +2495,6 @@ def run_verifier_batch(
                 "task/worker verifier batch jobs require git_guard"
             )
         checkout_root = _require_string(job["checkout_root"], "job.checkout_root")
-        if job["cache_root"] is not None:
-            _require_string(job["cache_root"], "job.cache_root")
         timeout_seconds = job["timeout_seconds"]
         if (
             not isinstance(timeout_seconds, (int, float))
@@ -2682,19 +2511,6 @@ def run_verifier_batch(
         )
 
     prepared.sort(key=lambda item: item[0])
-    # Report the old deterministic conflict/capacity grouping for consumers.
-    # Execution below no longer waits at those boundaries.
-    compatibility_waves: list[list[tuple[str, dict[str, Any], dict[str, Any]]]] = []
-    for prepared_job in prepared:
-        for wave in compatibility_waves:
-            if len(wave) < max_parallel and all(
-                not _execution_policies_conflict(prepared_job[2], existing[2])
-                for existing in wave
-            ):
-                wave.append(prepared_job)
-                break
-        else:
-            compatibility_waves.append([prepared_job])
     snapshot_archive_cache = _SnapshotArchiveCache()
     container_result_cache = _ContainerResultCache()
 
@@ -2704,11 +2520,6 @@ def run_verifier_batch(
                 job["verifier"],
                 job["context"],
                 checkout_root=Path(job["checkout_root"]),
-                cache_root=(
-                    Path(job["cache_root"])
-                    if job["cache_root"] is not None
-                    else None
-                ),
                 timeout_seconds=float(job["timeout_seconds"]),
                 environment=environment,
                 git_guard=job.get("git_guard"),
@@ -2726,7 +2537,6 @@ def run_verifier_batch(
     results_by_id: dict[str, dict[str, Any]] = {}
     pending = list(prepared)
     active: dict[Any, tuple[str, dict[str, Any]]] = {}
-    serial_waves = len(compatibility_waves)
     peak_parallel = 0
     with ThreadPoolExecutor(max_workers=max_parallel) as executor:
         while pending or active:
@@ -2765,7 +2575,6 @@ def run_verifier_batch(
         "results": results,
         "metrics": {
             "duration_ms": duration_ms,
-            "waves": serial_waves,
             "max_parallel": peak_parallel,
             "executed": sum(
                 item["result"].get("metrics", {}).get("executed", 0) for item in results
@@ -2802,11 +2611,6 @@ def main(argv: list[str] | None = None) -> int:
                 request["verifier"],
                 request["context"],
                 checkout_root=Path(request["checkout_root"]),
-                cache_root=(
-                    Path(request["cache_root"])
-                    if request.get("cache_root") is not None
-                    else None
-                ),
                 timeout_seconds=float(request.get("timeout_seconds", 120.0)),
                 git_guard=request.get("git_guard"),
                 reservation=request.get("reservation"),
