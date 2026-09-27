@@ -129,6 +129,17 @@ STACK_PLATFORM_BY_SURFACE_CLASS = {
     "windows": "windows",
     "desktop": "desktop",
 }
+CAPTURE_MODE_BY_SURFACE_CLASS = {
+    "hosted_web": "hosted-browser",
+    "browser_extension": "browser-extension",
+    "ios": "native",
+    "android": "native",
+    "react-native": "native",
+    "flutter": "native",
+    "macos": "desktop",
+    "windows": "desktop",
+    "desktop": "desktop",
+}
 NON_HUMAN_TOKEN_RE = re.compile(
     r"(?<!\w)(?:ai|agent|assistant|automation|automated|model|bot|claude|codex|"
     r"system|machine)(?!\w)",
@@ -1577,17 +1588,7 @@ def _validate_target_scope_join(
         for target in release_contract.targets
         if isinstance(getattr(target, "surface", None), str)
     }
-    expected_modes_by_class = {
-        "hosted_web": "hosted-browser",
-        "browser_extension": "browser-extension",
-        "ios": "native",
-        "android": "native",
-        "react-native": "native",
-        "flutter": "native",
-        "macos": "desktop",
-        "windows": "desktop",
-        "desktop": "desktop",
-    }
+    expected_modes_by_class = CAPTURE_MODE_BY_SURFACE_CLASS
     expected = {expected_modes_by_class[item] for item in release_classes if item in expected_modes_by_class}
     surface_contracts = [item for item in scope.get("surfaces", []) if isinstance(item, dict) and "surfaceClass" in item]
     if surface_contracts:
@@ -1631,6 +1632,41 @@ def _screen_state_ids(screen: dict[str, Any]) -> set[str]:
 def _release_surface_class(target: Any) -> str | None:
     value = getattr(target, "surface_class", None)
     return value.casefold() if isinstance(value, str) else None
+
+
+def _release_classes(repo_root: Path, architecture_value: str | None) -> set[str]:
+    match = SOURCE_RE.fullmatch((architecture_value or "").strip())
+    if match is None:
+        return set()
+    try:
+        contract, _ = parse_release_targets((repo_root / match.group("path")).read_text(encoding="utf-8"))
+    except (OSError, UnicodeError):
+        return set()
+    return {item for target in contract.targets if (item := _release_surface_class(target)) is not None}
+
+
+def _wireframe_evidence_contract(data: dict[str, Any], release_classes: set[str]) -> tuple[str, dict[str, Any]]:
+    """Return the wireframe capture mode and case matrix used at both gates.
+
+    Both come from the wireframe and the typed Release Targets, never from the
+    later Approved target, so one honest wireframe receipt passes both gates.
+    """
+
+    matrix = {"cases": [
+        {"surface": screen["id"], "state": state["id"], "target": str(target)}
+        for screen in data.get("screens", [])
+        for state in screen.get("states", [])
+        for target in (data.get("responsiveBySurface", {}).get(screen["id"], {}).get("targets")
+                       or data.get("viewports") or data.get("sizeClasses") or [])
+    ]}
+    modes = {CAPTURE_MODE_BY_SURFACE_CLASS[item] for item in release_classes if item in CAPTURE_MODE_BY_SURFACE_CLASS}
+    if data.get("responsiveBySurface"):
+        mode = "mixed"
+    elif len(modes) == 1:
+        mode = next(iter(modes))
+    else:
+        mode = "hosted-browser" if data.get("viewports") else "native"
+    return mode, matrix
 
 
 def _relative_cli_path(path: Path, repo_root: Path, label: str, problems: list[str]) -> str | None:
@@ -2903,18 +2939,13 @@ def _validate_impl(
                 )
             ]
         }
-    if modern and checked_wireframe is not None and evidence_matrix is None:
+    # Legacy wireframe receipts keep their historical target-derived contract.
+    wireframe_capture_mode, wireframe_matrix = capture_mode, evidence_matrix
+    if modern and checked_wireframe is not None:
         data_for_matrix = _read_wireframe_data(checked_wireframe, problems)
         if isinstance(data_for_matrix, dict):
-            evidence_matrix = {"cases": [
-                {"surface": screen["id"], "state": state["id"], "target": str(target)}
-                for screen in data_for_matrix.get("screens", [])
-                for state in screen.get("states", [])
-                for target in (data_for_matrix.get("responsiveBySurface", {}).get(screen["id"], {}).get("targets")
-                               or data_for_matrix.get("viewports") or data_for_matrix.get("sizeClasses") or [])
-            ]}
-            capture_mode = "mixed" if data_for_matrix.get("responsiveBySurface") else (
-                "hosted-browser" if data_for_matrix.get("viewports") else "native")
+            wireframe_capture_mode, wireframe_matrix = _wireframe_evidence_contract(
+                data_for_matrix, _release_classes(root, source_values.get("Architecture source")))
     if modern and approved_gate:
         problems.extend(author_artifact_findings(root, active, require_hifi=require_visual_approved))
     if require_visual_approved:
@@ -3011,8 +3042,8 @@ def _validate_impl(
                     if SOURCE_RE.fullmatch((recorded_wireframe or "").strip())
                     else None
                 ),
-                expected_check=_evidence_check("Wireframe UI grading" if field_name == "UI grading" else field_name, capture_mode),
-                expected_matrix=evidence_matrix,
+                expected_check=_evidence_check("Wireframe UI grading" if field_name == "UI grading" else field_name, wireframe_capture_mode),
+                expected_matrix=wireframe_matrix,
                 require_machine=modern,
                 required_inputs=[identity for value in source_values.values()
                                  if (identity := _source_identity(value)) is not None],
