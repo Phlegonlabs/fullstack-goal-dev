@@ -1,5 +1,11 @@
 # Project Rules
 
+## Runtime Boundary
+
+- This file contains shared repository governance. Preserve the current host's effective instruction discovery and precedence.
+- Use `skills/delivery-harness/references/runtime-adapters.md` for observed native capabilities, authorization, isolation and result contracts. Map the actual tools available to the session; capability does not grant an action.
+- Managed rules apply only after work is routed into PLAN/RUN. Direct source maintenance follows the shared principles, Git safety and required verification below without creating managed state.
+
 ## Project Entry And Current Work
 
 Start with the effective repository instructions, `docs/DOCUMENTS.md` when present, current product/design sources and relevant unfinished work. At the first work in a new session and every skill invocation, apply `delivery-harness/references/document-sync-contract.md` (under `skills/` in this source repository). Observe loaded versus installed skill identity; unknown means unknown, not the current disk version.
@@ -118,6 +124,10 @@ CI runs the same set.
 Every flow that promotes to `main` bumps the release version in the same change: `package.json`, `skills/delivery-harness/VERSION`, the README badges and version-history entries in all four languages, the RUNBOOK `required_harness_version` default, and the pinned version asserts in `test_skill_contract.py`. A breaking skill-bundle change bumps the minor version. After the release promotion reaches `main`, tag that commit with the matching `v<version>` tag — the READMEs' Releasing section is the full checklist.
 
 Any change that adds or alters a skill, rule, or documented flow also updates the READMEs' descriptive sections in the same change, in all four languages — the README is documentation-of-record, not a release-time artifact.
+
+## Managed Product Delivery Harness Runs
+
+Before creating or resuming a managed PLAN/RUN in this source repository, read `skills/delivery-harness/references/project-operating-rules.md#managed-product-delivery-harness-runs` and the canonical Harness SKILL.md. These rules grant no actions. Consumer stage-slot bindings must be resolved and checked for the applicable stage before such work begins; this source-maintenance task has no consumer Product Definition or managed PLAN/RUN and does not invent a binding table or pins.
 
 ## Review Guidelines
 
