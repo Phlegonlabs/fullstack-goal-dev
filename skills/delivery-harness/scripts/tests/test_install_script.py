@@ -151,6 +151,25 @@ class InstallScriptTests(unittest.TestCase):
             )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    def test_ci_runs_installer_and_python_suites_on_macos(self) -> None:
+        # The harness suite includes these installer tests, so macOS CI
+        # covers install.sh under BSD tools and symlinked temp roots.
+        workflow = (REPO_ROOT / ".github/workflows/harness-ci.yml").read_text(
+            encoding="utf-8"
+        )
+        job = workflow.split("\n  macos:\n", 1)[1].split("\n  windows-hardening:\n", 1)[0]
+        self.assertIn("runs-on: macos-latest", job)
+        for skill in (
+            "delivery-harness",
+            "product-definition-builder",
+            "ui-design-builder",
+            "design-system-compiler",
+            "product-activation",
+            "seo-growth-review",
+        ):
+            self.assertIn(f"unittest discover -s skills/{skill}/scripts/tests -v", job)
+        self.assertNotIn("PDH_REQUIRE_BROWSER_TESTS", job)
+
     SKILLS = (
         "delivery-harness",
         "product-definition-builder",
