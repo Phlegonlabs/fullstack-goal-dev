@@ -276,3 +276,12 @@ now pins one commit SHA for the invocation and fails when HEAD moves before
 returning. All 41 focused acceptance tests passed on the follow-up working
 tree. The repeated-path comment from the same review was already addressed in
 `9c2ba405`. Full exact-candidate checks and promotion remain pending.
+
+Independent read-only review of `52b3968f` confirmed the immutable HEAD pin,
+then flagged Git diff settings that could hide submodule pointer changes after
+H1. A regression reproduced the false PASS with `diff.ignoreSubmodules=all`;
+the checker now forces `--ignore-submodules=none`. Another test asserts that
+the blob and candidate Git queries use one SHA, even if a final HEAD recheck
+would otherwise mask a symbolic-ref regression. The README wording now states
+the end-of-check HEAD condition precisely. Full exact-candidate checks and
+promotion remain pending.

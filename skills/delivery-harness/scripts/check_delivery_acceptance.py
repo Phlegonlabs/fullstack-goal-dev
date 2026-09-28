@@ -435,7 +435,8 @@ def _candidate_tree_errors(
         if ancestor.returncode != 0:
             return [f"results.candidate_sha {candidate} is not an ancestor of HEAD"]
         diff = run_git(
-            root, "diff", "--name-only", "-z", "--no-renames", candidate, head_sha,
+            root, "diff", "--name-only", "-z", "--no-renames",
+            "--ignore-submodules=none", candidate, head_sha,
             text=False,
         )
     except (GitMetadataError, OSError, subprocess.SubprocessError) as exc:

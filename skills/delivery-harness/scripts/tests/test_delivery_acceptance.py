@@ -505,6 +505,21 @@ class CandidateTreeTests(unittest.TestCase):
         evidence_reads = [call for call in read.call_args_list if call.args[1] == "evidence"]
         self.assertEqual(2, len(evidence_reads))
 
+    def test_git_queries_use_one_immutable_head_sha(self) -> None:
+        self.commit_register(self.h1)
+        head_sha = mf.git(self.root, "rev-parse", "HEAD")
+        with patch.object(checker, "run_git", wraps=checker.run_git) as git:
+            status, payload = self.check("--candidate-from-head")
+        self.assertEqual((0, []), (status, payload["errors"]))
+        checked = [
+            call.args for call in git.call_args_list
+            if len(call.args) > 1 and call.args[1] in {"ls-tree", "merge-base", "diff"}
+        ]
+        self.assertTrue(checked)
+        for arguments in checked:
+            self.assertIn(head_sha, arguments)
+            self.assertNotIn("HEAD", arguments)
+
     def test_head_move_during_check_cannot_combine_two_commits(self) -> None:
         register_head = self.commit_register(self.h1)
         original_register = (self.root / "results.json").read_bytes()
@@ -645,6 +660,19 @@ class CandidateTreeTests(unittest.TestCase):
                 status, payload = self.check(*candidate)
                 self.assertEqual(1, status)
                 self.assertIn("src/example/foo.py", " ".join(payload["errors"]))
+
+    def test_submodule_change_cannot_be_hidden_by_git_diff_config(self) -> None:
+        self.commit_register(self.h1)
+        mf.git(
+            self.root, "update-index", "--add", "--cacheinfo",
+            f"160000,{self.h1},vendor",
+        )
+        mf.git(self.root, "commit", "-qm", "add vendor gitlink")
+        mf.git(self.root, "config", "diff.ignoreSubmodules", "all")
+
+        status, payload = self.check("--candidate-from-head")
+        self.assertEqual(1, status)
+        self.assertIn("vendor", " ".join(payload["errors"]))
 
     def test_product_file_listed_as_evidence_cannot_exempt_itself(self) -> None:
         # The register must not exempt a product or test file that changed
