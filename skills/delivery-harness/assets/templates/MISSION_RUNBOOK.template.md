@@ -22,7 +22,7 @@ A managed-sequential route is selected when fewer than two safe write missions a
     "plan": {
       "id": "PLAN-<stable-id>",
       "revision": 1,
-      "digest_sha256": "f79e03796633681060c37202266620988c3dfe56a1573cc433d658d5a4923391"
+      "digest_sha256": "3865e78d950dfdeadcc6d95db2d941ad5aa76e4a8d357842d28aed6e06029620"
     },
     "status": "draft",
     "intent": "plan-only",
@@ -129,6 +129,7 @@ A managed-sequential route is selected when fewer than two safe write missions a
     "batch_gate_results": [],
     "final_gate_results": [
       {"id": "final-check", "status": "planned", "head_sha": null, "evidence": []},
+      {"id": "delivery-acceptance", "status": "planned", "head_sha": null, "evidence": []},
       {"id": "final-closeout", "status": "planned", "head_sha": null, "evidence": []}
     ],
     "ui_evidence": [],
@@ -152,13 +153,15 @@ A managed-sequential route is selected when fewer than two safe write missions a
         "N-M1-REVIEW": {"phase": "dormant", "attempts": 0, "last_attempt_id": null, "last_outcome": null, "bound_worker_id": null, "blockers": []},
         "N-SECURITY-REVIEW": {"phase": "dormant", "attempts": 0, "last_attempt_id": null, "last_outcome": null, "bound_worker_id": null, "blockers": []},
         "N-FINAL-GATE": {"phase": "dormant", "attempts": 0, "last_attempt_id": null, "last_outcome": null, "bound_worker_id": null, "blockers": []},
+        "N-ACCEPTANCE-GATE": {"phase": "dormant", "attempts": 0, "last_attempt_id": null, "last_outcome": null, "bound_worker_id": null, "blockers": []},
         "N-CLOSEOUT-GATE": {"phase": "dormant", "attempts": 0, "last_attempt_id": null, "last_outcome": null, "bound_worker_id": null, "blockers": []}
       },
       "edge_states": {
         "E-M1-REVIEW": {"status": "dormant", "traversals": 0, "source_attempt_id": null},
         "E-M1-REVIEW-SECURITY": {"status": "dormant", "traversals": 0, "source_attempt_id": null},
         "E-SECURITY-FINAL": {"status": "dormant", "traversals": 0, "source_attempt_id": null},
-        "E-FINAL-CLOSEOUT": {"status": "dormant", "traversals": 0, "source_attempt_id": null}
+        "E-FINAL-ACCEPTANCE": {"status": "dormant", "traversals": 0, "source_attempt_id": null},
+        "E-ACCEPTANCE-CLOSEOUT": {"status": "dormant", "traversals": 0, "source_attempt_id": null}
       }
     },
     "mission_states": {

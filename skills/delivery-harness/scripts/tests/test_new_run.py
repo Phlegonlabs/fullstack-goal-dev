@@ -57,6 +57,7 @@ class NewRunTests(unittest.TestCase):
             "docs/product/PRD.md": approved_prd.encode("utf-8"),
             "docs/product/architecture.md": approved_architecture.encode("utf-8"),
             "docs/product/stack-decisions.md": approved_stack.encode("utf-8"),
+            "docs/verification/delivery-acceptance.json": b'{"schema": "delivery-acceptance/1"}\n',
         }
         for location, value in product_sources.items():
             path = self.dir / location
@@ -110,6 +111,26 @@ class NewRunTests(unittest.TestCase):
         self.assertEqual(plan_edges, set(run["graph_state"]["edge_states"]))
         self.assertEqual(plan_missions, set(run["mission_states"]))
         self.assertEqual(plan_digest(self.plan), run["plan"]["digest_sha256"])
+
+    def test_template_delivery_acceptance_entries_generate(self) -> None:
+        sources = {source["id"]: source for source in self.plan["sources"]}
+        self.assertEqual("delivery acceptance", sources["SRC-004"]["kind"])
+        self.assertEqual(
+            "docs/verification/delivery-acceptance.json", sources["SRC-004"]["location"]
+        )
+
+        run = load_run(self.generate())
+
+        self.assertEqual(
+            ["final-check", "delivery-acceptance", "final-closeout"],
+            [gate["id"] for gate in run["final_gate_results"]],
+        )
+        self.assertEqual(
+            "dormant", run["graph_state"]["node_states"]["N-ACCEPTANCE-GATE"]["phase"]
+        )
+        self.assertEqual(
+            "dormant", run["graph_state"]["edge_states"]["E-ACCEPTANCE-CLOSEOUT"]["status"]
+        )
 
     def test_security_review_lineage_is_generated_from_the_plan(self) -> None:
         run = load_run(self.generate())

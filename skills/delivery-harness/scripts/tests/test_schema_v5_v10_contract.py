@@ -102,7 +102,8 @@ class SchemaV6V11ContractTests(unittest.TestCase):
         self.assertEqual("N-M1-REVIEW", edges["E-M1-REVIEW"]["to"])
         self.assertEqual("N-SECURITY-REVIEW", edges["E-M1-REVIEW-SECURITY"]["to"])
         self.assertEqual("N-FINAL-GATE", edges["E-SECURITY-FINAL"]["to"])
-        self.assertEqual("N-CLOSEOUT-GATE", edges["E-FINAL-CLOSEOUT"]["to"])
+        self.assertEqual("N-ACCEPTANCE-GATE", edges["E-FINAL-ACCEPTANCE"]["to"])
+        self.assertEqual("N-CLOSEOUT-GATE", edges["E-ACCEPTANCE-CLOSEOUT"]["to"])
         self.assertNotIn("execution_route", plan)
         self.assertTrue(missions["M1"]["tasks"][0]["acceptance_matrix"])
 

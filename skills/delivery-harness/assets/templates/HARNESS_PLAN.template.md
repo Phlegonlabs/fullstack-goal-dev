@@ -45,6 +45,17 @@ Use this template as `docs/goal/PLAN.md` for managed work that needs durable coo
         "source_revision": "0000000000000000000000000000000000000000",
         "staged_revision": null,
         "notes": "approved stack authority"
+      },
+      {
+        "id": "SRC-004",
+        "kind": "delivery acceptance",
+        "location": "docs/verification/delivery-acceptance.json",
+        "owner": "<human or team>",
+        "status": "frozen",
+        "content_sha256": null,
+        "source_revision": "0000000000000000000000000000000000000000",
+        "staged_revision": null,
+        "notes": "frozen delivery-acceptance scenario contract"
       }
     ],
     "traces": [
@@ -70,6 +81,26 @@ Use this template as `docs/goal/PLAN.md` for managed work that needs durable coo
         "id": "final-check",
         "cwd": ".",
         "argv": ["<runner>", "<final-argument>"],
+        "pass_signal": "exit 0",
+        "execution": {
+          "parallel_safe": false,
+          "resources": [],
+          "isolation": "host"
+        }
+      },
+      {
+        "id": "delivery-acceptance",
+        "cwd": ".",
+        "argv": [
+          "python",
+          "<installed-delivery-harness>/scripts/check_delivery_acceptance.py",
+          "--repo-root", ".",
+          "--prd", "docs/product/PRD.md",
+          "--contract", "docs/verification/delivery-acceptance.json",
+          "--contract-sha256", "<parent-frozen-hash>",
+          "--results", "docs/verification/delivery-results.json",
+          "--candidate-sha", "<pre-register-candidate-H1>"
+        ],
         "pass_signal": "exit 0",
         "execution": {
           "parallel_safe": false,
@@ -163,6 +194,15 @@ Use this template as `docs/goal/PLAN.md` for managed work that needs durable coo
           "runtime": null
         },
         {
+          "id": "N-ACCEPTANCE-GATE",
+          "kind": "verifier",
+          "ref": "delivery-acceptance",
+          "executor": "local_command",
+          "allowed_outcomes": ["pass", "retryable_failure", "blocked", "contract_gap"],
+          "max_attempts": 2,
+          "runtime": null
+        },
+        {
           "id": "N-CLOSEOUT-GATE",
           "kind": "verifier",
           "ref": "final-closeout",
@@ -198,9 +238,17 @@ Use this template as `docs/goal/PLAN.md` for managed work that needs durable coo
           "max_traversals": null
         },
         {
-          "id": "E-FINAL-CLOSEOUT",
+          "id": "E-FINAL-ACCEPTANCE",
           "kind": "dependency",
           "from": "N-FINAL-GATE",
+          "to": "N-ACCEPTANCE-GATE",
+          "on_outcomes": ["pass"],
+          "max_traversals": null
+        },
+        {
+          "id": "E-ACCEPTANCE-CLOSEOUT",
+          "kind": "dependency",
+          "from": "N-ACCEPTANCE-GATE",
           "to": "N-CLOSEOUT-GATE",
           "on_outcomes": ["pass"],
           "max_traversals": null
@@ -305,7 +353,7 @@ The single-mission example deliberately leaves `batch_verifiers` empty: a one-mi
 
 For each `runtime_worker` node, record the actually allowed host identities in `allowed_providers`, with `preferred_provider` null unless explicitly chosen. The `generic` example is a placeholder for an unknown host, not a wildcard. Leave model and effort null to preserve installed defaults. Set explicit supported options only when selected; the agent observes native capability rather than applying provider-specific rules.
 
-Harness 0.38 always freezes the three exact rows shown above with current `content_sha256`; if `source_revision` is present, that full-SHA Git blob and current bytes must both match. Contract joins consume those immutable bytes. UI work adds exact `ui design`, `wireframe`, and `approved ui target` rows at their canonical `docs/design/` paths. A `required` Design System Need gate adds exact `design system` and `design system json` rows; `not_required` adds neither and permits no `DS-*` trace. Every UI surface records `capture_mode: hosted-browser | browser-extension | native | desktop`. URLs are never fetched or joined as authority. A `staged_revision` is not an executable publication. Publish the accepted revision to the canonical source location, clear staging, and increment PLAN revision/digest.
+Harness 0.38 always freezes the three exact PRD, architecture and stack rows shown above with current `content_sha256`; if `source_revision` is present, that full-SHA Git blob and current bytes must both match. Contract joins consume those immutable bytes. UI work adds exact `ui design`, `wireframe`, and `approved ui target` rows at their canonical `docs/design/` paths. A `required` Design System Need gate adds exact `design system` and `design system json` rows; `not_required` adds neither and permits no `DS-*` trace. Every UI surface records `capture_mode: hosted-browser | browser-extension | native | desktop`. URLs are never fetched or joined as authority. A `staged_revision` is not an executable publication. Publish the accepted revision to the canonical source location, clear staging, and increment PLAN revision/digest.
 
 Every executable verifier declaration uses an explicit isolation mode. New templates default to `isolation: "host"`, `parallel_safe: false`, and disabled cache: the command runs in the exact checkout cwd with the project's local tools and environment, and host builds may create ignored artifacts but tracked source and protected Git state must remain unchanged. Host mode is not OS isolation and never reuses results. To use the legacy pinned container route instead, declare the full container policy explicitly and replace the example image reference with a locally observed immutable RepoDigest before readiness; zero or fabricated template digests are rejected, and omission never downgrades to host. External, network, browser, and mutable-environment checks use an external-wait, lifecycle, or browser route instead of a local candidate subprocess. Task and worker declarations may use the exact `selection.mode: "changed_files"` form shown by the machine manifest's `"mode": "changed_files"` value; targeted checks follow parent-observed changed files.
 
@@ -361,7 +409,7 @@ These are planning expectations, not authorization. Record explicit action autho
 
 ## Plan Readiness Gate
 
-For newly authored delivery work, also follow `references/delivery-acceptance-contract.md`. The example manifest above omits these entries; add all of them before readiness:
+For newly authored delivery work, also follow `references/delivery-acceptance-contract.md`. The example manifest above shows these entries; keep all of them before readiness:
 
 - a source `SRC-004` of kind `delivery acceptance` at `docs/verification/delivery-acceptance.json`, frozen like the other rows;
 - a final gate `delivery-acceptance` with no `selection` (so it always runs) whose argv runs `check_delivery_acceptance.py` with `--repo-root`, `--prd`, `--contract`, `--contract-sha256`, `--results` and `--candidate-sha`;
