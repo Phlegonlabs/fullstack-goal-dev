@@ -16,6 +16,38 @@ def find_repo_root(start: Path) -> Path | None:
 REPO_ROOT = find_repo_root(Path(__file__).resolve().parent)
 
 
+def ui_design_prompt_problems(content: str) -> list[str]:
+    """Return why the README's ui-design-builder prompts miss the ui-design/2 flow."""
+    prompts = [
+        block
+        for block in re.findall(r"```text\n(.*?)```", content, flags=re.DOTALL)
+        if "$ui-design-builder" in block
+    ]
+    if len(prompts) != 2:
+        return [f"expected 2 ui-design-builder prompts, found {len(prompts)}"]
+    problems = [
+        f"prompt names a Wireframe stage: {prompt.strip()[:60]}"
+        for prompt in prompts
+        if "wireframe" in prompt.lower()
+    ]
+    joined = "\n".join(prompts)
+    for required in (
+        "`ui-design/2`",
+        "PRD UI Surface Contract",
+        "$frontend-design",
+        "$impeccable",
+        "H1-H9",
+        "Visual Approval",
+        "$design-system-compiler",
+    ):
+        if required not in joined:
+            problems.append(f"missing {required}")
+    for pattern in (r"\b(?:three|tres)\b", r"\b(?:completeness|completitud)\b"):
+        if not re.search(pattern, joined):
+            problems.append(f"missing {pattern}")
+    return problems
+
+
 class ReadmeStructureTests(unittest.TestCase):
     def structure_profile(self, path: Path) -> dict[str, object]:
         lines = path.read_text(encoding="utf-8").splitlines()
@@ -63,6 +95,32 @@ class ReadmeStructureTests(unittest.TestCase):
                     self.structure_profile(REPO_ROOT / translation),
                     english,
                 )
+
+    @unittest.skipIf(REPO_ROOT is None, "README contract requires a source checkout")
+    def test_ui_design_prompts_use_the_ui_design_2_flow(self) -> None:
+        for filename in ("README.md", "README.zh-CN.md", "README.zh-TW.md", "README.es.md"):
+            content = (REPO_ROOT / filename).read_text(encoding="utf-8")
+            with self.subTest(readme=filename):
+                self.assertEqual(ui_design_prompt_problems(content), [])
+
+    def test_ui_design_prompt_check_rejects_the_wireframe_flow(self) -> None:
+        legacy = (
+            "```text\nThe Product Definition is approved. Use $ui-design-builder and "
+            "mandatory $frontend-design for wireframes/5, direction selection and full "
+            "HiFi. Validate the wireframe internally.\n```\n\n"
+            "```text\nThe wireframes/5 structure and sourced copy passed internal "
+            "validation. Continue $ui-design-builder with $frontend-design Style "
+            "Integration, run separately authorized $impeccable critique and audit plus "
+            "H1-H9 grading, obtain one full Visual Approval, and invoke "
+            "$design-system-compiler only when required.\n```\n"
+        )
+        problems = ui_design_prompt_problems(legacy)
+        self.assertTrue(any("Wireframe stage" in problem for problem in problems))
+        self.assertIn("missing `ui-design/2`", problems)
+        self.assertIn(
+            "expected 2 ui-design-builder prompts, found 0",
+            ui_design_prompt_problems("no prompts"),
+        )
 
     @unittest.skipIf(REPO_ROOT is None, "README contract requires a source checkout")
     def test_readme_outputs_have_no_standalone_run_and_mermaid_braces_close(self) -> None:
