@@ -339,16 +339,17 @@ def _sip_protected_executable(path: Path, fd: int) -> bool:
 
     if sys.platform != "darwin" or not _sip_enforced():
         return False
+    # The file and every directory below "/" must be restricted, so no
+    # component of the path can be renamed or replaced.
+    entries = [path, *(parent for parent in path.parents if parent != parent.parent)]
     try:
         bound = os.fstat(fd)
         named = os.stat(path, follow_symlinks=False)
-        parent = os.stat(path.parent, follow_symlinks=False)
-    except OSError:
+        flags = [os.stat(entry, follow_symlinks=False).st_flags for entry in entries]
+    except (OSError, AttributeError):
         return False
-    return (
-        (bound.st_dev, bound.st_ino) == (named.st_dev, named.st_ino)
-        and bool(getattr(named, "st_flags", 0) & _SF_RESTRICTED)
-        and bool(getattr(parent, "st_flags", 0) & _SF_RESTRICTED)
+    return (bound.st_dev, bound.st_ino) == (named.st_dev, named.st_ino) and all(
+        flag & _SF_RESTRICTED for flag in flags
     )
 
 
