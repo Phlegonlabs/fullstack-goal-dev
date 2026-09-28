@@ -8,6 +8,7 @@ The manifest of every document this delivery flow produces or governs. Keep it a
 | `CLAUDE.md` | root | bootstrap | human + harness | imports `AGENTS.md` | |
 | `PRD.md` | `docs/product/` | PRD | product-definition-builder + owner approval | product definition | |
 | `ui-design.md` | `docs/design/` | Approved Product Definition (UI-bearing) | ui-design-builder + UI Design Intake / Visual Approval | UI decisions and evidence | |
+| `ui-references/<run-id>/index.html` + manifest pages | `docs/design/` | Visual Approval | ui-design-builder | approved connected HiFi package | |
 | `wireframes.html` | `docs/design/` | legacy contracts only; `ui-design/2` has none | ui-design-builder + Wireframe Validation | retained legacy structural projection | |
 | `design-system.md` + `design-system.json` | `docs/design/` | Approved UI design when required | design-system-compiler | frozen visual contract | |
 | `architecture.md` | `docs/product/` | PRD | product-definition-builder | technical definition | |
