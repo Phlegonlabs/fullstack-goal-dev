@@ -24,7 +24,7 @@ Never compare `Cloudflare vs Astro vs Vite vs React` as though they solve the sa
 | Package manager | What owns dependency resolution, scripts, workspaces, and the lockfile? | npm, pnpm, Yarn, Bun |
 | Web framework | What owns routes, rendering conventions, and app structure? | Astro, React Router, TanStack Start |
 | UI library | What expresses interactive component behavior? | React, Preact, Vue, none |
-| Component foundation | Where do accessible primitives and reusable controls come from? | shadcn/ui-style owned source, headless primitives plus custom components, packaged component suite, fully custom |
+| Component foundation | Where do accessible primitives and reusable controls come from? | shadcn/ui-style owned source, headless primitives (Base UI, Radix Primitives) plus custom components, packaged component suite, fully custom |
 | Styling approach | How are styles authored and scoped? | Tailwind CSS utilities, CSS Modules, vanilla modern CSS (cascade layers, container queries), component-library-managed styles |
 | Build tool | What provides development, transforms, and production builds? | Vite, framework-managed Vite |
 | Supporting choices | How are product concerns implemented? | Routing/data loading, state, forms, styling, components, tests |
@@ -32,6 +32,8 @@ Never compare `Cloudflare vs Astro vs Vite vs React` as though they solve the sa
 Astro is a framework and uses Vite as part of its toolchain. React is a UI library and can be used inside Astro islands, with Vite in a custom SPA, or through a React framework. Cloudflare is the hosting/runtime target for any of those valid combinations.
 
 Record component foundation and styling as separate layer rows. React and shadcn/ui are not peers: React is a UI runtime, while shadcn/ui is an owned-source component and code-distribution approach. Tailwind utilities, CSS Modules, and vanilla modern CSS each change how the codebase scales. When the chosen component foundation constrains styling — current shadcn/ui components use Tailwind, for example — the styling row cites that verified constraint instead of pretending it remains a free choice. Verify the current official documentation and record the check date for both rows.
+
+Base UI and Radix Primitives are unstyled React primitives. They supply WAI-ARIA roles, focus management and keyboard behavior for controls such as dialogs, popovers, menus and comboboxes; the project still owns tokens, visual styling and its own accessibility tests. Pick one primitive layer per product rather than mixing both for the same control, and record it as the component foundation (for example `Base UI primitives + custom components`). Both are React-only, so they do not fit a non-React UI library row. Radix Themes is a separate styled library and belongs in the packaged-suite option, not the headless one.
 
 ## Collect Decision Evidence
 
@@ -150,6 +152,8 @@ Use primary documentation, not marketplace roundups:
 - [Vite guide](https://vite.dev/guide/)
 - [shadcn/ui introduction and code-ownership model](https://ui.shadcn.com/docs)
 - [shadcn/ui manual installation and current styling requirements](https://ui.shadcn.com/docs/installation/manual)
+- [Base UI: about](https://base-ui.com/react/overview/about) and [accessibility](https://base-ui.com/react/overview/accessibility)
+- [Radix Primitives: introduction](https://www.radix-ui.com/primitives/docs/overview/introduction)
 - [Tailwind CSS documentation](https://tailwindcss.com/docs)
 
 ## Failure Modes

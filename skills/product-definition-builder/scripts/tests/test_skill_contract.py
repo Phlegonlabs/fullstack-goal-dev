@@ -2821,6 +2821,8 @@ new Function(scripts.at(-1)[1]);
         ):
             self.assertIn(marker, contract)
         self.assertIn("React and shadcn/ui are not peers", frontend)
+        self.assertIn("headless primitives (Base UI, Radix Primitives)", frontend)
+        self.assertIn("Radix Themes is a separate styled library", frontend)
         self.assertIn("two or three coherent stack bundles", frontend)
         self.assertIn("Mark accepted new choices `Approved`", frontend)
         self.assertIn("`Recommended` or `Provisional` blocks", skill)
