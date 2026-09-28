@@ -609,7 +609,7 @@ Los READMEs son la documentación de registro: cada cambio que agregue o altere 
 
 ## Releasing
 
-La CI de Windows se detiene si falla cualquier suite de Python. Los fixtures resuelven las rutas temporales antes de vincular identidades del ejecutable o repositorio, incluidos alias 8.3. Un job de macOS ejecuta las mismas suites de Python que el job de Linux; las pruebas de navegador solo corren en Linux.
+La CI de Windows se detiene si falla cualquier suite de Python. Los fixtures resuelven las rutas temporales antes de vincular identidades del ejecutable o repositorio, incluidos alias 8.3. Un job de macOS ejecuta las mismas suites de Python que el job de Linux; las pruebas de navegador solo corren en Linux. El job de macOS todavía no bloquea, porque Harness aún no es compatible con macOS (ruta de Git de Homebrew, raíces temporales `/var` con symlink, `/dev/fd`).
 
 Los ejemplos HiFi conservan finales de línea LF para mantener sus hashes entre plataformas. Las pruebas Node del wireframe leen scripts multilínea por stdin para evitar que los lanzadores de Windows omitan aserciones.
 

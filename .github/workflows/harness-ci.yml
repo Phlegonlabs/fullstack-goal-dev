@@ -98,6 +98,10 @@ jobs:
     # roots). Browser tests stay on the Linux job and skip here.
     name: macos
     runs-on: macos-latest
+    # Harness does not support macOS yet (Homebrew Git path, /var symlink
+    # temp roots, /dev/fd); report results without blocking. See
+    # docs/epics/EPIC-review-fixes-20260927.md.
+    continue-on-error: true
     env:
       VALIDATED_HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
     steps:

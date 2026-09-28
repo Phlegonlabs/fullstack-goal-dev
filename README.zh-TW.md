@@ -610,7 +610,7 @@ README 是紀錄文件：每個新增或改動 skill、規則、表格、圖或�
 
 ## 發佈
 
-Windows CI 會在任一 Python 測試組失敗後立即停止。測試資料在綁定執行檔或儲存庫身分前先解析暫存路徑，包括 Windows 8.3 別名。macOS job 執行與 Linux job 相同的 Python 測試組；瀏覽器測試只在 Linux 執行。
+Windows CI 會在任一 Python 測試組失敗後立即停止。測試資料在綁定執行檔或儲存庫身分前先解析暫存路徑，包括 Windows 8.3 別名。macOS job 執行與 Linux job 相同的 Python 測試組；瀏覽器測試只在 Linux 執行。Harness 還不支援 macOS（Homebrew Git 路徑、`/var` symlink 暫存根目錄、`/dev/fd`），所以 macOS job 暫時不擋合併。
 
 HiFi 範例以固定 LF 換行維持跨平台位元組雜湊。Wireframe 的 Node 測試透過 stdin 讀取多行程式，避免 Windows 啟動器默默截斷斷言。
 

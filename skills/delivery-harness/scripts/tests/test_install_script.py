@@ -159,6 +159,8 @@ class InstallScriptTests(unittest.TestCase):
         )
         job = workflow.split("\n  macos:\n", 1)[1].split("\n  windows-hardening:\n", 1)[0]
         self.assertIn("runs-on: macos-latest", job)
+        # Non-blocking until Harness supports macOS.
+        self.assertIn("continue-on-error: true", job)
         for skill in (
             "delivery-harness",
             "product-definition-builder",
