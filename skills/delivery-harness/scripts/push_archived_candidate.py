@@ -314,6 +314,44 @@ def _discover_machine_trust_policy(*, root: Path | None = None) -> MachineTrustP
     )
 
 
+_SF_RESTRICTED = 0x00080000  # macOS SIP-protected file flag
+_CSR_ALLOW_UNRESTRICTED_FS = 1 << 1
+
+
+def _sip_enforced() -> bool:
+    """Whether macOS SIP currently blocks changes to restricted files."""
+
+    try:
+        import ctypes
+
+        libsystem = ctypes.CDLL("/usr/lib/libSystem.B.dylib", use_errno=True)
+        csr_check = libsystem.csr_check
+        csr_check.argtypes = [ctypes.c_uint32]
+        csr_check.restype = ctypes.c_int
+        # csr_check returns 0 when the unrestricted-filesystem override is allowed.
+        return csr_check(_CSR_ALLOW_UNRESTRICTED_FS) != 0
+    except (OSError, AttributeError):
+        return False
+
+
+def _sip_protected_executable(path: Path, fd: int) -> bool:
+    """True only for the verified inode of a SIP-restricted file on macOS."""
+
+    if sys.platform != "darwin" or not _sip_enforced():
+        return False
+    try:
+        bound = os.fstat(fd)
+        named = os.stat(path, follow_symlinks=False)
+        parent = os.stat(path.parent, follow_symlinks=False)
+    except OSError:
+        return False
+    return (
+        (bound.st_dev, bound.st_ino) == (named.st_dev, named.st_ino)
+        and bool(getattr(named, "st_flags", 0) & _SF_RESTRICTED)
+        and bool(getattr(parent, "st_flags", 0) & _SF_RESTRICTED)
+    )
+
+
 def _discover_os_managed_verifier(*, root: Path) -> str:
     """Select an OS-managed ssh-keygen without caller-supplied paths."""
 
@@ -587,6 +625,10 @@ def _verify_execution_evidence_signature(
             for prefix in prefixes:
                 if Path(prefix).exists():
                     return fd, f"{prefix}/{fd}"
+            # A SIP-restricted system file cannot be replaced, so its path
+            # names the verified inode as firmly as a descriptor would.
+            if executable and _sip_protected_executable(path, fd):
+                return fd, str(path)
             os.close(fd)
             bound_fds.pop()
             raise ManifestError("no descriptor path is available for trusted-host verifier")
