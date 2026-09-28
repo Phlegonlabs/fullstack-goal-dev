@@ -54,11 +54,12 @@ class _DirFdOs:
 
 
 def _documents_exchange_race(
-    branch: str, writes: dict[tuple[str, int], bytes], payload: bytes
-) -> tuple[str, bytes, bytes, list[str]]:
+    branch: str, writes: dict[tuple[str, int], object], payload: bytes
+) -> tuple[str, bytes | None, bytes, list[str]]:
     """Run one DOCUMENTS exchange commit with scripted concurrent writes.
 
     ``writes`` maps ("before"|"after", primitive call number) to bytes written
+    (or a callable applied to the destination path)
     to DOCUMENTS.md around that call. Returns the error text, the final
     destination bytes, the bytes at the path the error reports, and the
     docs directory listing.
@@ -77,7 +78,9 @@ def _documents_exchange_race(
 
         def write(stage: str) -> None:
             data = writes.get((stage, len(calls)))
-            if data is not None:
+            if callable(data):
+                data(documents)
+            elif data is not None:
                 documents.write_bytes(data)
 
         def exchange(_parent_fd: int, left: str, right: str) -> None:
@@ -121,7 +124,8 @@ def _documents_exchange_race(
             else:
                 raise AssertionError("exchange race was not detected")
         retained = Path(message.rsplit(" at ", 1)[1]).read_bytes()
-        return message, documents.read_bytes(), retained, sorted(
+        final = documents.read_bytes() if documents.is_file() else None
+        return message, final, retained, sorted(
             item.name for item in directory.iterdir()
         )
 
@@ -557,6 +561,20 @@ class ArchiveRunTests(unittest.TestCase):
                 "restore verification failed",
                 first,
                 second,
+                2,
+            ),
+            "destination removed after exchange": (
+                {("before", 1): first, ("after", 1): Path.unlink},
+                "displaced bytes changed",
+                None,
+                first,
+                1,
+            ),
+            "destination replaced by a directory": (
+                {("before", 1): first, ("after", 1): lambda target: (target.unlink(), target.mkdir())},
+                "displaced bytes changed",
+                None,
+                first,
                 2,
             ),
         }
