@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import posixpath
 import re
 import sys
 from pathlib import Path
@@ -524,24 +525,40 @@ def _report_exception(path: str, worker: dict[str, Any]) -> bool:
     return report_path == path and report_path.rsplit("/", 1)[-1] == "REPORT.md"
 
 
-def _acceptance_register_paths(plan: dict[str, Any]) -> list[str]:
-    """Return the ``--results`` paths of PLAN final gates that run the
-    delivery-acceptance checker. An empty list means the PLAN has no gate."""
+def _acceptance_register_paths(plan: dict[str, Any]) -> tuple[bool, list[str]]:
+    """Return whether a PLAN final gate mentions the delivery-acceptance
+    checker, and the register paths parsed from its ``--results`` values.
 
+    A gate found in any form (a wrapper or an unusual flag spelling too)
+    counts as declared even when no register path could be parsed, so the
+    caller can fail closed."""
+
+    declared = False
     paths: list[str] = []
     gates = plan.get("final_gates")
     for gate in gates if isinstance(gates, list) else []:
         argv = gate.get("argv") if isinstance(gate, dict) else None
         if not isinstance(argv, list) or not any(
             isinstance(item, str)
-            and item.replace("\\", "/").rsplit("/", 1)[-1] == "check_delivery_acceptance.py"
+            and "check_delivery_acceptance.py" in item.replace("\\", "/")
             for item in argv
         ):
             continue
-        for flag, value in zip(argv, argv[1:]):
-            if flag == "--results" and isinstance(value, str) and value:
-                paths.append(value)
-    return paths
+        declared = True
+        for flag, value in zip(argv, argv[1:] + [None]):
+            if not isinstance(flag, str):
+                continue
+            if flag.startswith("--results="):
+                value = flag[len("--results="):]
+            elif flag != "--results":
+                continue
+            if isinstance(value, str):
+                path = posixpath.normpath(value.replace("\\", "/"))
+                if value and not path.startswith("/") and ":" not in path and (
+                    path.split("/")[0] != ".."
+                ):
+                    paths.append(path)
+    return declared, paths
 
 
 def _declared_verifiers(
@@ -1425,8 +1442,10 @@ def validate_worker_result_data(
         # With a delivery-acceptance gate, the mission scope lists the
         # register and evidence for the parent's commit only; no task scope
         # does. Check that in every workspace mode, since a shared checkout
-        # has no per-task commit slices.
-        register_paths = _acceptance_register_paths(plan)
+        # has no per-task commit slices. A gate whose register path cannot
+        # be parsed still turns the check on.
+        acceptance_gate, register_paths = _acceptance_register_paths(plan)
+        register_text = ", ".join(register_paths) or "path not parsed from the gate"
         task_scopes = [
             task.get("write_scope") if isinstance(task.get("write_scope"), list) else []
             for task in mission.get("tasks", [])
@@ -1445,7 +1464,7 @@ def validate_worker_result_data(
                 _issue(errors, "denied_path", item_path, "changed path is denied by the mission")
             elif not allowed:
                 _issue(errors, "scope_escape", item_path, "changed path is outside mission write scope")
-            elif register_paths and not any(
+            elif acceptance_gate and not any(
                 path_in_scopes(changed_path, scopes) for scopes in task_scopes
             ):
                 _issue(
@@ -1453,7 +1472,7 @@ def validate_worker_result_data(
                     "acceptance_path_write",
                     item_path,
                     "no task write scope covers this path; only the parent writes the "
-                    f"delivery-acceptance register ({', '.join(register_paths)}) and its evidence",
+                    f"delivery-acceptance register ({register_text}) and its evidence",
                 )
 
     verifier_results_raw = result.get("verifiers")

@@ -687,20 +687,24 @@ class ValidateWorkerResultTests(unittest.TestCase):
         )
         self.assertIn("task_scope_escape", error_codes(errors))
 
-    def _shared_checkout_acceptance_fixture(self, *, gate: bool = True):
+    GATE_ARGV = [
+        "python",
+        "/skills/delivery-harness/scripts/check_delivery_acceptance.py",
+        "--results",
+        "docs/verification/delivery-results.json",
+        "--candidate-from-head",
+    ]
+
+    def _shared_checkout_acceptance_fixture(
+        self, *, gate: bool = True, argv: list[str] | None = None
+    ):
         plan = copy.deepcopy(self.plan)
         plan["missions"][0]["write_scope"].append("docs/verification/**")
         if gate:
             plan["final_gates"].append(
                 {
                     **verifier("delivery-acceptance"),
-                    "argv": [
-                        "python",
-                        "/skills/delivery-harness/scripts/check_delivery_acceptance.py",
-                        "--results",
-                        "docs/verification/delivery-results.json",
-                        "--candidate-from-head",
-                    ],
+                    "argv": argv or self.GATE_ARGV,
                 }
             )
         run = make_run(plan)
@@ -708,8 +712,10 @@ class ValidateWorkerResultTests(unittest.TestCase):
         run["workers"][0]["workspace_mode"] = "shared_checkout"
         return plan, run
 
-    def _validate_shared_checkout(self, changed: list[str], *, gate: bool = True):
-        plan, run = self._shared_checkout_acceptance_fixture(gate=gate)
+    def _validate_shared_checkout(
+        self, changed: list[str], *, gate: bool = True, argv: list[str] | None = None
+    ):
+        plan, run = self._shared_checkout_acceptance_fixture(gate=gate, argv=argv)
         result = make_result(plan)
         result["changed_files"] = changed
         for item in result["verifiers"]:
@@ -728,6 +734,34 @@ class ValidateWorkerResultTests(unittest.TestCase):
             with self.subTest(path=path):
                 errors = self._validate_shared_checkout([CHANGED_FILE, path])
                 self.assertEqual({"acceptance_path_write"}, error_codes(errors))
+
+    def test_acceptance_gate_in_other_argv_forms_still_guards(self) -> None:
+        register = "docs/verification/delivery-results.json"
+        equals = [*self.GATE_ARGV[:2], f"--results={register}", "--candidate-from-head"]
+        wrapper = [
+            "bash", "-c",
+            f"python /x/check_delivery_acceptance.py --results {register}",
+        ]
+        self.assertEqual(
+            (True, [register]),
+            subject._acceptance_register_paths({"final_gates": [{"argv": equals}]}),
+        )
+        # A wrapper hides the register path; the gate still counts as declared.
+        self.assertEqual(
+            (True, []),
+            subject._acceptance_register_paths({"final_gates": [{"argv": wrapper}]}),
+        )
+        for label, argv in (("equals", equals), ("wrapper", wrapper)):
+            for path in (register, "docs/verification/evidence/run.log"):
+                with self.subTest(form=label, path=path):
+                    errors = self._validate_shared_checkout(
+                        [CHANGED_FILE, path], argv=argv
+                    )
+                    self.assertEqual({"acceptance_path_write"}, error_codes(errors))
+            with self.subTest(form=label, path=CHANGED_FILE):
+                self.assertEqual(
+                    [], self._validate_shared_checkout([CHANGED_FILE], argv=argv)
+                )
 
     def test_shared_checkout_acceptance_check_keeps_task_scoped_paths(self) -> None:
         self.assertEqual([], self._validate_shared_checkout([CHANGED_FILE]))
