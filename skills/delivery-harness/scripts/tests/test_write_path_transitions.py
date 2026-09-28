@@ -324,6 +324,8 @@ class WritePathTransitionTests(unittest.TestCase):
         self.assertEqual(concurrent, run_path.read_text(encoding="utf-8"))
 
     def test_run_document_exchange_primitive_preserves_displaced_edit(self) -> None:
+        # Only the first primitive call races; the restore call must stay clean.
+        calls: list[int] = []
         run_path = self.root / "RUN.md"
         original = mf.manifest_markdown(
             "## Harness Run State", "harness_run", self.run
@@ -334,7 +336,9 @@ class WritePathTransitionTests(unittest.TestCase):
             primitive = harness_transition._run_windows_replace_with_backup
 
             def inject(destination: Path, replacement: Path, backup: Path) -> None:
-                destination.write_text(concurrent, encoding="utf-8")
+                if not calls:
+                    destination.write_text(concurrent, encoding="utf-8")
+                calls.append(1)
                 primitive(destination, replacement, backup)
 
             patcher = mock.patch.object(
@@ -344,7 +348,9 @@ class WritePathTransitionTests(unittest.TestCase):
             primitive = harness_transition._run_posix_exchange
 
             def inject(parent_fd: int, left_name: str, right_name: str) -> None:
-                run_path.write_text(concurrent, encoding="utf-8")
+                if not calls:
+                    run_path.write_text(concurrent, encoding="utf-8")
+                calls.append(1)
                 primitive(parent_fd, left_name, right_name)
 
             patcher = mock.patch.object(
@@ -414,6 +420,13 @@ class WritePathTransitionTests(unittest.TestCase):
                 "restore verification failed",
                 second,
                 payload,
+                2,
+            ),
+            "second write before restore": (
+                {("before", 1): first, ("before", 2): second},
+                "restore verification failed",
+                first,
+                second,
                 2,
             ),
         }

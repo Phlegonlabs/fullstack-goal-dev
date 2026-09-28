@@ -250,7 +250,13 @@ def _documents_exchange_commit(
                 if current is not None and current[1] == _sha256_bytes(payload):
                     _posix_rename_exchange(parent_fd, temporary_name, documents.name)
                     restored_identity, restored_bytes = _path_identity_and_bytes(documents)
-                    if restored_identity != displaced_identity or restored_bytes != displaced_bytes:
+                    _, leftover_bytes = _path_identity_and_bytes(displaced)
+                    # Delete the swapped-out file only when it is our own payload.
+                    if (
+                        restored_identity != displaced_identity
+                        or restored_bytes != displaced_bytes
+                        or leftover_bytes != payload
+                    ):
                         os.rename(temporary_name, recovery.name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
                         raise OSError(
                             f"DOCUMENTS restore verification failed; recovery artifacts retained at {recovery}"
@@ -284,7 +290,13 @@ def _documents_exchange_commit(
                 rollback_backup = documents.parent / f".{documents.name}.{secrets.token_hex(8)}.rollback"
                 _windows_replace_file(documents, backup, rollback_backup)
                 restored_identity, restored_bytes = _path_identity_and_bytes(documents)
-                if restored_identity != displaced_identity or restored_bytes != displaced_bytes:
+                _, leftover_bytes = _path_identity_and_bytes(rollback_backup)
+                # Delete the swapped-out file only when it is our own payload.
+                if (
+                    restored_identity != displaced_identity
+                    or restored_bytes != displaced_bytes
+                    or leftover_bytes != payload
+                ):
                     raise OSError(
                         f"DOCUMENTS restore verification failed; recovery artifacts retained at {rollback_backup}"
                     )

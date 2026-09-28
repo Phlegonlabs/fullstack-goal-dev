@@ -1465,6 +1465,8 @@ class CheckDesignSystemPairTests(unittest.TestCase):
             self.assertEqual(["design-system.md"], [item.name for item in Path(temp).iterdir()])
 
     def test_write_exchange_primitive_preserves_displaced_edit(self) -> None:
+        # Only the first primitive call races; the restore call must stay clean.
+        calls: list[int] = []
         markdown = b"# Original\n"
         concurrent_edit = b"# Concurrent inside primitive\n"
         with tempfile.TemporaryDirectory() as temp:
@@ -1475,7 +1477,9 @@ class CheckDesignSystemPairTests(unittest.TestCase):
                 primitive = checker._windows_replace_with_backup
 
                 def inject(destination: Path, replacement: Path, backup: Path) -> None:
-                    destination.write_bytes(concurrent_edit)
+                    if not calls:
+                        destination.write_bytes(concurrent_edit)
+                    calls.append(1)
                     primitive(destination, replacement, backup)
 
                 patcher = mock.patch.object(
@@ -1485,7 +1489,9 @@ class CheckDesignSystemPairTests(unittest.TestCase):
                 primitive = checker._posix_rename_exchange
 
                 def inject(parent_fd: int, left_name: str, right_name: str) -> None:
-                    md.write_bytes(concurrent_edit)
+                    if not calls:
+                        md.write_bytes(concurrent_edit)
+                    calls.append(1)
                     primitive(parent_fd, left_name, right_name)
 
                 patcher = mock.patch.object(
@@ -1556,6 +1562,13 @@ class CheckDesignSystemPairTests(unittest.TestCase):
                 "restore verification failed",
                 second,
                 payload,
+                2,
+            ),
+            "second write before restore": (
+                {("before", 1): first, ("before", 2): second},
+                "restore verification failed",
+                first,
+                second,
                 2,
             ),
         }

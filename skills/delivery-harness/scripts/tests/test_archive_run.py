@@ -462,6 +462,8 @@ class ArchiveRunTests(unittest.TestCase):
         self.assertEqual(b"injected at replace boundary\n", documents.read_bytes())
 
     def test_documents_exchange_primitive_preserves_displaced_edit(self) -> None:
+        # Only the first primitive call races; the restore call must stay clean.
+        calls: list[int] = []
         documents = self.root / "docs" / "DOCUMENTS.md"
         original = documents.read_bytes()
         concurrent = b"concurrent edit inside exchange primitive\n"
@@ -469,7 +471,9 @@ class ArchiveRunTests(unittest.TestCase):
             primitive = archive_run._windows_replace_file
 
             def inject(destination: Path, replacement: Path, backup: Path) -> None:
-                destination.write_bytes(concurrent)
+                if not calls:
+                    destination.write_bytes(concurrent)
+                calls.append(1)
                 primitive(destination, replacement, backup)
 
             patcher = patch.object(archive_run, "_windows_replace_file", side_effect=inject)
@@ -477,7 +481,9 @@ class ArchiveRunTests(unittest.TestCase):
             primitive = archive_run._posix_rename_exchange
 
             def inject(parent_fd: int, left_name: str, right_name: str) -> None:
-                documents.write_bytes(concurrent)
+                if not calls:
+                    documents.write_bytes(concurrent)
+                calls.append(1)
                 primitive(parent_fd, left_name, right_name)
 
             patcher = patch.object(archive_run, "_posix_rename_exchange", side_effect=inject)
@@ -544,6 +550,13 @@ class ArchiveRunTests(unittest.TestCase):
                 "restore verification failed",
                 second,
                 payload,
+                2,
+            ),
+            "second write before restore": (
+                {("before", 1): first, ("before", 2): second},
+                "restore verification failed",
+                first,
+                second,
                 2,
             ),
         }

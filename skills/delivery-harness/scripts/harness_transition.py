@@ -3706,7 +3706,9 @@ def _run_exchange_commit(
             if current[-1] == hashlib.sha256(updated).hexdigest():
                 _run_posix_exchange(parent_fd, temporary_name, path.name)
                 restored = _run_document_version_token(path, parent_fd=parent_fd)
-                if restored != displaced_version:
+                leftover = _run_document_version_token(Path(temporary_name), parent_fd=parent_fd)
+                # Delete the swapped-out file only when it is our own payload.
+                if restored != displaced_version or leftover[-1] != current[-1]:
                     os.rename(temporary_name, recovery.name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
                     raise ManifestError(
                         f"RUN restore verification failed; recovery artifacts retained at {recovery}"
@@ -3732,7 +3734,9 @@ def _run_exchange_commit(
             rollback_backup = path.parent / f".{path.name}.{secrets.token_hex(8)}.rollback"
             _run_windows_replace_with_backup(path, backup, rollback_backup)
             restored = _run_document_version_token(path)
-            if restored != displaced_version:
+            leftover = _run_document_version_token(rollback_backup)
+            # Delete the swapped-out file only when it is our own payload.
+            if restored != displaced_version or leftover[-1] != current[-1]:
                 raise ManifestError(
                     f"RUN restore verification failed; recovery artifacts retained at {rollback_backup}"
                 )

@@ -337,7 +337,11 @@ def _windows_replace_commit(
         if _path_version(path)[-1] == hashlib.sha256(payload).hexdigest():
             rollback_backup = path.parent / f".{path.name}.{secrets.token_hex(8)}.rollback"
             _windows_replace_with_backup(path, backup, rollback_backup)
-            if _path_version(path) != displaced_version:
+            # Delete the swapped-out file only when it is our own payload.
+            if (
+                _path_version(path) != displaced_version
+                or _path_version(rollback_backup)[-1] != hashlib.sha256(payload).hexdigest()
+            ):
                 raise ConcurrentModificationError(
                     f"design-system restore verification failed; artifacts retained at {rollback_backup}"
                 )
@@ -368,7 +372,12 @@ def _posix_exchange_commit(
         recovery = path.parent / f".{path.name}.{secrets.token_hex(8)}.recovery"
         if _path_version(path)[-1] == hashlib.sha256(payload).hexdigest():
             _posix_rename_exchange(parent_fd, temporary_path.name, path.name)
-            if _path_version(path) != displaced_version:
+            # Delete the swapped-out file only when it is our own payload.
+            if (
+                _path_version(path) != displaced_version
+                or _path_version(path.parent / temporary_path.name)[-1]
+                != hashlib.sha256(payload).hexdigest()
+            ):
                 os.rename(temporary_path.name, recovery.name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
                 raise ConcurrentModificationError(
                     f"design-system restore verification failed; artifacts retained at {recovery}"
