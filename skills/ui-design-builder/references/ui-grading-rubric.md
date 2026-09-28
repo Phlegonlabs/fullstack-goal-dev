@@ -92,7 +92,7 @@ Structural items, wireframe scope:
 
 Visual items, design-reference scope:
 
-- The rendering ignores the selected `VD-*` direction and reads as a generic default.
+- The rendering ignores the selected `VD-*` direction: for example, default sans typography, neutral-gray rounded cards, or a centered hero with equal-width feature tiles appear without a task or direction reason. These treatments are not defects when the approved direction or platform calls for them.
 - The rendering changes approved wording or converts a dynamic example into fixed product copy.
 - Identical section rhythms repeat across unrelated screens with no directional reason.
 - Decorative gradients, glows, labels, emoji, status dots, or fake-precise numbers appear without support from the approved direction or copy source.

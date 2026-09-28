@@ -128,3 +128,55 @@ committed; no working-tree changes are recorded.
   reading evidence.
 - skills-correctness-3: Harness joins and the compiler preflight do not enforce the current-HiFi
   rule for legacy approvals.
+
+### 2026-09-28 — follow-up audit of 47 documentation findings
+
+Owner request: use multiple agents to fix the pasted audit findings, commit, push and merge.
+This follow-up repairs the same seven-skill contract outcome; earlier evidence above stays historical.
+
+- First observation: repository `product-delivery-harness`, branch `codex/macos-support`,
+  clean HEAD `1591a4482155f9601b568b2c357857629dd6c0b1`; remote `main`
+  `2fa9b343175f585aca1da551edc0a8654380de9b` is its ancestor. Existing macOS work is
+  recorded in `EPIC-macos-support.md` and PR #129. No other worktree is in this fix scope.
+- Route: direct source maintenance, parent is the sole writer; three read-only agents
+  inspect Harness, design, and Product Definition/activation/security contracts.
+  No consumer PRD, PLAN/RUN or product UI is involved. UI impact: none.
+- Scope: correct confirmed audit inconsistencies in canonical skills, references,
+  templates and agent prompts; update all four READMEs, release version and focused
+  regressions. Keep current validator semantics and historical approvals intact.
+- Acceptance: account for H1-H15, M1-M14 and L1-L18; verify corrected commands and
+  contract wording against code; run the required full suite with browser checks,
+  obtain independent review, publish the verified candidate, then follow the separate
+  exact-SHA main-promotion gate. The pasted L17 and several other lines are truncated;
+  unresolved source text must be reported rather than invented.
+- Gitignore: no new repository-local generated artifact class. Test/review logs live
+  outside the checkout at `C:/Users/mps19/Documents/Codex/2026-09-28/pdh-audit-fixes/work/`.
+- Document sync: installed Harness `0.55.0`; loaded digest unobserved. First-observation
+  report requires semantic review, as expected. No consumer PRD/architecture translation
+  is applicable. Installed-template drift and final diff evidence are pending.
+- Verification and result: in progress; no new test or review PASS claimed yet.
+
+#### Audit repair checkpoint
+
+The parent implemented the source-supported repairs and documented all 47
+dispositions in `docs/audits/2026-09-28-contract-audit.md`. Compatibility pointers
+remain. The unrecoverable L17 allegation was checked against the adjacent motion
+source inventory, which already contains its ten linked sources. Operations remain
+required manual review; no automatic parser enforcement is claimed. Version 0.55.1
+and all four README descriptions/history entries accompany the fixes.
+
+Focused verification: Harness contract 60, Product Definition contract 96, UI
+contract 12, compiler contract 10, and documented-command regressions 2 all passed.
+Skill specification, focused pyflakes and whitespace checks passed. The earlier
+wording-assertion failures and corrected command fixture are retained in the audit
+record and external logs. Full suite and exact-candidate independent review are
+required next; this checkpoint does not claim release completion.
+
+The observed installed template remains 0.55.0. Shared rules are current by meaning;
+the source's `0.38+` threshold clarification adds no permission or policy change.
+Local main-only Git Flow, required-reading replacement, absent consumer bindings
+and deployment/activation omissions remain intentional. The final exact-SHA test,
+review and publication receipt is maintained at
+`C:/Users/mps19/Documents/Codex/2026-09-28/pdh-audit-fixes/work/handoff.json` and
+reported in the task handoff. Next owner/action: parent verifies and publishes the
+candidate; owner supplies the separate exact-SHA main-promotion decision when ready.

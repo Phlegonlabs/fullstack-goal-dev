@@ -2742,7 +2742,8 @@ new Function(scripts.at(-1)[1]);
 
         self.assertIn("`frontend-design` is the single design author", skill)
         self.assertIn("Load `frontend-design`", guide)
-        self.assertIn("Do not load `design-taste-frontend`", guide)
+        self.assertIn("they never replace `frontend-design` as the author", guide)
+        self.assertIn("may supplement an approved direction", guide)
         self.assertIn("Run `impeccable critique` and `impeccable audit`", guide)
         self.assertLess(
             guide.index("## Frontend Design Style Integration"),

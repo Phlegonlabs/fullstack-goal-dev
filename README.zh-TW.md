@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.55.0-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.55.1-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -24,6 +24,8 @@ Product Definition 撰寫英文正式來源 `PRD.md`、`architecture.md` 時，�
 它不是提示詞集合。這套技能把產品定義、視覺設計、工程執行、程式安全審查、啟用與 release 後自然流量 review 拆開，讓每個階段都有單一真實來源、清楚的交接邊界，以及自己的驗證方式。
 
 > 定義產品。編譯設計。交付已驗證的軟體。
+
+本輪稽核修正統一已安裝 skill 的命令路徑、必要 CLI 參數、500 行職責檢查點、schema-5 Wireframe Validation 與 reviewer shell v3。Activation 依發佈目標選擇正確 profile；security PASS 必須完整覆蓋。產品 operations 仍須人工審查，目前 parser 不會驗證 PRD operations 與設計的對應。現行 RUN 僅在本機完成，發佈及 main promotion 各自保留授權。
 
 ## 統一設計審閱
 
@@ -637,6 +639,8 @@ HiFi 範例以固定 LF 換行維持跨平台位元組雜湊。Wireframe 的 Nod
 ## 版本紀錄
 
 每次發佈都要更新這一節，連同上面《發佈》一節描述的版本號提升與 tag 一起完成。
+
+- **0.55.1** — 修正稽核發現的 skill 指示、prompt 與命令範例，保留歷史批准及相容指標。明確說明產品 operations 人工審查、僅限容器的 verifier 重用及可選動效 skill。包含 macOS CI 與 SIP 保護簽章驗證器修正。
 
 - **0.55.0** — 修正對七個 skill 進行多代理審查後發現的問題。破壞性變更與使用者需要做的事：重跑 finalize，並重新記錄 Product Definition Approval 與 Stack Decision Checkpoint，因為 digest 現在涵蓋含 fenced code、縮排行與 HTML 註解的原始文字；在 Mobile/Desktop stack 加上 `Styling approach` 列；Environment Status 的 Checked 值改用帶時區的 RFC3339；在要求 0.55.0 的 run 中，清理類 lifecycle 節點（`archive_worker_tasks`、`remove_worktrees`、`delete_branches`）要有精確 target；Visual Approval 前完成 Impeccable critique 與 audit；enhancement 的 UI 列要寫明 Wireframe Validation 與 Visual Approval。另外，trusted-host 與 legacy push 與 repository hooks 和 askpass 隔離，RUN、DOCUMENTS 與 design-system 的原子提交支援 macOS，installer 記錄來源 commit，並新增 macOS CI job。 UI Design Builder 另外新增 Motion 與 Three.js 動效路線、owner 未表態時依內容提出動效建議、HiFi 媒體內嵌限制，以及參考截圖留存。
 

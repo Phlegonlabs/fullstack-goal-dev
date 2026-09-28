@@ -40,7 +40,7 @@ Read the current sources in full before drafting:
 
 - `PRD.md`, including Product Definition Approval and its UI Surface Contract;
 - `docs/design/ui-design.md`, including UI Design Intake, Motion and Media Intent, Wireframe Validation, Style Integration, Impeccable HiFi review, H1-H9 grading, Visual Approval, and `Design System Need Gate: required`;
-- approved `wireframes.html`, including its matching `UI-*` page, complete viewport or size-class set, state, region, per-target layout, and passing browser overlap/overflow review;
+- validated `wireframes.html` (or approved legacy wireframe), including its matching `UI-*` page, complete viewport or size-class set, state, region, per-target layout, and passing browser overlap/overflow review;
 - `architecture.md` and `stack-decisions.md`, including the approved Stack Decision Checkpoint and its platform, rendering, component-foundation, styling, accessibility, and performance constraints;
 - existing `design-system.md` and `design-system.json` for an enhancement or delta; and
 - the immutable approved UI target and any confirmed `REF-*` / `RP-*` evidence named by `ui-design.md`.
@@ -85,7 +85,7 @@ Also confirm:
 - `design-system.json` is `design-system/2` and binds every listed source to its current bytes; a legacy `design-system/1` pair is inspection-only and cannot authorize a new approval;
 - Product Definition Approval and the Stack Decision Checkpoint are approved, with no `Recommended` or `Provisional` executable layer;
 - every PRD UI surface has an addressable route or an explicit `n/a` reason;
-- every UI surface maps to an approved `wireframes.html` page with matching regions, states, responsive set, and per-target order, visibility, spans, reflow, and interaction rules;
+- every UI surface maps to a validated `wireframes.html` page (or approved legacy page) with matching regions, states, responsive set, and per-target order, visibility, spans, reflow, and interaction rules;
 - the approved UI target, Style Integration record, Impeccable critique/audit, H1-H9 scores, visual approval, scope, hash, exact responsive coverage, passing browser-matrix evidence, and tolerance are present in `ui-design.md`;
 - every surface covers the final state matrix or records `<state>: n/a - <reason>` in `PRD.md`;
 - every required UI element maps to a registered primitive or product component;

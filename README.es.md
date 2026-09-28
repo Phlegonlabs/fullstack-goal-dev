@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.55.0-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.55.1-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -24,6 +24,8 @@ Repositorio de skills para convertir una idea de producto o una solicitud de cam
 No es una colección de prompts. La suite de skills separa la definición del producto, el diseño visual, la ejecución de ingeniería, la revisión de seguridad de código, la activación y la revisión post-release de crecimiento orgánico, para que cada etapa tenga una única fuente de verdad, una entrega con límites claros y su propia verificación.
 
 > Define el producto. Compila el diseño. Entrega software verificado.
+
+Las correcciones de auditoría unifican las rutas de skills instalados, los argumentos CLI obligatorios, la revisión de responsabilidades a las 500 líneas, Wireframe Validation de schema 5 y reviewer shell v3. Activation usa el perfil de cada destino; security PASS exige cobertura completa. Las operaciones del producto requieren revisión manual: los parsers no comprueban su correspondencia entre PRD y diseños. Los RUN actuales terminan localmente; la publicación y la promoción a main conservan autorizaciones separadas.
 
 ## Revisión de diseño unificada
 
@@ -636,6 +638,8 @@ Este repositorio está bajo la Licencia MIT — ver [LICENSE](LICENSE).
 ## Historial de versiones
 
 Actualiza esta sección con cada release, como parte del bump de versión y el tag descritos en Releasing arriba.
+
+- **0.55.1** — Corrige instrucciones, prompts y ejemplos de comandos auditados; conserva aprobaciones históricas y referencias de compatibilidad. Aclara la revisión manual de operaciones, la reutilización de verificadores solo en contenedores y los skills de movimiento opcionales. Incluye correcciones de CI en macOS y del verificador de firmas protegido por SIP.
 
 - **0.55.0** — Correcciones de una revisión multiagente de los siete skills. Cambios breaking y qué deben hacer los consumidores: vuelve a ejecutar finalize y registra de nuevo Product Definition Approval y el Stack Decision Checkpoint, porque sus digests ahora cubren el texto crudo con code fences, líneas indentadas y comentarios HTML; añade una fila `Styling approach` a los stacks Mobile/Desktop; escribe los valores Checked de Environment Status en RFC3339 con zona horaria; da un target exacto a los nodos lifecycle de limpieza (`archive_worker_tasks`, `remove_worktrees`, `delete_branches`) en runs que requieren 0.55.0; completa Impeccable critique y audit antes de Visual Approval; nombra Wireframe Validation y Visual Approval en las filas UI de enhancement. Además aísla los pushes de trusted host y legacy de hooks y askpass del repositorio, mantiene commits atómicos de RUN, DOCUMENTS y design-system en macOS, registra el commit de origen de cada instalación y añade un job de CI en macOS. UI Design Builder añade además rutas de movimiento Motion y Three.js, una propuesta de movimiento basada en el contenido cuando el propietario no se pronuncia, límites de medios incrustados en HiFi y capturas de las referencias.
 

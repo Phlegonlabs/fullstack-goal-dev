@@ -63,7 +63,7 @@ A refined task must have all of these properties:
 
 Test cases, fault scenarios, browser sizes, retry attempts, and small implementation steps normally belong in the task's acceptance matrix. They are not separate tasks solely because they can be enumerated.
 
-A task's own module crossing the project's File Size Limit (see the seeded root `CLAUDE.md`/`AGENTS.md`'s File Size Limit rule) is itself a concrete, checkable trigger for `REFINEMENT_REQUEST` — check at the moment that task's own file would cross the limit, during that task's own implementation and verification, not as a later end-of-project audit across many already-completed missions.
+Apply the project's File Size Checkpoint when a touched module reaches 500 lines. Review its responsibilities during that task: split when doing so improves ownership and verification, otherwise record why it stays together. Request `REFINEMENT_REQUEST` only when the needed split exceeds the task's accepted scope. The line count is not a hard limit or an automatic refinement trigger.
 
 `acceptance_matrix` is a canonical list on the PLAN task object. Updating it is a plan revision even when the task is not split.
 

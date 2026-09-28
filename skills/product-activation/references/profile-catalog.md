@@ -103,6 +103,13 @@ Apply when an `api`, `worker`, `webhook`, `jobs`, or another independently relea
 
 Keep API measurement separate from browser analytics. API adoption uses server logs, platform metrics, business events, or another bounded query scoped to the API target; a GA4 page-view stream cannot prove API behavior.
 
+### Conditional API Overlays
+
+- `api-webhooks`: provider/event contract, signatures, replay windows, idempotency, retries, dead-letter handling, endpoint ownership, and consumer confirmation.
+- `api-background-jobs`: trigger and schedule, heartbeat, timeout, concurrency, retry, replay, poison-message handling, and alert ownership.
+- `api-data-export`: purpose, requester authorization, scope, format, retention, delivery route, rate limit, and deletion handling.
+- `api-partner-access`: partner identity, scopes, quota, key or credential rotation, audit, support route, and termination path.
+
 ## CLI / Toolchain
 
 Apply to independently released CLI targets. Record the supported operating
@@ -125,13 +132,6 @@ Apply to an independently released non-public target that has no narrower
 catalog profile. Record its operator, distribution boundary, toolchain,
 identity, support and recovery path, and prove why each normal surface overlay
 is `n/a`.
-
-### API Overlays
-
-- `api-webhooks`: provider/event contract, signatures, replay windows, idempotency, retries, dead-letter handling, endpoint ownership, and consumer confirmation.
-- `api-background-jobs`: trigger and schedule, heartbeat, timeout, concurrency, retry, replay, poison-message handling, and alert ownership.
-- `api-data-export`: purpose, requester authorization, scope, format, retention, delivery route, rate limit, and deletion handling.
-- `api-partner-access`: partner identity, scopes, quota, key or credential rotation, audit, support route, and termination path.
 
 ## Android
 

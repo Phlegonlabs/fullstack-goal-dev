@@ -39,7 +39,7 @@ For a native/desktop platform whose approved Platform rules say `Native proof: r
 2. Invent no visual value. Colors, spacing, radii, type, durations, easing, and distances come from tokens; primitive props come from closed variants.
 3. Compose registered primitives and product components and use only registered motion variants.
 4. Use `design-system.json`'s `stateMatrix` and exactly one responsive verification set.
-5. Run `scripts/check_ui_contract.py --repo-root <root>` against changed files during the mission and real product source at the final gate. A filtered or zero-file run is not a clean signal, and neither is a `--token-source` or `--primitive-source` run: it prints NOT CONTRACT-CLEAN and exits 1 because source roles come from `design-system.json`.
+5. Run `python "<delivery-harness-skill-root>/scripts/check_ui_contract.py" --registry <design-system.json> --repo-root <root> --path <product-source-dir>` against changed files during the mission and real product source at the final gate. A filtered or zero-file run is not a clean signal, and neither is a `--token-source` or `--primitive-source` run: it prints NOT CONTRACT-CLEAN and exits 1 because source roles come from `design-system.json`.
 6. A missing token, primitive, variant, component, or motion rule is a design-system delta; implementation never writes the frozen pair.
 
 ## Target-Conformance Mode

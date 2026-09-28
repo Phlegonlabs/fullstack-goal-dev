@@ -47,7 +47,7 @@ Concrete identity and execution fields reject embedded placeholder tokens such a
 - `evidence` has exactly repository-contained `path` and lowercase `sha256`. It names a nonempty, bounded, redacted regular file, not a link, secret file or out-of-repository path. Unknown fields and duplicate JSON keys fail.
 
 ```text
-python "<installed-delivery-harness>/scripts/check_delivery_acceptance.py" --repo-root . --prd docs/product/PRD.md --contract docs/verification/delivery-acceptance.json --contract-sha256 <parent-frozen-hash> --results docs/verification/delivery-results.json --candidate-sha <pre-register-candidate-H1>
+python "<delivery-harness-skill-root>/scripts/check_delivery_acceptance.py" --repo-root . --prd docs/product/PRD.md --contract docs/verification/delivery-acceptance.json --contract-sha256 <parent-frozen-hash> --results docs/verification/delivery-results.json --candidate-sha <pre-register-candidate-H1>
 ```
 
 Exit 0 reports structural `PASS`; exit 1 reports failed evidence coverage, and invalid CLI arguments exit 2. This is one gate, not product completion. The legacy PLAN validator does not automatically require this new gate: new-work authoring review must verify its frozen source, always-run final declaration, graph placement and execution. Semantic requirement coverage, native provenance and actual fixture safety still need review even when the register passes.

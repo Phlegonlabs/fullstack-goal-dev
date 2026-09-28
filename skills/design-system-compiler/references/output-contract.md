@@ -1,4 +1,4 @@
-# Product Design Output Contract
+# Design System Compiler Output Contract
 
 `sourceBindings.uiDesign.sha256` uses the canonical UI approval digest, not the raw file hash. Run `python "<ui-design-builder-skill-root>/scripts/ui_approval_digest.py" <ui-design.md>`; it excludes active derived pair/replacement linkage lines so linking the compiled pair does not invalidate its own input. All other source bindings use raw-file SHA-256.
 
@@ -39,7 +39,7 @@ Keep it the sole structured authority for:
 
 - The Design System Need Gate is `required` and records its human owner and reason.
 - `ui-design.md` records an approved immutable target, source hash, routes and states, the exact PRD/wireframe responsive set, passing browser-matrix evidence with no unintended overlap, clipping, occlusion, or horizontal overflow, tolerance, and allowed deviations.
-- `wireframes.html` has human approval recorded in `ui-design.md`, and each `UI-*` page matches the PRD.
+- `wireframes.html` has internal Wireframe Validation recorded in `ui-design.md` for schema 5; unchanged legacy wireframes retain their historical approval. Each `UI-*` page matches the PRD.
 - Each UI surface has one main purpose, one task-fit layout pattern, a real route or explicit `n/a`, and a density reason.
 - Every visible region carries the complete sourced copy: exact static strings and action labels, complete dynamic source/order/format/count/length/fallback contracts with representative examples, alternate-state copy, content priority, ordered responsibilities, actions, states, responsive behavior, and trace IDs.
 - Public surfaces have bounded SEO fields, correct heading order, and image alt-text contracts.

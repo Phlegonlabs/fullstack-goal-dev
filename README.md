@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.55.0-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.55.1-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -24,6 +24,8 @@ Skills repository for turning a product idea or change request into a verified d
 It is not a prompt collection. The skill suite separates product definition, visual design, engineering execution, code-security review, activation, and post-release organic-growth review so each stage has one source of truth, a bounded handoff, and its own verification.
 
 > Define the product. Compile the design. Deliver verified software.
+
+Audit corrections align installed command paths, required CLI flags, the 500-line responsibility checkpoint, schema-5 Wireframe Validation and reviewer shell v3. Activation uses the exact release-surface profile; security PASS requires complete coverage. Product operations remain required manual review: current parsers do not enforce the PRD operations join. Current RUNs are local-only; publication and main promotion keep separate authorization.
 
 ## Unified design review
 
@@ -637,6 +639,8 @@ This repository is licensed under the MIT License — see [LICENSE](LICENSE).
 ## Version history
 
 Update this section with each release, as part of the version bump and tag described in Releasing above.
+
+- **0.55.1** — Correct audited skill instructions, prompts and command examples; retain historical approvals and compatibility pointers. Clarify manual product-operation review, container-only verifier reuse and optional motion skills. Includes macOS CI and SIP-protected signature-verifier fixes.
 
 - **0.55.0** — Fixes from a multi-agent review of all seven skills. Breaking changes and what consumers must do: re-run finalize and re-record Product Definition Approval and the Stack Decision Checkpoint, because their digests now cover the raw text including fenced code, indented lines and HTML comments; add a `Styling approach` row to Mobile/Desktop stacks; write Environment Status Checked values as RFC3339 with a timezone; give cleanup lifecycle nodes (`archive_worker_tasks`, `remove_worktrees`, `delete_branches`) an exact target in runs that require 0.55.0; complete Impeccable critique and audit before Visual Approval; name Wireframe Validation and Visual Approval in enhancement UI rows. Also isolates trusted-host and legacy pushes from repository hooks and askpass, keeps atomic RUN, DOCUMENTS and design-system commits on macOS, records each install's source commit and adds a macOS CI job. UI Design Builder also adds Motion and Three.js motion routes, a content-based motion proposal when the owner is silent, HiFi media embedding limits and captured references.
 

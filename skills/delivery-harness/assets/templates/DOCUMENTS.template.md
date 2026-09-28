@@ -42,5 +42,5 @@ Notes:
 - `PLAN.md` and `RUN.md` exist only for the managed route; small direct work creates none of the run documents.
 - `tasks.md` is a rendered view: never edit it to change state — change RUN and re-render; its Update Log section is the one hand-maintained part, preserved verbatim by the renderer.
 - The PRD family and the run family never mix: a run references its PRD only through the frozen content hash in PLAN's sources, nothing under `docs/product/` ever enters `docs/goal/archived/`, and the PRD stays published as the living reference for later enhancement runs.
-- Harness 0.38 archival also creates one immutable `ARCHIVE_ANCHOR` at the exact absolute path supplied outside the checkout. It is not a repository document; `ARCHIVE_RECEIPT.json` records its identity, and archive-candidate publication requires the same file.
+- Harness 0.38+ archival also creates one immutable `ARCHIVE_ANCHOR` at the exact absolute path supplied outside the checkout. It is not a repository document; `ARCHIVE_RECEIPT.json` records its identity, and archive-candidate publication requires the same file.
 - Evidence artifacts bind to exact SHAs with lowercase SHA-256 records; they are the only accepted proof for UI and verification gates.
