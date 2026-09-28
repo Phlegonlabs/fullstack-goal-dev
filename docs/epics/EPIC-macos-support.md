@@ -1,6 +1,6 @@
 # macOS Support
 
-Status: PR #129 open on `codex/macos-support`; not merged or released.
+Status: integrated into `codex/release-0.56.0`; release pending. PR #129 was superseded by PR #131.
 Design workflow: maintenance
 UI impact: none
 
@@ -48,3 +48,8 @@ Owner decision (2026-09-27): allow path launch only for SIP-protected files; kee
 - The macos job is blocking again and the READMEs state the macOS limits (`ci(harness): make the macos job blocking again`).
 
 Still fail-closed on macOS: sandboxed container verifiers and browser parity capture.
+
+### 2026-09-28 — 0.56.0 integration
+
+- `daac7206` on `codex/macos-support` was integrated into `codex/release-0.56.0` by merge `412db6b4`, together with the review follow-ups and Wireframe-stage removal. PR #131 carries the combined release; PR #129 remains historical review evidence.
+- At `7fa1e935`, PR #131's `validate`, `macos` and `windows-hardening` CI jobs passed. The release and exact-`main` verification remain pending.
