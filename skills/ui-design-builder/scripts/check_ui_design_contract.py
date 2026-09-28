@@ -3216,6 +3216,7 @@ def _validate_impl(
                                 pair_registry,
                                 require_filled=True,
                                 repo_root=root,
+                                apply_current_hifi_cutover=apply_current_hifi_cutover,
                             )
                             problems.extend(f"design-system pair: {item}" for item in pair_problems)
                             bindings = pair_registry.get("sourceBindings")
@@ -3314,8 +3315,8 @@ def validate(
     current HiFi evidence rules. Publication sets it unless the Approved target
     equals the one already recorded at HEAD. ``apply_current_hifi_cutover``
     also requires them when the approval or any HiFi receipt is dated on or
-    after the 0.55.0 cutover; publication, the compiler preflight and Harness
-    0.55.0+ UI joins set it.
+    after the 0.55.0 cutover; publication, the compiler preflight and the
+    Harness UI and pair joins for gated RUNs set it.
 
     Pair verification is deliberately not a caller-selectable boolean.  The
     only pair-less route is the exact compiler preflight below, which requires
@@ -3346,12 +3347,14 @@ def _validate_for_design_system_preflight(
     prd_path: Path,
     wireframes_path: Path,
     hifi_path: Path,
+    apply_current_hifi_cutover: bool = True,
 ) -> list[str]:
     """Validate an exact required-gate candidate immediately before compile.
 
     This is intentionally the sole internal pair-less entry point.  It is not
     exposed as a CLI switch and refuses to run without every upstream source
-    and the final visual gate. It applies the dated current-HiFi cutover rule.
+    and the final visual gate. It applies the dated current-HiFi cutover rule
+    unless a Harness join for an older RUN turns it off.
     """
 
     text = ui_design_path.read_text(encoding="utf-8")
@@ -3365,7 +3368,7 @@ def _validate_for_design_system_preflight(
         require_wireframe_approved=not is_structure_review(text),
         require_structure_validated=is_structure_review(text),
         require_visual_approved=True,
-        apply_current_hifi_cutover=True,
+        apply_current_hifi_cutover=apply_current_hifi_cutover,
         _allow_pending_design_system_pair=True,
     )
 

@@ -328,6 +328,7 @@ def compare_design_system_pair(
     registry: dict[str, Any],
     *,
     repo_root: str | Path | None = None,
+    apply_current_hifi_cutover: bool = True,
 ) -> list[str]:
     """Adapt legacy pair calls to the compiler's current schema-2 checker.
 
@@ -348,6 +349,7 @@ def compare_design_system_pair(
                 registry,
                 require_filled=True,
                 repo_root=Path(repo_root) if repo_root is not None else None,
+                apply_current_hifi_cutover=apply_current_hifi_cutover,
             )
         finally:
             try:

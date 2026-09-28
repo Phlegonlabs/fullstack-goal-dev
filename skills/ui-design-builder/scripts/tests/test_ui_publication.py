@@ -171,6 +171,11 @@ class PublicationTests(unittest.TestCase):
                 else:
                     self.assertIn("ui-design: ", "\n".join(problems))
                     assert_current_hifi_findings(self, problems, executed_at == POST_CUTOVER_RECEIPT)
+                    # A Harness join for an older RUN turns the dated rule off.
+                    self.assertEqual([], check_design_system_pair.compare(
+                        pair[0].read_text(encoding="utf-8"),
+                        json.loads(pair[1].read_text(encoding="utf-8")),
+                        require_filled=True, repo_root=root, apply_current_hifi_cutover=False))
 
     def test_current_hifi_cutover_boundaries(self):
         from datetime import datetime, timezone

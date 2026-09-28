@@ -1849,8 +1849,13 @@ def full_design_system_checker_errors_at_paths(
     *,
     repo_root: Path,
     sibling_scripts: Path | None = None,
+    apply_current_hifi_cutover: bool = False,
 ) -> list[str]:
-    """Run the compiler's canonical design-system pair checker on real files."""
+    """Run the compiler's canonical design-system pair checker on real files.
+
+    ``apply_current_hifi_cutover`` passes to the compiler's UI preflight, with
+    the same RUN version gate as the UI join.
+    """
 
     scripts = sibling_scripts or (
         Path(__file__).resolve().parents[2] / "design-system-compiler" / "scripts"
@@ -1881,6 +1886,7 @@ def full_design_system_checker_errors_at_paths(
             registry,
             require_filled=True,
             repo_root=repo_root,
+            apply_current_hifi_cutover=apply_current_hifi_cutover,
         )
     except Exception as exc:
         return [
@@ -2128,6 +2134,9 @@ def _validate_strict_frozen_contract_joins(
     else:
         if target.get("path") != target_row.get("location") or target.get("sha256") != target_row.get("content_sha256"):
             errors.append("plan.sources: approved UI target source does not match ui-design Approved target")
+    apply_cutover = version_at_least(
+        run_required_harness_version(run), CURRENT_HIFI_EVIDENCE_VERSION
+    )
     errors.extend(
         full_ui_design_checker_errors_at_paths(
             paths["ui-design"],
@@ -2137,9 +2146,7 @@ def _validate_strict_frozen_contract_joins(
             hifi_path=paths["approved-target"],
             design_system_markdown_path=paths.get("design-system.md"),
             design_system_registry_path=paths.get("design-system.json"),
-            apply_current_hifi_cutover=version_at_least(
-                run_required_harness_version(run), CURRENT_HIFI_EVIDENCE_VERSION
-            ),
+            apply_current_hifi_cutover=apply_cutover,
         )
     )
 
@@ -2158,7 +2165,10 @@ def _validate_strict_frozen_contract_joins(
         elif paths.get("design-system.md") and paths.get("design-system.json"):
             errors.extend(
                 full_design_system_checker_errors_at_paths(
-                    paths["design-system.md"], paths["design-system.json"], repo_root=root
+                    paths["design-system.md"],
+                    paths["design-system.json"],
+                    repo_root=root,
+                    apply_current_hifi_cutover=apply_cutover,
                 )
             )
             try:
@@ -2393,7 +2403,14 @@ def validate_frozen_contract_joins(
         else:
             try:
                 errors.extend(
-                    compare_design_system_pair(markdown_text, registry, repo_root=repo_root)
+                    compare_design_system_pair(
+                        markdown_text,
+                        registry,
+                        repo_root=repo_root,
+                        apply_current_hifi_cutover=version_at_least(
+                            required_version, CURRENT_HIFI_EVIDENCE_VERSION
+                        ),
+                    )
                 )
             except Exception as exc:
                 errors.append(
