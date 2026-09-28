@@ -923,12 +923,27 @@ class RecordIntegrationGuardTests(unittest.TestCase):
             self.record(integrated_sha=register_head)
         self.assertEqual(before, json.dumps(self.run, sort_keys=True))
 
-    def test_product_file_in_the_register_commit_is_refused(self) -> None:
+    def test_out_of_scope_file_in_the_register_commit_is_refused(self) -> None:
         self.plan["missions"][0]["write_scope"].extend(self.ACCEPTANCE_SCOPES)
         _, register_head = self._register_commit("src/b/two.py")
 
         with self.assertRaisesRegex(ManifestError, "src/b/two.py"):
             self.record(integrated_sha=register_head)
+
+    def test_in_scope_product_file_in_the_register_commit_is_left_to_the_gate(
+        self,
+    ) -> None:
+        # record-integration sees one range against the mission scope, so it
+        # cannot tell this file from the mission's own work. The acceptance
+        # gate refuses it: see test_delivery_acceptance.CandidateTreeTests.
+        self.plan["missions"][0]["write_scope"].extend(self.ACCEPTANCE_SCOPES)
+        _, register_head = self._register_commit("src/a/two.py")
+
+        self.record(integrated_sha=register_head)
+
+        self.assertEqual(
+            register_head, self.run["integration"]["integration_head_sha"]
+        )
 
 
 class CoordinationHeadGuardTests(unittest.TestCase):
