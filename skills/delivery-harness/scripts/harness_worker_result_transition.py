@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 from typing import Any
 
+from harness_contract import contract_adoption_check_evidence
 from harness_core import ManifestError, _normalized_branch, is_full_sha
 from harness_git import GitMetadataError, reject_object_substitution, run_git
 from harness_manifest import (
@@ -622,6 +623,9 @@ def _record_passing_result(
         evidence = dispatch.setdefault("evidence", [])
         _extend_unique(evidence, node_result.get("evidence_paths", []))
         _extend_unique(evidence, worker_result.get("evidence_paths", []))
+        _extend_unique(
+            evidence, contract_adoption_check_evidence(worker_result.get("contract_adoption_check"))
+        )
 
 
 def _record_nonpassing_result(

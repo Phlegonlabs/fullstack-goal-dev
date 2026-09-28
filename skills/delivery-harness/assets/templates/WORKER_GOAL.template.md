@@ -48,7 +48,7 @@ Repair context (omit for an initial implementation):
 ## Launch
 
 1. Enter the assigned worktree. Read the ordered repository context and only the named skills. Keep automatic context discovery enabled.
-2. With a contract-adoption receipt, independently recompute the seven-skill contract digest and stop on a mismatch. Read the fixed contract and report that reading in the result.
+2. With a contract-adoption receipt, independently recompute the seven-skill contract digest and stop on a mismatch. Read the fixed contract and report it as `contract_adoption_check`.
 3. Treat this handoff as the complete task; do not reconstruct the parent conversation. Open PLAN/RUN only for a named field the packet cannot supply.
 4. Verify repository, branch/ref, base SHA, clean starting state, plan digest, lease, scope, resources, permission boundary, and authorizations. Stop on a missing, stale, or contradictory value.
 5. Apply only the matching host contract; never borrow another host's model, role, context, or launch mechanics.
