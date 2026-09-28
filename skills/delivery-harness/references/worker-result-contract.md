@@ -150,6 +150,7 @@ When the directive or review packet carries `contract_adoption`, the worker or r
 - `reading_evidence` is the child's own reading. Copying the parent receipt's list is rejected.
 - RUNs that require Harness 0.55.1 or later must include it for every passing worker result and every non-`blocked` review. Older RUNs may omit it. It is rejected when the RUN has no adopted contract.
 - The recording transitions keep the digest and reading lines in the attempt log.
+- The check is the child's attestation that it recomputed the digest. The transitions compare it with the adopted digest only; `select_ready_nodes.py` compares the installed bundle with that digest at dispatch.
 
 ## Refinement Request
 
