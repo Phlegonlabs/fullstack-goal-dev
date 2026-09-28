@@ -610,7 +610,7 @@ The READMEs are documentation-of-record: every change that adds or alters a skil
 
 ## Releasing
 
-Windows CI stops after any failed Python suite. Test fixtures resolve temporary paths before binding executable or repository identities, including Windows 8.3 aliases. A macOS job runs the same Python suites as the Linux job; browser tests run only on Linux. The macOS job does not block yet, because Harness does not support macOS (Homebrew Git path, `/var` symlink temp roots, `/dev/fd`).
+Windows CI stops after any failed Python suite. Test fixtures resolve temporary paths before binding executable or repository identities, including Windows 8.3 aliases. A macOS job runs the same Python suites as the Linux job; browser tests run only on Linux. On macOS, sandboxed container verifiers and browser parity capture fail closed, because macOS cannot execute a bound file descriptor. Trusted-host signature verification runs there only with the SIP-protected `/usr/bin/ssh-keygen`.
 
 Byte-bound HiFi examples retain LF line endings across checkouts. Wireframe Node tests read multiline scripts from stdin so Windows launchers cannot silently truncate assertions.
 

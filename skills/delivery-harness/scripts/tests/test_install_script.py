@@ -165,8 +165,8 @@ class InstallScriptTests(unittest.TestCase):
         )
         job = workflow.split("\n  macos:\n", 1)[1].split("\n  windows-hardening:\n", 1)[0]
         self.assertIn("runs-on: macos-latest", job)
-        # Non-blocking until Harness supports macOS.
-        self.assertIn("continue-on-error: true", job)
+        # macOS is supported, so its job blocks like the others.
+        self.assertNotIn("continue-on-error", job)
         # Apple's root-owned Git must win over Homebrew's before Python setup.
         prefer_git = 'echo "/usr/bin" >> "$GITHUB_PATH"'
         self.assertIn(prefer_git, job)
