@@ -244,14 +244,27 @@ def _documents_exchange_commit(
         try:
             displaced_identity, displaced_bytes = _path_identity_and_bytes(displaced)
             if displaced_identity != expected_identity or displaced_bytes != expected_bytes:
+                # Move retained bytes off the temp name: the caller's cleanup deletes it.
+                recovery = documents.parent / f".{documents.name}.{secrets.token_hex(8)}.recovery"
                 current = _documents_version(root, documents)
                 if current is not None and current[1] == _sha256_bytes(payload):
                     _posix_rename_exchange(parent_fd, temporary_name, documents.name)
                     restored_identity, restored_bytes = _path_identity_and_bytes(documents)
-                    if restored_identity != expected_identity or restored_bytes != expected_bytes:
-                        raise OSError("DOCUMENTS restore verification failed; recovery artifacts retained")
+                    if restored_identity != displaced_identity or restored_bytes != displaced_bytes:
+                        os.rename(temporary_name, recovery.name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
+                        raise OSError(
+                            f"DOCUMENTS restore verification failed; recovery artifacts retained at {recovery}"
+                        )
                     os.unlink(temporary_name, dir_fd=parent_fd)
-                raise OSError("DOCUMENTS displaced bytes changed at atomic exchange; concurrent bytes preserved")
+                    raise OSError(
+                        "DOCUMENTS displaced bytes changed at atomic exchange; "
+                        f"concurrent bytes preserved at {documents}"
+                    )
+                os.rename(temporary_name, recovery.name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
+                raise OSError(
+                    "DOCUMENTS displaced bytes changed at atomic exchange; "
+                    f"concurrent bytes preserved at {recovery}"
+                )
             identity = _safe_documents_identity(root, documents)
             if identity is None:
                 raise OSError("DOCUMENTS disappeared after atomic exchange")
@@ -271,10 +284,19 @@ def _documents_exchange_commit(
                 rollback_backup = documents.parent / f".{documents.name}.{secrets.token_hex(8)}.rollback"
                 _windows_replace_file(documents, backup, rollback_backup)
                 restored_identity, restored_bytes = _path_identity_and_bytes(documents)
-                if restored_identity != expected_identity or restored_bytes != expected_bytes:
-                    raise OSError("DOCUMENTS restore verification failed; recovery artifacts retained")
+                if restored_identity != displaced_identity or restored_bytes != displaced_bytes:
+                    raise OSError(
+                        f"DOCUMENTS restore verification failed; recovery artifacts retained at {rollback_backup}"
+                    )
                 rollback_backup.unlink(missing_ok=True)
-            raise OSError("DOCUMENTS displaced bytes changed at atomic replacement; concurrent bytes preserved")
+                raise OSError(
+                    "DOCUMENTS displaced bytes changed at atomic replacement; "
+                    f"concurrent bytes preserved at {documents}"
+                )
+            raise OSError(
+                "DOCUMENTS displaced bytes changed at atomic replacement; "
+                f"concurrent bytes preserved at {backup}"
+            )
         identity = _safe_documents_identity(root, documents)
         if identity is None:
             raise OSError("DOCUMENTS disappeared after atomic replacement")
