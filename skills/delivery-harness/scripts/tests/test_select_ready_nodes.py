@@ -7,6 +7,7 @@ import copy
 import json
 import sys
 import unittest
+from argparse import Namespace
 from pathlib import Path
 from unittest.mock import patch
 
@@ -18,6 +19,8 @@ if str(TESTS_DIR) not in sys.path:
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
+import harness_transition  # noqa: E402
+from harness_core import ManifestError  # noqa: E402
 from harness_manifest import (  # noqa: E402
 
     load_run,
@@ -2255,6 +2258,93 @@ class SelectReadyNodesTests(unittest.TestCase):
             {"N-M1", "N-M2"},
             {item["node_id"] for item in result["dispatchable_nodes"]},
         )
+
+    def test_wildcard_mission_scope_selection_agrees_with_lease(self) -> None:
+        # From 0.55.1 the selector offers a mission launch only when
+        # lease-worker can record receipts that validate_run accepts.
+        message = (
+            "run.authorizations.spawn_subagents: must exactly authorize M1 "
+            "target worker:W-SEL"
+        )
+        cases = (
+            ("0.55.0", "spawn_subagents", ["*"], True),
+            ("0.55.1", "spawn_subagents", ["*"], False),
+            ("0.55.1", "create_local_worktrees", ["*"], False),
+            ("0.55.1", "spawn_subagents", None, True),
+        )
+        for version, action, mission_scope, dispatchable in cases:
+            with self.subTest(version=version, action=action, mission_scope=mission_scope):
+                plan, run = self._authorized_conflict_free_pair()
+                if mission_scope is not None:
+                    run["authorizations"][action]["scope"][
+                        "mission_ids"
+                    ] = mission_scope
+                version_gate = run["runtime_capabilities"]["runtime_adapter"][
+                    "version_gate"
+                ]
+                version_gate["harness_version"] = version
+                version_gate["required_harness_version"] = version
+                selection = select_ready_nodes(
+                    plan, run, manifest_already_validated=True
+                )
+                listed = [item["node_id"] for item in selection["dispatchable_nodes"]]
+                deferred = {
+                    item["node_id"]: item["reason_codes"]
+                    for item in selection["deferred_nodes"]
+                }
+                run["control"]["desired_state"] = "running"
+                run["active_wave"].update(
+                    {
+                        "wave_id": "W-SEL",
+                        "status": "active",
+                        "batch_base_sha": "a" * 40,
+                        "selected_missions": ["M1"],
+                    }
+                )
+                run["integration"]["batch_base_sha"] = "a" * 40
+                lease = lambda: harness_transition._lease_worker(  # noqa: E731
+                    plan,
+                    run,
+                    Namespace(
+                        mission_id="M1",
+                        node_id="N-M1",
+                        worker_id="W-SEL",
+                        lease_id="L-SEL",
+                        attempt_id="ATT-SEL",
+                        branch_ref="refs/heads/codex/m1-sel",
+                        worktree_path="C:/tmp/m1-sel",
+                        provider=None,
+                        driver=None,
+                        worker_runtime=None,
+                        workspace_mode=None,
+                        completion_channel=None,
+                        task_thread_id=None,
+                        report_path=None,
+                    ),
+                )
+                if dispatchable:
+                    self.assertIn("N-M1", listed)
+                    lease()
+                    errors = validate_run(plan, run)
+                    # 0.55.0 keeps its prior behavior: the lease succeeds and
+                    # validation then rejects the "*" mission receipt.
+                    if mission_scope is None:
+                        self.assertNotIn(message, errors)
+                    else:
+                        self.assertIn(message, errors)
+                else:
+                    self.assertNotIn("N-M1", listed)
+                    self.assertIn("action_not_authorized", deferred["N-M1"])
+                    targets = run["authorizations"]["spawn_subagents"]["scope"][
+                        "targets"
+                    ]
+                    with self.assertRaisesRegex(
+                        ManifestError, rf"{action} grant has mission_ids '\*'"
+                    ):
+                        lease()
+                    # The refused lease records no receipt in any grant.
+                    self.assertEqual(["*"], targets)
+                    self.assertEqual([], run["workers"])
 
     def test_effective_write_budget_one_selects_one_managed_directive(self) -> None:
         plan, run = self._authorized_conflict_free_pair()

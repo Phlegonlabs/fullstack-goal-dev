@@ -1832,6 +1832,9 @@ UI_IMPACT_SUMMARY_REQUIRED_VERSION = (0, 35, 0)
 # Exact-receipt rules added in 0.55.0 (reviewer spawn receipt, exact cleanup
 # PASS target, cleanup lifecycle node target). Older RUNs keep their shape.
 EXACT_RECEIPT_REQUIRED_VERSION = (0, 55, 0)
+# From 0.55.1 the selector and lease-worker refuse a mission launch grant
+# whose mission_ids contain "*"; validate_run needs exact mission ids.
+EXACT_MISSION_SCOPE_VERSION = (0, 55, 1)
 UI_IMPACT_SUMMARY_ROW_KEYS = {"mission_id", "impact"}
 
 

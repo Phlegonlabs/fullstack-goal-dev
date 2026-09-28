@@ -14,6 +14,7 @@ from typing import Any
 from harness_contract import contract_digest
 from harness_core import _nonempty_string, _normalized_branch, classify_execution_route
 from harness_manifest import (
+    EXACT_MISSION_SCOPE_VERSION,
     EXACT_RECEIPT_REQUIRED_VERSION,
     ManifestError,
     UI_AUTHORING_REQUIRED_SKILLS,
@@ -1157,26 +1158,37 @@ def _dispatch_reasons(
                 for mission_id in authorization_missions
             ):
                 reasons.add("action_not_authorized")
-            # From 0.55.0 a subagent reviewer needs an exact worker:<id>
-            # receipt, which validate_run checks against exact mission ids,
-            # as it does for mission workers. A "*" mission scope cannot
-            # produce that receipt, so do not offer the reservation.
-            spawn_scope = (
-                run.get("authorizations", {}).get("spawn_subagents") or {}
+            # validate_run checks each launch receipt (worker:, task:,
+            # worktree:, branch:) against exact mission ids. A "*" mission
+            # scope cannot produce a valid receipt, so do not offer the
+            # launch: from 0.55.0 for a subagent reviewer, and from 0.55.1
+            # for a mission worker. Older RUNs keep their prior selection.
+            action_scope = (
+                run.get("authorizations", {}).get(action) or {}
             ).get("scope")
-            spawn_missions = (
-                spawn_scope.get("mission_ids") if isinstance(spawn_scope, dict) else None
+            action_missions = (
+                action_scope.get("mission_ids") if isinstance(action_scope, dict) else None
             )
+            required_version = run_required_harness_version(run)
             if (
-                node["kind"] == "verifier"
-                and action == "spawn_subagents"
-                and run["schema_version"] == 11
-                and version_at_least(
-                    run_required_harness_version(run),
-                    EXACT_RECEIPT_REQUIRED_VERSION,
+                run["schema_version"] == 11
+                and isinstance(action_missions, list)
+                and "*" in action_missions
+                and (
+                    (
+                        node["kind"] == "verifier"
+                        and action == "spawn_subagents"
+                        and version_at_least(
+                            required_version, EXACT_RECEIPT_REQUIRED_VERSION
+                        )
+                    )
+                    or (
+                        node["kind"] == "mission"
+                        and version_at_least(
+                            required_version, EXACT_MISSION_SCOPE_VERSION
+                        )
+                    )
                 )
-                and isinstance(spawn_missions, list)
-                and "*" in spawn_missions
             ):
                 reasons.add("action_not_authorized")
     if node["kind"] == "lifecycle":
