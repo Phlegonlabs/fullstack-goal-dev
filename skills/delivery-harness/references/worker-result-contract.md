@@ -148,7 +148,7 @@ When the directive or review packet carries `contract_adoption`, the worker or r
 - `digest` must equal the RUN's `contract_adoption.contract_digest_sha256`, and `matched` must be `true`.
 - On a mismatch, stop and keep the digest you saw. A reviewer returns `blocked` with `matched: false` and that digest (`reading_evidence` may be empty); the attempt log keeps `contract_adoption_mismatch:<digest>`. A worker, or a graph reviewer, returns a `blocked` node result and lists `contract_adoption_mismatch:<digest>` in `evidence_paths`.
 - `reading_evidence` is the child's own reading. Copying the parent receipt's list is rejected.
-- RUNs that require Harness 0.55.1 or later must include it for every passing worker result and every non-`blocked` review. Older RUNs may omit it. It is rejected when the RUN has no adopted contract.
+- RUNs that require Harness 0.55.1 or later must include it for every passing worker result and every `pass` or `fix_required` review. A `blocked`, `retryable_failure`, or `contract_gap` review may omit it, because the parent can record those without child output; a supplied check is still validated. Older RUNs may omit it. It is rejected when the RUN has no adopted contract.
 - The recording transitions keep the digest and reading lines in the attempt log.
 - The check is the child's attestation that it recomputed the digest. The transitions compare it with the adopted digest only; `select_ready_nodes.py` compares the installed bundle with that digest at dispatch.
 
