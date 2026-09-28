@@ -183,7 +183,7 @@ def deployment_record(architecture: str, sha: str, artifact: str) -> str:
     text = GOOD_DEPLOYMENT.replace(unit_row, updated_unit_row, 1)
     text = text.replace(
         "| production | | | | | |",
-        f"| production | https://example.com | {sha} | {sha} | 2026-09-07 | PASS |",
+        f"| production | https://example.com | {sha} | {sha} | 2026-09-07T18:04:00Z | PASS |",
         1,
     )
     text += """

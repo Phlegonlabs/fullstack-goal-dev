@@ -64,13 +64,15 @@ def release_area_requirements(targets: Iterable[object]) -> set[str]:
 
 
 def _without_machine_block(text: str, start: str, end: str) -> str:
-    cleaned = re.sub(
+    # Hash the raw text, including fences, indented lines and HTML comments.
+    # Only the self-referential marker block is removed. CRLF becomes LF so a
+    # checkout's line-ending setting does not change the digest.
+    return re.sub(
         rf"(?ms)^\s*{re.escape(start)}\s*\n.*?^\s*{re.escape(end)}\s*\n?",
         "",
-        text,
+        text.replace("\r\n", "\n"),
         count=1,
     )
-    return active_text(cleaned)
 
 
 def canonical_stack_bytes(stack_text: str) -> str:
@@ -89,7 +91,7 @@ def canonical_product_bytes(prd_text: str, architecture_text: str, stack_text: s
         "<!-- product-definition-approval:start -->",
         "<!-- product-definition-approval:end -->",
     ).strip()
-    architecture = active_text(architecture_text).strip()
+    architecture = architecture_text.replace("\r\n", "\n").strip()
     stack = canonical_stack_bytes(stack_text).strip()
     payload = {"architecture": architecture, "prd": prd, "stack": stack}
     return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")

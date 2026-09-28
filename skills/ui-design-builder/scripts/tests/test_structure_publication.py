@@ -163,6 +163,87 @@ class StructurePublicationTests(unittest.TestCase):
                 hifi_path=hifi, require_structure_validated=True, require_visual_approved=True)
             self.assertIn("Frontend Design source snapshot", "\n".join(findings))
 
+    def test_wireframe_check_follows_release_class_not_responsive_kind(self):
+        data = {"sizeClasses": ["compact", "regular"],
+                "screens": [{"id": "UI-001", "states": [{"id": "ready"}]}]}
+        for classes, check, tools in (({"macos"}, "wireframe-desktop", {"desktop-browser"}),
+                                      ({"windows"}, "wireframe-desktop", {"desktop-browser"}),
+                                      ({"ios"}, "wireframe-native", {"xcode-simulator", "android-emulator"}),
+                                      ({"browser_extension"}, "wireframe-extension", {"playwright-extension"})):
+            mode, matrix = checker._wireframe_evidence_contract(data, classes)
+            self.assertEqual(check, checker._evidence_check("Responsive surface check", mode), classes)
+            self.assertEqual(tools, checker._receipt_contract(check)[0], classes)
+            self.assertEqual([{"surface": "UI-001", "state": "ready", "target": "compact"},
+                              {"surface": "UI-001", "state": "ready", "target": "regular"}], matrix["cases"])
+
+    def test_wireframe_receipts_use_one_contract_at_both_gates(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ui, prd, wf, hifi = modern_publication(root)
+
+            def wireframe_calls(release_classes=None, **gates):
+                with patch.object(checker, "_resolve_evidence", wraps=checker._resolve_evidence) as resolved:
+                    if release_classes is None:
+                        findings = checker.validate(ui, repo_root=root, prd_path=prd, wireframes_path=wf,
+                                                    hifi_path=hifi, require_structure_validated=True, **gates)
+                    else:
+                        with patch.object(checker, "_release_classes", return_value=release_classes):
+                            findings = checker.validate(ui, repo_root=root, prd_path=prd, wireframes_path=wf,
+                                                        hifi_path=hifi, require_structure_validated=True, **gates)
+                return findings, [(call.kwargs["expected_check"], call.kwargs["expected_matrix"])
+                                  for call in resolved.call_args_list
+                                  if call.kwargs["expected_artifact"] == "docs/design/wireframes.html"]
+
+            structure_findings, structure = wireframe_calls()
+            visual_findings, visual = wireframe_calls(require_visual_approved=True)
+            self.assertEqual([], structure_findings)
+            self.assertEqual([], visual_findings)
+            self.assertEqual(2, len(structure))
+            self.assertEqual(structure, visual)
+            _, extension_structure = wireframe_calls({"browser_extension"})
+            _, extension_visual = wireframe_calls({"browser_extension"}, require_visual_approved=True)
+            self.assertEqual(["wireframe-extension", "wireframe-extension-grading"],
+                             [check for check, _ in extension_structure])
+            self.assertEqual(extension_structure, extension_visual)
+
+    def test_visual_approval_cannot_predate_hifi_evidence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ui, prd, wf, hifi = modern_publication(root)
+            original = ui.read_text(encoding="utf-8")
+            start = original.index("## Visual Approval")
+            for decided, rejected in (("2019-12-01", True), ("2019-12-31", False)):
+                text = original[:start] + re.sub(r"^Decided on: .*$", "Decided on: " + decided,
+                                                 original[start:], count=1, flags=re.M)
+                text = re.sub(r"ui-design=docs/design/ui-design.md @ sha256:[0-9a-f]{64}",
+                              "ui-design=docs/design/ui-design.md @ sha256:" + checker.canonical_ui_approval_sha256(text), text)
+                ui.write_text(text, encoding="utf-8")
+                findings = "\n".join(checker.validate(ui, repo_root=root, prd_path=prd, wireframes_path=wf,
+                    hifi_path=hifi, require_structure_validated=True, require_visual_approved=True))
+                self.assertEqual(rejected, "predates the newest HiFi review evidence" in findings, findings)
+                if not rejected:
+                    self.assertEqual("", findings)
+
+    def test_historical_legacy_approval_is_not_dated_against_its_receipts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            prd, _, _, wf, hifi, _ = materialize_publication(root, required=False)
+            ui = root / "docs/design/ui-design.md"
+            original = ui.read_text(encoding="utf-8")
+            start = original.index("## Visual Approval")
+            text = original[:start] + re.sub(r"^Decided on: .*$", "Decided on: 2019-12-01",
+                                             original[start:], count=1, flags=re.M)
+            text = text.replace(checker.canonical_ui_approval_sha256(original),
+                                checker.canonical_ui_approval_sha256(text))
+            ui.write_text(text, encoding="utf-8")
+            for current, rejected in ((False, False), (True, True)):
+                findings = "\n".join(checker.validate(ui, repo_root=root, prd_path=prd, wireframes_path=wf,
+                    hifi_path=hifi, require_filled=True, require_wireframe_approved=True,
+                    require_visual_approved=True, require_current_hifi_evidence=current))
+                self.assertEqual(rejected, "predates the newest HiFi review evidence" in findings, findings)
+                if not current:
+                    self.assertEqual("", findings)
+
     def test_every_machine_receipt_binds_current_product_inputs(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

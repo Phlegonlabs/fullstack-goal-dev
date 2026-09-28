@@ -11,9 +11,10 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import types
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from PIL import Image
 
@@ -393,6 +394,20 @@ class ArchiveRunTests(unittest.TestCase):
                     expected_bytes=original,
                 )
         self.assertEqual(concurrent, documents.read_bytes())
+
+    def test_posix_rename_exchange_uses_linux_or_macos_primitive(self) -> None:
+        for symbol in ("renameat2", "renameatx_np"):
+            with self.subTest(symbol=symbol):
+                primitive = Mock(return_value=0)
+                libc = types.SimpleNamespace(**{symbol: primitive})
+                with patch("ctypes.CDLL", return_value=libc), patch.object(os, "name", "posix"):
+                    archive_run._posix_rename_exchange(7, "left", "right")
+                primitive.assert_called_once_with(7, b"left", 7, b"right", 0x2)
+
+    def test_posix_rename_exchange_fails_closed_without_exchange_primitive(self) -> None:
+        with patch("ctypes.CDLL", return_value=types.SimpleNamespace()), patch.object(os, "name", "posix"):
+            with self.assertRaisesRegex(OSError, "renameat2.*renameatx_np.*refusing"):
+                archive_run._posix_rename_exchange(7, "left", "right")
 
     def test_empty_optional_evidence_directory_is_skipped(self) -> None:
         empty = self.goal / "evidence"

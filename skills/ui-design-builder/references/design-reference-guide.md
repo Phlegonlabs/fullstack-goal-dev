@@ -14,6 +14,12 @@ Link supplied or inspected sources to the existing Design Brief with what the ow
 
 For a new visual scope, or a revised one without supplied references, inspect a few current public pages that match the product's task and platform—not a generic color collection. Curated candidate directories include [Astro themes](https://astro.build/themes/), [Tailwind Plus UI blocks](https://tailwindcss.com/plus/ui-blocks/marketing) (paid reuse—verify the license), [application UI blocks](https://tailwindcss.com/plus/ui-blocks/application-ui), [Codrops](https://tympanus.net/codrops/), [Uiverse](https://uiverse.io/), and [Open Props](https://open-props.style/). A directory entry is not evidence by itself: inspect the actual page and relevant desktop/mobile state before recording it. Record every inspected source as `REF-*` and its proposed `Adopt | Adapt | Avoid` rule as `RP-*`; never install a template or dependency without the approved stack's explicit component/source decision and license review.
 
+For motion or 3D lessons, also look at [Motion examples](https://motion.dev/examples) (Motion+ entries are paid), the [GSAP showcase](https://gsap.com/showcase/) and [three.js examples](https://threejs.org/examples/). Use only the ones that match an approved route.
+
+Keep what was inspected, not only a description of it. Save a screenshot, or a short screen recording for a motion lesson, of each confirmed `REF-*` under `docs/design/directions/<round>/references/`, and add its path and SHA-256 to the record. A source that cannot be captured keeps its written record with the limitation stated.
+
+Adapting a template's markup, CSS or animation code into HiFi is allowed when its license permits it and the code fits the approved stack. Record the source URL, license and what was changed in the `RP-*` principle. Paid or unclear licenses need the owner's decision before any code is copied.
+
 Research composition, typography, spacing, information density, responsive behavior, and control treatment. Two references may support one clear direction. If the owner is uncertain or explicitly asks to compare, use the existing three-distinct-directions gate; changing only an accent color is not a distinct direction. A structural finding returns to wireframe review. Cosmetic direction work belongs after Wireframe Validation.
 
 For each useful reference, record whole-template adaptation, selected-component reuse or custom implementation in the RP principle, with stack compatibility, license/cost and maintenance implications. A reference never selects Tailwind or a component library by implication. On native surfaces, inspect platform-native patterns and official guidance instead of treating Web CSS examples as native components. If browsing is declined, unavailable or unsafe for confidential inputs, record the limitation and use inspectable supplied/local references; never invent a source or claim visual inspection from search snippets.
@@ -28,6 +34,7 @@ Source: [URL, file, screenshot, Figma view, or named product]
 Publisher / owner: [name]
 Retrieved or supplied: [YYYY-MM-DD]
 Inspected scope: [page, region, state, or mechanic]
+Capture: [repo-relative path @ sha256:<hash> | not captured — reason]
 Visible evidence: [what was actually observed]
 Authority: design inspiration | page-faithful target
 ```

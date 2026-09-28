@@ -143,7 +143,7 @@ class ReferenceLibraryTests(unittest.TestCase):
             "Only visual and motion decisions within the approved stack belong here",
             "`frontend-design` remains mandatory",
             "Taste/GPT Taste stays optional",
-            "CSS/WAAPI and GSAP routes",
+            "CSS/WAAPI, Motion, GSAP and Three.js routes",
         ):
             self.assertIn(phrase, ui)
 

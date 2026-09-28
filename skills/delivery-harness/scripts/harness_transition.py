@@ -13,6 +13,7 @@ import copy
 import hashlib
 import json
 import os
+import re
 import secrets
 import subprocess
 import sys
@@ -34,6 +35,7 @@ from harness_core import (
     path_in_scopes,
     validate_changed_path,
 )
+from harness_contract import contract_digest
 from harness_git import GitMetadataError, reject_object_substitution, run_git
 from harness_manifest import (
     _verifier_owners,
@@ -47,8 +49,10 @@ from harness_manifest import (
     mission_has_ui_authoring_action,
     validate_current_plan_run,
 )
-from harness_schema import RUN_DISPATCH_STATUSES, RUN_HEADING
-from harness_schema import archive_first_required, required_harness_version
+from harness_schema import EXACT_TARGET_LIFECYCLE_ACTIONS, RUN_DISPATCH_STATUSES, RUN_HEADING
+from harness_schema import archive_first_required, parse_harness_version, required_harness_version
+from harness_schema import version_at_least
+from harness_schema import frozen_coordination_path, supported_coordination_path
 from push_integration_branch import (
     make_push_request,
     validate_push_receipt,
@@ -133,6 +137,116 @@ def _candidate_changed_paths(root: Path, base_sha: str, head_sha: str) -> list[s
     return sorted(set(paths))
 
 
+def _coordination_commit_changes(
+    root: Path, base_sha: str, head_sha: str
+) -> list[tuple[str, str]]:
+    """Return literal path/status pairs for one coordination bookkeeping commit."""
+
+    try:
+        reject_object_substitution(root)
+        result = run_git(
+            root,
+            "diff",
+            "--name-status",
+            "-z",
+            "--no-renames",
+            f"{base_sha}..{head_sha}",
+            text=False,
+        )
+    except GitMetadataError as exc:
+        raise ManifestError(str(exc)) from exc
+    if result.returncode != 0:
+        raise ManifestError("cannot observe coordination commit paths from Git")
+    try:
+        output = result.stdout.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ManifestError("coordination commit paths are not valid UTF-8") from exc
+    fields = output.split("\0")
+    if fields[-1:] == [""]:
+        fields.pop()
+    if not fields or len(fields) % 2:
+        raise ManifestError("coordination commit path observation is malformed")
+    changes: list[tuple[str, str]] = []
+    for index in range(0, len(fields), 2):
+        status, path = fields[index], fields[index + 1]
+        reason = validate_changed_path(path)
+        if reason:
+            raise ManifestError(f"coordination commit path {path!r} {reason}")
+        changes.append((status, path))
+    return changes
+
+
+def _git_entry_mode(root: Path, commit_sha: str, path: str) -> str | None:
+    output = _git_out(root, "ls-tree", commit_sha, "--", path).strip()
+    if not output:
+        return None
+    entry = output.split("\0", 1)[0].split(" ", 1)[0]
+    return entry if entry else None
+
+
+def _require_regular_coordination_entries(
+    root: Path, old_head: str, new_head: str, paths: set[str]
+) -> None:
+    for path in sorted(paths):
+        old_mode = _git_entry_mode(root, old_head, path)
+        new_mode = _git_entry_mode(root, new_head, path)
+        if old_mode is not None and new_mode is not None and old_mode != new_mode:
+            raise ManifestError(
+                f"coordination entry {path!r} changed Git mode or type"
+            )
+        if new_mode != "100644":
+            raise ManifestError(
+                f"coordination entry {path!r} must be a regular file in the checkpoint"
+            )
+
+
+def _require_generated_task_views(
+    root: Path, run: dict[str, Any], paths: set[str]
+) -> None:
+    from render_tasks_view import GENERATED_MARKER
+
+    expected_identity = f"Human view of run `{run.get('run_id')}` "
+    for path in sorted(paths):
+        if not path.endswith("/tasks.md") and path != "docs/tasks.md":
+            continue
+        try:
+            content = (root / Path(path)).read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as exc:
+            raise ManifestError(f"generated tasks view {path!r} is unreadable") from exc
+        if GENERATED_MARKER not in content or expected_identity not in content:
+            raise ManifestError(
+                f"tasks view {path!r} lacks this RUN's generated identity"
+            )
+
+
+def _require_observed_plan_identity(
+    plan: dict[str, Any], run: dict[str, Any], operation: str
+) -> None:
+    expected_revision = plan.get("revision")
+    expected_digest = plan_digest(plan)
+    run_plan = run.get("plan")
+    if not isinstance(run_plan, dict) or (
+        run_plan.get("id") != plan.get("plan_id")
+        or run_plan.get("revision") != expected_revision
+        or run_plan.get("digest_sha256") != expected_digest
+    ):
+        raise ManifestError(f"{operation} requires RUN and live PLAN identities to match")
+
+    observed = run.get("observed")
+    if not isinstance(observed, dict) or not _nonempty_string(observed.get("captured_at")):
+        raise ManifestError(f"{operation} requires a fresh parent observation")
+    for field in ("sandbox", "host_runtime"):
+        snapshot = observed.get(field)
+        if (
+            not isinstance(snapshot, dict)
+            or snapshot.get("plan_revision") != expected_revision
+            or snapshot.get("plan_digest_sha256") != expected_digest
+        ):
+            raise ManifestError(
+                f"{operation} requires a fresh observation for the live PLAN revision"
+            )
+
+
 def _candidate_allowed_scopes(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
     scopes: list[str] = []
     for mission in plan.get("missions", []):
@@ -179,6 +293,7 @@ DEFAULT_LOCK_STALE_MINUTES = 15
 # Dispatching the write path is single-writer work: these commands require
 # the calling session to already hold the run lock.
 DISPATCH_COMMANDS = {
+    "adopt-runtime-contract",
     "accept-wave",
     "lease-worker",
     "record-worker-result",
@@ -187,6 +302,7 @@ DISPATCH_COMMANDS = {
     "bind-review-task-thread",
     "record-integration",
     "reconcile-candidate-head",
+    "reconcile-coordination-head",
     "close-wave",
     "reserve-node-attempt",
     "record-node-result",
@@ -197,6 +313,7 @@ TASK_VIEW_CHECKPOINTS = {
     "reject-worker-result",
     "record-integration",
     "reconcile-candidate-head",
+    "reconcile-coordination-head",
     "reconcile-interrupted",
     "reconcile-interrupted-reviews",
     "close-wave",
@@ -849,6 +966,142 @@ def _record_observation(
                 evidence.strip(),
             ],
         })
+
+
+def _adopt_runtime_contract(
+    plan: dict[str, Any], run: dict[str, Any], args: argparse.Namespace
+) -> None:
+    """Record an owner-authorized fixed-contract re-read at a quiet boundary."""
+
+    if plan.get("schema_version") != 6 or run.get("schema_version") != 11:
+        raise ManifestError("runtime-contract adoption requires PLAN v6 with RUN v11")
+    control = run.get("control")
+    desired_state = control.get("desired_state") if isinstance(control, dict) else None
+    if run.get("status") == "complete" or desired_state == "cancelled":
+        raise ManifestError(
+            "runtime-contract adoption refuses a complete or cancelled run"
+        )
+
+    wave = run.get("active_wave")
+    if isinstance(wave, dict) and wave.get("status") in {"proposed", "active"}:
+        raise ManifestError(
+            "runtime-contract adoption refuses an active or proposed wave"
+        )
+    live_workers = sorted(
+        str(worker.get("worker_id"))
+        for worker in [*run.get("workers", []), *run.get("review_workers", [])]
+        if isinstance(worker, dict)
+        and worker.get("phase") in {"leased", "worker_running"}
+    )
+    running_nodes = sorted(
+        str(node_id)
+        for node_id, state in run.get("graph_state", {}).get("node_states", {}).items()
+        if isinstance(state, dict) and state.get("phase") == "running"
+    )
+    reserved_attempts = sorted(
+        str(attempt.get("attempt_id"))
+        for attempt in run.get("attempt_log", [])
+        if isinstance(attempt, dict)
+        and attempt.get("kind") == "node_attempt"
+        and attempt.get("result") == "reserved"
+    )
+    active_work = [*live_workers, *running_nodes, *reserved_attempts]
+    if active_work:
+        raise ManifestError(
+            "runtime-contract adoption requires a quiescent run; reconcile first: "
+            + ", ".join(active_work)
+        )
+
+    adapter = run.get("runtime_capabilities", {}).get("runtime_adapter")
+    gate = adapter.get("version_gate") if isinstance(adapter, dict) else None
+    if not isinstance(gate, dict):
+        raise ManifestError("RUN has no runtime version gate")
+    if gate.get("loaded_contract_digest") is not None:
+        raise ManifestError(
+            "runtime-contract adoption applies only when loaded identity is unknown"
+        )
+    if gate.get("status") not in {"unobserved", "adopted"}:
+        raise ManifestError(
+            f"runtime version status {gate.get('status')!r} cannot be replaced by adoption"
+        )
+    harness_version = (
+        Path(__file__).resolve().parent.parent / "VERSION"
+    ).read_text(encoding="utf-8").strip()
+    required_version = required_harness_version(run)
+    parsed_harness_version = parse_harness_version(harness_version)
+    if not _nonempty_string(harness_version) or parsed_harness_version is None or required_version is None:
+        raise ManifestError("runtime-contract adoption requires Harness version evidence")
+    if not version_at_least(harness_version, required_version):
+        raise ManifestError(
+            "runtime-contract adoption cannot mark a Harness older than the RUN pin current"
+        )
+
+    owner_source = getattr(args, "owner_source", None)
+    reading_evidence = list(getattr(args, "reading_evidence", []) or [])
+    if not _nonempty_string(owner_source):
+        raise ManifestError("runtime-contract adoption requires --owner-source")
+    if not reading_evidence or any(not _nonempty_string(item) for item in reading_evidence):
+        raise ManifestError(
+            "runtime-contract adoption requires at least one --reading-evidence entry"
+        )
+
+    expected_digest = getattr(args, "expected_contract_digest", None)
+    if not isinstance(expected_digest, str) or re.fullmatch(r"[0-9a-f]{64}", expected_digest) is None:
+        raise ManifestError(
+            "runtime-contract adoption requires --expected-contract-digest as a lowercase SHA-256"
+        )
+    installed_digest = contract_digest()
+    if installed_digest != expected_digest:
+        raise ManifestError(
+            "installed runtime contract differs from --expected-contract-digest; re-read before adopting"
+        )
+    prior = gate.get("contract_adoption")
+    prior_same_session = (
+        isinstance(prior, dict)
+        and prior.get("contract_digest_sha256") == installed_digest
+        and prior.get("session_id") == args.session_id
+    )
+    if prior_same_session:
+        raise ManifestError("this installed runtime contract is already adopted")
+
+    adopted_at = _now()
+    adoption = {
+        "session_id": args.session_id,
+        "adopted_at": adopted_at,
+        "contract_digest_sha256": installed_digest,
+        "owner_source": owner_source,
+        "reading_evidence": reading_evidence,
+    }
+    if isinstance(prior, dict):
+        gate.setdefault("contract_adoption_history", []).append(copy.deepcopy(prior))
+    gate["session_id"] = args.session_id
+    gate.setdefault("contract_adoption_history", [])
+    gate["contract_adoption"] = adoption
+    gate["harness_version"] = harness_version
+    gate["installed_contract_digest"] = installed_digest
+    gate["status"] = "adopted"
+    gate["evidence"] = (
+            "owner-adopted fixed contract after explicit lazy-filesystem re-read; "
+        "loaded-at-start digest remains unobserved"
+    )
+    run["attempt_log"].append(
+        {
+            "attempt_id": (
+                f"RUNTIME-CONTRACT-{adopted_at}-{len(run['attempt_log']) + 1}"
+            ),
+            "mission_id": None,
+            "task_id": None,
+            "lease_id": None,
+            "kind": "runtime_contract_adoption",
+            "result": "adopted",
+            "evidence": [
+                f"owner_source={owner_source}",
+                f"installed_contract_digest={installed_digest}",
+                "loaded_contract_digest=null",
+                *reading_evidence,
+            ],
+        }
+    )
 
 
 
@@ -1547,6 +1800,10 @@ def _reserve_node_attempt(
             raise ManifestError(
                 f"lifecycle action {node.get('ref')!r} is not currently authorized"
             )
+        if node.get("ref") in EXACT_TARGET_LIFECYCLE_ACTIONS and not node.get("target"):
+            raise ManifestError(
+                f"{node.get('ref')} lifecycle node must declare an exact PLAN target"
+            )
         if node.get("ref") == "push":
             _validate_push_side_effect(
                 run, getattr(args, "repo_root", None), entry.get("authorized_head_sha")
@@ -1723,6 +1980,11 @@ def _record_node_result(
         # an uncertain attempt and must remain recordable after revocation or
         # head drift so the node does not stay permanently running.
         if outcome not in {"blocked", "contract_gap"}:
+            if action in EXACT_TARGET_LIFECYCLE_ACTIONS and expected_target == "*":
+                raise ManifestError(
+                    f"{action} lifecycle result requires an exact PLAN target; "
+                    "record the attempt as blocked"
+                )
             current_entry = run.get("authorizations", {}).get(action)
             if (
                 not isinstance(current_entry, dict)
@@ -2422,6 +2684,9 @@ def _record_integration(plan: dict[str, Any], run: dict[str, Any], args: argpars
                 "reviews across a new candidate tree; refine the recovery graph first: "
                 + ", ".join(inactive_skips)
             )
+        # A new head re-arms every gate and integration review; refuse now
+        # rather than leave one re-armed with no budget to run again.
+        _require_candidate_revalidation_budget(plan, run)
         prior_heads = run["integration"].setdefault("prior_head_shas", [])
         if previous_head not in prior_heads:
             prior_heads.append(previous_head)
@@ -3039,6 +3304,277 @@ def _reconcile_candidate_head(
     }
 
 
+def _reconcile_coordination_head(
+    plan: dict[str, Any], run: dict[str, Any], args: argparse.Namespace
+) -> None:
+    """Bind one committed coordination-only checkpoint to the current RUN.
+
+    This is not a product-candidate repair and changes no Git state. It lets the
+    documented integration/wave-close bookkeeping commit advance the live parent
+    head while retaining the prior integration head and all old evidence.
+    """
+
+    if plan.get("schema_version") != 6 or run.get("schema_version") != 11:
+        raise ManifestError("reconcile-coordination-head requires PLAN v6 and RUN v11")
+    if args.repo_root is None:
+        raise ManifestError("reconcile-coordination-head requires --repo-root")
+    if not _nonempty_string(getattr(args, "source", None)):
+        raise ManifestError("reconcile-coordination-head requires a non-empty --source")
+    candidate_sha = getattr(args, "candidate_sha", None)
+    if not is_full_sha(candidate_sha):
+        raise ManifestError("reconcile-coordination-head requires a full --candidate-sha")
+    if run.get("status") not in RUN_DISPATCH_STATUSES:
+        raise ManifestError("reconcile-coordination-head requires a ready or running RUN")
+    if run.get("control", {}).get("desired_state") != "running":
+        raise ManifestError("reconcile-coordination-head requires desired_state running")
+
+    integration = run.get("integration")
+    current_head = (
+        integration.get("integration_head_sha")
+        if isinstance(integration, dict)
+        else None
+    )
+    if not is_full_sha(current_head):
+        raise ManifestError("reconcile-coordination-head requires a current integration head")
+    if candidate_sha == current_head:
+        raise ManifestError(
+            "candidate SHA already equals integration_head_sha; no reconciliation is needed"
+        )
+    prior_heads = integration.get("prior_head_shas", [])
+    replay_event = any(
+        isinstance(item, dict)
+        and item.get("kind") == "coordination_head_reconciliation"
+        and item.get("result") == "recorded"
+        and f"new_head_sha={candidate_sha}" in item.get("evidence", [])
+        for item in run.get("attempt_log", [])
+    )
+    if (isinstance(prior_heads, list) and candidate_sha in prior_heads) or replay_event:
+        raise ManifestError("coordination head was already reconciled; replay is refused")
+
+    root = Path(args.repo_root).resolve()
+    repo_top_level = Path(_git_out(root, "rev-parse", "--show-toplevel").strip()).resolve()
+    if not _same_path(root, repo_top_level):
+        raise ManifestError("--repo-root must be the exact repository top-level checkout")
+    _require_observed_plan_identity(plan, run, "reconcile-coordination-head")
+    observed = run.get("observed")
+    observed_git = observed.get("git") if isinstance(observed, dict) else None
+    observed_path = (
+        observed_git.get("parent_worktree_path")
+        if isinstance(observed_git, dict)
+        else None
+    )
+    if not isinstance(observed_path, str) or not _same_path(root, observed_path):
+        raise ManifestError(
+            f"--repo-root {root} is not the observed parent worktree {observed_path!r}"
+        )
+    expected_branch = _require_non_default_integration_branch(run)
+    live_branch = _git_branch_name(root)
+    observed_branch = (
+        _normalized_branch(observed_git.get("parent_branch"))
+        if isinstance(observed_git, dict)
+        else None
+    )
+    if _normalized_branch(live_branch) != expected_branch or observed_branch != expected_branch:
+        raise ManifestError(
+            "reconcile-coordination-head requires the live and observed parent branch "
+            "to equal the non-default integration branch"
+        )
+    live_head = _git_out(root, "rev-parse", "HEAD").strip()
+    observed_head = (
+        observed_git.get("parent_head_sha")
+        if isinstance(observed_git, dict)
+        else None
+    )
+    if live_head != candidate_sha or observed_head != candidate_sha:
+        raise ManifestError(
+            "reconcile-coordination-head requires --candidate-sha to equal both the "
+            "live and freshly observed parent HEAD"
+        )
+    if (
+        not isinstance(observed_git, dict)
+        or observed_git.get("parent_dirty") is not False
+        or _git_status_excluding_run(root, getattr(args, "run", None), run).strip()
+    ):
+        raise ManifestError(
+            "reconcile-coordination-head requires a clean product tree apart from RUN "
+            "and its declared generated tasks view"
+        )
+
+    parent_output = _git_out(root, "rev-list", "--parents", "-n", "1", candidate_sha).split()
+    if len(parent_output) != 2 or parent_output[1] != current_head:
+        raise ManifestError(
+            "coordination head must be one ordinary direct child of the recorded integration head"
+        )
+    batch_base = integration.get("batch_base_sha")
+    if not is_full_sha(batch_base) or not _git_is_ancestor(root, batch_base, candidate_sha):
+        raise ManifestError(
+            "coordination checkpoint must retain the run batch base as an ancestor"
+        )
+
+    review_nodes = {
+        node.get("id"): node
+        for node in plan.get("graph", {}).get("nodes", [])
+        if isinstance(node, dict) and isinstance(node.get("review"), dict)
+    }
+    live_review_workers = []
+    for worker in run.get("review_workers", []):
+        if not (
+            isinstance(worker, dict)
+            and worker.get("phase") in {"leased", "worker_running"}
+        ):
+            continue
+        review_node = review_nodes.get(worker.get("node_id"))
+        if (
+            not isinstance(review_node, dict)
+            or review_node.get("review", {}).get("stage", "preintegration")
+            == "integration"
+        ):
+            live_review_workers.append(str(worker.get("worker_id")))
+    if live_review_workers:
+        raise ManifestError(
+            "reconcile-coordination-head refuses live reviewers: "
+            + ", ".join(live_review_workers)
+        )
+    running_parent_nodes = sorted(
+        str(node_id)
+        for node_id, state in run.get("graph_state", {}).get("node_states", {}).items()
+        if isinstance(state, dict)
+        and state.get("phase") == "running"
+        and not state.get("bound_worker_id")
+    )
+    if running_parent_nodes:
+        raise ManifestError(
+            "reconcile-coordination-head refuses running parent-owned nodes: "
+            + ", ".join(running_parent_nodes)
+        )
+    nonisolated_writers = []
+    for worker in run.get("workers", []):
+        if not (
+            isinstance(worker, dict)
+            and worker.get("phase") in {"leased", "worker_running"}
+        ):
+            continue
+        worktree = worker.get("worktree_path")
+        if (
+            worker.get("workspace_mode") not in {
+                "parent_managed_worktree",
+                "app_managed_worktree",
+            }
+            or not isinstance(worktree, str)
+            or not worktree
+            or _same_path(worktree, root)
+        ):
+            nonisolated_writers.append(str(worker.get("worker_id")))
+    if nonisolated_writers:
+        raise ManifestError(
+            "in-flight writers must use isolated worktrees; parent checkout writers: "
+            + ", ".join(sorted(nonisolated_writers))
+        )
+
+    coordination_paths_value = integration.get("coordination_paths", [])
+    if not isinstance(coordination_paths_value, list):
+        raise ManifestError("RUN coordination paths are invalid")
+    exact_coordination_paths = {
+        path for path in coordination_paths_value
+        if isinstance(path, str) and validate_changed_path(path) is None
+    }
+    listed_frozen_paths = sorted(
+        path for path in exact_coordination_paths
+        if frozen_coordination_path(path, plan)
+    )
+    if listed_frozen_paths:
+        raise ManifestError(
+            "frozen product/design sources cannot be coordination paths: "
+            + ", ".join(listed_frozen_paths)
+        )
+    unsupported_exact_paths = sorted(
+        path for path in exact_coordination_paths
+        if not supported_coordination_path(path)
+    )
+    if unsupported_exact_paths:
+        raise ManifestError(
+            "RUN declares unsupported product-path coordination entries: "
+            + ", ".join(unsupported_exact_paths)
+        )
+    changes = _coordination_commit_changes(root, current_head, candidate_sha)
+    if not changes:
+        raise ManifestError("coordination checkpoint changes no declared files")
+    deleted = sorted(path for status, path in changes if status.startswith("D"))
+    if deleted:
+        raise ManifestError(
+            "coordination checkpoint must not delete files: " + ", ".join(deleted)
+        )
+    changed_paths = {path for _, path in changes}
+    outside_coordination = sorted(changed_paths - exact_coordination_paths)
+    if outside_coordination:
+        raise ManifestError(
+            "coordination checkpoint changed files outside exact declared paths: "
+            + ", ".join(outside_coordination)
+        )
+    _require_regular_coordination_entries(
+        root, current_head, candidate_sha, changed_paths
+    )
+    _require_generated_task_views(root, run, changed_paths)
+
+    _require_candidate_revalidation_budget(plan, run)
+
+    final_branch = _git_branch_name(root)
+    final_head = _git_out(root, "rev-parse", "HEAD").strip()
+    final_dirty = _git_status_excluding_run(root, getattr(args, "run", None), run).strip()
+    if (
+        _normalized_branch(final_branch) != expected_branch
+        or final_head != candidate_sha
+        or final_dirty
+    ):
+        raise ManifestError(
+            "repository branch, HEAD, or product tree changed during coordination "
+            "reconciliation; refresh observation and retry"
+        )
+
+    authorizations_before = copy.deepcopy(run.get("authorizations"))
+    execution_authorization_before = (
+        run.get("execution_authorized"),
+        copy.deepcopy(run.get("execution_authorization_scope")),
+        run.get("execution_authorization_source"),
+    )
+    prior_heads = integration.setdefault("prior_head_shas", [])
+    if current_head not in prior_heads:
+        prior_heads.append(current_head)
+    _invalidate_stale_current_projections(plan, run, current_head, candidate_sha)
+    integration["integration_head_sha"] = candidate_sha
+    continuity = run.get("landing", {}).get("continuity")
+    if isinstance(continuity, dict) and continuity.get("status") == "preserved":
+        continuity["head_sha"] = candidate_sha
+    if run.get("authorizations") != authorizations_before or (
+        run.get("execution_authorized"),
+        run.get("execution_authorization_scope"),
+        run.get("execution_authorization_source"),
+    ) != execution_authorization_before:
+        raise ManifestError("coordination reconciliation must not change authorization")
+
+    event_id = (
+        f"COORDINATION-HEAD-{candidate_sha[:12]}-{len(run.get('attempt_log', [])) + 1}"
+    )
+    run.setdefault("attempt_log", []).append(
+        {
+            "attempt_id": event_id,
+            "mission_id": None,
+            "task_id": None,
+            "lease_id": None,
+            "kind": "coordination_head_reconciliation",
+            "result": "recorded",
+            "evidence": [
+                f"source={args.source}",
+                f"old_head_sha={current_head}",
+                f"new_head_sha={candidate_sha}",
+                "changed_paths=" + ",".join(sorted(changed_paths)),
+                f"observed_at={observed.get('captured_at')}",
+                "product_tree=unchanged outside declared coordination paths",
+            ],
+        }
+    )
+
+
 def _git_tree(repo_root: Path, sha: str) -> str:
     """Resolve a commit's tree SHA from live Git; the skip proof is real or absent."""
 
@@ -3109,12 +3645,18 @@ def _run_posix_exchange(parent_fd: int, left_name: str, right_name: str) -> None
     import ctypes
 
     libc = ctypes.CDLL(None, use_errno=True)
-    renameat2 = getattr(libc, "renameat2", None)
-    if renameat2 is None:
-        raise ManifestError("RUN commit requires renameat2(RENAME_EXCHANGE)")
-    renameat2.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_uint]
-    renameat2.restype = ctypes.c_int
-    if renameat2(parent_fd, os.fsencode(left_name), parent_fd, os.fsencode(right_name), 0x2) != 0:
+    # Linux renameat2(RENAME_EXCHANGE) and macOS renameatx_np(RENAME_SWAP)
+    # take the same arguments and both use flag 0x2.
+    exchange = getattr(libc, "renameat2", None)
+    if exchange is None:
+        exchange = getattr(libc, "renameatx_np", None)
+    if exchange is None:
+        raise ManifestError(
+            "RUN commit requires renameat2(RENAME_EXCHANGE) or renameatx_np(RENAME_SWAP)"
+        )
+    exchange.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_uint]
+    exchange.restype = ctypes.c_int
+    if exchange(parent_fd, os.fsencode(left_name), parent_fd, os.fsencode(right_name), 0x2) != 0:
         error = ctypes.get_errno()
         raise ManifestError(f"RUN atomic exchange failed (errno={error})")
 
@@ -3883,6 +4425,13 @@ def _reserve_review_dispatch(
         "outcome": None,
         "findings": [],
     }
+    # Record the exact spawn receipt only after every guard has passed, as
+    # _lease_worker does for mission workers.
+    if directive["worker_runtime"] == "subagent":
+        for mission_id in node["review"]["mission_ids"]:
+            _materialize_authorized_target(
+                run, "spawn_subagents", mission_id, f"worker:{args.worker_id}"
+            )
     run["review_workers"].append(review_worker)
     state = run["graph_state"]["node_states"][args.node_id]
     state.update(
@@ -4312,6 +4861,10 @@ def build_parser() -> argparse.ArgumentParser:
     observation_parser.add_argument("--available-worker-slots", type=int)
     observation_parser.add_argument("--isolation-capacity", type=int)
     observation_parser.add_argument("--capacity-evidence")
+    adoption_parser = subparsers.add_parser("adopt-runtime-contract")
+    adoption_parser.add_argument("--owner-source", required=True)
+    adoption_parser.add_argument("--reading-evidence", action="append", required=True)
+    adoption_parser.add_argument("--expected-contract-digest", required=True)
     wave_command = subparsers.add_parser("accept-wave")
     wave_command.add_argument("--wave-id", required=True)
     wave_command.add_argument("--mission-id", action="append", required=True)
@@ -4378,6 +4931,9 @@ def build_parser() -> argparse.ArgumentParser:
     candidate.add_argument("--repair-node-id", required=True)
     candidate.add_argument("--repair-attempt-id", required=True)
     candidate.add_argument("--repair-task-id", required=True)
+    coordination = subparsers.add_parser("reconcile-coordination-head")
+    coordination.add_argument("--candidate-sha", required=True)
+    coordination.add_argument("--source", required=True)
     watchdog = subparsers.add_parser("watchdog")
     watchdog.add_argument("--stale-after-minutes", type=float, default=DEFAULT_LOCK_STALE_MINUTES)
     watchdog.add_argument("--reclaim", action="store_true")
@@ -4500,6 +5056,8 @@ def _transition_under_lock(
         _skip_integration_review(plan, run, args)
     elif args.command == "record-observation":
         _record_observation(plan, run, args)
+    elif args.command == "adopt-runtime-contract":
+        _adopt_runtime_contract(plan, run, args)
     elif args.command == "accept-wave":
         _accept_wave(plan, run, args)
     elif args.command == "close-wave":
@@ -4518,6 +5076,8 @@ def _transition_under_lock(
         _record_integration(plan, run, args)
     elif args.command == "reconcile-candidate-head":
         receipt = _reconcile_candidate_head(plan, run, args)
+    elif args.command == "reconcile-coordination-head":
+        _reconcile_coordination_head(plan, run, args)
     elif args.command == "acquire-run-lock":
         _acquire_run_lock(run, args)
     elif args.command == "release-run-lock":

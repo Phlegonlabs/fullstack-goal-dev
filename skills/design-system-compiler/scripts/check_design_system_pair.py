@@ -110,6 +110,17 @@ VALID_STYLING_MECHANISMS = {
     "plain CSS",
     "platform theme",
 }
+# The closed stylingMechanism value must correspond to the verbatim Stack
+# "Styling approach" selection kept in stackSemantics. A value matches when the
+# casefolded selection equals it or contains one of its keywords.
+STYLING_SELECTION_KEYWORDS = {
+    "utility CSS": ("utility", "utilities"),
+    "Tailwind CSS": ("tailwind",),
+    "CSS-in-JS": ("css-in-js", "styled-components", "emotion"),
+    "CSS modules": ("css module",),
+    "plain CSS": ("plain css", "vanilla css", "modern css"),
+    "platform theme": ("platform theme", "component-library"),
+}
 VALID_ENFORCEMENT = {"blocking", "advisory"}
 
 
@@ -263,13 +274,19 @@ def _posix_rename_exchange(parent_fd: int, left_name: str, right_name: str) -> N
     if os.name == "nt":
         raise ConcurrentModificationError("POSIX rename exchange is unavailable on Windows")
     libc = ctypes.CDLL(None, use_errno=True)
-    renameat2 = getattr(libc, "renameat2", None)
-    if renameat2 is None:
-        raise ConcurrentModificationError("renameat2(RENAME_EXCHANGE) is unavailable")
-    renameat2.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_uint]
-    renameat2.restype = ctypes.c_int
-    if renameat2(parent_fd, os.fsencode(left_name), parent_fd, os.fsencode(right_name), 0x2) != 0:
-        raise ConcurrentModificationError(f"renameat2 exchange failed (errno={ctypes.get_errno()})")
+    # Linux renameat2(RENAME_EXCHANGE) and macOS renameatx_np(RENAME_SWAP)
+    # take the same arguments and both use flag 0x2.
+    exchange = getattr(libc, "renameat2", None)
+    if exchange is None:
+        exchange = getattr(libc, "renameatx_np", None)
+    if exchange is None:
+        raise ConcurrentModificationError(
+            "renameat2(RENAME_EXCHANGE) and renameatx_np(RENAME_SWAP) are unavailable"
+        )
+    exchange.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_uint]
+    exchange.restype = ctypes.c_int
+    if exchange(parent_fd, os.fsencode(left_name), parent_fd, os.fsencode(right_name), 0x2) != 0:
+        raise ConcurrentModificationError(f"rename exchange failed (errno={ctypes.get_errno()})")
 
 
 def _windows_replace_with_backup(destination: Path, replacement: Path, backup: Path) -> None:
@@ -304,31 +321,14 @@ def _path_version(path: Path) -> tuple[int, int, int, int, str]:
     )
 
 
-def _exchange_design_system_commit(
+def _windows_replace_commit(
     path: Path,
     temporary_path: Path,
     *,
-    parent_fd: int | None,
     expected_version: tuple[int, int, int, int, str],
     payload: bytes,
 ) -> None:
     """Commit with a displaced-file backup and verify/restore on mismatch."""
-
-    if os.name != "nt":
-        if parent_fd is None:
-            raise ConcurrentModificationError("design-system exchange requires a held parent descriptor")
-        _posix_rename_exchange(parent_fd, temporary_path.name, path.name)
-        displaced = path.parent / temporary_path.name
-        if _path_version(displaced) != expected_version:
-            if _path_version(path)[-1] == hashlib.sha256(payload).hexdigest():
-                _posix_rename_exchange(parent_fd, temporary_path.name, path.name)
-                if _path_version(path) != expected_version:
-                    raise ConcurrentModificationError("design-system restore verification failed; artifacts retained")
-                os.unlink(temporary_path.name, dir_fd=parent_fd)
-            raise ConcurrentModificationError("design-system displaced bytes changed; concurrent bytes preserved")
-        os.unlink(temporary_path.name, dir_fd=parent_fd)
-        os.fsync(parent_fd)
-        return
 
     backup = path.parent / f".{path.name}.{secrets.token_hex(8)}.backup"
     _windows_replace_with_backup(path, temporary_path, backup)
@@ -341,6 +341,29 @@ def _exchange_design_system_commit(
             rollback_backup.unlink(missing_ok=True)
         raise ConcurrentModificationError("design-system displaced bytes changed; concurrent bytes preserved")
     backup.unlink(missing_ok=True)
+
+
+def _posix_exchange_commit(
+    path: Path,
+    temporary_path: Path,
+    *,
+    parent_fd: int,
+    expected_version: tuple[int, int, int, int, str],
+    payload: bytes,
+) -> None:
+    """Commit by exchange, then verify the displaced bytes and restore on mismatch."""
+
+    _posix_rename_exchange(parent_fd, temporary_path.name, path.name)
+    displaced = path.parent / temporary_path.name
+    if _path_version(displaced) != expected_version:
+        if _path_version(path)[-1] == hashlib.sha256(payload).hexdigest():
+            _posix_rename_exchange(parent_fd, temporary_path.name, path.name)
+            if _path_version(path) != expected_version:
+                raise ConcurrentModificationError("design-system restore verification failed; artifacts retained")
+            os.unlink(temporary_path.name, dir_fd=parent_fd)
+        raise ConcurrentModificationError("design-system displaced bytes changed; concurrent bytes preserved")
+    os.unlink(temporary_path.name, dir_fd=parent_fd)
+    os.fsync(parent_fd)
 
 
 def _destination_lock_path(path: Path) -> Path:
@@ -529,10 +552,9 @@ def _write_bytes_atomic_unlocked(path: Path, payload: bytes, expected_bytes: byt
                     raise ConcurrentModificationError(
                         f"{path} changed before the native replace"
                     )
-                _exchange_design_system_commit(
+                _windows_replace_commit(
                     path,
                     temporary_path,
-                    parent_fd=None,
                     expected_version=destination_version_token,
                     payload=payload,
                 )
@@ -542,15 +564,16 @@ def _write_bytes_atomic_unlocked(path: Path, payload: bytes, expected_bytes: byt
                     _windows_close(ancestor_handle)
         else:
             # POSIX keeps every component no-follow checked and the final
-            # directory open while replacing by basename. This prevents an
-            # ancestor swap from redirecting the destination after CAS.
+            # directory open, re-compares the destination bytes, then
+            # exchanges by basename inside that directory and checks the
+            # displaced bytes. Linux uses renameat2, macOS renameatx_np.
             parent_fd, _basename = _open_posix_parent(path)
             try:
                 if _destination_version_token(path) != destination_version_token:
                     raise ConcurrentModificationError(
                         f"{path} changed before the dirfd replace"
                     )
-                _exchange_design_system_commit(
+                _posix_exchange_commit(
                     path,
                     temporary_path,
                     parent_fd=parent_fd,
@@ -780,6 +803,14 @@ def validate_registry(registry: dict[str, Any]) -> list[str]:
     _string_list(problems, "stateMatrix", registry.get("stateMatrix"), nonempty=True)
     _string_list(problems, "tokenSources", registry.get("tokenSources"), nonempty=True)
     _string_list(problems, "primitiveSources", registry.get("primitiveSources"), nonempty=False)
+    # Harness conformance compares these by exact repo-relative identity.
+    for key in ("tokenSources", "primitiveSources"):
+        sources = registry.get(key)
+        for item in sources if isinstance(sources, list) else []:
+            if isinstance(item, str) and item.strip() and not is_placeholder(item) and not _repo_relative(item):
+                problems.append(
+                    f"design-system.json {key} entry {item!r} must be an exact repo-relative path"
+                )
 
     if schema == "design-system/2":
         bindings = registry.get("sourceBindings")
@@ -1155,6 +1186,19 @@ def _stack_semantics(
     return semantics
 
 
+def styling_matches_selection(mechanism: Any, selection: Any) -> bool:
+    """True when a closed stylingMechanism value names the Stack selection."""
+
+    if not isinstance(mechanism, str) or not isinstance(selection, str):
+        return False
+    text = selection.strip().casefold()
+    if not text:
+        return False
+    if text == mechanism.strip().casefold():
+        return True
+    return any(keyword in text for keyword in STYLING_SELECTION_KEYWORDS.get(mechanism, ()))
+
+
 def _validate_stack_semantics(
     registry: dict[str, Any],
     *,
@@ -1257,8 +1301,11 @@ def _validate_stack_semantics(
             problems.append("design-system.json stackSemantics.platform does not match approved UI surface class")
         if registry.get("platform") != recorded.get("platform"):
             problems.append("design-system.json platform must equal stackSemantics.platform")
-        if registry.get("stylingMechanism") != recorded.get("stylingMechanism"):
-            problems.append("design-system.json stylingMechanism must equal stackSemantics.stylingMechanism")
+        if not styling_matches_selection(registry.get("stylingMechanism"), recorded.get("stylingMechanism")):
+            problems.append(
+                "design-system.json stylingMechanism does not correspond to the "
+                "Stack styling approach in stackSemantics.stylingMechanism"
+            )
         if surface_items:
             target_semantics = surface_items[0].get("stackSemantics")
             if not isinstance(target_semantics, dict) or set(target_semantics) != required_keys | {"platform"}:

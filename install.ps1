@@ -1,6 +1,7 @@
 # Install the seven Product Delivery Harness skills into a user skills directory.
 # The source is staged and verified before mutation. Existing managed copies are
-# moved to one timestamped backup, and any failure restores that backup.
+# moved to one timestamped backup, and any failure restores that backup. The
+# source commit and uncommitted skills/ state are printed and saved beside it.
 param(
     [string]$Destination = "$HOME\.agents\skills",
     [string]$BackupRoot = "$HOME\.agents\skill-backups\product-delivery-harness",
@@ -145,12 +146,20 @@ function Get-TrackedRelativeFiles {
     param([string]$Skill)
 
     $prefix = "skills/$Skill/"
-    $tracked = @(& git -C $RepoRoot ls-files -- "skills/$Skill")
+    # --stage exposes each entry's mode so symlink and gitlink entries are
+    # rejected exactly as install.sh rejects them; -z keeps paths unquoted.
+    $staged = (& git -C $RepoRoot ls-files --stage -z -- "skills/$Skill") -join "`n"
     if ($LASTEXITCODE -ne 0) {
         throw "could not read tracked manifest for $Skill"
     }
     $relativeFiles = @()
-    foreach ($path in $tracked) {
+    foreach ($entry in ($staged -split "`0")) {
+        if (-not $entry) { continue }
+        $metadata, $path = $entry -split "`t", 2
+        $mode = ($metadata -split " ")[0]
+        if ($mode -ne "100644" -and $mode -ne "100755") {
+            throw "non-regular tracked source entry is not installable: mode=$mode path=$path"
+        }
         $normalized = $path.Replace("\", "/")
         if (-not $normalized.StartsWith($prefix, [StringComparison]::Ordinal)) {
             throw "unexpected tracked path for $Skill`: $path"
@@ -366,7 +375,22 @@ try {
     Assert-NoReparseComponents $BackupRoot
     foreach ($Skill in $Skills) {
         Assert-NoUnexpectedSourceFiles $Skill
+        # Reject non-regular tracked entries before any destination mutation.
+        $null = Get-TrackedRelativeFiles $Skill
     }
+    # Name the commit the installed bytes come from. Uncommitted edits to
+    # tracked skills/ files are installed as they are, so say whether any exist.
+    $sourceHead = & git -C $RepoRoot rev-parse HEAD
+    if ($LASTEXITCODE -ne 0) {
+        throw "could not read the source commit"
+    }
+    $sourceChanges = @(& git --no-optional-locks -C $RepoRoot status --porcelain --untracked-files=no -- skills)
+    if ($LASTEXITCODE -ne 0) {
+        throw "could not read the source status"
+    }
+    $sourceDirty = if ($sourceChanges.Count -gt 0) { "yes" } else { "no" }
+    $sourceLine = "source commit $sourceHead, uncommitted skills/ changes: $sourceDirty"
+    Write-Host $sourceLine
     $destinationFull = [IO.Path]::GetFullPath($Destination).TrimEnd('\', '/')
     $skillsSourceFull = [IO.Path]::GetFullPath($SkillsSrc).TrimEnd('\', '/')
     $separator = [IO.Path]::DirectorySeparatorChar
@@ -442,7 +466,9 @@ try {
         $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
         $BackupDir = Join-Path $BackupRoot $stamp
         $collision = 1
-        while (Test-Path -LiteralPath $BackupDir) {
+        # Skip names whose backup or receipt path already exists (or is a link).
+        while ((Test-Path -LiteralPath $BackupDir) -or
+            ($null -ne (Get-Item -LiteralPath "$BackupDir.source" -Force -ErrorAction SilentlyContinue))) {
             $BackupDir = Join-Path $BackupRoot "$stamp-$collision"
             $collision++
         }
@@ -523,6 +549,24 @@ try {
     Assert-NoReparseComponents $StageRoot
     Remove-Item -LiteralPath $StageRoot -Recurse -Force
     $StageRoot = $null
+    # Keep the source line next to the backup this install replaced. The
+    # install is already verified, so a failed write only warns.
+    if ($null -ne $BackupDir) {
+        try {
+            # CreateNew fails on an existing file or link instead of overwriting it.
+            $receipt = [IO.File]::Open("$BackupDir.source", [IO.FileMode]::CreateNew, [IO.FileAccess]::Write)
+            try {
+                $bytes = [Text.UTF8Encoding]::new($false).GetBytes("$sourceLine`n")
+                $receipt.Write($bytes, 0, $bytes.Length)
+            }
+            finally {
+                $receipt.Dispose()
+            }
+        }
+        catch {
+            Write-Warning "could not write $BackupDir.source"
+        }
+    }
     Write-Host "done. start a fresh host session so it discovers the skills."
 }
 catch {

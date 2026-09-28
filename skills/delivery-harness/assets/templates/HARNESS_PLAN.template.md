@@ -70,7 +70,7 @@ Use this template as `docs/goal/PLAN.md` for managed work that needs durable coo
         "id": "final-check",
         "cwd": ".",
         "argv": ["<runner>", "<final-argument>"],
-        "pass_signal": "<literal pass signal>",
+        "pass_signal": "exit 0",
         "execution": {
           "parallel_safe": false,
           "resources": [],
@@ -81,7 +81,7 @@ Use this template as `docs/goal/PLAN.md` for managed work that needs durable coo
         "id": "final-closeout",
         "cwd": ".",
         "argv": ["<runner>", "<closeout-argument>"],
-        "pass_signal": "<literal pass signal>",
+        "pass_signal": "exit 0",
         "execution": {
           "parallel_safe": false,
           "resources": [],
@@ -243,7 +243,7 @@ Use this template as `docs/goal/PLAN.md` for managed work that needs durable coo
             "id": "mission-integration",
             "cwd": ".",
             "argv": ["<runner>", "<integration-argument>"],
-            "pass_signal": "<literal pass signal>",
+            "pass_signal": "exit 0",
             "execution": {
               "parallel_safe": false,
               "resources": [],
@@ -297,7 +297,7 @@ Use this template as `docs/goal/PLAN.md` for managed work that needs durable coo
 
 The exact fenced JSON block is the canonical plan. New plans use PLAN schema v6. Older PLAN schemas remain readable; their recorded schema decides which fields apply. Every runtime review has a stable `lineage_id` that survives node replacement and PLAN revision. The graph is the canonical source for mission dependencies and routing. Keep the JSON valid, increment `revision` after an accepted semantic plan or graph change, and calculate the run's digest with the normalization algorithm in `references/execution-state-model.md`. There is no `execution_route` PLAN field: the selector derives it from the chosen route and actually selected safe write missions.
 
-Every new RUN records an explicit `security_review` policy. Use `required` for code delivery and include `security` in `required_reviews`; use `not_applicable` only with a concrete reason for a non-code delivery. `new_run.py` refuses an omitted policy. Existing PLAN-v6/RUN-v11 pairs remain readable and are never silently rewritten.
+Every new RUN records an explicit `security_review` policy. Use `required` for code delivery and include `security` in `required_reviews`; use `not_applicable` only with a concrete reason for a non-code delivery. `new_run.py` refuses an omitted policy. A required policy may add `required_checks`: batch or final verifier IDs whose single parent-run graph node must precede every security node and pass at the reviewed head before reservation; the review packet carries each with its `execution_key`. Existing PLAN-v6/RUN-v11 pairs remain readable and are never silently rewritten.
 
 Planned security requirements reuse upstream `PRD-*` traces and required `TEST-*` acceptance IDs. Give each trace an existing disposition (`planned`, `deferred`, or `out_of_scope`) under the current trace rules; an executable touched boundary must be `planned`. This template adds no security-specific schema or risk document.
 
@@ -361,9 +361,16 @@ These are planning expectations, not authorization. Record explicit action autho
 
 ## Plan Readiness Gate
 
-For newly authored delivery work, also follow `references/delivery-acceptance-contract.md`: freeze `docs/verification/delivery-acceptance.json` as a source of kind `delivery acceptance`, add an always-run `check_delivery_acceptance.py` final gate and a matching `local_command` verifier node on the required closeout path. Use the parent's frozen contract hash and observed candidate SHA, never values derived from result writers. The result register is `docs/verification/delivery-results.json`; evidence remains SHA-bound. The template's neutral command placeholders must be replaced before execution.
+For newly authored delivery work, also follow `references/delivery-acceptance-contract.md`. The example manifest above omits these entries; add all of them before readiness:
 
-The parent reviews these bindings before readiness. The legacy manifest validator does not enforce the presence of this new gate; passing schema validation alone is insufficient. Do not retrofit or silently migrate a running legacy PLAN/RUN. Direct work runs the acceptance CLI without these artifacts.
+- a source `SRC-004` of kind `delivery acceptance` at `docs/verification/delivery-acceptance.json`, frozen like the other rows;
+- a final gate `delivery-acceptance` with no `selection` (so it always runs) whose argv runs `check_delivery_acceptance.py` with `--repo-root`, `--prd`, `--contract`, `--contract-sha256`, `--results` and `--candidate-sha`;
+- a `local_command` verifier node `N-ACCEPTANCE-GATE` with `ref: "delivery-acceptance"`;
+- `dependency` edges from `N-FINAL-GATE` to `N-ACCEPTANCE-GATE` and from `N-ACCEPTANCE-GATE` to `N-CLOSEOUT-GATE`.
+
+Use the parent's frozen contract hash and observed candidate SHA, never values derived from result writers. `--candidate-sha` is the pre-register candidate H1 that the scenarios ran against. Commit only the register and its evidence on top of H1, giving H2, before the unified reviews; every review and final gate, including `N-ACCEPTANCE-GATE`, then runs at H2. The result register is `docs/verification/delivery-results.json`; evidence remains SHA-bound. The template's neutral command placeholders must be replaced before execution.
+
+The manifest validator does not check that these entries exist, so the parent's readiness review must confirm them; passing schema validation alone is insufficient. Do not retrofit or silently migrate a running legacy PLAN/RUN. Direct work runs the acceptance CLI without these artifacts.
 
 Implementation may start only after static validation passes, RUN records `plan_readiness: "ready"`, and required actions have explicit user authorization. Readiness never grants authorization.
 

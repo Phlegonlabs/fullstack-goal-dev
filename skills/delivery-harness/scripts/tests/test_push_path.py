@@ -25,7 +25,11 @@ from harness_authorization import (  # noqa: E402
 from harness_core import ManifestError  # noqa: E402
 from harness_transition import _require_non_default_integration_branch  # noqa: E402
 from harness_transition import _validate_push_side_effect  # noqa: E402
-from push_integration_branch import _safe_remote, push_authorized_head  # noqa: E402
+from push_integration_branch import (  # noqa: E402
+    _isolated_push,
+    _safe_remote,
+    push_authorized_head,
+)
 
 SHA = "a" * 40
 DIGEST = "b" * 64
@@ -402,6 +406,31 @@ class ExactLivePushTests(unittest.TestCase):
 
             with self.assertRaisesRegex(ManifestError, "integration branch HEAD is"):
                 _validate_push_side_effect(run, root, head)
+
+    def test_legacy_push_never_runs_a_repository_pre_push_hook(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root, remote, head = self.make_repo(Path(temporary))
+            sentinel = Path(temporary) / "hook-ran"
+            hook = root / ".git" / "hooks" / "pre-push"
+            hook.write_text(
+                f"#!/bin/sh\necho ran > '{sentinel.as_posix()}'\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            hook.chmod(0o755)
+            # Control: an ordinary push runs the planted hook.
+            self.git(root, "push", "-q", "--", str(remote), "HEAD:refs/heads/control")
+            self.assertTrue(sentinel.exists())
+            sentinel.unlink()
+
+            pushed = _isolated_push(root, str(remote), f"{head}:refs/heads/codex/add-search")
+
+            self.assertEqual(0, pushed.returncode, pushed.stderr)
+            self.assertFalse(sentinel.exists(), "repository pre-push hook ran during the legacy push")
+            remote_head = subprocess.check_output(
+                ["git", "rev-parse", "refs/heads/codex/add-search"], cwd=remote, text=True
+            ).strip()
+            self.assertEqual(head, remote_head)
 
     def test_reservation_side_effect_requires_the_repository_root(self) -> None:
         run = run_with_push()

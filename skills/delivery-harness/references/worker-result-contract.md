@@ -135,7 +135,7 @@ This is the canonical `REFINEMENT_REQUEST` schema. Every other reference points 
 
 Return this payload and stop. The parent decides whether to reject it, accept one bounded split, or replan the mission.
 
-`pass_signal` must be the literal `exit 0` for a proposed child verifier to be eligible for `session_exact` cache reuse; any other spelling silently disables reuse for that verifier.
+The runtime decides PASS from exit code 0 alone; a proposed child verifier's `pass_signal` is a label and should be `exit 0`. PLAN validation refuses `session_exact` cache reuse for a verifier with any other `pass_signal`.
 
 ```json
 {

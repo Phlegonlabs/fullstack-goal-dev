@@ -20,6 +20,7 @@ from harness_core import (
 )
 from harness_schema import (
     AUTHORIZATION_KEYS,
+    EXACT_TARGET_LIFECYCLE_ACTIONS,
     GRAPH_EDGE_PHASES,
     GRAPH_EXECUTORS,
     GRAPH_NODE_KINDS,
@@ -34,6 +35,31 @@ from harness_schema import (
     action_target_kind_allowed,
     action_target_kind_description,
 )
+
+
+def validate_cleanup_lifecycle_targets(errors: list[str], graph: Any) -> None:
+    """A cleanup lifecycle node must name the exact task, worktree, or branch.
+
+    Only validate_run calls this, for RUNs that require Harness 0.55.0 or
+    later, so PLANs of older RUNs and their archives keep validating.
+    """
+
+    nodes = graph.get("nodes") if isinstance(graph, dict) else None
+    if not isinstance(nodes, list):
+        return
+    for index, node in enumerate(nodes):
+        if (
+            isinstance(node, dict)
+            and node.get("kind") == "lifecycle"
+            and isinstance(node.get("ref"), str)
+            and node["ref"] in EXACT_TARGET_LIFECYCLE_ACTIONS
+            and node.get("target") is None
+        ):
+            _add(
+                errors,
+                f"plan.graph.nodes[{index}].target",
+                f"{node['ref']} requires an exact non-wildcard authorization target",
+            )
 
 
 def _cycle_nodes(edges: dict[str, list[str]]) -> set[str]:
@@ -298,14 +324,14 @@ def _validate_graph(
                     _add(errors, f"{node_path}.executor", "lifecycle requires harness_parent")
                 if valid_ref and ref not in authorization_actions:
                     _add(errors, f"{node_path}.ref", "must reference an authorization action")
-                # `target` is optional so PLANs written before this field existed
-                # stay valid (they keep resolving to the "*" default, exactly as
-                # before). When present it must be the exact authorization
-                # target select_ready_nodes.py checks the RUN ledger against —
-                # schema v10 rejects "*" scope targets for every one of these
-                # actions, so a lifecycle node with no target is permanently
-                # unauthorized there; declaring one is how a PLAN makes the node
-                # reachable.
+                # `target` is optional for most refs so PLANs written before this
+                # field existed stay valid; a missing target resolves to "*".
+                # When present it must be the exact authorization target
+                # select_ready_nodes.py checks the RUN ledger against. The ledger
+                # rejects a "*" grant only for push, so a push node needs a
+                # target. Cleanup refs (EXACT_TARGET_LIFECYCLE_ACTIONS) may use a
+                # "*" grant; validate_cleanup_lifecycle_targets requires them
+                # to name an exact target for 0.55.0+ RUNs.
                 target = node.get("target")
                 if target is not None and (
                     not _nonempty_string(target)
@@ -833,6 +859,7 @@ def _validate_graph_state(
             if valid_phase and phase in {"succeeded", "failed", "blocked"} and (
                 not _nonempty_string(state["last_attempt_id"])
                 or outcome is None
+                or not _is_int(attempts)
                 or attempts < 1
             ):
                 _add(errors, state_path, "terminal node requires attempt identity, outcome, and attempts")

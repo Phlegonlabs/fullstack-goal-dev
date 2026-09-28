@@ -130,7 +130,7 @@ The `Mobile/Desktop Technology Decision` section in `stack-decisions.md` must in
 - Product evidence and hard constraints, including existing-codebase reuse potential and target operating systems at launch.
 - The Stack Decision Mode, human owner, coherent bundles presented, accepted bundle or layer overrides, delegation source when used, and checkpoint decision.
 - Selection, status, cited authority/evidence, product-fit reason, and constraint/follow-up on every layer row. Approved packages use `Required`, `Selected`, or `Approved`; `Recommended` and `Provisional` remain draft-only.
-- One recorded stack separated by target operating systems, cross-platform-vs-native, framework, React Native workflow when applicable, navigation, local persistence, state, offline/sync, secure storage, push, native-module boundaries, and testing.
+- One recorded stack separated by target operating systems, cross-platform-vs-native, framework, React Native workflow when applicable, styling approach (for example `platform theme`), navigation, local persistence, state, offline/sync, secure storage, push, native-module boundaries, and testing.
 - The extra target surfaces (React Native for Web, Windows/macOS, Flutter web/desktop) that are in scope, if any.
 - Alternatives and revisit triggers, as rows in the file's shared `Alternatives Considered` table with `[Area]` naming this decision — not a table inside this section.
 - Official documentation links and verification date.

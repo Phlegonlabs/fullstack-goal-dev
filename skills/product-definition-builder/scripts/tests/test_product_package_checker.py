@@ -1,3 +1,5 @@
+import contextlib
+import io
 import os
 import subprocess
 import re
@@ -807,6 +809,74 @@ class ProductPackageCheckerTests(unittest.TestCase):
             mutated, architecture, stack, require_filled=True, require_approved=True
         )
         self.assertIn("Package digest does not match", "\n".join(findings))
+
+    def test_strict_approval_digest_covers_fenced_indented_and_comment_text(self) -> None:
+        extra = (
+            "\n```sql\nCREATE TABLE notes (id int);\n```\n"
+            "- Retention rule\n    - delete after 30 days\n"
+            "<!-- PII stored encrypted -->\n"
+        )
+        prd, architecture, stack = strictize_approved_package(
+            valid_prd() + extra, valid_architecture() + extra, valid_stack() + extra
+        )
+        self.assertEqual([], check_product_package.validate_texts(
+            prd, architecture, stack, require_filled=True, require_approved=True
+        ))
+        # A CRLF checkout of the same approved text keeps the same digests.
+        self.assertEqual([], check_product_package.validate_texts(
+            *(text.replace("\n", "\r\n") for text in (prd, architecture, stack)),
+            require_filled=True, require_approved=True,
+        ))
+        for old, new in (
+            ("id int", "id bigint"),
+            ("delete after 30 days", "keep forever"),
+            ("PII stored encrypted", "PII stored in plaintext"),
+        ):
+            with self.subTest(edit=new):
+                for texts in (
+                    (prd.replace(old, new), architecture),
+                    (prd, architecture.replace(old, new)),
+                ):
+                    findings = "\n".join(check_product_package.validate_texts(
+                        *texts, stack, require_filled=True, require_approved=True,
+                    ))
+                    self.assertIn("Package digest does not match", findings)
+                findings = "\n".join(check_product_package.validate_texts(
+                    prd, architecture, stack.replace(old, new),
+                    require_filled=True, require_approved=True,
+                ))
+                self.assertIn("Checkpoint digest does not match", findings)
+                self.assertIn("Package digest does not match", findings)
+
+    def test_cli_pass_line_claims_owner_approval_only_when_checked(self) -> None:
+        prd, architecture, stack = strictize_approved_package(
+            valid_prd(), valid_architecture(), valid_stack()
+        )
+        blocked = re.sub(r"(?m)^- Decision: approved$", "- Decision: blocked", prd, count=1)
+        self.assertNotEqual(prd, blocked)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            paths = {"prd": root / "PRD.md", "architecture": root / "architecture.md", "stack": root / "stack-decisions.md"}
+            for key, text in (("prd", blocked), ("architecture", architecture), ("stack", stack)):
+                paths[key].write_text(text, encoding="utf-8")
+            base = ["--prd", str(paths["prd"]), "--architecture", str(paths["architecture"]),
+                    "--stack-decisions", str(paths["stack"])]
+
+            def run(*flags: str) -> tuple[int, str]:
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output), contextlib.redirect_stderr(io.StringIO()):
+                    code = check_product_package.main([*base, *flags])
+                return code, output.getvalue()
+
+            code, output = run()
+            self.assertEqual(0, code)
+            self.assertIn("approval not checked", output)
+            self.assertNotIn("owner-approved", output)
+            self.assertEqual(1, run("--require-filled", "--require-approved")[0])
+            paths["prd"].write_text(prd, encoding="utf-8")
+            code, output = run("--require-filled", "--require-approved")
+            self.assertEqual(0, code)
+            self.assertIn("complete and owner-approved", output)
 
     def test_strict_approval_revision_is_an_exact_digest_binding(self) -> None:
         prd, architecture, stack = strictize_approved_package(
@@ -1753,6 +1823,45 @@ Security scope: executable
                 for item in problems
             )
         )
+
+    def test_changed_ui_enhancement_uses_current_design_gates(self) -> None:
+        impacts = """
+## Enhancement Impact Record
+| Area | Impact | Affected IDs / decisions | Required refresh |
+| --- | --- | --- | --- |
+| Product scope / behavior | unchanged | none | none |
+| UI structure / style | {impact} | UI-001 | {refresh} |
+| Data / integrations | unchanged | none | none |
+| Architecture / stack | unchanged | none | none |
+| Data trust / AI | unchanged | none | none |
+| Security | unchanged | none | none |
+| Monetization / partner | unchanged | none | none |
+| Release / operations | unchanged | none | none |
+"""
+
+        def ui_problems(impact: str, refresh: str) -> list[str]:
+            prd = valid_prd(mode="enhancement").replace(
+                "## Problem Statement",
+                impacts.format(impact=impact, refresh=refresh) + "\n## Problem Statement",
+            )
+            return [item for item in self.validate(prd=prd) if "UI structure / style" in item]
+
+        structure_refresh = (
+            "wireframes.html and ui-design.md with copy completeness, "
+            "Wireframe Validation and Visual Approval"
+        )
+        for impact in ("structure", "both"):
+            with self.subTest(impact=impact):
+                self.assertEqual([], ui_problems(impact, structure_refresh))
+                retired = ui_problems(
+                    impact,
+                    "wireframes.html and ui-design.md with Copy Freeze, "
+                    "Wireframe Approval and Visual Approval",
+                )
+                self.assertTrue(any("wireframe validation" in item for item in retired))
+        self.assertEqual([], ui_problems("style", "ui-design.md and Visual Approval"))
+        missing = ui_problems("style", "ui-design.md with Style Integration and Impeccable H1-H9")
+        self.assertTrue(any("visual approval" in item for item in missing))
 
     def test_prefix_and_placeholder_bypasses_fail(self) -> None:
         nonevil = valid_prd().replace(

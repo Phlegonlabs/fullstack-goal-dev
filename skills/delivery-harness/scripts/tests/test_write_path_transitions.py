@@ -11,6 +11,7 @@ import sys
 import subprocess
 import tempfile
 import time
+import types
 import unittest
 from unittest import mock
 from argparse import Namespace
@@ -257,6 +258,20 @@ class WritePathTransitionTests(unittest.TestCase):
                     run_path, self.run, expected_text=original
                 )
         self.assertEqual(concurrent, run_path.read_text(encoding="utf-8"))
+
+    def test_run_posix_exchange_uses_linux_or_macos_primitive(self) -> None:
+        for symbol in ("renameat2", "renameatx_np"):
+            with self.subTest(symbol=symbol):
+                primitive = mock.Mock(return_value=0)
+                libc = types.SimpleNamespace(**{symbol: primitive})
+                with mock.patch("ctypes.CDLL", return_value=libc):
+                    harness_transition._run_posix_exchange(7, "left", "right")
+                primitive.assert_called_once_with(7, b"left", 7, b"right", 0x2)
+
+    def test_run_posix_exchange_fails_closed_without_exchange_primitive(self) -> None:
+        with mock.patch("ctypes.CDLL", return_value=types.SimpleNamespace()):
+            with self.assertRaisesRegex(ManifestError, "renameat2.*renameatx_np"):
+                harness_transition._run_posix_exchange(7, "left", "right")
 
     def _sync_plan_digest(self) -> None:
         digest = plan_digest(self.plan)

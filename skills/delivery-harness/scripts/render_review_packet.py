@@ -64,6 +64,35 @@ def render_packet(
         for mission in missions
         for task in mission["tasks"]
     ]
+    version_gate = (
+        run.get("runtime_capabilities", {}).get("runtime_adapter", {}).get("version_gate")
+    )
+    contract_adoption = (
+        version_gate.get("contract_adoption")
+        if isinstance(version_gate, dict)
+        and version_gate.get("status") == "adopted"
+        else None
+    )
+    # A security reviewer returns each PLAN required check with the key of
+    # its one PASS execution at the reviewed head (null when there is none).
+    required_checks = []
+    security_policy = plan.get("security_review")
+    if review["type"] == "security" and isinstance(security_policy, dict):
+        for check_id in security_policy.get("required_checks", []):
+            keys = [
+                execution.get("execution_key")
+                for execution in run.get("verifier_executions", [])
+                if isinstance(execution, dict)
+                and execution.get("verifier_id") == check_id
+                and execution.get("layer") in {"batch", "final"}
+                and execution.get("status") == "PASS"
+                and execution.get("exit_code") == 0
+                and isinstance(execution.get("context"), dict)
+                and execution["context"].get("head_sha") == head
+            ]
+            required_checks.append(
+                {"id": check_id, "execution_key": keys[0] if len(keys) == 1 else None}
+            )
     packet_lines = [
         f"# Review packet: {node_id}",
         "",
@@ -118,12 +147,14 @@ def render_packet(
                 ),
                 "required_evidence": review["required_evidence"],
                 "required_tools": review.get("required_tools", []),
+                "required_checks": required_checks,
                 "reviewer_tool_capabilities": {
                     tool_name: run.get("runtime_capabilities", {})
                     .get("reviewer_tools", {})
                     .get(tool_name)
                     for tool_name in review.get("required_tools", [])
                 },
+                "contract_adoption": contract_adoption,
                 "acceptance": acceptance,
                 "failure_families": lineage["failure_families"],
                 "owner_decisions": lineage["owner_decisions"],
@@ -132,6 +163,14 @@ def render_packet(
             ensure_ascii=False,
         ),
         "```",
+        (
+            "Before any review action, independently recompute the seven-skill contract"
+            " digest, compare it with `contract_adoption.contract_digest_sha256`, read"
+            " the supplied fixed contract, and include that fresh reading evidence in"
+            " the review result. An adoption receipt is not loaded-at-start evidence."
+            if contract_adoption is not None
+            else ""
+        ),
         "",
         f"## Diff{' (truncated)' if truncated else ''}",
         "",

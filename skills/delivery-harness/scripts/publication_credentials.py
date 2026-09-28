@@ -80,7 +80,12 @@ def credential_binding(url: str) -> dict[str, str] | None:
         raise ManifestError("cannot validate administrator publication credential policy") from exc
 
 
-def publication_environment(url: str, *, expected=UNBOUND) -> dict[str, str]:
+def publication_environment(url: str, *, expected=UNBOUND, hooks_dir: str | None = None) -> dict[str, str]:
+    """Return the isolated Git environment for publication reads and the push.
+
+    Pass ``hooks_dir`` (a fresh empty directory) for a command that runs in the
+    checkout, so repository hooks never run with publication credentials.
+    """
     binding = credential_binding(url)
     if expected is not UNBOUND and binding != expected:
         raise ManifestError("publication credential policy/helper changed since request creation")
@@ -88,15 +93,23 @@ def publication_environment(url: str, *, expected=UNBOUND) -> dict[str, str]:
     env = {key: value for key, value in env.items()
            if not key.upper().startswith(("GIT_TRACE", "GCM_TRACE", "GCM_DEBUG"))
            and key.upper() != "GIT_CURL_VERBOSE"}
+    # An empty GIT_ASKPASS stops core.askPass and SSH_ASKPASS from running.
     env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull,
-               GIT_TERMINAL_PROMPT="0", GCM_INTERACTIVE="never")
+               GIT_TERMINAL_PROMPT="0", GCM_INTERACTIVE="never", GIT_ASKPASS="")
+    config: list[tuple[str, str]] = []
     if binding is not None:
         # Git's helper shell receives only a quoted, OS-protected executable.
         # Credential values never enter this environment, argv, or evidence.
         helper = "!exec " + shlex.quote(binding["helper"])
-        env.update(GIT_CONFIG_COUNT="4", GIT_CONFIG_KEY_0="credential.helper",
-                   GIT_CONFIG_VALUE_0="", GIT_CONFIG_KEY_1="credential.helper",
-                   GIT_CONFIG_VALUE_1=helper, GIT_CONFIG_KEY_2="credential.useHttpPath",
-                   GIT_CONFIG_VALUE_2="true", GIT_CONFIG_KEY_3="http.followRedirects",
-                   GIT_CONFIG_VALUE_3="false")
+        config += [("credential.helper", ""), ("credential.helper", helper),
+                   ("credential.useHttpPath", "true"), ("http.followRedirects", "false")]
+    # Command-line config outranks repository config.
+    config.append(("core.fsmonitor", "false"))
+    if hooks_dir is not None:
+        # The push itself: no repository hooks and no signing program.
+        config += [("core.hooksPath", hooks_dir), ("push.gpgSign", "false")]
+    env["GIT_CONFIG_COUNT"] = str(len(config))
+    for index, (key, value) in enumerate(config):
+        env[f"GIT_CONFIG_KEY_{index}"] = key
+        env[f"GIT_CONFIG_VALUE_{index}"] = value
     return env

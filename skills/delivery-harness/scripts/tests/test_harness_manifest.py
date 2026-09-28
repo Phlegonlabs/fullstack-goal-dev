@@ -900,6 +900,26 @@ class RunValidationTests(unittest.TestCase):
         errors = validate_plan(plan)
         self.assertTrue(any("observed non-zero RepoDigest" in error for error in errors))
 
+    def test_container_sandbox_policy_is_checked_once_and_strictly(self) -> None:
+        # normalize_sandbox_policy is the one policy check; an extra
+        # capability next to ALL or a missing key still fails, once.
+        plan = valid_plan()
+        sandbox = plan["missions"][0]["tasks"][0]["verifiers"][0]["execution"]["sandbox"]
+        sandbox["cap_drop"] = ["ALL", "NET_ADMIN"]
+        errors = validate_plan(plan)
+        cap_errors = [error for error in errors if "cap_drop" in error]
+        self.assertEqual(1, len(cap_errors), errors)
+        self.assertIn("sandbox cap_drop must equal ['ALL']", cap_errors[0])
+
+        plan = valid_plan()
+        sandbox = plan["missions"][0]["tasks"][0]["verifiers"][0]["execution"]["sandbox"]
+        del sandbox["pull"]
+        errors = validate_plan(plan)
+        self.assertTrue(
+            any("sandbox policy must contain the exact required keys" in error for error in errors),
+            errors,
+        )
+
     def test_harness_038_execution_binds_observed_runtime_identity(self) -> None:
         plan = valid_plan()
         plan["security_review"] = {
@@ -2213,6 +2233,70 @@ class RunValidationTests(unittest.TestCase):
             plan,
             run,
             "run.runtime_capabilities.runtime_adapter: unknown keys: external_runtimes",
+        )
+
+    def test_runtime_contract_adoption_is_distinct_from_loaded_current(self) -> None:
+        plan = valid_plan()
+        run = valid_run(plan)
+        gate = run["runtime_capabilities"]["runtime_adapter"]["version_gate"]
+        gate.update(
+            {
+                "loaded_contract_digest": None,
+                "installed_contract_digest": "a" * 64,
+                "status": "adopted",
+                "contract_adoption": {
+                    "session_id": gate["session_id"],
+                    "adopted_at": "2026-09-27T00:00:00Z",
+                    "contract_digest_sha256": "a" * 64,
+                    "owner_source": "owner instruction in this task",
+                    "reading_evidence": ["read the fixed seven-skill contract"],
+                },
+                "contract_adoption_history": [],
+            }
+        )
+
+        self.assertEqual([], validate_run(plan, run))
+
+        loaded = copy.deepcopy(run)
+        loaded_gate = loaded["runtime_capabilities"]["runtime_adapter"]["version_gate"]
+        loaded_gate["loaded_contract_digest"] = "b" * 64
+        self.assert_run_error_contains(
+            plan,
+            loaded,
+            "adopted preserves an unknown loaded digest as null",
+        )
+
+        mismatched = copy.deepcopy(run)
+        mismatched["runtime_capabilities"]["runtime_adapter"]["version_gate"][
+            "installed_contract_digest"
+        ] = "b" * 64
+        self.assert_run_error_contains(
+            plan,
+            mismatched,
+            "adopted requires matching installed and adoption digests",
+        )
+
+        relabeled = copy.deepcopy(run)
+        relabeled["runtime_capabilities"]["runtime_adapter"]["version_gate"][
+            "status"
+        ] = "current"
+        self.assert_run_error_contains(
+            plan,
+            relabeled,
+            "contract_adoption is valid only with status adopted",
+        )
+
+    def test_runtime_contract_adoption_is_rejected_on_run_v10(self) -> None:
+        plan = valid_plan()
+        plan["schema_version"] = 5
+        run = valid_run(plan)
+        gate = run["runtime_capabilities"]["runtime_adapter"]["version_gate"]
+        gate["status"] = "adopted"
+
+        self.assert_run_error_contains(
+            plan,
+            run,
+            "adopted contract receipts require RUN schema v11",
         )
 
     def test_runtime_version_gate_validates_status_and_evidence(self) -> None:

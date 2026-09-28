@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import datetime
 import os
 import shutil
 import subprocess
@@ -62,6 +63,10 @@ def find_powershell() -> str | None:
 REPO_ROOT = find_repo_root(Path(__file__).resolve().parent)
 BASH = find_bash()
 POWERSHELL = find_powershell()
+# Git Bash starts each helper process slowly (~70 ms per cmp/stat), so one full
+# install.sh run takes over a minute on Windows and more on a loaded machine.
+# The deadline only bounds a hung installer; it is not a performance check.
+INSTALL_TIMEOUT = 600
 
 
 def is_cache_path(path: Path) -> bool:
@@ -147,6 +152,27 @@ class InstallScriptTests(unittest.TestCase):
             )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    def test_ci_runs_installer_and_python_suites_on_macos(self) -> None:
+        # The harness suite includes these installer tests, so macOS CI
+        # covers install.sh under BSD tools and symlinked temp roots.
+        workflow = (REPO_ROOT / ".github/workflows/harness-ci.yml").read_text(
+            encoding="utf-8"
+        )
+        job = workflow.split("\n  macos:\n", 1)[1].split("\n  windows-hardening:\n", 1)[0]
+        self.assertIn("runs-on: macos-latest", job)
+        # Non-blocking until Harness supports macOS.
+        self.assertIn("continue-on-error: true", job)
+        for skill in (
+            "delivery-harness",
+            "product-definition-builder",
+            "ui-design-builder",
+            "design-system-compiler",
+            "product-activation",
+            "seo-growth-review",
+        ):
+            self.assertIn(f"unittest discover -s skills/{skill}/scripts/tests -v", job)
+        self.assertNotIn("PDH_REQUIRE_BROWSER_TESTS", job)
+
     SKILLS = (
         "delivery-harness",
         "product-definition-builder",
@@ -164,7 +190,9 @@ class InstallScriptTests(unittest.TestCase):
             self.skipTest("no repository checkout with install.sh")
         self._temp = tempfile.TemporaryDirectory()
         self.addCleanup(self._temp.cleanup)
-        self.home = Path(self._temp.name)
+        # Resolve symlinked temp roots (macOS /var -> /private/var); the
+        # installers correctly refuse symlinked path components.
+        self.home = Path(self._temp.name).resolve()
         self.destination = self.home / "skills"
         self.backup_root = self.home / "backups"
 
@@ -239,7 +267,7 @@ class InstallScriptTests(unittest.TestCase):
             text=True,
             env=env,
             cwd=self.home,
-            timeout=120,
+            timeout=INSTALL_TIMEOUT,
         )
 
     @unittest.skipIf(BASH is None, "no usable bash is available")
@@ -293,6 +321,45 @@ class InstallScriptTests(unittest.TestCase):
         self.assertIn(
             f"non-regular tracked source entry is not installable: mode=120000 path={relative}",
             result.stderr + result.stdout,
+        )
+        self.assertFalse(self.destination.exists())
+
+    @unittest.skipIf(POWERSHELL is None, "neither pwsh nor powershell is available")
+    def test_powershell_rejects_tracked_symlink_mode_before_mutation(self) -> None:
+        source = self.make_minimal_repo()
+        relative = "skills/delivery-harness/tracked-link"
+        (source / relative).write_text("ordinary working-tree bytes\n", encoding="utf-8")
+        blob = subprocess.run(
+            ["git", "hash-object", "-w", "--stdin"],
+            cwd=source,
+            input="SKILL.md",
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        subprocess.run(
+            ["git", "update-index", "--add", "--cacheinfo", f"120000,{blob},{relative}"],
+            cwd=source,
+            check=True,
+        )
+        result = subprocess.run(
+            [
+                POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+                str(source / "install.ps1"), "-Destination", str(self.destination),
+                "-BackupRoot", str(self.backup_root),
+            ],
+            capture_output=True,
+            text=True,
+            cwd=self.home,
+            timeout=INSTALL_TIMEOUT,
+        )
+        self.assertNotEqual(0, result.returncode)
+        # pwsh on Linux colors the error record and wraps it with "|" gutters.
+        output = re.sub(r"\x1b\[[0-9;]*m", "", result.stderr + result.stdout)
+        output = re.sub(r"\s*\n\s*\|\s*", " ", output)
+        self.assertIn(
+            f"non-regular tracked source entry is not installable: mode=120000 path={relative}",
+            output,
         )
         self.assertFalse(self.destination.exists())
 
@@ -450,7 +517,7 @@ class InstallScriptTests(unittest.TestCase):
             capture_output=True,
             text=True,
             cwd=self.home,
-            timeout=120,
+            timeout=INSTALL_TIMEOUT,
             env={
                 **os.environ,
                 "HOME": bash_path(self.home),
@@ -481,12 +548,22 @@ class InstallScriptTests(unittest.TestCase):
             cwd=self.home,
         )
         lock = self.destination / ".pdh-install.lock"
-        deadline = time.monotonic() + 10
-        while not lock.exists() and time.monotonic() < deadline:
+        # Git Bash needs many seconds of pre-lock source checks before it takes
+        # the lock, and it holds the lock for the whole install, so wait until
+        # the lock appears or the first installer exits.
+        deadline = time.monotonic() + INSTALL_TIMEOUT
+        while (
+            not lock.exists()
+            and first.poll() is None
+            and time.monotonic() < deadline
+        ):
             time.sleep(0.05)
-        self.assertTrue(lock.exists(), "first installer never acquired the lock")
+        if not lock.exists():
+            first.kill()
+            first_stdout, first_stderr = first.communicate()
+            self.fail(f"first installer never acquired the lock: {first_stderr or first_stdout}")
         second = self.run_bash({"SKILL_BACKUP_ROOT": str(self.backup_root)})
-        first_stdout, first_stderr = first.communicate(timeout=120)
+        first_stdout, first_stderr = first.communicate(timeout=INSTALL_TIMEOUT)
         self.assertEqual(0, first.returncode, first_stderr or first_stdout)
         self.assertNotEqual(0, second.returncode)
         self.assertIn("another install owns destination lock", second.stderr)
@@ -507,7 +584,7 @@ class InstallScriptTests(unittest.TestCase):
                 capture_output=True,
                 text=True,
                 cwd=self.home,
-                timeout=120,
+                timeout=INSTALL_TIMEOUT,
                 env={
                     **os.environ,
                     "HOME": bash_path(self.home),
@@ -533,10 +610,107 @@ class InstallScriptTests(unittest.TestCase):
                 capture_output=True,
                 text=True,
                 cwd=self.home,
-                timeout=120,
+                timeout=INSTALL_TIMEOUT,
             )
             self.assertNotEqual(0, result.returncode)
             self.assertIn("untracked or ignored source artifact is not installable", result.stderr + result.stdout)
+
+    def assert_source_line_recorded(self, source: Path, install) -> None:
+        head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=source, capture_output=True, text=True, check=True
+        ).stdout.strip()
+        # A clean first install makes no backup, so the line is only printed.
+        first = install()
+        self.assertEqual(0, first.returncode, first.stderr or first.stdout)
+        self.assertIn(f"source commit {head}, uncommitted skills/ changes: no", first.stdout)
+        self.assertFalse(self.backup_root.exists() and any(self.backup_root.iterdir()))
+
+        # An uncommitted tracked edit is installed, reported, and recorded
+        # next to the backup of the copy it replaced.
+        (source / "skills" / "ui-design-builder" / "SKILL.md").write_text(
+            "# dirty ui-design-builder\n", encoding="utf-8", newline="\n"
+        )
+        second = install()
+        self.assertEqual(0, second.returncode, second.stderr or second.stdout)
+        line = f"source commit {head}, uncommitted skills/ changes: yes"
+        self.assertIn(line, second.stdout)
+        backups = [child for child in self.backup_root.iterdir() if child.is_dir()]
+        self.assertEqual(1, len(backups))
+        record = backups[0].with_name(backups[0].name + ".source")
+        self.assertEqual(line + "\n", record.read_text(encoding="utf-8"))
+        self.assertEqual(
+            "# dirty ui-design-builder\n",
+            (self.destination / "ui-design-builder" / "SKILL.md").read_text(encoding="utf-8"),
+        )
+
+    def assert_planted_receipt_preserved(self, install) -> None:
+        # A leftover or planted <stamp>.source must not be overwritten: the
+        # backup name skips it and the receipt is created exclusively.
+        self.seed_managed_copies()
+        self.backup_root.mkdir(parents=True)
+        start = datetime.datetime.now()
+        planted = []
+        for offset in range(-2, 60):
+            stamp = (start + datetime.timedelta(seconds=offset)).strftime("%Y%m%d-%H%M%S")
+            sidecar = self.backup_root / f"{stamp}.source"
+            sidecar.write_text("unrelated\n", encoding="utf-8", newline="\n")
+            planted.append(sidecar)
+        result = install()
+        self.assertEqual(0, result.returncode, result.stderr or result.stdout)
+        for sidecar in planted:
+            self.assertEqual("unrelated\n", sidecar.read_text(encoding="utf-8"))
+        backups = [child for child in self.backup_root.iterdir() if child.is_dir()]
+        self.assertEqual(1, len(backups))
+        record = backups[0].with_name(backups[0].name + ".source")
+        self.assertIn("source commit", record.read_text(encoding="utf-8"))
+
+    @unittest.skipIf(BASH is None, "no usable bash is available")
+    def test_bash_keeps_an_existing_source_receipt(self) -> None:
+        source = self.make_minimal_repo()
+        self.assert_planted_receipt_preserved(
+            lambda: self.run_bash(
+                {"SKILL_BACKUP_ROOT": str(self.backup_root)}, installer=source / "install.sh"
+            )
+        )
+
+    @unittest.skipIf(POWERSHELL is None, "neither pwsh nor powershell is available")
+    def test_powershell_keeps_an_existing_source_receipt(self) -> None:
+        source = self.make_minimal_repo()
+        self.assert_planted_receipt_preserved(
+            lambda: subprocess.run(
+                [
+                    POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+                    str(source / "install.ps1"), "-Destination", str(self.destination),
+                    "-BackupRoot", str(self.backup_root),
+                ],
+                capture_output=True, text=True, cwd=self.home, timeout=INSTALL_TIMEOUT,
+            )
+        )
+
+    @unittest.skipIf(BASH is None, "no usable bash is available")
+    def test_bash_prints_and_records_source_commit_and_dirty_state(self) -> None:
+        source = self.make_minimal_repo()
+        self.assert_source_line_recorded(
+            source,
+            lambda: self.run_bash(
+                {"SKILL_BACKUP_ROOT": str(self.backup_root)}, installer=source / "install.sh"
+            ),
+        )
+
+    @unittest.skipIf(POWERSHELL is None, "neither pwsh nor powershell is available")
+    def test_powershell_prints_and_records_source_commit_and_dirty_state(self) -> None:
+        source = self.make_minimal_repo()
+        command = [
+            POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+            str(source / "install.ps1"), "-Destination", str(self.destination),
+            "-BackupRoot", str(self.backup_root),
+        ]
+        self.assert_source_line_recorded(
+            source,
+            lambda: subprocess.run(
+                command, capture_output=True, text=True, cwd=self.home, timeout=INSTALL_TIMEOUT
+            ),
+        )
 
     @unittest.skipIf(POWERSHELL is None, "neither pwsh nor powershell is available")
     def test_powershell_has_migration_rollback_and_complete_install_parity(self) -> None:
@@ -557,7 +731,7 @@ class InstallScriptTests(unittest.TestCase):
             capture_output=True,
             text=True,
             cwd=self.home,
-            timeout=180,
+            timeout=INSTALL_TIMEOUT,
             env={**os.environ, "PDH_INSTALL_FAIL_AFTER": "delivery-harness"},
         )
         self.assertNotEqual(0, failed.returncode, failed.stderr or failed.stdout)
@@ -573,7 +747,7 @@ class InstallScriptTests(unittest.TestCase):
             capture_output=True,
             text=True,
             cwd=self.home,
-            timeout=180,
+            timeout=INSTALL_TIMEOUT,
             env={**os.environ, "PDH_INSTALL_FAIL_AFTER": ""},
         )
         self.assertEqual(0, succeeded.returncode, succeeded.stderr or succeeded.stdout)
@@ -614,7 +788,7 @@ class InstallScriptTests(unittest.TestCase):
         ]
         failed = subprocess.run(
             [POWERSHELL, *common], capture_output=True, text=True,
-            cwd=self.home, timeout=180,
+            cwd=self.home, timeout=INSTALL_TIMEOUT,
             env={**os.environ, "PDH_INSTALL_FAIL_AFTER": "delivery-harness"},
         )
         self.assertNotEqual(0, failed.returncode, failed.stderr or failed.stdout)
@@ -622,7 +796,7 @@ class InstallScriptTests(unittest.TestCase):
 
         succeeded = subprocess.run(
             [POWERSHELL, *common], capture_output=True, text=True,
-            cwd=self.home, timeout=180,
+            cwd=self.home, timeout=INSTALL_TIMEOUT,
             env={**os.environ, "PDH_INSTALL_FAIL_AFTER": ""},
         )
         self.assertEqual(0, succeeded.returncode, succeeded.stderr or succeeded.stdout)
@@ -661,7 +835,7 @@ class InstallScriptTests(unittest.TestCase):
                     capture_output=True,
                     text=True,
                     cwd=self.home,
-                    timeout=180,
+                    timeout=INSTALL_TIMEOUT,
                 )
                 self.assertNotEqual(0, result.returncode)
                 self.assertIn(
@@ -696,7 +870,7 @@ class InstallScriptTests(unittest.TestCase):
             capture_output=True,
             text=True,
             cwd=self.home,
-            timeout=180,
+            timeout=INSTALL_TIMEOUT,
             env={
                 **os.environ,
                 "PDH_INSTALL_TEST_CREATE_FOREIGN_TARGET": "product-definition-builder",
@@ -727,7 +901,7 @@ class InstallScriptTests(unittest.TestCase):
             capture_output=True,
             text=True,
             cwd=self.home,
-            timeout=180,
+            timeout=INSTALL_TIMEOUT,
             env={
                 **os.environ,
                 "PDH_INSTALL_TEST_FAIL_OWNER_MARKER": "product-definition-builder",
@@ -748,7 +922,7 @@ class InstallScriptTests(unittest.TestCase):
             capture_output=True,
             text=True,
             cwd=self.home,
-            timeout=180,
+            timeout=INSTALL_TIMEOUT,
             env={**os.environ, "PDH_INSTALL_TEST_FAIL_LOCK_OWNER": "1"},
         )
         self.assertNotEqual(0, result.returncode)

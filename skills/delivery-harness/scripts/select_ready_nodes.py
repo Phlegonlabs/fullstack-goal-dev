@@ -11,8 +11,10 @@ from itertools import combinations
 from pathlib import Path
 from typing import Any
 
+from harness_contract import contract_digest
 from harness_core import _nonempty_string, _normalized_branch, classify_execution_route
 from harness_manifest import (
+    EXACT_RECEIPT_REQUIRED_VERSION,
     ManifestError,
     UI_AUTHORING_REQUIRED_SKILLS,
     authorization_covers,
@@ -28,7 +30,13 @@ from harness_manifest import (
     mission_has_ui_authoring_action,
 )
 
-from harness_schema import HEAD_BOUND_AUTHORIZATION_ACTIONS, RUN_DISPATCH_STATUSES
+from harness_schema import (
+    EXACT_TARGET_LIFECYCLE_ACTIONS,
+    HEAD_BOUND_AUTHORIZATION_ACTIONS,
+    RUN_DISPATCH_STATUSES,
+    run_required_harness_version,
+    version_at_least,
+)
 from verifier_runtime import sandbox_host_fingerprint
 
 
@@ -1007,6 +1015,34 @@ def _required_actions(
     return actions
 
 
+def _contract_adoption_reasons(
+    run: dict[str, Any], *, live_digest: str | None
+) -> set[str]:
+    """Check an explicit lazy-read adoption against current installed bytes.
+
+    ``current`` keeps its stronger loaded-at-start proof. ``adopted`` is a
+    separate owner-authorized re-read epoch and rechecks the live bundle once.
+    """
+
+    version_gate = (
+        run.get("runtime_capabilities", {}).get("runtime_adapter", {}).get("version_gate")
+    )
+    if not isinstance(version_gate, dict) or version_gate.get("status") != "adopted":
+        return set()
+    adoption = version_gate.get("contract_adoption")
+    if not isinstance(adoption, dict) or live_digest is None:
+        return {"runtime_contract_unobserved"}
+    expected = adoption.get("contract_digest_sha256")
+    installed = version_gate.get("installed_contract_digest")
+    if expected != live_digest or installed != live_digest:
+        return {"runtime_contract_drift"}
+    if version_gate.get("loaded_contract_digest") is not None:
+        return {"runtime_contract_invalid"}
+    if adoption.get("session_id") != version_gate.get("session_id"):
+        return {"runtime_contract_invalid"}
+    return set()
+
+
 def _dispatch_reasons(
     node: dict[str, Any],
     binding: dict[str, Any] | None,
@@ -1045,9 +1081,11 @@ def _dispatch_reasons(
             if run.get("schema_version") == 11:
                 loaded = version_gate.get("loaded_contract_digest")
                 installed = version_gate.get("installed_contract_digest")
-                if loaded is None or installed is None:
+                if version_status != "adopted" and (
+                    loaded is None or installed is None
+                ):
                     reasons.add("runtime_contract_unobserved")
-                elif loaded != installed:
+                elif version_status != "adopted" and loaded != installed:
                     reasons.add("runtime_restart_required")
         # Deferral reasons are not short-circuited elsewhere in this module (see
         # _logical_reasons), so a missing binding does not return early either:
@@ -1119,17 +1157,42 @@ def _dispatch_reasons(
                 for mission_id in authorization_missions
             ):
                 reasons.add("action_not_authorized")
+            # From 0.55.0 a subagent reviewer needs an exact worker:<id>
+            # receipt, which validate_run checks against exact mission ids,
+            # as it does for mission workers. A "*" mission scope cannot
+            # produce that receipt, so do not offer the reservation.
+            spawn_scope = (
+                run.get("authorizations", {}).get("spawn_subagents") or {}
+            ).get("scope")
+            spawn_missions = (
+                spawn_scope.get("mission_ids") if isinstance(spawn_scope, dict) else None
+            )
+            if (
+                node["kind"] == "verifier"
+                and action == "spawn_subagents"
+                and run["schema_version"] == 11
+                and version_at_least(
+                    run_required_harness_version(run),
+                    EXACT_RECEIPT_REQUIRED_VERSION,
+                )
+                and isinstance(spawn_missions, list)
+                and "*" in spawn_missions
+            ):
+                reasons.add("action_not_authorized")
     if node["kind"] == "lifecycle":
-        # A bare "*" target is unreachable for `push`: schema v10 rejects a
-        # wildcard scope for every HEAD_BOUND_AUTHORIZATION_ACTIONS entry
-        # (harness_authorization.py). node["target"], when the PLAN declares
-        # one, is the exact target the RUN ledger was actually granted against.
-        # Falling back to "*" when it is absent keeps already-valid PLANs
-        # (authored before this field existed) unchanged.
+        # A bare "*" target is unreachable for `push`: RUN validation rejects a
+        # wildcard grant for every HEAD_BOUND_AUTHORIZATION_ACTIONS entry
+        # (harness_manifest.py). Other actions may hold a run-wide "*" grant.
+        # node["target"], when the PLAN declares one, is the exact target the
+        # RUN ledger is checked against; falling back to "*" keeps older PLANs
+        # valid. A cleanup ref must name its exact target, so a target-less
+        # one is never dispatchable.
         target = node.get("target") or "*"
         mission_ids = sorted(run["mission_states"])
         current_head = _current_authorized_head(run)
-        if any(
+        if target == "*" and node["ref"] in EXACT_TARGET_LIFECYCLE_ACTIONS:
+            reasons.add("action_not_authorized")
+        elif any(
             not authorization_covers(run, node["ref"], mission_id, target)
             for mission_id in mission_ids
         ):
@@ -1214,6 +1277,15 @@ def _directive(
             "completion_channel": runtime["completion_channel"],
         }
     )
+    version_gate = (
+        run.get("runtime_capabilities", {}).get("runtime_adapter", {}).get("version_gate")
+    )
+    if (
+        node["executor"] == "runtime_worker"
+        and isinstance(version_gate, dict)
+        and version_gate.get("status") == "adopted"
+    ):
+        directive["contract_adoption"] = version_gate.get("contract_adoption")
     if node["kind"] == "mission" and isinstance(mission, dict):
         directive["required_skills"] = list(mission.get("required_skills", []))
     return directive
@@ -1261,6 +1333,27 @@ def select_ready_nodes(
             node["id"],
         ),
     )
+    has_runtime_workers = any(
+        node.get("executor") == "runtime_worker" for node in nodes
+    )
+    live_contract_digest: str | None = None
+    if has_runtime_workers:
+        version_gate = (
+            run.get("runtime_capabilities", {})
+            .get("runtime_adapter", {})
+            .get("version_gate")
+        )
+        if isinstance(version_gate, dict) and version_gate.get("status") == "adopted":
+            try:
+                live_contract_digest = contract_digest()
+            except (OSError, ValueError) as exc:
+                raise GraphSelectionError(
+                    "adopted runtime contract could not be observed: "
+                    + type(exc).__name__
+                ) from exc
+    contract_adoption_reasons = _contract_adoption_reasons(
+        run, live_digest=live_contract_digest
+    )
 
     logical_ready: list[dict[str, Any]] = []
     deferred: list[dict[str, Any]] = []
@@ -1285,6 +1378,8 @@ def select_ready_nodes(
             run,
             missions,
         )
+        if item["node"]["executor"] == "runtime_worker":
+            reasons = sorted(set(reasons) | contract_adoption_reasons)
         if reasons:
             deferred.append({"node_id": item["node"]["id"], "reason_codes": reasons})
         else:

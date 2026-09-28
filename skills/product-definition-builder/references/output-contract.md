@@ -24,7 +24,7 @@ Keep canonical artifact prose in English. Produce complete Traditional Chinese o
 
 ## Design And Maintenance Routing
 
-First classify this round using `ui-design-builder/references/review-workflow.md`. Initial design, enhancements and an explicit full redesign use the applicable design gates below. Routine maintenance uses the current product, effective PRD and accepted changes: update affected requirements and the existing change record, modify and verify the product, and retain historical Wireframe/HiFi/tokens without mandatory regeneration. Historical visual differences alone are not a delivery block. A new product or stack decision still returns to its owning flow. An already frozen managed RUN keeps its pinned contract; reconcile at a task boundary rather than weakening its gates.
+First classify this round using `ui-design-builder/references/review-workflow.md`. Initial design, enhancements and an explicit full redesign use the applicable design gates below. Routine maintenance is valid only with UI impact `none` or `style`; a `structure` or `both` change follows the affected design gates. Routine maintenance uses the current product, effective PRD and accepted changes: update affected requirements and the existing change record, modify and verify the product, and retain historical Wireframe/HiFi/tokens without mandatory regeneration. Historical visual differences alone are not a delivery block. A new product or stack decision still returns to its owning flow. An already frozen managed RUN keeps its pinned contract; reconcile at a task boundary rather than weakening its gates.
 
 ## Device And Reading Scope
 
@@ -311,7 +311,7 @@ Research Gate: [go / clarify / stop / skipped] — [assessment date and findings
 ### Product Definition Approval
 - Package mode: [new / enhancement]
 - Package revision: [Stable revision label for this candidate]
-- Package digest: [sha256:<64 lowercase hex> over canonical PRD/architecture/stack bytes, excluding this approval block]
+- Package digest: [sha256:<64 lowercase hex> over the raw PRD/architecture/stack text, including fenced, indented and commented content; only this approval block is excluded]
 - Decision: [approved / revision_requested / blocked]
 - Decision owner: [Human product owner]
 - Decided on: [YYYY-MM-DD]
@@ -562,7 +562,7 @@ Verdict: [no_change / enhancement / incident] — [one-line reason]
 
 Rules:
 
-- Run `python skills/product-definition-builder/scripts/check_outcome_review.py --outcome docs/product/outcomes/YYYY-MM-DD-<release-set>.md --prd docs/product/PRD.md --architecture docs/product/architecture.md --stack-decisions docs/product/stack-decisions.md --deployment docs/DEPLOYMENT.md --activation docs/ACTIVATION.md --repo-root <repository-root> --require-lifecycle`. When appending to a retained record instead of creating a dated one, also pass `--prior-outcome <immutable-prior-record>` and record its exact digest.
+- Run `python skills/product-definition-builder/scripts/check_outcome_review.py --outcome docs/product/outcomes/YYYY-MM-DD-<release-set>.md --prd docs/product/PRD.md --architecture docs/product/architecture.md --stack-decisions docs/product/stack-decisions.md --deployment docs/DEPLOYMENT.md --activation docs/ACTIVATION.md --repo-root <repository-root> --require-lifecycle`. When appending to a retained record instead of creating a dated one, also pass `--prior-outcome <immutable-prior-record>` and record its exact digest: the sha256 of the file's raw bytes.
 - Record actual against target for every `PRD.md` `## Metrics` metric and every required `TEST-*` expected signal; baseline, target/expected signal, and (when present) numeric measurement-window duration must exactly join the PRD row. An empty or duplicate Measurements table means the review is not done.
 - The measurement window is real elapsed time after deployment, uses real calendar dates, closes on or before the review date, and cannot extend into the future. A review written at deploy time with "pending" actuals is a stub, not a verdict.
 - A single-target review cannot mix targets or releases and is production-only. A multi-target review keeps the ordered target set explicit, joins every target row to its own current Deployment PASS identity and verified `MS-*` sources, and repeats every PRD metric and required `TEST-*` signal only for the targets listed in that signal's Activation Outcome Coverage. Each target row's measurement window must use the PRD's exact numeric duration and start/end strictly after that target's Deployment checked date. No target's SHA, artifact, source, or actual may be reused implicitly for another target. All reviewed targets must be production architecture targets, and the aggregate verdict follows the closed deterministic severity order.
@@ -707,7 +707,7 @@ Use this structure:
 - Approved areas: [Frontend / Mobile or desktop / Backend or data / AI or automation / Monetization or partner channel / Toolchain / none]
 - Delegated choices: [None / exact decision classes explicitly delegated and source]
 - Open areas: [None / exact unresolved areas]
-- Checkpoint digest: [sha256:<64 lowercase hex> over canonical stack bytes, excluding this checkpoint block]
+- Checkpoint digest: [sha256:<64 lowercase hex> over the raw stack text, including fenced, indented and commented content; only this checkpoint block is excluded]
 - Applicable areas: [Exact release-surface and gate applicability]
 - Resolved areas: [Exact areas closed by this checkpoint]
 - Approved option map: [OPT-ID=layer=>selection;layer=>selection entries, exactly matching approved executable layer selections. Use the explicit `||` map form `||OPT-ID=...||OPT-ID=...||` when a layer name or selection contains a comma; comma-only legacy maps remain readable. `render_stack_option_map.py` may produce this candidate from existing rows before review; only the owner's accepted checkpoint and canonical digest binding make it approved]
@@ -770,6 +770,7 @@ A product may add this section in a later revision after Frontend Technology Dec
 | Target operating systems | [iOS / Android / both / macOS / Windows / exact set] | [Required / Selected / Approved / Recommended / Provisional] | [Cited source] | [Reason] | [Constraint] |
 | Client strategy | [Platform-native / cross-platform] | [Required / Selected / Approved / Recommended / Provisional] | [Cited source] | [Reason] | [Constraint] |
 | Framework | [SwiftUI / Jetpack Compose / Flutter / React Native / Tauri / Electron / exact choice] | [Required / Selected / Approved / Recommended / Provisional] | [Cited source] | [Reason] | [Constraint] |
+| Styling approach | [platform theme / another exact choice] | [Required / Selected / Approved / Recommended / Provisional] | [Cited source] | [Reason] | [Constraint] |
 | Toolchain | [Xcode / Android Studio / Flutter-Dart / Expo or bare React Native / desktop equivalent] | [Required / Selected / Approved / Recommended / Provisional] | [Cited source] | [Reason] | [Constraint] |
 | Navigation and state | [Approach] | [Required / Selected / Approved / Recommended / Provisional] | [Cited source] | [Reason] | [Constraint] |
 | Local persistence | [Approach] | [Required / Selected / Approved / Recommended / Provisional] | [Cited source] | [Reason] | [Constraint] |

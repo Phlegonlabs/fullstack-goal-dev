@@ -93,6 +93,55 @@ jobs:
           fi
           git diff --check "$base...HEAD"
 
+  macos:
+    # Same Python suites as validate on macOS (BSD tools, /var symlink temp
+    # roots). Browser tests stay on the Linux job and skip here.
+    name: macos
+    runs-on: macos-latest
+    # Harness does not support macOS yet (Homebrew Git path, /var symlink
+    # temp roots, /dev/fd); report results without blocking. See
+    # docs/epics/EPIC-review-fixes-20260927.md.
+    continue-on-error: true
+    env:
+      VALIDATED_HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.VALIDATED_HEAD_SHA }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install harness test dependencies
+        run: python -m pip install -r skills/delivery-harness/requirements-test.txt
+
+      - name: Run harness unit, contract, and E2E tests
+        run: python -m unittest discover -s skills/delivery-harness/scripts/tests -v
+
+      - name: Run golden-path cross-skill test
+        env:
+          HARNESS_GOLDEN_PATH: "1"
+        run: python -m unittest discover -s skills/delivery-harness/scripts/tests -p "test_golden_path.py" -v
+
+      - name: Run product definition builder contract tests
+        run: python -m unittest discover -s skills/product-definition-builder/scripts/tests -v
+
+      - name: Run UI design builder contract tests
+        run: python -m unittest discover -s skills/ui-design-builder/scripts/tests -v
+
+      - name: Run design system compiler contract tests
+        run: python -m unittest discover -s skills/design-system-compiler/scripts/tests -v
+
+      - name: Run product activation contract tests
+        run: python -m unittest discover -s skills/product-activation/scripts/tests -v
+
+      - name: Run SEO growth review contract tests
+        run: python -m unittest discover -s skills/seo-growth-review/scripts/tests -v
+
   windows-hardening:
     name: windows-hardening
     runs-on: windows-latest

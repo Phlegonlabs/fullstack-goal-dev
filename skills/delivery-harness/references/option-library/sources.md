@@ -150,9 +150,13 @@ Reference only · 查閱日期：2026-09-25
 
 - [官方來源：developer.mozilla.org — en-US/docs/Web/API/Web_Animations_API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API)
 - [官方來源：developers.lottiefiles.com — ](https://developers.lottiefiles.com/)
+- [官方來源：github.com — mrdoob/three.js](https://github.com/mrdoob/three.js)
 - [官方來源：gsap.com — docs/v3/](https://gsap.com/docs/v3/)
 - [官方來源：gsap.com — docs/v3/Plugins/ScrollTrigger/](https://gsap.com/docs/v3/Plugins/ScrollTrigger/)
+- [官方來源：motion.dev — docs/quick-start](https://motion.dev/docs/quick-start)
+- [官方來源：motion.dev — docs/react](https://motion.dev/docs/react)
 - [官方來源：motion.dev — docs/react-accessibility](https://motion.dev/docs/react-accessibility)
+- [官方來源：r3f.docs.pmnd.rs — getting-started/introduction](https://r3f.docs.pmnd.rs/getting-started/introduction)
 - [官方來源：rive.app — docs/runtimes](https://rive.app/docs/runtimes)
 
 ## [operations.md](operations.md)

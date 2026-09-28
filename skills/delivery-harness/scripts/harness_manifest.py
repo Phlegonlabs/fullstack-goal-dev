@@ -17,6 +17,7 @@ from harness_schema import (
     CAPABILITY_PROBE_KEYS,
     DRIVER_CAPABILITY_REQUIREMENTS,
     CURRENT_SCHEMA_PAIR,
+    EXACT_TARGET_LIFECYCLE_ACTIONS,
     EXPIRY_BOUNDARIES,
     GATE_VALUES,
     HEAD_BOUND_AUTHORIZATION_ACTIONS,
@@ -52,6 +53,8 @@ from harness_schema import (
     TASK_ID_RE,
     TASK_PHASES,
     TARGET_RE,
+    frozen_coordination_path,
+    supported_coordination_path,
     version_at_least,
     WORKER_PHASES,
 )
@@ -100,12 +103,14 @@ from harness_authorization import (
     authorization_covers,
     execution_covers,
     is_explicit_remote_intent,
+    is_protected_branch_target,
     wave_scope_matches_current,
 )
 from harness_graph import (
     _cycle_nodes,
     _validate_graph,
     _validate_graph_state,
+    validate_cleanup_lifecycle_targets,
 )
 from harness_ui_evidence import (
     _validate_ui_evidence,
@@ -1824,6 +1829,9 @@ def _security_required_check_errors(
 
 
 UI_IMPACT_SUMMARY_REQUIRED_VERSION = (0, 35, 0)
+# Exact-receipt rules added in 0.55.0 (reviewer spawn receipt, exact cleanup
+# PASS target, cleanup lifecycle node target). Older RUNs keep their shape.
+EXACT_RECEIPT_REQUIRED_VERSION = (0, 55, 0)
 UI_IMPACT_SUMMARY_ROW_KEYS = {"mission_id", "impact"}
 
 
@@ -4189,6 +4197,22 @@ def _validate_run_attempt_log(
                                     f"{path}.node_dispatch.target",
                                     "must be an exact target or *",
                                 )
+                            # A cleanup PASS must name what it archived,
+                            # removed, or deleted.
+                            if (
+                                version_at_least(
+                                    run_required_harness_version(run),
+                                    EXACT_RECEIPT_REQUIRED_VERSION,
+                                )
+                                and node.get("ref") in EXACT_TARGET_LIFECYCLE_ACTIONS
+                                and target == "*"
+                                and attempt.get("result") == "pass"
+                            ):
+                                _add(
+                                    errors,
+                                    f"{path}.node_dispatch.target",
+                                    f"{node.get('ref')} PASS requires an exact recorded target, not *",
+                                )
                             _optional_sha(
                                 errors,
                                 f"{path}.node_dispatch.authorized_head_sha",
@@ -5406,6 +5430,75 @@ def _validate_run_workers(
                         f"{path}.nested_review_evidence",
                         "is allowed only for an enabled nested-subagent policy",
                     )
+def _validate_contract_adoption(
+    errors: list[str],
+    path: str,
+    version_gate: dict[str, Any],
+) -> bool:
+    """Validate explicit fixed-contract adoption receipts without rewriting history."""
+
+    keys = {
+        "session_id",
+        "adopted_at",
+        "contract_digest_sha256",
+        "owner_source",
+        "reading_evidence",
+    }
+
+    def validate_item(item: Any, item_path: str) -> bool:
+        if not _keys(errors, item_path, item, keys):
+            return False
+        valid = True
+        if not _nonempty_string(item["session_id"]):
+            _add(errors, f"{item_path}.session_id", "must be a non-empty string")
+            valid = False
+        if not _nonempty_string(item["adopted_at"]):
+            _add(errors, f"{item_path}.adopted_at", "must be a non-empty string")
+            valid = False
+        if not (
+            isinstance(item["contract_digest_sha256"], str)
+            and SHA256_RE.fullmatch(item["contract_digest_sha256"])
+        ):
+            _add(
+                errors,
+                f"{item_path}.contract_digest_sha256",
+                "must be a lowercase SHA-256 digest",
+            )
+            valid = False
+        if not _nonempty_string(item["owner_source"]):
+            _add(errors, f"{item_path}.owner_source", "must be a non-empty string")
+            valid = False
+        if (
+            not isinstance(item["reading_evidence"], list)
+            or not item["reading_evidence"]
+            or any(not _nonempty_string(entry) for entry in item["reading_evidence"])
+        ):
+            _add(
+                errors,
+                f"{item_path}.reading_evidence",
+                "must be a non-empty list of non-empty strings",
+            )
+            valid = False
+        elif len(item["reading_evidence"]) != len(set(item["reading_evidence"])):
+            _add(errors, f"{item_path}.reading_evidence", "must not contain duplicates")
+            valid = False
+        return valid
+
+    valid = True
+    adoption = version_gate.get("contract_adoption")
+    if adoption is not None and not validate_item(adoption, f"{path}.contract_adoption"):
+        valid = False
+    history = version_gate.get("contract_adoption_history", [])
+    if not isinstance(history, list):
+        _add(errors, f"{path}.contract_adoption_history", "must be a list")
+        valid = False
+    else:
+        for index, prior in enumerate(history):
+            if not validate_item(prior, f"{path}.contract_adoption_history[{index}]"):
+                valid = False
+    return valid
+
+
 def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
     """Validate a plan-backed harness_run object and cross-plan consistency."""
 
@@ -5805,6 +5898,22 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                             f"{path}.scope.targets",
                             "RUN-v11 push authorization cannot target retired development",
                         )
+                if action == "delete_branches" and entry["authorized"]:
+                    delete_scope = entry.get("scope")
+                    delete_targets = (
+                        delete_scope.get("targets")
+                        if isinstance(delete_scope, dict)
+                        else None
+                    )
+                    if isinstance(delete_targets, list) and any(
+                        is_protected_branch_target(run, target)
+                        for target in delete_targets
+                    ):
+                        _add(
+                            errors,
+                            f"{path}.scope.targets",
+                            "delete_branches cannot target main, development, or the observed default branch",
+                        )
                 if schema_version in {10, 11} and action in HEAD_BOUND_AUTHORIZATION_ACTIONS:
                     authorized_head = entry.get("authorized_head_sha")
                     if not is_full_sha(authorized_head):
@@ -6122,11 +6231,18 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                         "installed_contract_digest",
                     }
                 )
+                optional_version_keys = {
+                    "contract_adoption",
+                    "contract_adoption_history",
+                }
+            else:
+                optional_version_keys = set()
             if version_gate is not None and _keys(
                 errors,
                 version_path,
                 version_gate,
                 required_version_keys,
+                optional_version_keys,
             ):
                 for field in (
                     "host_version",
@@ -6146,6 +6262,12 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                     or version_gate["status"] not in RUNTIME_VERSION_STATUSES
                 ):
                     _add(errors, f"{version_path}.status", "has an unsupported value")
+                if schema_version != 11 and version_gate["status"] == "adopted":
+                    _add(
+                        errors,
+                        f"{version_path}.status",
+                        "adopted contract receipts require RUN schema v11",
+                    )
                 if not _nonempty_string(version_gate["evidence"]):
                     _add(errors, f"{version_path}.evidence", "must be a non-empty string")
                 if schema_version == 11:
@@ -6160,6 +6282,10 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                     loaded = version_gate["loaded_contract_digest"]
                     installed = version_gate["installed_contract_digest"]
                     status = version_gate["status"]
+                    adoption_valid = _validate_contract_adoption(
+                        errors, version_path, version_gate
+                    )
+                    adoption = version_gate.get("contract_adoption")
                     if status == "current" and (
                         loaded is None or installed is None or loaded != installed
                     ):
@@ -6167,6 +6293,37 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                             errors,
                             f"{version_path}.status",
                             "current requires matching loaded and installed contract digests",
+                        )
+                    if status == "adopted" and adoption_valid:
+                        if adoption is None:
+                            _add(
+                                errors,
+                                f"{version_path}.status",
+                                "adopted requires contract_adoption",
+                            )
+                        elif loaded is not None:
+                            _add(
+                                errors,
+                                f"{version_path}.status",
+                                "adopted preserves an unknown loaded digest as null",
+                            )
+                        elif installed != adoption["contract_digest_sha256"]:
+                            _add(
+                                errors,
+                                f"{version_path}.status",
+                                "adopted requires matching installed and adoption digests",
+                            )
+                        elif adoption["session_id"] != version_gate["session_id"]:
+                            _add(
+                                errors,
+                                f"{version_path}.status",
+                                "adopted requires the adoption and version-gate sessions to match",
+                            )
+                    if adoption is not None and status != "adopted":
+                        _add(
+                            errors,
+                            f"{version_path}.status",
+                            "contract_adoption is valid only with status adopted",
                         )
                     if loaded is not None and installed is not None and loaded != installed and status != "restart_required":
                         _add(
@@ -6443,6 +6600,32 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                         "run.integration.coordination_paths",
                         "must contain repository-relative POSIX paths",
                     )
+            # Closeout accepts a newer branch head when only coordination
+            # files changed, so a product path listed here would hide
+            # untested product commits.
+            frozen_paths = sorted(
+                path for path in coordination_paths
+                if frozen_coordination_path(path, plan)
+            )
+            if frozen_paths:
+                _add(
+                    errors,
+                    "run.integration.coordination_paths",
+                    "frozen product/design sources cannot be coordination paths: "
+                    + ", ".join(frozen_paths),
+                )
+            unsupported_paths = sorted(
+                path for path in coordination_paths
+                if not frozen_coordination_path(path, plan)
+                and not supported_coordination_path(path)
+            )
+            if unsupported_paths:
+                _add(
+                    errors,
+                    "run.integration.coordination_paths",
+                    "RUN declares unsupported product-path coordination entries: "
+                    + ", ".join(unsupported_paths),
+                )
         retention = integration.get("retention")
         if retention is not None and retention not in {"persistent", "ephemeral"}:
             _add(errors, "run.integration.retention", "must be null, persistent, or ephemeral")
@@ -6527,6 +6710,10 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
 
     if graph_run:
         _validate_graph_state(errors, plan, run)
+    if schema_version == 11 and version_at_least(
+        run_required_harness_version(run), EXACT_RECEIPT_REQUIRED_VERSION
+    ):
+        validate_cleanup_lifecycle_targets(errors, plan.get("graph"))
 
     task_states = run["task_states"]
     task_state_keys = {
@@ -6971,6 +7158,36 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                             "run.authorizations.create_user_owned_tasks",
                             f"must exactly authorize review target {target}",
                         )
+                # reserve-review-dispatch records worker:<id> for a subagent
+                # reviewer, the same spawn receipt a mission worker carries.
+                if (
+                    schema_version == 11
+                    and version_at_least(
+                        run_required_harness_version(run),
+                        EXACT_RECEIPT_REQUIRED_VERSION,
+                    )
+                    and worker["worker_runtime"] == "subagent"
+                    and _nonempty_string(worker["worker_id"])
+                ):
+                    target = f"worker:{worker['worker_id']}"
+                    if any(
+                        not authorization_covers(
+                            run,
+                            "spawn_subagents",
+                            mission_id,
+                            target,
+                            require_exact_target=True,
+                            preserve_completed_run_expiry=(
+                                run.get("status") == "complete"
+                            ),
+                        )
+                        for mission_id in reviewed_mission_ids
+                    ):
+                        _add(
+                            errors,
+                            "run.authorizations.spawn_subagents",
+                            f"must exactly authorize review target {target}",
+                        )
                 if worker["completion_channel"] == "report_file" and not _nonempty_string(
                     worker["report_path"]
                 ):
@@ -7328,6 +7545,7 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                 "run.integration.integration_head_sha",
                 "complete run requires an integration head",
             )
+        unreached_mission_ids: set[str] = set()
         if graph_run:
             graph_state = run.get("graph_state")
             closeout_node_states = (
@@ -7340,11 +7558,31 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                 if isinstance(graph_state, dict)
                 else {}
             )
+            closeout_graph = plan.get("graph")
+            reached_node_ids = _closeout_reached_nodes(
+                closeout_graph, closeout_node_states, edge_states
+            )
+            unreached_mission_ids = {
+                node["ref"]
+                for node in (
+                    closeout_graph.get("nodes", [])
+                    if isinstance(closeout_graph, dict)
+                    and isinstance(closeout_graph.get("nodes"), list)
+                    else []
+                )
+                if isinstance(node, dict)
+                and node.get("kind") == "mission"
+                and isinstance(node.get("ref"), str)
+                and isinstance(node.get("id"), str)
+                and node["id"] not in reached_node_ids
+            }
             if not isinstance(closeout_node_states, dict) or any(
                 not isinstance(state, dict)
-                or state.get("phase")
-                not in {"succeeded", "skipped", "superseded"}
-                for state in closeout_node_states.values()
+                or (
+                    state.get("phase") not in {"succeeded", "skipped", "superseded"}
+                    and node_id in reached_node_ids
+                )
+                for node_id, state in closeout_node_states.items()
             ):
                 _add(
                     errors,
@@ -7403,10 +7641,26 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                     "run.graph_state.node_states",
                     "complete graph run cannot supersede a review node that returned fix_required",
                 )
+            closeout_edges = {
+                edge.get("id"): edge
+                for edge in (
+                    closeout_graph.get("edges", [])
+                    if isinstance(closeout_graph, dict)
+                    and isinstance(closeout_graph.get("edges"), list)
+                    else []
+                )
+                if isinstance(edge, dict)
+                and all(isinstance(edge.get(key), str) for key in ("id", "from", "to"))
+            }
             if not isinstance(edge_states, dict) or any(
                 not isinstance(state, dict)
-                or state.get("status") not in {"traversed", "exhausted", "skipped"}
-                for state in edge_states.values()
+                or not _closeout_edge_terminal(
+                    closeout_edges.get(edge_id),
+                    state,
+                    closeout_node_states,
+                    reached_node_ids,
+                )
+                for edge_id, state in edge_states.items()
             ):
                 _add(
                     errors,
@@ -7414,10 +7668,17 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                     "complete graph run requires every edge to be terminal",
                 )
             _validate_required_security_closeout(errors, plan, run)
+        # A repair mission behind a route that was never taken stays queued.
         if not isinstance(mission_states, dict) or any(
             not isinstance(state, dict)
-            or state.get("phase") not in {"integrated", "superseded"}
-            for state in mission_states.values()
+            or (
+                state.get("phase") not in {"integrated", "superseded"}
+                and not (
+                    mission_id in unreached_mission_ids
+                    and state.get("phase") == "queued"
+                )
+            )
+            for mission_id, state in mission_states.items()
         ):
             _add(
                 errors,
@@ -7453,11 +7714,26 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                 )
             )
         }
+        unreached_task_ids = {
+            item["id"]
+            for current_mission in plan.get("missions", [])
+            if isinstance(current_mission, dict)
+            and current_mission.get("id") in unreached_mission_ids
+            and isinstance(mission_states, dict)
+            and isinstance(mission_states.get(current_mission.get("id")), dict)
+            and mission_states[current_mission["id"]].get("phase") == "queued"
+            for item in current_mission.get("tasks", [])
+            if isinstance(item, dict) and _nonempty_string(item.get("id"))
+        } - superseded_task_ids
         task_closeout_invalid = not isinstance(task_states, dict)
         if isinstance(task_states, dict):
             for task_id, state in task_states.items():
                 expected_phase = (
-                    "superseded" if task_id in superseded_task_ids else "mission_recorded"
+                    "superseded"
+                    if task_id in superseded_task_ids
+                    else "queued"
+                    if task_id in unreached_task_ids
+                    else "mission_recorded"
                 )
                 if not isinstance(state, dict) or state.get("phase") != expected_phase:
                     task_closeout_invalid = True
@@ -7524,6 +7800,118 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
             )
 
     return sorted(set(errors))
+
+
+def _closeout_route_untaken(edge: dict[str, Any], source: Any) -> bool:
+    """A route whose source passed on to other outcomes was never taken."""
+
+    outcomes = edge.get("on_outcomes")
+    return (
+        edge.get("kind") == "route"
+        and isinstance(source, dict)
+        and source.get("phase") == "succeeded"
+        and isinstance(outcomes, list)
+        and source.get("last_outcome") not in outcomes
+    )
+
+
+def _closeout_reached_nodes(
+    graph: Any, node_states: Any, edge_states: Any
+) -> set[Any]:
+    """Nodes that ran, or that a finished run could still activate.
+
+    Start from the entry nodes and every node that left dormant, then follow
+    every edge except routes that were never taken. A node outside this set
+    (for example a repair node behind an unused fix_required route) never ran
+    and never will, so closeout does not wait for it. As in the selector, a
+    dependency alone never activates a route-gated node; only a review node
+    keeps its dependency start.
+    """
+
+    if not isinstance(node_states, dict):
+        return set()
+    if not isinstance(graph, dict):
+        return set(node_states)
+    entry_nodes = graph.get("entry_nodes")
+    reached = {
+        node_id
+        for node_id in (entry_nodes if isinstance(entry_nodes, list) else [])
+        if isinstance(node_id, str)
+    }
+    reached.update(
+        node_id
+        for node_id, state in node_states.items()
+        if not isinstance(state, dict)
+        or state.get("phase") != "dormant"
+        or state.get("attempts") != 0
+    )
+    edges = [
+        edge
+        for edge in (graph.get("edges") if isinstance(graph.get("edges"), list) else [])
+        if isinstance(edge, dict)
+        and all(isinstance(edge.get(key), str) for key in ("id", "from", "to"))
+    ]
+    route_gated = {edge.get("to") for edge in edges if edge.get("kind") == "route"}
+    review_nodes = {
+        node.get("id")
+        for node in (graph.get("nodes") if isinstance(graph.get("nodes"), list) else [])
+        if isinstance(node, dict)
+        and node.get("kind") == "verifier"
+        and isinstance(node.get("review"), dict)
+    }
+    changed = True
+    while changed:
+        changed = False
+        for edge in edges:
+            target = edge.get("to")
+            edge_state = (
+                edge_states.get(edge.get("id")) if isinstance(edge_states, dict) else None
+            )
+            taken = isinstance(edge_state, dict) and edge_state.get("status") == "traversed"
+            if (
+                edge.get("kind") == "dependency"
+                and target in route_gated
+                and target not in review_nodes
+                and not taken
+            ):
+                continue
+            if (
+                edge.get("from") in reached
+                and target not in reached
+                and (
+                    taken
+                    or not _closeout_route_untaken(edge, node_states.get(edge.get("from")))
+                )
+            ):
+                reached.add(target)
+                changed = True
+    return reached
+
+
+def _closeout_edge_terminal(
+    edge: Any, edge_state: dict[str, Any], node_states: Any, reached: set[Any]
+) -> bool:
+    """Whether an edge is settled for closeout.
+
+    Transitions only mark routes they take. A dependency whose source passed,
+    a route whose source passed on to other outcomes, and any edge out of a
+    node that never ran are also settled.
+    """
+
+    if edge_state.get("status") in {"traversed", "exhausted", "skipped"}:
+        return True
+    if not isinstance(edge, dict) or not isinstance(node_states, dict):
+        return False
+    if edge.get("from") not in reached:
+        return True
+    source = node_states.get(edge.get("from"))
+    if edge.get("kind") == "dependency":
+        return (
+            isinstance(source, dict)
+            and source.get("phase") == "succeeded"
+            and source.get("last_outcome") == "pass"
+        )
+    return _closeout_route_untaken(edge, source)
 
 
 def _validate_required_security_closeout(

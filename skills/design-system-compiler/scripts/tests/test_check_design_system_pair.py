@@ -4,6 +4,7 @@ import os
 import stat
 import subprocess
 import tempfile
+import types
 import unittest
 from unittest import mock
 from pathlib import Path
@@ -293,6 +294,77 @@ class CheckDesignSystemPairTests(unittest.TestCase):
                     problems=problems,
                 )
                 self.assertTrue(problems, key)
+
+    def test_styling_mechanism_maps_to_verbatim_stack_selection(self):
+        for mechanism, selection in (
+            ("plain CSS", "modern vanilla CSS"),
+            ("Tailwind CSS", "Tailwind CSS v4"),
+            ("utility CSS", "Tailwind CSS utilities"),
+            ("platform theme", "component-library-managed styles"),
+            ("CSS modules", "CSS Modules"),
+            ("platform theme", "platform theme"),
+        ):
+            with self.subTest(mechanism=mechanism, selection=selection):
+                self.assertTrue(checker.styling_matches_selection(mechanism, selection))
+        for mechanism, selection in (
+            ("plain CSS", "Tailwind CSS v4"),
+            ("CSS modules", "modern vanilla CSS"),
+            ("Tailwind CSS", "CSS Modules"),
+            ("magic", "magic CSS"),
+            ("plain CSS", ""),
+        ):
+            with self.subTest(mechanism=mechanism, selection=selection):
+                self.assertFalse(checker.styling_matches_selection(mechanism, selection))
+
+        stack = """
+# Stack Decisions
+## Frontend Technology Decision
+### Recorded or Approved Stack
+| Layer | Selection | Status | Authority / evidence | Why It Fits | Constraint / follow-up |
+| --- | --- | --- | --- | --- | --- |
+| Rendering model | SSG | Approved | Owner | Fits | None |
+| Component foundation | custom | Approved | Owner | Fits | None |
+| Styling approach | modern vanilla CSS | Approved | Owner | Fits | None |
+"""
+        semantics = {
+            "platform": "web",
+            "renderingModel": "SSG",
+            "componentFoundation": "custom",
+            "stylingMechanism": "modern vanilla CSS",
+        }
+        ui_view = {
+            "target_scope": {
+                "surfaces": [
+                    {"id": "UI-001", "surfaceClass": "hosted_web", "stackSemantics": dict(semantics)}
+                ]
+            }
+        }
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "stack-decisions.md"
+            path.write_text(stack, encoding="utf-8")
+            registry_data = registry(
+                schema="design-system/2",
+                stylingMechanism="plain CSS",
+                stackSemantics=dict(semantics),
+            )
+            self.assertFalse(
+                [item for item in checker.validate_registry(registry_data) if "stylingMechanism" in item]
+            )
+            problems: list[str] = []
+            checker._validate_stack_semantics(
+                registry_data, stack_path=path, ui_view=ui_view, problems=problems
+            )
+            self.assertEqual([], problems)
+
+            registry_data["stylingMechanism"] = "Tailwind CSS"
+            problems = []
+            checker._validate_stack_semantics(
+                registry_data, stack_path=path, ui_view=ui_view, problems=problems
+            )
+            self.assertTrue(
+                any("does not correspond to the Stack styling approach" in item for item in problems),
+                problems,
+            )
 
     def run_pair(
         self,
@@ -720,6 +792,17 @@ class CheckDesignSystemPairTests(unittest.TestCase):
 
         self.assertEqual([], problems)
         self.assertEqual(0, code)
+
+    def test_token_and_primitive_sources_must_be_repo_relative(self) -> None:
+        self.assertEqual([], checker.validate_registry(registry()))
+        for key in ("tokenSources", "primitiveSources"):
+            for bad in ("./src/tokens.css", "/abs/tokens.css", "src\\tokens.css", "../tokens.css", "C:/tokens.css"):
+                with self.subTest(key=key, bad=bad):
+                    problems = checker.validate_registry(registry(**{key: [bad]}))
+                    self.assertTrue(
+                        any(f"{key} entry" in item and "exact repo-relative path" in item for item in problems),
+                        problems,
+                    )
 
     def test_optional_component_and_motion_inventories_may_be_omitted(self) -> None:
         data = registry()
@@ -1243,6 +1326,49 @@ class CheckDesignSystemPairTests(unittest.TestCase):
                 else:
                     checker._open_posix_parent = original_open
             self.assertEqual(concurrent_edit, md.read_bytes())
+
+    def test_posix_rename_exchange_uses_linux_or_macos_primitive(self) -> None:
+        for symbol in ("renameat2", "renameatx_np"):
+            with self.subTest(symbol=symbol):
+                primitive = mock.Mock(return_value=0)
+                libc = types.SimpleNamespace(**{symbol: primitive})
+                with mock.patch.object(checker.ctypes, "CDLL", return_value=libc), mock.patch.object(
+                    checker.os, "name", "posix"
+                ):
+                    checker._posix_rename_exchange(7, "left", "right")
+                primitive.assert_called_once_with(7, b"left", 7, b"right", 0x2)
+
+    def test_posix_rename_exchange_fails_closed_without_exchange_primitive(self) -> None:
+        with mock.patch.object(
+            checker.ctypes, "CDLL", return_value=types.SimpleNamespace()
+        ), mock.patch.object(checker.os, "name", "posix"):
+            with self.assertRaisesRegex(
+                checker.ConcurrentModificationError, "renameat2.*renameatx_np.*unavailable"
+            ):
+                checker._posix_rename_exchange(7, "left", "right")
+
+    def test_write_fails_closed_when_posix_exchange_is_unavailable(self) -> None:
+        if os.name == "nt":
+            self.skipTest("POSIX exchange commit path only")
+        with tempfile.TemporaryDirectory() as temp:
+            md = Path(temp) / "design-system.md"
+            md.write_bytes(b"# Original\n")
+            with mock.patch.object(checker.ctypes, "CDLL", return_value=types.SimpleNamespace()):
+                with self.assertRaisesRegex(checker.ConcurrentModificationError, "unavailable"):
+                    checker._write_bytes_atomic(md, b"# Replacement\n", b"# Original\n")
+            self.assertEqual(b"# Original\n", md.read_bytes())
+            self.assertEqual(["design-system.md"], [item.name for item in Path(temp).iterdir()])
+
+    def test_write_rejects_stale_expected_bytes_without_replacing(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            md = Path(temp) / "design-system.md"
+            md.write_bytes(b"# Concurrent edit\n")
+            with self.assertRaisesRegex(
+                checker.ConcurrentModificationError, "changed while preparing"
+            ):
+                checker._write_bytes_atomic(md, b"# Replacement\n", b"# Original\n")
+            self.assertEqual(b"# Concurrent edit\n", md.read_bytes())
+            self.assertEqual(["design-system.md"], [item.name for item in Path(temp).iterdir()])
 
     def test_write_exchange_primitive_preserves_displaced_edit(self) -> None:
         markdown = b"# Original\n"

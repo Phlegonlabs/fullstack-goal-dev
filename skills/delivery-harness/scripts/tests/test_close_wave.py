@@ -22,7 +22,7 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 import harness_transition  # noqa: E402
 from harness_authorization import execution_covers  # noqa: E402
-from harness_core import ManifestError  # noqa: E402
+from harness_core import ManifestError, plan_digest  # noqa: E402
 import manifest_fixtures as mf  # noqa: E402
 
 
@@ -283,6 +283,148 @@ class CloseWaveCliTests(unittest.TestCase):
         self.assertEqual("active", live["active_wave"]["status"])
         self.assertEqual(["M2"], live["active_wave"]["selected_missions"])
         self.assertEqual(1, len(live["closed_waves"]))
+
+    def test_coordination_checkpoint_roundtrip_then_next_wave(self) -> None:
+        self._integrate_m1()
+        old_integration_head = mf.git(self.gitroot, "rev-parse", "HEAD")
+        old_run_path = self.run_path
+        self.assertEqual(
+            0,
+            self.cli("close-wave", "--source", "W-1 resolved").returncode,
+        )
+
+        run_directory = self.gitroot / "docs" / "goal" / "pdr12"
+        custom_view = run_directory / "tasks.md"
+        custom_view.parent.mkdir(parents=True, exist_ok=True)
+        decisions = run_directory / "DECISIONS.md"
+        decisions.write_text("# Decisions\n", encoding="utf-8")
+        from render_tasks_view import GENERATED_MARKER
+
+        custom_view.write_text(
+            f"{GENERATED_MARKER}\n\n"
+            f"Human view of run `{load_run_block(old_run_path)['run_id']}` "
+            "(running)\n",
+            encoding="utf-8",
+        )
+        self.plan_path = run_directory / "PLAN.md"
+        self.run_path = run_directory / "RUN.md"
+        self.plan_path.write_text(
+            mf.manifest_markdown(
+                "## Harness Plan Manifest", "harness_plan", self.plan
+            ),
+            encoding="utf-8",
+        )
+        live = load_run_block(old_run_path)
+        live["integration"]["coordination_paths"] = [
+            "docs/goal/pdr12/PLAN.md",
+            "docs/goal/pdr12/RUN.md",
+            "docs/goal/pdr12/DECISIONS.md",
+            "docs/tasks.md",
+            "docs/goal/pdr12/tasks.md",
+        ]
+        self.run_path.write_text(
+            mf.manifest_markdown("## Harness Run State", "harness_run", live),
+            encoding="utf-8",
+        )
+        mf.git(self.gitroot, "add", "docs")
+        mf.git(
+            self.gitroot,
+            "commit",
+            "-qm",
+            "chore(run): checkpoint wave bookkeeping",
+        )
+        checkpoint_head = mf.git(self.gitroot, "rev-parse", "HEAD")
+
+        result = self.cli(
+            "--repo-root", str(self.gitroot), "record-observation"
+        )
+        self.assertEqual(0, result.returncode, result.stderr)
+        self._seed_sandbox_observation()
+
+        result = self.cli(
+            "--repo-root", str(self.gitroot),
+            "reconcile-coordination-head",
+            "--candidate-sha", old_integration_head,
+            "--source", "stale candidate",
+        )
+        self.assertEqual(2, result.returncode, result.stderr)
+
+        self.assertEqual(0, self.cli("release-run-lock").returncode)
+        before_missing_lock = self.run_path.read_bytes()
+        result = self.cli(
+            "--repo-root", str(self.gitroot),
+            "reconcile-coordination-head",
+            "--candidate-sha", checkpoint_head,
+            "--source", "owner-authorized wave checkpoint",
+        )
+        self.assertEqual(2, result.returncode, result.stderr)
+        self.assertEqual(before_missing_lock, self.run_path.read_bytes())
+        self.assertEqual(0, self.cli("acquire-run-lock").returncode)
+
+        scratch = self.gitroot / "scratch-product.txt"
+        scratch.write_text("dirty product\n", encoding="utf-8")
+        result = self.cli(
+            "--repo-root", str(self.gitroot),
+            "reconcile-coordination-head",
+            "--candidate-sha", checkpoint_head,
+            "--source", "owner-authorized wave checkpoint",
+        )
+        self.assertEqual(2, result.returncode, result.stderr)
+        self.assertIn("clean product tree", result.stderr)
+        scratch.unlink()
+
+        result = self.cli(
+            "--repo-root", str(self.gitroot),
+            "reconcile-coordination-head",
+            "--candidate-sha", checkpoint_head,
+            "--source", "owner-authorized wave checkpoint",
+        )
+        self.assertEqual(0, result.returncode, result.stderr)
+
+        live = load_run_block(self.run_path)
+        self.assertEqual(checkpoint_head, live["integration"]["integration_head_sha"])
+        self.assertIn(old_integration_head, live["integration"]["prior_head_shas"])
+        self.assertTrue(
+            any(
+                item["kind"] == "coordination_head_reconciliation"
+                for item in live["attempt_log"]
+            )
+        )
+
+        before_replay = self.run_path.read_bytes()
+        result = self.cli(
+            "--repo-root", str(self.gitroot),
+            "reconcile-coordination-head",
+            "--candidate-sha", checkpoint_head,
+            "--source", "owner-authorized wave checkpoint",
+        )
+        self.assertEqual(2, result.returncode, result.stderr)
+        self.assertEqual(before_replay, self.run_path.read_bytes())
+        replay_view = load_run_block(self.run_path)
+        replay_view["integration"]["integration_head_sha"] = "f" * 40
+        self.run_path.write_text(
+            mf.manifest_markdown("## Harness Run State", "harness_run", replay_view),
+            encoding="utf-8",
+        )
+        result = self.cli(
+            "--repo-root", str(self.gitroot),
+            "reconcile-coordination-head",
+            "--candidate-sha", checkpoint_head,
+            "--source", "owner-authorized wave checkpoint",
+        )
+        self.assertEqual(2, result.returncode, result.stderr)
+        self.assertIn("replay is refused", result.stderr)
+        self.run_path.write_bytes(before_replay)
+
+        result = self.cli(
+            "--repo-root", str(self.gitroot),
+            "accept-wave", "--wave-id", "W-2", "--mission-id", "M2",
+            "--batch-base-sha", checkpoint_head,
+        )
+        self.assertEqual(0, result.returncode, result.stderr)
+        live = load_run_block(self.run_path)
+        self.assertEqual("active", live["active_wave"]["status"])
+        self.assertEqual(["M2"], live["active_wave"]["selected_missions"])
 
     def test_worker_passed_mission_closes_under_a_run_complete_boundary(self) -> None:
         self._integrate_m1()
@@ -688,6 +830,311 @@ class RecordIntegrationGuardTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ManifestError, "may only move forward"):
             self.record()
+
+    def _second_integration(self, gate_attempts: int) -> str:
+        # M1 already sits at the integration head and its batch gate passed
+        # there; a later in-scope commit moves the head forward.
+        self.run["integration"]["integration_head_sha"] = self.head
+        (self.root / "src" / "a").mkdir(parents=True)
+        (self.root / "src" / "a" / "one.py").write_text("x = 1\n", encoding="utf-8")
+        mf.git(self.root, "add", "src/a/one.py")
+        mf.git(self.root, "commit", "-qm", "next mission")
+        new_head = mf.git(self.root, "rev-parse", "HEAD")
+        self.run["mission_states"]["M1"]["head_sha"] = new_head
+        self.run["graph_state"]["node_states"]["N-REVIEW-PASS-M1"].update(
+            {
+                "phase": "succeeded",
+                "attempts": gate_attempts,
+                "last_attempt_id": "ATT-GATE",
+                "last_outcome": "pass",
+            }
+        )
+        return new_head
+
+    def test_new_head_with_an_exhausted_gate_budget_is_refused(self) -> None:
+        new_head = self._second_integration(gate_attempts=2)
+        before = json.dumps(self.run, sort_keys=True)
+
+        with self.assertRaisesRegex(ManifestError, "node attempt budget is exhausted"):
+            self.record(integrated_sha=new_head)
+        self.assertEqual(before, json.dumps(self.run, sort_keys=True))
+
+    def test_new_head_with_gate_budget_left_re_arms_the_gate(self) -> None:
+        new_head = self._second_integration(gate_attempts=1)
+
+        self.record(integrated_sha=new_head)
+
+        gate = self.run["graph_state"]["node_states"]["N-REVIEW-PASS-M1"]
+        self.assertEqual("ready", gate["phase"])
+        self.assertEqual(new_head, self.run["integration"]["integration_head_sha"])
+
+
+class CoordinationHeadGuardTests(unittest.TestCase):
+    """Coordination-head adoption accepts only an exact bookkeeping child."""
+
+    def setUp(self) -> None:
+        self._temp, self.root, self.base, self.integration_head = make_repo()
+        self.plan = mf.valid_plan()
+        self.run = mf.valid_run(self.plan)
+        self.run["status"] = "running"
+        self.run["plan_readiness"] = "ready"
+        self.run["control"]["desired_state"] = "running"
+        self.run["integration"].update(
+            {
+                "branch": "integration",
+                "batch_base_sha": self.base,
+                "integration_head_sha": self.integration_head,
+                "coordination_paths": ["docs/goal/RUN.md"],
+            }
+        )
+        self.run["observed"]["git"].update(
+            {
+                "parent_worktree_path": str(self.root),
+                "parent_branch": "integration",
+                "parent_head_sha": self.integration_head,
+                "parent_dirty": False,
+            }
+        )
+        for field in ("sandbox", "host_runtime"):
+            self.run["observed"][field] = {
+                "plan_revision": self.plan["revision"],
+                "plan_digest_sha256": self.run["plan"]["digest_sha256"],
+            }
+
+    def tearDown(self) -> None:
+        self._temp.cleanup()
+
+    def observe(self, head: str) -> None:
+        self.run["observed"]["git"]["parent_head_sha"] = head
+
+    def reconcile(self, candidate: str) -> None:
+        harness_transition._reconcile_coordination_head(
+            self.plan,
+            self.run,
+            Namespace(
+                repo_root=self.root,
+                run=None,
+                candidate_sha=candidate,
+                source="focused coordination guard",
+            ),
+        )
+
+    def commit_checkpoint(self, *, product_change: bool = False) -> str:
+        coordination = self.root / "docs" / "goal" / "RUN.md"
+        coordination.parent.mkdir(parents=True, exist_ok=True)
+        coordination.write_text("checkpoint\n", encoding="utf-8")
+        if product_change:
+            (self.root / "file.txt").write_text("product edit\n", encoding="utf-8")
+        mf.git(self.root, "add", "docs/goal", "file.txt")
+        mf.git(self.root, "commit", "-qm", "checkpoint")
+        return mf.git(self.root, "rev-parse", "HEAD")
+
+    def test_isolated_in_flight_writer_is_allowed(self) -> None:
+        candidate = self.commit_checkpoint()
+        self.observe(candidate)
+        for result in [
+            *self.run["batch_gate_results"],
+            *self.run["final_gate_results"],
+        ]:
+            result.update(
+                {
+                    "status": "PASS",
+                    "head_sha": self.integration_head,
+                    "evidence": ["old exact-head PASS"],
+                }
+            )
+        integration_node = next(
+            node
+            for node in self.plan["graph"]["nodes"]
+            if node.get("kind") == "verifier"
+            and node.get("executor") == "runtime_worker"
+            and isinstance(node.get("review"), dict)
+        )
+        integration_node["review"]["stage"] = "integration"
+        self.run["plan"]["digest_sha256"] = plan_digest(self.plan)
+        self.run["active_wave"]["plan_digest_sha256"] = plan_digest(self.plan)
+        for field in ("sandbox", "host_runtime"):
+            self.run["observed"][field]["plan_digest_sha256"] = plan_digest(self.plan)
+        integration_state = self.run["graph_state"]["node_states"][
+            integration_node["id"]
+        ]
+        integration_state.update(
+            {
+                "phase": "succeeded",
+                "last_attempt_id": "OLD-REVIEW",
+                "last_outcome": "pass",
+                "bound_worker_id": "RW-OLD",
+            }
+        )
+        old_review = {
+            "worker_id": "RW-OLD",
+            "attempt_id": "OLD-REVIEW",
+            "node_id": integration_node["id"],
+            "reviewed_sha": self.integration_head,
+            "outcome": "pass",
+        }
+        self.run["review_workers"].append(old_review)
+        self.run["workers"].append(
+            {
+                "worker_id": "W-ISOLATED",
+                "phase": "worker_running",
+                "workspace_mode": "parent_managed_worktree",
+                "worktree_path": (self.root.parent / "isolated").as_posix(),
+            }
+        )
+
+        self.reconcile(candidate)
+
+        self.assertEqual(candidate, self.run["integration"]["integration_head_sha"])
+        self.assertIn(
+            self.integration_head,
+            self.run["integration"]["prior_head_shas"],
+        )
+        for result in [
+            *self.run["batch_gate_results"],
+            *self.run["final_gate_results"],
+        ]:
+            self.assertEqual("planned", result["status"])
+            self.assertIsNone(result["head_sha"])
+            self.assertEqual([], result["evidence"])
+        self.assertEqual("ready", integration_state["phase"])
+        self.assertIsNone(integration_state["last_attempt_id"])
+        self.assertIn(old_review, self.run["review_workers"])
+
+    def test_isolated_preintegration_reviewer_is_allowed(self) -> None:
+        candidate = self.commit_checkpoint()
+        self.observe(candidate)
+        review_node = next(
+            node
+            for node in self.plan["graph"]["nodes"]
+            if node.get("kind") == "verifier"
+            and node.get("executor") == "runtime_worker"
+            and isinstance(node.get("review"), dict)
+        )
+        review_node["review"]["stage"] = "preintegration"
+        self.run["plan"]["digest_sha256"] = plan_digest(self.plan)
+        self.run["active_wave"]["plan_digest_sha256"] = plan_digest(self.plan)
+        for field in ("sandbox", "host_runtime"):
+            self.run["observed"][field]["plan_digest_sha256"] = plan_digest(self.plan)
+        self.run["review_workers"].append(
+            {
+                "worker_id": "RW-PREINTEGRATION",
+                "phase": "worker_running",
+                "node_id": review_node["id"],
+                "workspace_mode": "parent_managed_worktree",
+                "worktree_path": (self.root.parent / "isolated-review").as_posix(),
+            }
+        )
+
+        self.reconcile(candidate)
+
+        self.assertEqual(candidate, self.run["integration"]["integration_head_sha"])
+
+    def test_application_source_cannot_be_declared_as_coordination(self) -> None:
+        application = self.root / "apps" / "foo.py"
+        application.parent.mkdir(parents=True, exist_ok=True)
+        application.write_text("print('product code')\n", encoding="utf-8")
+        self.run["integration"]["coordination_paths"].append("apps/foo.py")
+        mf.git(self.root, "add", "apps")
+        candidate = self.commit_checkpoint()
+        self.observe(candidate)
+
+        with self.assertRaisesRegex(ManifestError, "unsupported product-path"):
+            self.reconcile(candidate)
+
+    def test_non_regular_git_coordination_entry_is_refused(self) -> None:
+        blob = subprocess.check_output(
+            ["git", "hash-object", "-w", "--stdin"],
+            cwd=self.root,
+            input="target\n",
+            text=True,
+        ).strip()
+        subprocess.check_call(
+            [
+                "git",
+                "update-index",
+                "--add",
+                "--cacheinfo",
+                f"120000,{blob},docs/goal/RUN.md",
+            ],
+            cwd=self.root,
+        )
+        tree = mf.git(self.root, "write-tree")
+
+        with self.assertRaisesRegex(ManifestError, "regular file"):
+            harness_transition._require_regular_coordination_entries(
+                self.root,
+                self.integration_head,
+                tree,
+                {"docs/goal/RUN.md"},
+            )
+
+    def test_product_edit_is_refused_without_mutation(self) -> None:
+        candidate = self.commit_checkpoint(product_change=True)
+        self.observe(candidate)
+
+        with self.assertRaisesRegex(ManifestError, "outside exact declared paths"):
+            self.reconcile(candidate)
+
+        self.assertEqual(
+            self.integration_head,
+            self.run["integration"]["integration_head_sha"],
+        )
+
+    def test_hidden_intermediate_commit_is_refused(self) -> None:
+        product = self.root / "file.txt"
+        original = product.read_bytes()
+        product.write_text(b"intermediate product edit".decode(), encoding="utf-8")
+        mf.git(self.root, "add", "file.txt")
+        mf.git(self.root, "commit", "-qm", "intermediate")
+        product.write_bytes(original)
+        candidate = self.commit_checkpoint()
+        self.observe(candidate)
+
+        with self.assertRaisesRegex(ManifestError, "ordinary direct child"):
+            self.reconcile(candidate)
+
+    def test_frozen_product_source_cannot_become_coordination(self) -> None:
+        frozen = self.root / "docs" / "product" / "prd.md"
+        frozen.parent.mkdir(parents=True, exist_ok=True)
+        frozen.write_text("frozen\n", encoding="utf-8")
+        self.run["integration"]["coordination_paths"].append(
+            "docs/product/prd.md"
+        )
+        mf.git(self.root, "add", "docs")
+        candidate = self.commit_checkpoint()
+        self.observe(candidate)
+
+        with self.assertRaisesRegex(ManifestError, "frozen product/design"):
+            self.reconcile(candidate)
+
+    def test_observed_head_drift_is_refused(self) -> None:
+        candidate = self.commit_checkpoint()
+        self.observe(self.integration_head)
+
+        with self.assertRaisesRegex(ManifestError, "live and freshly observed"):
+            self.reconcile(candidate)
+
+    def test_live_reviewer_and_parent_node_are_refused(self) -> None:
+        candidate = self.commit_checkpoint()
+        self.observe(candidate)
+        self.run["review_workers"].append(
+            {"worker_id": "RW-LIVE", "phase": "leased"}
+        )
+        with self.assertRaisesRegex(ManifestError, "refuses live reviewers"):
+            self.reconcile(candidate)
+
+        self.run["review_workers"].clear()
+        node_id = next(
+            node["id"]
+            for node in self.plan["graph"]["nodes"]
+            if node["kind"] == "verifier"
+        )
+        self.run["graph_state"]["node_states"][node_id].update(
+            {"phase": "running", "bound_worker_id": None}
+        )
+        with self.assertRaisesRegex(ManifestError, "running parent-owned nodes"):
+            self.reconcile(candidate)
 
 
 class CloseWaveUnitTests(unittest.TestCase):

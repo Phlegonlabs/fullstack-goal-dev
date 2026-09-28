@@ -1,10 +1,19 @@
 # Project Rules
 
+## Runtime Boundary
+
+- This file contains shared repository governance. Preserve the current host's effective instruction discovery and precedence.
+- Use `skills/delivery-harness/references/runtime-adapters.md` for observed native capabilities, authorization, isolation and result contracts. Map the actual tools available to the session; capability does not grant an action.
+- Managed rules apply only after work is routed into PLAN/RUN. Direct source maintenance follows the shared principles, Git safety and required verification below without creating managed state.
+- This source repository intentionally omits the template's Skill Bindings (it has no consumer stage slots), Deployment and Post-Delivery Activation (it deploys and activates no product), and the delivery-acceptance bullet (it has no product accounts or data). Its Git Flow replaces the template's Git Safety, and its Required Reading replaces the template's. Treat these as local choices, not drift, in the handoff audit.
+
 ## Project Entry And Current Work
 
 Start with the effective repository instructions, `docs/DOCUMENTS.md` when present, current product/design sources and relevant unfinished work. At the first work in a new session and every skill invocation, apply `delivery-harness/references/document-sync-contract.md` (under `skills/` in this source repository). Observe loaded versus installed skill identity; unknown means unknown, not the current disk version.
 
 Keep one current PRD. Complete enhancements use `docs/epics/EPIC-<id>.md`, indexed in `docs/DOCUMENTS.md`, to record the problem, baseline, accepted outcome, requirement references, dependencies, document impact and result. Small fixes append to the relevant Epic; detailed direct-task evidence may be linked from it. Follow `delivery-harness/references/bounded-enhancement.md`; an Epic never duplicates PRD or RUN and never grants actions.
+
+Select the record before implementation: a new accepted outcome gets a new Epic; same-outcome fixes append to its Change Log; an isolated small fix gets a bounded Epic entry that may link detailed direct-task evidence. Log the reason, affected scope, commit, tests and remaining work. Do not rewrite closed history. UI enhancements add or patch only named Wireframe/HiFi pages and necessary connecting controls; retain every unaffected product page, style and ID. Full package coverage is not an instruction to redraw the product.
 
 Derive the goal, write scope, design source, dependencies and acceptance checks in the existing task record or PLAN/RUN. Use direct work when one writer and one coherent verification sequence suffice; use managed coordination only when durable handoff, isolated integration or a bounded graph requires it. Preserve valid decisions and authorizations; ask only about a concrete missing dependency.
 
@@ -53,6 +62,16 @@ The handoff names the repository, branch, HEAD and working-tree status, the temp
 - Do not add speculative abstractions or unrelated cleanup.
 - Write short, direct documentation, comments, commit messages, and reports.
 
+## Core Development Principles
+
+- Follow `delivery-harness/references/bounded-enhancement.md`: reuse the accepted scope and valid action grants for repairs, document synchronization, module replacement and retesting. Do not repeat approvals for unchanged decisions. Never infer external, destructive, publication or installation authority.
+- A module that fails accepted requirements may be replaced inside its write scope; preserve required interfaces, unaffected requirements, data and recoverable history. Bound repair attempts and keep unresolved gaps for the next round; ending a round is not a PASS.
+- Reason from the problem's actual constraints, not from habit, inherited patterns, or how another project solved it.
+- At 500 lines, review whether a module has more than one responsibility. Split when it improves ownership and verification; otherwise record why it stays together. This is a checkpoint, not a hard limit.
+- Don't add hacks, shims, or dual-path logic unless a frozen contract requires compatibility. Don't break an existing interface as unrelated cleanup; when an authorized change removes one, update its consumers and tests in the same change. Remove code only when verification proves it is dead.
+- For multi-step, high-risk, or ambiguous work, state a brief approach, acceptance criteria, and test plan before editing. Small bounded work may proceed directly.
+- Every change must be verifiable. For bug fixes, add or update a regression test when practical; otherwise explain the verification used.
+
 ## Keep Product Contracts Current
 
 - English `PRD.md` and `architecture.md` remain implementation authority. When drafting or updating them, maintain complete Chinese `PRD.zh-TW.md` and `architecture.zh-TW.md` review copies under the Product Definition bilingual-review contract; reconcile owner feedback into English first. Chinese copies never replace canonical inputs or grant separate approval. At task entry and change checkpoints, when an existing English PRD or architecture has no Chinese copy, create a complete same-directory `<source-stem>.zh-TW.md` translation under existing write authority, even without a full Harness flow. Preserve English bytes and approvals; validate each available pair and record the backfill in the matching Epic. Read-only tasks report the missing copy; do not overwrite existing translations or automatically rewrite archives.
@@ -86,7 +105,7 @@ When a product has pricing, paid access, purchase-gated features or outside sell
 
 ## Update Local Skills
 
-- Every push that changes `skills/` is followed by the local skills update in the same turn. Quiesce active skill-using sessions, then run `install.sh` or `install.ps1` against `~/.agents/skills/`. It installs `delivery-harness`, `product-definition-builder`, `ui-design-builder`, `design-system-compiler`, `code-security-review`, `product-activation`, and `seo-growth-review`; retires `full-harness`, `prd-builder`, and `product-design-builder`; and writes the prior copies under `~/.agents/skill-backups/product-delivery-harness/`. Never replace the installer with manual move/copy commands, and never overwrite or delete prior copies. Restore the backup if verification fails. Restart the host only after success. This step is mandatory after a push, never deferred.
+- Every push that changes `skills/` is followed by the local skills update in the same turn. Quiesce active skill-using sessions, then run `install.sh` or `install.ps1` against `~/.agents/skills/`. It installs `delivery-harness`, `product-definition-builder`, `ui-design-builder`, `design-system-compiler`, `code-security-review`, `product-activation`, and `seo-growth-review`; retires `full-harness`, `prd-builder`, and `product-design-builder`; and writes the prior copies under `~/.agents/skill-backups/product-delivery-harness/`. Never replace the installer with manual move/copy commands, and never overwrite or delete prior copies. A failed install rolls itself back. If the installed skills fail verification after the installer succeeded, restore by re-running the installer from a checkout of the previous release tag; it backs up the bad copy first. Restart the host only after success. This step is mandatory after a push, never deferred.
 - Per-runtime copies (Codex plugin, Claude plugin, Pi extension) stay retired. Do not install, update, or reinstall them.
 
 ## Required Verification
@@ -115,9 +134,13 @@ git diff --check
 
 CI runs the same set.
 
-Every flow that promotes to `main` bumps the release version in the same change: `package.json`, `skills/delivery-harness/VERSION`, the README badges and version-history entries in all four languages, the RUNBOOK `required_harness_version` default, and the pinned version asserts in `test_skill_contract.py`. A breaking skill-bundle change bumps the minor version. After the release promotion reaches `main`, tag that commit with the matching `v<version>` tag — the READMEs' Releasing section is the full checklist.
+Every flow that promotes to `main` bumps the release version in the same change: `package.json`, `skills/delivery-harness/VERSION`, the README badges and version-history entries in all four languages, and the RUNBOOK `required_harness_version` default. `test_skill_contract.py` reads `VERSION` and fails when any of these surfaces differ from it. A breaking skill-bundle change bumps the minor version. After the release promotion reaches `main`, tag that commit with the matching `v<version>` tag — the READMEs' Releasing section is the full checklist.
 
 Any change that adds or alters a skill, rule, or documented flow also updates the READMEs' descriptive sections in the same change, in all four languages — the README is documentation-of-record, not a release-time artifact.
+
+## Managed Product Delivery Harness Runs
+
+Before creating or resuming a managed PLAN/RUN in this source repository, read `skills/delivery-harness/references/project-operating-rules.md#managed-product-delivery-harness-runs` and the canonical Harness SKILL.md. These rules grant no actions. Consumer stage-slot bindings must be resolved and checked for the applicable stage before such work begins; this source-maintenance task has no consumer Product Definition or managed PLAN/RUN and does not invent a binding table or pins.
 
 ## Review Guidelines
 
@@ -132,3 +155,7 @@ Treat these as blocking findings:
 - Any behavior change without focused tests, or any test/workflow command that does not run from the repository root.
 
 Do not report formatting preferences as blockers. Focus on correctness, authorization boundaries, stale-state safety, data preservation, and missing verification.
+
+## Completion
+
+Update the affected skills, references, READMEs and Epic records under existing authority. Preserve untouched rules, IDs, decisions and historical evidence. Report the actual SHA, checks, independent review, release/installation state and unresolved obligations. Required failures, stale evidence or skipped checks prevent a complete delivery claim.

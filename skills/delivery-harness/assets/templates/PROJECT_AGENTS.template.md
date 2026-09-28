@@ -1,6 +1,6 @@
 # Project Rules
 
-This file is ready-to-use shared repository guidance. Resolve the repository's real default branch, commands, and protected paths from live project state; do not leave template placeholders or assume they are always the same across repositories.
+This file is ready-to-use shared repository guidance. Resolve the repository's commands and protected paths from live project state; do not leave template placeholders or assume they are always the same across repositories. Managed Harness requires the default branch to be named `main` (see Git Safety).
 
 ## Runtime Boundary
 
@@ -113,7 +113,7 @@ These rows are intentionally unresolved in the seed. Before managed work, observ
 
 - When `docs/product/PRD.md` exists, every product change updates the affected PRD requirements, acceptance criteria, and trace IDs in the same change, including small post-delivery fixes that do not use Product Delivery Harness PLAN/RUN.
 - Before implementation, classify the change's UI impact as `none`, `structure`, `style`, or `both`. Adding a page, route, visible region, state, or responsive behavior is at least `structure`.
-- First classify the work as initial design, enhancement, routine maintenance or explicit full redesign. Routine maintenance updates the actual product, effective PRD and accepted change record; do not require historical Wireframe/HiFi/token regeneration or treat accepted visual differences as failure. Initial design and enhancements update affected structure through `ui-design-builder`, require `frontend-design`, internal Wireframe Validation, independent HiFi review and consolidated Visual Approval. Formal design-system compilation remains conditional on the Need Gate. Preserve unrelated pages and old approval semantics.
+- First classify the work as initial design, enhancement, routine maintenance or explicit full redesign under `ui-design-builder/references/review-workflow.md`. Routine maintenance with UI impact `none` or `style` updates the actual product, effective PRD and accepted change record while retaining historical Wireframe/HiFi/token artifacts; do not treat accepted visual differences as failure. A structural impact (`structure` or `both`) follows affected design gates. New product or stack decisions return to `product-definition-builder`; initial design and enhancements use `ui-design-builder`, required `frontend-design`, internal Wireframe Validation, independent HiFi review and consolidated Visual Approval. Compile a design-system pair only when the Need Gate requires it. Preserve unrelated pages and old approval semantics.
 - Preserve unaffected requirements, IDs, pages, wireframes, and design decisions. A direct task may stay small, but it is not complete while implementation and the canonical product documents disagree.
 
 ## Monetization And Partner Channels
@@ -136,8 +136,8 @@ When pricing, paid access, purchase-gated features or outside sellers apply, rea
 ## Git Safety
 
 - Before every authorized commit, read `delivery-harness/references/commit-convention.md`. Direct tasks use `<type>(<scope>): <imperative summary>`; managed task and mission trailers apply only inside managed runs.
-- Resolve the default branch from repository state or governance; never assume its name.
-- Use the resolved default branch (`main` for this workflow) as the only persistent protected branch and production source. Never edit or commit directly on it; the retired branch name `development` is not a release source or integration target.
+- Managed Harness requires the default branch to be named `main`; archive and promotion tooling binds only `main` refs. Confirm the name from repository state at bootstrap. If it differs, stop before managed work and ask the owner.
+- `main` is the only persistent protected branch and production source. Never edit or commit directly on it; the retired branch name `development` is not a release source or integration target.
 - Resolve the complete non-default run-branch name from repository governance or the user's instruction. Cut both `initial_delivery` and `enhancement` runs from observed remote `main`. If the kind or name is unresolved, ask; never add a fixed prefix or invent a name.
 - Harness 0.38 RUNs close `local_only` and keep their push grant false. After archival, a separately authorized checkout-external request/attempt/receipt may publish exact archive candidate A to the run branch. It never authorizes `main` or `development`.
 - Follow `delivery-harness/references/branch-promotion-contract.md`: verify A and any isolated non-production deployment, then separately authorize and fast-forward exact A to `main`. Never force-push; stop on drift or divergence.

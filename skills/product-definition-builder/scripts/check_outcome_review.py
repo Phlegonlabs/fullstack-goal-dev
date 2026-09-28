@@ -328,8 +328,14 @@ def _verdict_history_findings(text: str, record: dict[str, str]) -> list[str]:
     return findings
 
 
-def prior_append_findings(prior_text: str, current_text: str) -> list[str]:
-    """Enforce append-only preservation of a prior outcome's historical rows."""
+def prior_append_findings(
+    prior_text: str, current_text: str, *, prior_digest: str | None = None
+) -> list[str]:
+    """Enforce append-only preservation of a prior outcome's historical rows.
+
+    prior_digest is the sha256 of the prior file's raw bytes; it defaults to
+    the UTF-8 text digest for in-memory callers.
+    """
 
     findings: list[str] = []
     schema2_history = (
@@ -378,7 +384,8 @@ def prior_append_findings(prior_text: str, current_text: str) -> list[str]:
                 "Prior outcome: prior record must contain one authoritative Verdict section"
             )
         else:
-            prior_digest = hashlib.sha256(prior_text.encode("utf-8")).hexdigest()
+            if prior_digest is None:
+                prior_digest = hashlib.sha256(prior_text.encode("utf-8")).hexdigest()
             verdict, reason, section_digest = prior_details
             expected = f"| {prior_digest} | {verdict} | {section_digest} | {reason} |"
             if len(current_rows) != len(prior_rows) + 1:
@@ -1439,7 +1446,8 @@ def main(argv: list[str] | None = None) -> int:
         if current_error:
             print(current_error, file=sys.stderr)
             return 2
-        prior_digest = hashlib.sha256((prior_text or "").encode("utf-8")).hexdigest()
+        # Hash the file's raw bytes so the digest matches sha256sum/Get-FileHash.
+        prior_digest = hashlib.sha256(args.prior_outcome.read_bytes()).hexdigest()
         current_record = _fields(_section(current_text or "", "## Record") or [])
         if current_record.get("Schema") != "outcome-review/2":
             print(
@@ -1450,7 +1458,9 @@ def main(argv: list[str] | None = None) -> int:
         if current_record.get("Prior outcome sha256") != prior_digest:
             print("Record: --prior-outcome requires an exact Prior outcome sha256 line", file=sys.stderr)
             return 1
-        prior_history_findings = prior_append_findings(prior_text or "", current_text or "")
+        prior_history_findings = prior_append_findings(
+            prior_text or "", current_text or "", prior_digest=prior_digest
+        )
         if prior_history_findings:
             for finding in prior_history_findings:
                 print(finding, file=sys.stderr)

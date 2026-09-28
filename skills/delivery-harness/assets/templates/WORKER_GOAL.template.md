@@ -20,6 +20,7 @@ Runtime:
 - Worktree and branch/ref: <exact values>
 - Host-specific repository context: <ordered paths>
 - Runtime-specific worker contract: <matching adapter contract>
+- Runtime-contract adoption: <contract_adoption receipt or none>
 - Context handoff: <fresh bounded packet or host-native task context>
 - Context sources: <ordered paths>
 - Result contract: <absolute or readable path to references/worker-result-contract.md>
@@ -47,10 +48,11 @@ Repair context (omit for an initial implementation):
 ## Launch
 
 1. Enter the assigned worktree. Read the ordered repository context and only the named skills. Keep automatic context discovery enabled.
-2. Treat this handoff as the complete live task. Do not reconstruct or continue the parent conversation; open PLAN/RUN only when the packet names a specific field that cannot be supplied directly.
-3. Verify repository, branch/ref, base SHA, clean starting state, plan digest, lease, scope, resources, permission boundary, and authorizations. Stop on a missing, stale, or contradictory value.
-4. Apply only the matching host contract. Do not borrow another host's model, role, context, or launch mechanics.
-5. Confirm required temp/cache paths, network, local bindings, and sockets fit the inherited boundary.
+2. With a contract-adoption receipt, independently recompute the seven-skill contract digest and stop on a mismatch. Read the fixed contract and report that reading in the result.
+3. Treat this handoff as the complete task; do not reconstruct the parent conversation. Open PLAN/RUN only for a named field the packet cannot supply.
+4. Verify repository, branch/ref, base SHA, clean starting state, plan digest, lease, scope, resources, permission boundary, and authorizations. Stop on a missing, stale, or contradictory value.
+5. Apply only the matching host contract; never borrow another host's model, role, context, or launch mechanics.
+6. Confirm required temp/cache paths, network, local bindings, and sockets fit the inherited boundary.
 
 ## Work
 
@@ -60,7 +62,7 @@ Repair context (omit for an initial implementation):
 - Create commits only when `create_local_commits` is authorized. For each executable task: implement only that outcome, run its focused verifier, create its atomic task commit, confirm the task is checkpointed, and only then begin the next task. Each commit names exactly one task; a repair is a separate atomic follow-up for that task. Report every SHA once in actual Git order, and make the last commit equal the reported head.
 - Before a task commit or `worker_passed`, implement each touched boundary's control and negative test proving denial and no unauthorized side effects. Keep a scaffolded protected route fail-closed until this is true.
 - For a repair handoff, fix the named root-cause family rather than applying the findings as independent patches. If another adjacent variant shows that the proposed mechanism is not closed, stop before adding another special case and return `REFINEMENT_REQUEST` or `contract_gap` with the structural strategy and missing acceptance classes.
-- If the remaining work no longer fits this bounded slice, stop before the next independent mutation and return `REFINEMENT_REQUEST`; do not wait for a host timeout to create the checkpoint.
+- If the remaining work no longer fits this bounded slice, stop before the next independent mutation and return `REFINEMENT_REQUEST`.
 - Stop on a requirement conflict, scope escape, destructive action, unexpected parent-head movement, unavailable verifier, or three consecutive no-progress iterations. Do not retry one failed approach more than twice.
 
 For Wireframe or direction/HiFi authoring or repair, `required_skills` must name both `ui-design-builder` and the exact owner-bound `frontend-design`. Before authoring, run `python "<delivery-harness-skill-root>/scripts/check_skill_bindings.py" --agents-md <target-AGENTS.md> --stage ui-design` through installed-command resolution. The actual writer loads the full pinned skills in this context; a parent read, snapshot or role title is no substitute. Do not backfill evidence or replace a binding. Missing or conflicting dependencies block this authoring stage only and preserve prior approvals and closed history. This grants no delegation; a direct parent may author. Assemblers and reviewers provide shell construction and validation, not product-design decisions.
@@ -75,7 +77,7 @@ For any UI-touching mission, classify the completed change against frozen produc
 
 Select focused checks from parent-observed changed files using `selection.mode: "changed_files"`. Run each declared verifier through `scripts/verifier_runtime.py` so the result includes an `execution_key`; a free-form shell transcript is not verifier evidence. A required security check without its tool or retained evidence is blocked, not skipped.
 
-Use a repository-external cache only when the parent supplies it and the command is an opted-in deterministic `exit 0` check with exact immutable inputs. Otherwise use `cache_root=None`.
+There is no disk verifier cache; do not pass `cache_root`.
 
 ## Return
 
@@ -95,7 +97,7 @@ Do not spawn, create, or delegate to another agent. All explorers, writers, and 
 
 - `shared_checkout`: only the parent may be the sole writer.
 - `parent_managed_worktree`: use the exact parent-created worktree and base.
-- `app_managed_worktree`: remain on the assigned ref; create or attach a durable branch only when explicitly authorized. Platform retention is independent from Harness cleanup authorization.
+- `app_managed_worktree`: remain on the assigned ref; create or attach a durable branch only when explicitly authorized.
 
 ## Launch Checklist
 
@@ -103,6 +105,6 @@ Do not spawn, create, or delegate to another agent. All explorers, writers, and 
 - [ ] PLAN schema v6 and RUN schema v11 validate and match the supplied digest.
 - [ ] Lease, base, worktree, branch/ref, permission boundary, and required actions are current.
 - [ ] Host-specific repository context and matching adapter contract were read.
+- [ ] Any adoption digest was recomputed, matched, read, and reported.
 - [ ] Exact skills, write/deny scope, resources, stop conditions, and verifiers are known.
-- [ ] No nested delegation is permitted.
 - [ ] The result-contract path is readable.

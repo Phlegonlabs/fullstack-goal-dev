@@ -306,7 +306,11 @@ def check_seo_review_text(
     repo_root: Path | None = None,
 ) -> list[str]:
     findings: list[str] = []
+    # Validate the package and Deployment once here; the nested Activation
+    # check is told not to repeat it.
     if stack_text is not None:
+        if repo_root is None:
+            findings.append("Product package: stack validation requires repository root")
         from check_product_package import validate_texts
         findings.extend(
             f"Product package: {item}"
@@ -445,6 +449,8 @@ def check_seo_review_text(
                 "Deployment: reviewed endpoint/domain hostname must equal the SEO Production domain"
             )
 
+    # Only the reviewed target must be ready; other targets may stay pending.
+    # The matching verified MS-* sources are checked below.
     activation_findings = check_activation_text(
         activation_text,
         prd_text=prd_text,
@@ -452,8 +458,8 @@ def check_seo_review_text(
         deployment_text=deployment_text,
         stack_text=stack_text,
         repo_root=repo_root,
-        require_verified_sources=True,
         require_ready=(target_id,),
+        package_validated=stack_text is not None,
     )
     findings.extend(f"Activation: {item}" for item in activation_findings)
     matching_sources = _matching_activation_sources(
@@ -516,7 +522,11 @@ def check_seo_review_text(
                 findings.append(f"Verified Sources: {source_id} verified at must be RFC3339")
             elif activation_source is not None and verified_instant != activation_source["latest_pass"]:
                 findings.append(f"Verified Sources: {source_id} verified at must equal the latest PASS Activation evidence timestamp")
-            if cutoff_instant is not None and cutoff_instant > data_cutoff:
+            if (
+                cutoff_instant is not None
+                and data_cutoff is not None
+                and cutoff_instant > data_cutoff
+            ):
                 findings.append(f"Verified Sources: {source_id} coverage through cannot exceed the global data cutoff")
         elif activation_source is not None and cutoff_instant != activation_source["latest_pass"]:
             findings.append(f"Verified Sources: {source_id} cutoff must equal the latest PASS Activation evidence timestamp")
@@ -679,25 +689,6 @@ def main(argv: list[str] | None = None) -> int:
     if review_record.get("Schema") == "seo-review/2" and args.stack_decisions is None:
         print("seo-review/2 requires --stack-decisions", file=sys.stderr)
         return 2
-    if args.stack_decisions is not None:
-        from check_product_package import validate_texts
-        package_findings = validate_texts(
-            loaded["prd"], loaded["architecture"], loaded["stack"],
-            require_filled=True, require_approved=True,
-            repo_root=args.repo_root,
-        )
-        if package_findings:
-            for item in package_findings:
-                print(f"Product package: {item}", file=sys.stderr)
-            return 1
-        from check_deployment import check_deployment_text
-        deployment_findings = check_deployment_text(
-            loaded["deployment"], architecture_text=loaded["architecture"]
-        )
-        if deployment_findings:
-            for item in deployment_findings:
-                print(f"Deployment: {item}", file=sys.stderr)
-            return 1
     findings.extend(
         check_seo_review_text(
             loaded["review"],

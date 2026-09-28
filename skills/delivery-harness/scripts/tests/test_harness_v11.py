@@ -13,6 +13,7 @@ import sys
 import tempfile
 import unittest
 from argparse import Namespace
+from unittest import mock
 from pathlib import Path
 
 
@@ -116,6 +117,10 @@ class HarnessV11Tests(unittest.TestCase):
             "findings": [],
         }
         run["review_workers"] = [review_worker]
+        # reserve-review-dispatch records this exact spawn receipt.
+        run["authorizations"]["spawn_subagents"]["scope"]["targets"].append(
+            f"worker:{worker_id}"
+        )
         run["graph_state"]["node_states"][node_id].update(
             {
                 "phase": "running",
@@ -340,6 +345,88 @@ class HarnessV11Tests(unittest.TestCase):
             subprocess.run(["git", "commit", "-qm", "code after review"], cwd=root, check=True)
             self.assertTrue(validate_integration_head_against_git(run, root))
 
+    def test_product_path_listed_as_coordination_still_stales_candidate(self) -> None:
+        """RUN cannot list product code as coordination to hide a newer head."""
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Harness Test"], cwd=root, check=True)
+            source = root / "src" / "app.ts"
+            source.parent.mkdir()
+            source.write_text("candidate\n", encoding="utf-8")
+            subprocess.run(["git", "add", "src/app.ts"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "candidate"], cwd=root, check=True)
+            candidate = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
+            source.write_text("untested change\n", encoding="utf-8")
+            subprocess.run(["git", "add", "src/app.ts"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "c2"], cwd=root, check=True)
+            branch = subprocess.check_output(["git", "branch", "--show-current"], cwd=root, text=True).strip()
+            run = {
+                "schema_version": 11,
+                "integration": {
+                    "branch": branch,
+                    "integration_head_sha": candidate,
+                    "coordination_paths": ["docs/goal/RUN.md", "src/app.ts"],
+                },
+            }
+
+            errors = validate_integration_head_against_git(run, root)
+            self.assertTrue(any("RUN.md is stale" in error for error in errors))
+
+    def test_product_file_renamed_onto_coordination_path_still_stales_candidate(self) -> None:
+        """A rename must not hide the deleted product path from the check."""
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Harness Test"], cwd=root, check=True)
+            source = root / "src" / "app.ts"
+            source.parent.mkdir()
+            source.write_text("export const app = 'candidate';\n" * 20, encoding="utf-8")
+            subprocess.run(["git", "add", "src/app.ts"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "candidate"], cwd=root, check=True)
+            candidate = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
+            (root / "docs" / "epics").mkdir(parents=True)
+            subprocess.run(["git", "mv", "src/app.ts", "docs/epics/EPIC-7.md"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "rename"], cwd=root, check=True)
+            branch = subprocess.check_output(["git", "branch", "--show-current"], cwd=root, text=True).strip()
+            run = {
+                "schema_version": 11,
+                "integration": {
+                    "branch": branch,
+                    "integration_head_sha": candidate,
+                    "coordination_paths": ["docs/goal/RUN.md", "docs/epics/EPIC-7.md"],
+                },
+            }
+
+            errors = validate_integration_head_against_git(run, root)
+            self.assertTrue(any("RUN.md is stale" in error for error in errors), errors)
+
+    def test_validate_run_rejects_product_and_frozen_coordination_paths(self) -> None:
+        plan = valid_plan()
+        run = valid_run(plan)
+        self.assertEqual([], validate_run(plan, run))
+
+        run["integration"]["coordination_paths"].append("src/app.ts")
+        errors = validate_run(plan, run)
+        self.assertTrue(
+            any("unsupported product-path coordination entries: src/app.ts" in e for e in errors),
+            errors,
+        )
+
+        run["integration"]["coordination_paths"][-1] = "docs/product/PRD.md"
+        errors = validate_run(plan, run)
+        self.assertTrue(
+            any("frozen product/design sources cannot be coordination paths" in e for e in errors),
+            errors,
+        )
+
+        run["integration"]["coordination_paths"][-1] = "docs/epics/EPIC-1.md"
+        self.assertEqual([], validate_run(plan, run))
+
     def test_review_packet_is_bounded(self) -> None:
         plan = valid_plan()
         run = valid_run(plan)
@@ -359,6 +446,21 @@ class HarnessV11Tests(unittest.TestCase):
             run["integration"]["batch_base_sha"] = base
             run["integration"]["integration_head_sha"] = head
             run["mission_states"]["M1"]["head_sha"] = head
+            gate = run["runtime_capabilities"]["runtime_adapter"]["version_gate"]
+            gate.update(
+                {
+                    "loaded_contract_digest": None,
+                    "installed_contract_digest": "a" * 64,
+                    "status": "adopted",
+                    "contract_adoption": {
+                        "session_id": gate["session_id"],
+                        "adopted_at": "2026-09-27T00:00:00Z",
+                        "contract_digest_sha256": "a" * 64,
+                        "owner_source": "owner instruction in this task",
+                        "reading_evidence": ["parent re-read the fixed contract"],
+                    },
+                }
+            )
 
             packet = render_packet(plan, run, "N-REVIEW-M1", root, max_diff_bytes=64)
 
@@ -372,6 +474,8 @@ class HarnessV11Tests(unittest.TestCase):
                              full_packet.split("## Contract")[1].split("## Diff")[0])
             self.assertIn("REVIEW-M1", packet)
             self.assertIn('"required_tools": []', packet)
+            self.assertIn('"contract_adoption"', packet)
+            self.assertIn("independently recompute the seven-skill contract digest", packet)
             self.assertNotIn('"harness_plan"', packet)
 
             for node in plan["graph"]["nodes"]:
@@ -525,6 +629,136 @@ class HarnessV11Tests(unittest.TestCase):
                 "consumed_attempts"
             ],
         )
+
+    def test_subagent_review_reservation_records_exact_spawn_receipt(self) -> None:
+        plan, run = current_preintegration_review_state()
+        harness_transition._reserve_review_dispatch(
+            plan,
+            run,
+            Namespace(
+                node_id="N-FRONTEND-REVIEW",
+                worker_id="RW-SPAWN",
+                attempt_id="ATT-SPAWN",
+                report_path=None,
+            ),
+            repo_root=None,
+        )
+
+        self.assertEqual("subagent", run["review_workers"][-1]["worker_runtime"])
+        targets = run["authorizations"]["spawn_subagents"]["scope"]["targets"]
+        self.assertIn("worker:RW-SPAWN", targets)
+        self.assertEqual([], validate_run(plan, run))
+
+        # The receipt survives the user narrowing the grant to exact targets.
+        targets.remove("*")
+        self.assertEqual([], validate_run(plan, run))
+
+        # From Harness 0.55.0, a reviewer without the receipt has no exact
+        # launch authorization.
+        targets.remove("worker:RW-SPAWN")
+        run["runtime_capabilities"]["runtime_adapter"]["version_gate"][
+            "required_harness_version"
+        ] = "0.55.0"
+        self.assertIn(
+            "run.authorizations.spawn_subagents: must exactly authorize review target worker:RW-SPAWN",
+            validate_run(plan, run),
+        )
+
+    def test_subagent_review_selection_agrees_with_reservation(self) -> None:
+        # The selector offers a subagent reviewer only when reservation can
+        # record a receipt that validate_run accepts.
+        message = (
+            "run.authorizations.spawn_subagents: "
+            "must exactly authorize review target worker:RW-SEL"
+        )
+        cases = (
+            ("0.54.5", ["*"], True),
+            ("0.55.0", ["*"], False),
+            ("0.55.0", None, True),
+        )
+        for version, mission_scope, dispatchable in cases:
+            with self.subTest(version=version, mission_scope=mission_scope):
+                plan, run = current_preintegration_review_state()
+                if mission_scope is not None:
+                    run["authorizations"]["spawn_subagents"]["scope"][
+                        "mission_ids"
+                    ] = mission_scope
+                    # Mission workers carry their own exact-mission check;
+                    # keep them out of this reviewer-only case.
+                    for worker in run["workers"]:
+                        worker["worker_runtime"] = "parent"
+                run["runtime_capabilities"]["runtime_adapter"]["version_gate"][
+                    "required_harness_version"
+                ] = version
+                # The fixture has no repo root, which a >= 0.38 RUN needs for
+                # the current-pair check; validate_run is checked directly.
+                with mock.patch.object(
+                    harness_transition, "validate_current_plan_run", return_value=[]
+                ):
+                    selection = select_ready_nodes(
+                        plan, run, manifest_already_validated=True
+                    )
+                    before = validate_run(plan, run)
+                    reserve = lambda: harness_transition._reserve_review_dispatch(  # noqa: E731
+                        plan,
+                        run,
+                        Namespace(
+                            node_id="N-FRONTEND-REVIEW",
+                            worker_id="RW-SEL",
+                            attempt_id="ATT-SEL",
+                            report_path=None,
+                        ),
+                        repo_root=None,
+                    )
+                    listed = [
+                        item["node_id"] for item in selection["dispatchable_nodes"]
+                    ]
+                    if dispatchable:
+                        self.assertIn("N-FRONTEND-REVIEW", listed)
+                        reserve()
+                        after = validate_run(plan, run)
+                        self.assertNotIn(message, after)
+                        self.assertEqual(before, after)
+                    else:
+                        self.assertNotIn("N-FRONTEND-REVIEW", listed)
+                        with self.assertRaisesRegex(
+                            harness_transition.ManifestError,
+                            "not dispatchable: .*action_not_authorized",
+                        ):
+                            reserve()
+
+    def test_subagent_review_receipt_is_not_required_before_0_55(self) -> None:
+        # A RUN closed under 0.54.5 reserved its subagent reviewer without a
+        # worker:<id> receipt. Its archived record must still validate.
+        plan, run = current_preintegration_review_state()
+        harness_transition._reserve_review_dispatch(
+            plan,
+            run,
+            Namespace(
+                node_id="N-FRONTEND-REVIEW",
+                worker_id="RW-OLD",
+                attempt_id="ATT-OLD",
+                report_path=None,
+            ),
+            repo_root=None,
+        )
+        run["authorizations"]["spawn_subagents"]["scope"]["targets"].remove(
+            "worker:RW-OLD"
+        )
+        run["status"] = "complete"
+        gate = run["runtime_capabilities"]["runtime_adapter"]["version_gate"]
+        message = (
+            "run.authorizations.spawn_subagents: "
+            "must exactly authorize review target worker:RW-OLD"
+        )
+        gate["required_harness_version"] = "0.54.5"
+        old_errors = validate_run(plan, run)
+        gate["required_harness_version"] = "0.55.0"
+        new_errors = validate_run(plan, run)
+        # Other version gates fire on this fixture at both versions; only the
+        # receipt rule differs.
+        self.assertNotIn(message, old_errors)
+        self.assertEqual({message}, set(new_errors) - set(old_errors))
 
     def test_reserved_review_pass_traverses_its_declared_route(self) -> None:
         plan, run = current_preintegration_review_state()

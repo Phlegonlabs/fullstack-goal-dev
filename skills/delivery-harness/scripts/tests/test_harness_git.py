@@ -214,14 +214,163 @@ class HarnessGitTests(unittest.TestCase):
             # repository-local endpoint/config injection is rejected.
             import harness_git as module
 
-            with patch.object(
-                module,
-                "_raw_git",
-                return_value=subprocess.CompletedProcess(
+            def fake_git(_root, *arguments, **_kwargs):
+                if arguments[0] == "rev-parse":
+                    return subprocess.CompletedProcess(["git"], 0, ".git\n.git\n", "")
+                return subprocess.CompletedProcess(
                     ["git", "config"], 0, "file:/etc/gitconfig\x00http.proxy\x00", ""
-                ),
-            ):
+                )
+
+            with patch.object(module, "_raw_git", side_effect=fake_git):
                 module.reject_dangerous_local_config(root)
+
+    def test_ci_checkout_extraheader_allows_local_reads_but_not_remote_access(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            _, head = self._repo(root)
+            subprocess.run(["git", "remote", "add", "origin", "https://example.invalid/repo.git"], cwd=root, check=True)
+            # actions/checkout writes this key into the local config by default.
+            for key, value in (
+                ("http.https://github.com/.extraheader", "AUTHORIZATION: basic fixture"),
+                ("http.https://example.invalid/.sslVerify", "false"),
+            ):
+                with self.subTest(key=key):
+                    subprocess.run(["git", "config", key, value], cwd=root, check=True)
+                    result = run_git(root, "rev-parse", "HEAD")
+                    self.assertEqual(0, result.returncode, result.stderr)
+                    self.assertEqual(head, result.stdout.strip())
+                    reject_object_substitution(root)
+                    for command in (("remote", "get-url", "origin"), ("ls-remote", "origin")):
+                        with self.assertRaisesRegex(GitConfigurationError, key.casefold().rsplit(".", 1)[-1]):
+                            run_git(root, *command)
+                    subprocess.run(["git", "config", "--unset-all", key], cwd=root, check=True)
+            # Plain local TLS weakening still fails every read.
+            subprocess.run(["git", "config", "http.sslVerify", "false"], cwd=root, check=True)
+            with self.assertRaisesRegex(GitConfigurationError, "http.sslverify"):
+                run_git(root, "rev-parse", "HEAD")
+
+    def test_local_gpg_signing_programs_are_rejected_but_global_ones_allowed(self) -> None:
+        import harness_git as module
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self._repo(root)
+            for key in ("gpg.program", "gpg.ssh.program", "gpg.x509.program", "gpg.ssh.defaultKeyCommand"):
+                with self.subTest(key=key):
+                    subprocess.run(["git", "config", key, "sentinel-signer"], cwd=root, check=True)
+                    with self.assertRaisesRegex(GitConfigurationError, key.casefold()):
+                        run_git(root, "status", "--porcelain")
+                    subprocess.run(["git", "config", "--unset-all", key], cwd=root, check=True)
+            run_git(root, "status", "--porcelain")
+
+            # Operator signing setup in global/system config stays usable.
+            for key in ("gpg.program", "gpg.ssh.defaultkeycommand"):
+                def fake_git(_root, *arguments, _key=key, **_kwargs):
+                    if arguments[0] == "rev-parse":
+                        return subprocess.CompletedProcess(["git"], 0, ".git\n.git\n", "")
+                    return subprocess.CompletedProcess(["git"], 0, f"file:/etc/gitconfig\x00{_key}\x00", "")
+
+                with patch.object(module, "_raw_git", side_effect=fake_git):
+                    module.reject_dangerous_local_config(root)
+
+    def test_system_helper_outside_a_repository_leaves_the_git_error_to_git(self) -> None:
+        import harness_git as module
+
+        def fake_git(_root, *arguments, **_kwargs):
+            if arguments[0] == "rev-parse":
+                return subprocess.CompletedProcess(["git"], 128, "", "fatal: not a git repository")
+            return subprocess.CompletedProcess(
+                ["git"], 0, "file:C:/Program Files/Git/etc/gitconfig\x00credential.helper\x00", ""
+            )
+
+        with tempfile.TemporaryDirectory() as temporary:
+            with patch.object(module, "_raw_git", side_effect=fake_git):
+                module.reject_dangerous_local_config(Path(temporary))
+
+            # A repository-local helper is still rejected when rev-parse fails.
+            local = (Path(temporary).resolve() / ".git" / "config").as_posix()
+
+            def local_git(_root, *arguments, **_kwargs):
+                if arguments[0] == "rev-parse":
+                    return subprocess.CompletedProcess(["git"], 128, "", "fatal: not a git repository")
+                return subprocess.CompletedProcess(["git"], 0, f"file:{local}\x00credential.helper\x00", "")
+
+            with patch.object(module, "_raw_git", side_effect=local_git):
+                with self.assertRaisesRegex(GitConfigurationError, "credential.helper"):
+                    module.reject_dangerous_local_config(Path(temporary))
+
+    def test_local_askpass_and_url_scoped_tls_or_header_keys_are_rejected(self) -> None:
+        import harness_git as module
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self._repo(root)
+            for key, value in (
+                ("core.askPass", "sentinel-askpass"),
+                ("http.https://example.invalid/.sslVerify", "false"),
+                ("http.https://example.invalid/.sslCAInfo", "attacker-ca.pem"),
+                ("http.https://example.invalid/.extraHeader", "Authorization: sentinel"),
+            ):
+                with self.subTest(key=key):
+                    subprocess.run(["git", "config", key, value], cwd=root, check=True)
+                    with self.assertRaisesRegex(GitConfigurationError, key.casefold().rsplit(".", 1)[-1]):
+                        module.reject_dangerous_local_config(root)
+                    subprocess.run(["git", "config", "--unset-all", key], cwd=root, check=True)
+            module.reject_dangerous_local_config(root)
+
+            # Global URL-scoped CA stays usable; URL-scoped TLS weakening does not.
+            def global_config(name):
+                def fake_git(_root, *arguments, **_kwargs):
+                    if arguments[0] == "rev-parse":
+                        return subprocess.CompletedProcess(["git"], 0, ".git\n.git\n", "")
+                    return subprocess.CompletedProcess(["git"], 0, f"file:/etc/gitconfig\x00{name}\x00", "")
+                return fake_git
+
+            with patch.object(module, "_raw_git", side_effect=global_config("http.https://corp.invalid/.sslcainfo")):
+                module.reject_dangerous_local_config(root)
+            with patch.object(module, "_raw_git", side_effect=global_config("http.https://corp.invalid/.sslverify")):
+                with self.assertRaises(GitConfigurationError):
+                    module.reject_dangerous_local_config(root)
+
+    def test_non_ascii_repository_and_untracked_paths_decode_as_utf8(self) -> None:
+        import archive_run
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "通過-repo"
+            root.mkdir()
+            self._repo(root)
+            (root / "docs").mkdir()
+            (root / "docs" / "通過.md").write_text("zh-TW\n", encoding="utf-8")
+            status = run_git(root, "status", "--porcelain=v1", "-z", "--untracked-files=all")
+            self.assertEqual(0, status.returncode, status.stderr)
+            self.assertIn("?? docs/通過.md", status.stdout.split("\0"))
+            archived = archive_run._git(root, "status", "--porcelain=v1", "-z", "--untracked-files=all")
+            self.assertIsNotNone(archived)
+            self.assertIn("?? docs/通過.md", archived.stdout.split("\0"))
+
+    def test_linked_worktree_shared_and_worktree_config_count_as_local(self) -> None:
+        import harness_git as module
+
+        with tempfile.TemporaryDirectory() as temporary:
+            main = Path(temporary) / "main"
+            main.mkdir()
+            self._repo(main)
+            linked = Path(temporary) / "linked"
+            subprocess.run(["git", "worktree", "add", "-q", str(linked)], cwd=main, check=True)
+            module.reject_dangerous_local_config(linked)
+            for key, value in (
+                ("credential.helper", "!echo sentinel"),
+                ("core.hooksPath", str(Path(temporary) / "hooks")),
+            ):
+                with self.subTest(shared=key):
+                    subprocess.run(["git", "config", key, value], cwd=main, check=True)
+                    with self.assertRaisesRegex(GitConfigurationError, key.casefold()):
+                        module.reject_dangerous_local_config(linked)
+                    subprocess.run(["git", "config", "--unset-all", key], cwd=main, check=True)
+            subprocess.run(["git", "config", "extensions.worktreeConfig", "true"], cwd=main, check=True)
+            subprocess.run(["git", "config", "--worktree", "core.fsmonitor", "sentinel"], cwd=linked, check=True)
+            with self.assertRaisesRegex(GitConfigurationError, "core.fsmonitor"):
+                module.reject_dangerous_local_config(linked)
 
     @unittest.skipUnless(os.name != "nt", "POSIX ownership fixture only")
     def test_git_executable_rejects_writable_parent_component(self) -> None:

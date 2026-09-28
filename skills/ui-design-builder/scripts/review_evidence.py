@@ -16,6 +16,12 @@ SHA = re.compile(r"^[0-9a-f]{64}$")
 IDENTITY = re.compile(r"^(?P<path>[A-Za-z0-9._/-]+) @ sha256:(?P<sha256>[0-9a-f]{64})$")
 MAX_BYTES = 32 * 1024 * 1024
 RESULTS = {"PASS", "FAIL", "BLOCKED", "MISSING"}
+# Shared with check_ui_design_contract so both read the same manifest tags.
+HIFI_MANIFEST_RE = re.compile(
+    r'<script\s+id=["\']ui-hifi-manifest["\']\s+type=["\']application/json["\']\s*>'
+    r"(?P<data>[\s\S]*?)</script>",
+    re.IGNORECASE,
+)
 
 
 def safe_path(root, relative):
@@ -92,13 +98,13 @@ def author_source(text):
     return parsed.groupdict() if parsed else None
 
 
-def author_usage_findings(text, *, require_hifi=False):
+def author_usage_findings(text, *, require_hifi=False, require_wireframe=True):
     errors = []
     rows = author_rows(text)
     source = author_source(text)
     if source is None or not source["path"].startswith("docs/design/") or not source["path"].endswith("/SKILL.md"):
         errors.append("Frontend Design Usage requires one repository snapshot of the observed frontend-design SKILL.md")
-    required = {"wireframe", "direction", "hifi"} if require_hifi else {"wireframe"}
+    required = ({"wireframe"} if require_wireframe else set()) | ({"direction", "hifi"} if require_hifi else set())
     seen = set()
     for cells in rows:
         if len(cells) != 4:
@@ -121,8 +127,8 @@ def author_usage_findings(text, *, require_hifi=False):
     return errors
 
 
-def author_artifact_findings(root, text, *, require_hifi=False):
-    errors = author_usage_findings(text, require_hifi=require_hifi)
+def author_artifact_findings(root, text, *, require_hifi=False, require_wireframe=True):
+    errors = author_usage_findings(text, require_hifi=require_hifi, require_wireframe=require_wireframe)
     source = author_source(text)
     if source is not None:
         try:
@@ -215,7 +221,10 @@ def execution_findings(root, output, receipt, subject):
             errors.append("execution must bind the reviewed artifact at capture time")
         # A HiFi entry binds every child. Entry-only observations are insufficient.
         if subject["path"].endswith(".html"):
-            matches = re.findall(r'<script\s+id=["\']ui-hifi-manifest["\']\s+type=["\']application/json["\']\s*>([\s\S]*?)</script>', subject_bytes.decode("utf-8"))
+            matches = HIFI_MANIFEST_RE.findall(subject_bytes.decode("utf-8"))
+            check = str(output.get("check", ""))
+            if not matches and (check.startswith("hifi-") or check == "motion-preview"):
+                errors.append("HiFi evidence subject has no ui-hifi/2 manifest")
             if matches:
                 manifest = json.loads(matches[0])
                 for page in manifest.get("pages", []):

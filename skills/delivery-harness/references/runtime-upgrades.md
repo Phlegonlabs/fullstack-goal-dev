@@ -7,7 +7,7 @@ Observe the versions once per host session, not once per run. Neither the host b
 Record RUN-v11 `runtime_capabilities.runtime_adapter.version_gate` with normalized host and Harness versions, any minimum host or required Harness version, the host `session_id`, `loaded_contract_digest`, `installed_contract_digest`, one status, and concrete evidence. A semantic version alone is never enough to prove the loaded contract.
 
 ```text
-unobserved | current | compatible_old | upgrade_required | restart_required
+unobserved | current | adopted | compatible_old | upgrade_required | restart_required
 ```
 
 Use the statuses as follows:
@@ -16,6 +16,7 @@ Use the statuses as follows:
 |---|---|---|
 | `unobserved` | The parent has not checked both the current session and loaded Harness release | Defer runtime-worker nodes with `runtime_version_unobserved` |
 | `current` | The current session and loaded Harness release satisfy the selected driver, and loaded/installed contract digests match | Dispatch normally |
+| `adopted` | The host cannot expose a startup digest, but the owner authorized the parent to re-read one fixed installed seven-skill contract at a quiescent boundary | Recompute the installed digest once for a selection; dispatch only while it matches the session-bound adoption, then require a fresh worker/reviewer digest check and reading evidence |
 | `compatible_old` | The active host or Harness release is old but still exposes every required capability | Let an already-active wave reach its safe boundary; defer the next wave with `runtime_upgrade_pending` |
 | `upgrade_required` | A required capability or minimum version is missing | Defer runtime-worker nodes with `runtime_upgrade_required` |
 | `restart_required` | An updater changed installed files, but this session still has the old runtime or skill loaded | Defer runtime-worker nodes with `runtime_restart_required` |
@@ -24,11 +25,15 @@ Use the statuses as follows:
 
 Never hot-upgrade a live worker or transfer its lease to a replacement process.
 
+When a host exposes skills as lazy filesystem references and cannot report what was loaded at session start, keep `loaded_contract_digest` null. At an owner-authorized quiescent boundary—no proposed or active wave, leased/running worker or reviewer, running graph node, or reserved node attempt—the parent may take the RUN lock and run `adopt-runtime-contract --owner-source <explicit owner instruction> --reading-evidence <what the parent actually read> --expected-contract-digest <digest of the bytes reviewed>`. The transition verifies the executing Harness `VERSION` against the RUN pin, recomputes the installed seven-skill digest, and refuses a mismatch before changing RUN. A valid draft, ready, running, or blocked RUN may record this metadata observation; complete and cancelled runs cannot. The transition records an `adopted` receipt bound to the lock-owner session, preserves any prior receipt in immutable history, and changes no other gate. It does not convert the disk digest into loaded-at-start evidence, quiet `loaded_identity_unobserved`, bypass `restart_required`, or prove capability. Each later selection recomputes the live digest once when runtime-worker work is possible; drift defers dispatch. A replacement adoption needs the same quiet boundary and explicit owner source; the same digest may be adopted again only by a fresh session.
+
+The owner source and reading evidence are recorded attestations. They bind responsibility and make the review auditable, but no schema can cryptographically prove what text an LLM ingested; the digest checks prove only the bytes observed at their measurement points.
+
 1. Stop new runtime dispatch. If the old version is `compatible_old`, allow only the current active wave and its dependency-ready streaming reviews to finish.
 2. Preserve PLAN/RUN, terminal results, leases, worktrees, dirty files, commits, exact heads, and session evidence. If an incompatible worker is still active, request a checkpoint after its current tool call and quiesce it at that boundary.
 3. Close or supersede the active wave before replacing the host runtime or the installed Harness skills. Updating installed software is a separate machine mutation and requires an explicit user instruction; the 12 RUN ledger actions do not silently authorize it.
 4. Update the host through the installer that owns that binary. Updating installed Harness skills needs a separate explicit instruction. Quiesce active skill-using sessions, then run `install.sh` or `install.ps1` against `~/.agents/skills/`. It installs `delivery-harness`, `product-definition-builder`, `ui-design-builder`, `design-system-compiler`, `code-security-review`, `product-activation`, and `seo-growth-review`; retires `full-harness`, `prd-builder`, and `product-design-builder`; and writes the prior copies under `~/.agents/skill-backups/product-delivery-harness/`. Never overwrite or delete prior copies, and never replace the installer with manual move/copy commands. Do not alter installed roles, model selection, fallback order, provider credentials, or unrelated packages.
-5. Require installer success and verify the current IDs load and legacy IDs are absent. Restore the backup if verification fails. Then recompute the installed contract digest, mark `restart_required` when it differs from the loaded digest, and start a fresh host session. Installed files changing on disk does not update an existing host task or session.
+5. Require installer success and verify the current IDs load and legacy IDs are absent. A failed install rolls itself back. If the installed skills fail verification after the installer succeeded, restore by re-running the installer from a checkout of the previous release tag; it backs up the bad copy first. Then recompute the installed contract digest, mark `restart_required` when it differs from the loaded digest, and start a fresh host session. Installed files changing on disk does not update an existing host task or session.
 6. Re-run capability and version probes. Replace the old capability snapshot; do not merge it into the new one. Set `current` only when the new session exposes every selected-driver capability.
 7. Validate preserved heads and evidence. Accept already-terminal exact-bound results normally. Create a new graph attempt and lease for unfinished work; never revive the old lease.
 
@@ -50,6 +55,7 @@ An upgrade does not resume the old orchestration. Once the fresh session records
 - A version at or above a documented minimum can still be `upgrade_required` when its observable capability or completion behavior is broken.
 - A lower version can be `compatible_old` only when every capability needed by the active wave is observed and the active result channel remains usable.
 - Record version checks once per host session and again only after an updater, restart, host handoff, or material capability change.
+- An adopted contract travels with every runtime-worker directive. Before acting, each fresh worker or reviewer independently recomputes the digest, compares it with the adoption receipt, reads the fixed contract, and reports fresh reading evidence. A parent receipt never substitutes for that child context.
 
 ## Host Update Boundaries
 
@@ -62,6 +68,6 @@ Before starting product implementation after a skill update, apply `../../ui-des
 
 ## Scoped Skill-Bundle Migration
 
-On fresh-session work after a bundle update, use `document-sync-contract.md` to compare observed identities and current source inventories. Produce changed source → affected document/requirement → required recheck in existing task/RUN evidence. Inspect local rules before any same-scope patch; do not regenerate AGENTS or the whole PRD/design package from new templates. Preserve unaffected HTML pages, stable IDs, accepted decisions, closed RUNs and historical approvals. Unknown loaded identity remains unknown.
+On fresh-session work after a bundle update, use `document-sync-contract.md` to compare observed identities and current source inventories. Produce changed source → affected document/requirement → required recheck in existing task/RUN evidence. Inspect local rules before any same-scope patch; do not regenerate AGENTS or the whole PRD/design package from new templates. Preserve unaffected HTML pages, stable IDs, accepted decisions, closed RUNs and historical approvals. Unknown loaded identity remains unknown; an `adopted` RUN receipt may be recorded separately as the disposition only after its own quiet-boundary checks and never removes the document-sync finding.
 
 For 0.47, document-sync/1 snapshots and historical ui-hifi/2 inspection remain supported. New or renewed HiFi approval requires the reviewer shell and page-bound reviewer observations described by the UI output contract. Retain old evidence and create current evidence for the changed candidate; never relabel an old receipt. Epic records link the current PRD and existing execution records, while small direct fixes may use those records alone.

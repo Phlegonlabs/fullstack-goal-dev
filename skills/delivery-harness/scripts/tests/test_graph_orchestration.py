@@ -43,6 +43,7 @@ from test_harness_manifest import (  # noqa: E402
     valid_run,
 )
 from validate_node_result import validate_node_result  # noqa: E402
+from manifest_fixtures import record_review_spawn_receipts  # noqa: E402
 
 
 def graph_node(
@@ -293,7 +294,7 @@ def record_worker_passed_mission_with_review(
         run,
         "spawn_subagents",
         [mission_id],
-        [f"worker:{worker_id}"],
+        [f"worker:{worker_id}", f"worker:{review_worker_id}"],
     )
     authorize_action(
         run,
@@ -771,6 +772,7 @@ class GraphManifestTests(unittest.TestCase):
                 },
             }
         )
+        record_review_spawn_receipts(run)
         self.assertEqual([], validate_run(plan, run))
 
         interrupted = copy.deepcopy(current)
@@ -804,6 +806,7 @@ class GraphManifestTests(unittest.TestCase):
         run["review_lineages"][node["review"]["lineage_id"]][
             "consumed_attempts"
         ] = 1
+        record_review_spawn_receipts(run)
 
         self.assertEqual([], validate_run(plan, run))
         current.pop("security_result")
@@ -1961,6 +1964,7 @@ class GraphManifestTests(unittest.TestCase):
                 "findings": [],
             }
         ]
+        record_review_spawn_receipts(run)
         self.assertEqual([], validate_run(plan, run))
 
         pi_host_mismatch = copy.deepcopy(run)
@@ -2114,6 +2118,7 @@ class GraphManifestTests(unittest.TestCase):
         }
 
         run["review_workers"] = [copy.deepcopy(base_worker)]
+        record_review_spawn_receipts(run)
         self.assertEqual([], validate_run(plan, run))
 
         bad_outcome = copy.deepcopy(run)
@@ -2203,6 +2208,7 @@ class GraphManifestTests(unittest.TestCase):
             "findings": ["missing null check on line 42"],
         }
         run["review_workers"] = [passing_reviewer, dissenting_reviewer]
+        record_review_spawn_receipts(run)
 
         # A superseded dissent remains historical evidence and does not block
         # the current passing attempt.

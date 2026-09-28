@@ -263,6 +263,19 @@ def _target_branch(target: Any) -> str | None:
     return _normalized_branch(target.split(":", 1)[1])
 
 
+def is_protected_branch_target(run: dict[str, Any], target: Any) -> bool:
+    """Return whether a branch target is main, development, or the default branch."""
+
+    branch = _target_branch(target)
+    if branch is None:
+        return False
+    if branch.casefold() in {"main", "development"}:
+        return True
+    default_branch = _normalized_branch(observed_default_branch(run))
+    # Loose refs on case-insensitive filesystems make "Master" name "master".
+    return default_branch is not None and branch.casefold() == default_branch.casefold()
+
+
 def _v10_push_is_current_and_safe(
     run: dict[str, Any], entry: dict[str, Any], target: str | None
 ) -> bool:
@@ -393,6 +406,10 @@ def authorization_covers(
             return False
         if not _v10_push_is_current_and_safe(run, entry, target):
             return False
+    # No grant, including "*", covers deleting main, development, or the
+    # observed default branch.
+    if action == "delete_branches" and is_protected_branch_target(run, target):
+        return False
     checked_targets = targets
     if require_exact_target:
         if target is None or not isinstance(targets, list):

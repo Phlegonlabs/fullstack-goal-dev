@@ -75,13 +75,15 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
     def test_product_delivery_harness_brand_and_skill_ids_are_canonical(self) -> None:
         package = (REPO_ROOT / "package.json").read_text(encoding="utf-8")
         self.assertIn('"name": "product-delivery-harness"', package)
-        self.assertIn('"version": "0.54.5"', package)
-        self.assertEqual(
-            "0.54.5",
-            (REPO_ROOT / "skills" / "delivery-harness" / "VERSION")
-            .read_text(encoding="utf-8")
-            .strip(),
-        )
+        # VERSION is the one source; every other release surface must match it.
+        version = self.read("VERSION").strip()
+        self.assertRegex(version, r"^\d+\.\d+\.\d+$")
+        self.assertIn(f'"version": "{version}"', package)
+        for readme in ("README.md", "README.zh-TW.md", "README.zh-CN.md", "README.es.md"):
+            with self.subTest(readme=readme):
+                text = (REPO_ROOT / readme).read_text(encoding="utf-8")
+                self.assertIn(f"badge/version-{version}-", text)
+                self.assertIn(f"\n- **{version}** ", text)
         self.assertFalse(
             (REPO_ROOT / "Tasks.md").exists(),
             "the source repository must not keep a root Tasks.md flow log",
@@ -159,8 +161,9 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         runtime = documents["runtime-upgrades.md"]
         self.assertIn("never overwrite or delete", agents)
         self.assertIn("Never overwrite or delete", runtime)
-        self.assertIn("Restore the backup if verification fails", agents)
-        self.assertIn("Restore the backup if verification fails", runtime)
+        self.assertIn("previous release tag", agents)
+        self.assertIn("previous release tag", runtime)
+        self.assertNotIn("Restore the backup if verification fails", runtime)
         readme_backup_phrases = {
             "README.md": "archive the legacy directories under their original IDs",
             "README.zh-CN.md": "用原 ID 保存各旧目录",
@@ -1012,7 +1015,8 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("an upgrade re-binds work, it does not redo it", upgrades)
         self.assertIn("a provider switch is never inferred from an upgrade alone", upgrades)
         self.assertIn("re-orchestrates every remaining task onto the new runtime", skill)
-        self.assertIn('"required_harness_version": "0.54.5"', runbook)
+        version = self.read("VERSION").strip()
+        self.assertIn(f'"required_harness_version": "{version}"', runbook)
         for reason in (
             "runtime_version_unobserved",
             "runtime_upgrade_pending",
@@ -1209,7 +1213,7 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         core = self.read("SKILL.md")
         runtime = self.read("scripts/verifier_runtime.py")
 
-        self.assertIn("pass_signal_not_cacheable", runtime)
+        self.assertIn('and normalized_verifier["pass_signal"] == "exit 0"', runtime)
         self.assertIn("Container `session_exact` reuse requires `exit 0`", core)
 
 

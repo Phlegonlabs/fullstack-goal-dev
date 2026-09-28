@@ -291,7 +291,7 @@ class StrictAuthorityJoinTests(unittest.TestCase):
             root = Path(directory)
             plan, run = self._headless_fixture(root)
             prd_path = root / "docs/product/PRD.md"
-            prd_path.write_text(
+            changed_prd = (
                 prd_path.read_text(encoding="utf-8")
                 + """
 
@@ -308,12 +308,19 @@ class StrictAuthorityJoinTests(unittest.TestCase):
 - `states`: [ready]
 - `responsive`: viewports: [390, 768, 1200]
 -->
-""",
-                encoding="utf-8",
+"""
             )
-            plan["sources"][0]["content_sha256"] = hashlib.sha256(
-                prd_path.read_bytes()
-            ).hexdigest()
+            # Approval digests cover fenced and commented text, so re-approve
+            # the changed bytes; the join itself must still ignore the examples.
+            texts = strictize_approved_package(
+                changed_prd,
+                (root / "docs/product/architecture.md").read_text(encoding="utf-8"),
+                (root / "docs/product/stack-decisions.md").read_text(encoding="utf-8"),
+            )
+            for row, text in zip(plan["sources"], texts, strict=True):
+                path = root / row["location"]
+                path.write_text(text, encoding="utf-8")
+                row["content_sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
             self.assertEqual([], validate_frozen_contract_joins(plan, root, run=run))
 
     def test_strict_prd_join_rejects_an_active_ghost_ui_heading(self) -> None:

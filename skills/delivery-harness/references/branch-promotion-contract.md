@@ -43,6 +43,8 @@ Once A is archived or published, its history and evidence are immutable. A faile
 
 ## Promote To Main
 
+Run-branch publication of A and `main` promotion use different controls on purpose. Publication goes through the trusted host because its signed evidence and v3 receipt are the durable publication state that archive and correction lineage read later (A2 checks the remote pre-state against it). `main` promotion writes no archive receipt and reads none; it is a plain no-force push by the parent under its own action-time authorization naming `main`, the remote and exact A, with fetch and read-back. Promotion does not require prior run-branch publication. Publish A first only when a candidate environment must build from the remote run branch. A publication request, receipt or trusted-host grant never authorizes the `main` push.
+
 Promotion to `main` is allowed only when all of these are true:
 
 1. A fresh fetch proves the remote `main` head still equals the recorded candidate base.
