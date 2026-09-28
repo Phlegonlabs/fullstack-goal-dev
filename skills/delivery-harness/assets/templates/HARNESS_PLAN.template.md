@@ -99,7 +99,7 @@ Use this template as `docs/goal/PLAN.md` for managed work that needs durable coo
           "--contract", "docs/verification/delivery-acceptance.json",
           "--contract-sha256", "<parent-frozen-hash>",
           "--results", "docs/verification/delivery-results.json",
-          "--candidate-sha", "<pre-register-candidate-H1>"
+          "--candidate-from-head"
         ],
         "pass_signal": "exit 0",
         "execution": {
@@ -420,19 +420,19 @@ These are planning expectations, not authorization. Record explicit action autho
 For newly authored delivery work, also follow `references/delivery-acceptance-contract.md`. The example manifest above shows these entries; keep all of them before readiness:
 
 - a source `SRC-004` of kind `delivery acceptance` at `docs/verification/delivery-acceptance.json`, frozen like the other rows;
-- a final gate `delivery-acceptance` with no `selection` (so it always runs) whose argv runs `check_delivery_acceptance.py` with `--repo-root`, `--prd`, `--contract`, `--contract-sha256`, `--results` and `--candidate-sha`;
+- a final gate `delivery-acceptance` with no `selection` (so it always runs) whose argv runs `check_delivery_acceptance.py` with `--repo-root`, `--prd`, `--contract`, `--contract-sha256`, `--results` and `--candidate-from-head`;
 - a `local_command` verifier node `N-ACCEPTANCE-GATE` with `ref: "delivery-acceptance"`;
 - `dependency` edges from `N-FINAL-GATE` to `N-ACCEPTANCE-GATE` and from `N-ACCEPTANCE-GATE` to `N-CLOSEOUT-GATE`.
 
-Use the parent's frozen contract hash and observed candidate SHA, never values derived from result writers. The register commit gets its RUN slot through `record-integration`, in one order:
+Use the parent's frozen contract hash, never a value derived from result writers. The PLAN cannot name the candidate H1, because H1 exists only after the last merge; `--candidate-from-head` takes H1 from the register and fails unless Git shows H1 is an ancestor of the checked-out head and every later commit changes only the register, the evidence files it lists and run coordination files. The register commit gets its RUN slot through `record-integration`, in one order:
 
 1. Merge the last mission by `merge_rank`, giving H1. Do not record it yet.
 2. Run the scenarios at H1 and write `candidate_sha: H1` in the register.
-3. Commit only the register and its evidence on top of H1, giving H2.
+3. Commit only the register and the evidence files it lists on top of H1, giving H2.
 4. Run `record-integration --integrated-sha H2` for that mission, so H2 is the recorded integration head.
-5. Run every unified review and final gate, including `N-ACCEPTANCE-GATE`, at H2 with `--candidate-sha H1`.
+5. Run every unified review and final gate, including `N-ACCEPTANCE-GATE`, at H2.
 
-For this, the last mission's `write_scope` lists `docs/verification/delivery-results.json` and `docs/verification/evidence/**`, as M1 shows, and so does the security review's `scope` (the validator requires it to cover every mission scope). Only the parent writes them. No task `write_scope` lists them, so a worker task commit that touches them fails worker-result validation. They are not coordination paths, so a register commit after the recorded head leaves RUN stale. A repair that reruns acceptance lists the same paths in its repair task's `write_scope` and in the failed review's `scope`. The template's neutral command placeholders must be replaced before execution.
+For this, the last mission's `write_scope` lists `docs/verification/delivery-results.json` and `docs/verification/evidence/**`, as M1 shows, and so does the security review's `scope` (the validator requires it to cover every mission scope). `record-integration` checks only that mission scope, so `N-ACCEPTANCE-GATE` is what refuses a product file committed with the register. Only the parent writes these paths, and every evidence file the register lists comes from its own run at H1. No task `write_scope` lists them, so in isolated workspaces a worker commit that touches them fails worker-result validation; a shared checkout does not run that per-commit check. They are not coordination paths, so a register commit after the recorded head leaves RUN stale. Any candidate repair after H2 changes files outside the register, so `N-ACCEPTANCE-GATE` fails at the repaired head. `reconcile-candidate-head` accepts only paths in the repair task's `write_scope`, which never lists the register, so rerunning acceptance after H2 needs a formal PLAN revision with fresh owner authorization: the new digest stops the old execution grants from covering anything. The template's neutral command placeholders must be replaced before execution.
 
 The manifest validator does not check that these entries exist, so the parent's readiness review must confirm them; passing schema validation alone is insufficient. Do not retrofit or silently migrate a running legacy PLAN/RUN. Direct work runs the acceptance CLI without these artifacts.
 

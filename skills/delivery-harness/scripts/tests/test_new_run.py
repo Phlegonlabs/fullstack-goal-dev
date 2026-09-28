@@ -119,6 +119,14 @@ class NewRunTests(unittest.TestCase):
             "docs/verification/delivery-acceptance.json", sources["SRC-004"]["location"]
         )
 
+        # H1 exists only after the last merge, so the PLAN gate cannot name
+        # it; the checker proves the register's candidate against HEAD.
+        gate = next(
+            item for item in self.plan["final_gates"] if item["id"] == "delivery-acceptance"
+        )
+        self.assertIn("--candidate-from-head", gate["argv"])
+        self.assertNotIn("--candidate-sha", gate["argv"])
+
         # The parent commits the register before record-integration, so the
         # last mission's scope must hold the register and its evidence.
         self.assertTrue(
