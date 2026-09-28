@@ -44,6 +44,7 @@ from harness_schema import (
     is_valid_provider_id,
     run_required_harness_version,
     archive_first_required,
+    parse_harness_version,
     required_harness_version,
     RUNTIME_REVIEW_TYPES,
     RUNTIME_REASONING_EFFORTS,
@@ -1829,8 +1830,9 @@ def _security_required_check_errors(
 
 
 UI_IMPACT_SUMMARY_REQUIRED_VERSION = (0, 35, 0)
-# Exact-receipt rules added in 0.55.0 (reviewer spawn receipt, exact cleanup
-# PASS target, cleanup lifecycle node target). Older RUNs keep their shape.
+# Rules added in 0.55.0 (reviewer spawn receipt, exact cleanup PASS target,
+# cleanup lifecycle node target, coordination_paths allowlist, protected
+# delete_branches grant targets). Older RUNs keep their shape.
 EXACT_RECEIPT_REQUIRED_VERSION = (0, 55, 0)
 UI_IMPACT_SUMMARY_ROW_KEYS = {"mission_id", "impact"}
 
@@ -5563,6 +5565,10 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
     if not _keys(errors, "run", run, run_keys, optional_run_keys):
         return sorted(errors)
     required_harness_version = run_required_harness_version(run)
+    # The 0.55.0 shape checks skip only a pin that parses below 0.55.0; a
+    # null or malformed pin gets the strict checks.
+    parsed_pin = parse_harness_version(required_harness_version)
+    apply_0550_shape_checks = parsed_pin is None or parsed_pin >= EXACT_RECEIPT_REQUIRED_VERSION
     if (
         schema_version == 11
         and version_at_least(required_harness_version, (0, 28, 0))
@@ -5898,7 +5904,11 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                             f"{path}.scope.targets",
                             "RUN-v11 push authorization cannot target retired development",
                         )
-                if action == "delete_branches" and entry["authorized"]:
+                if (
+                    action == "delete_branches"
+                    and entry["authorized"]
+                    and apply_0550_shape_checks
+                ):
                     delete_scope = entry.get("scope")
                     delete_targets = (
                         delete_scope.get("targets")
@@ -6602,12 +6612,14 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                     )
             # Closeout accepts a newer branch head when only coordination
             # files changed, so a product path listed here would hide
-            # untested product commits.
+            # untested product commits. validate_run checks this from 0.55.0;
+            # the closeout live-head check applies the allowlist to every RUN.
+            allowlist_required = apply_0550_shape_checks
             frozen_paths = sorted(
                 path for path in coordination_paths
                 if frozen_coordination_path(path, plan)
             )
-            if frozen_paths:
+            if allowlist_required and frozen_paths:
                 _add(
                     errors,
                     "run.integration.coordination_paths",
@@ -6619,7 +6631,7 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                 if not frozen_coordination_path(path, plan)
                 and not supported_coordination_path(path)
             )
-            if unsupported_paths:
+            if allowlist_required and unsupported_paths:
                 _add(
                     errors,
                     "run.integration.coordination_paths",

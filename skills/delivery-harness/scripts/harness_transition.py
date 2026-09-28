@@ -2490,17 +2490,11 @@ def _lease_worker(plan: dict[str, Any], run: dict[str, Any], args: argparse.Name
     # has passed. A rejected phase, dependency, or conflict must not touch even
     # this in-memory copy of the authorization ledger.
     if run.get("schema_version") == 11:
+        receipts: list[tuple[str, str]] = []
         if worker_runtime == "subagent":
-            _materialize_authorized_target(
-                run, "spawn_subagents", args.mission_id, f"worker:{args.worker_id}"
-            )
+            receipts.append(("spawn_subagents", f"worker:{args.worker_id}"))
         elif worker_runtime == "app_task":
-            _materialize_authorized_target(
-                run,
-                "create_user_owned_tasks",
-                args.mission_id,
-                f"task:{task_thread_id}",
-            )
+            receipts.append(("create_user_owned_tasks", f"task:{task_thread_id}"))
         if workspace_mode == "parent_managed_worktree":
             worktree_action = "create_local_worktrees"
         elif workspace_mode == "app_managed_worktree":
@@ -2508,19 +2502,22 @@ def _lease_worker(plan: dict[str, Any], run: dict[str, Any], args: argparse.Name
         else:
             worktree_action = None
         if worktree_action is not None:
-            _materialize_authorized_target(
-                run,
-                worktree_action,
-                args.mission_id,
-                f"worktree:{args.worktree_path}",
-            )
+            receipts.append((worktree_action, f"worktree:{args.worktree_path}"))
             for action in ("create_local_branches", "create_local_commits"):
-                _materialize_authorized_target(
-                    run,
-                    action,
-                    args.mission_id,
-                    f"branch:{args.branch_ref}",
+                receipts.append((action, f"branch:{args.branch_ref}"))
+        # validate_run checks every receipt against exact mission ids at
+        # every version, so a "*" mission scope would record a receipt it
+        # then rejects. The selector defers these launches; refuse here too.
+        for action, _target in receipts:
+            scope = (run.get("authorizations", {}).get(action) or {}).get("scope")
+            missions = scope.get("mission_ids") if isinstance(scope, dict) else None
+            if isinstance(missions, list) and "*" in missions:
+                raise ManifestError(
+                    f"{action} grant has mission_ids '*'; lease-worker needs "
+                    f"exact mission ids including {args.mission_id!r}"
                 )
+        for action, target in receipts:
+            _materialize_authorized_target(run, action, args.mission_id, target)
     node_state.update(
         {
             "phase": "running",

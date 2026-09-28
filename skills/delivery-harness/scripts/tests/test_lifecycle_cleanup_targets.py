@@ -84,7 +84,7 @@ def lifecycle_pair(target: str | None, grant_targets: list[str], ref: str = "del
     return plan, run
 
 
-def set_required_version(run, version: str) -> None:
+def set_required_version(run, version: str | None) -> None:
     run["runtime_capabilities"]["runtime_adapter"]["version_gate"][
         "required_harness_version"
     ] = version
@@ -154,13 +154,26 @@ class CleanupLifecycleTargetTests(unittest.TestCase):
                 )
 
     def test_ledger_rejects_protected_delete_branch_targets(self) -> None:
+        # validate_run checks the grant from 0.55.0 and for a null or
+        # malformed pin; an older in-flight RUN keeps its recorded grant, and
+        # authorization_covers still refuses the protected target for every
+        # RUN.
+        message = "delete_branches cannot target main"
         for protected in ("branch:main", "branch:development", "branch:refs/heads/trunk"):
             with self.subTest(target=protected):
                 plan, run = lifecycle_pair("branch:codex/done", [protected])
-                errors = validate_current_plan_run(plan, run)
-                self.assertTrue(
-                    any("delete_branches cannot target main" in error for error in errors),
-                    errors,
+                for strict_pin in ("0.55.0", None, "0.54"):
+                    set_required_version(run, strict_pin)
+                    errors = validate_run(plan, run)
+                    self.assertTrue(any(message in error for error in errors), errors)
+                set_required_version(run, "0.54.5")
+                older = validate_run(plan, run)
+                self.assertFalse(any(message in error for error in older), older)
+                _plan, exact = lifecycle_pair("branch:codex/done", ["branch:codex/done"])
+                set_required_version(exact, "0.54.5")
+                self.assertEqual(validate_run(plan, exact), older)
+                self.assertFalse(
+                    authorization_covers(run, "delete_branches", "M1", protected)
                 )
         plan, run = lifecycle_pair("branch:codex/done", ["*", "branch:codex/done"])
         self.assertEqual([], validate_current_plan_run(plan, run))
