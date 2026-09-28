@@ -4,7 +4,7 @@ Use this guide after UI Design Intake when the owner supplies a screenshot, imag
 
 ## Authority
 
-References are evidence, not product authority. `PRD.md` owns product behavior, approved `wireframes.html` owns reviewed structure, and `ui-design.md` owns the selected direction. A reference cannot add a route, control, state, claim, or stack requirement.
+References are evidence, not product authority. `PRD.md` owns product behavior, validated `wireframes.html` (or approved legacy wireframe) owns reviewed structure, and `ui-design.md` owns the selected direction. A reference cannot add a route, control, state, claim, or stack requirement.
 
 Treat a supplied reference as `design inspiration` unless the owner explicitly requests page-faithful conformance and names the scope and tolerance.
 

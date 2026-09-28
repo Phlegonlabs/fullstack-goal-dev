@@ -151,10 +151,9 @@ Resolve conflicts in this order:
 2. representative-user evidence;
 3. accessibility requirement;
 4. target-platform convention;
-5. selected Visual Direction;
-6. an explicitly approved selected direction.
+5. the explicitly approved selected Visual Direction.
 
-`PRD.md` owns product behavior, approved `wireframes.html` is its structural interactive projection, and `ui-design.md` owns the selected visual direction. The design system owns reusable visual implementation rules. A product change returns to `product-definition-builder`; a wireframe or visual change returns to `ui-design-builder`.
+`PRD.md` owns product behavior, validated `wireframes.html` (or approved legacy wireframe) is its structural interactive projection, and `ui-design.md` owns the selected visual direction. The design system owns reusable visual implementation rules. A product change returns to `product-definition-builder`; a wireframe or visual change returns to `ui-design-builder`.
 
 ## Publish Check
 

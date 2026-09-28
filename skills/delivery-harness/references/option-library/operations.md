@@ -25,7 +25,7 @@
 | OpenTelemetry（儀器化層） | 多服務、想保留後端選擇權 | 單一小服務且簡單告警已足 | SDK 版本管理、error 語意、exporter 設定 | 需量測開銷並維護；recording errors 語意目前為 Development 狀態，可能變動 | 設計目的即避免鎖定，可降低 instrumentation 耦合，但查詢、告警與資料仍需遷移 | OTel 官方文件已驗證 |
 | Sentry（錯誤追蹤後端） | 例外聚合、議題分組、串接協作工具 | 需要精確帳務或完整安全稽核時，另設權威紀錄 | SDK 初始化、release 標注、配額與過濾規則 | 依事件量計價（數字未核實）；可過濾不可行動錯誤以控配額 | 資料為其專有格式，遷出需另行轉存 | 僅 PDF 快取可引；主文件站查核日回傳錯誤，待驗證 |
 | Prometheus + Grafana OSS（指標後端＋視覺化） | 自架、成本可控、生態成熟 | 不想維運基礎設施 | exporter／collector 維運、儲存規劃 | 自擔基礎設施與人力成本 | 開放格式，鎖定低 | Prometheus 基本 time-series 模型已補查 |
-| Grafana Cloud（受管後端） | 不想維運、需四種訊號關聯分析 | 資料不可出域 | 導入端點與 label 規範（service、environment 等） | 用量計價（數字未核實）；Adaptive Traces 可控 trace 儲存 | 官方頁稱與 OTel／Prometheus 相容、instrument once avoid lock-in | 多個官方頁面已驗證 |
+| Grafana Cloud（受管後端） | 不想維運、需四種訊號關聯分析 | 資料不可出域 | 導入端點與 label 規範（service、environment 等） | 計價、Adaptive Traces 與儲存控制能力待核實 | OTel／Prometheus 相容性與遷移限制待官方來源核實 | sources.md 未記錄 Grafana 來源；採納前須補查 |
 | 平台原生監控 | 單服務、快速驗證期 | 需要跨來源關聯分析 | 依平台能力（如用 Vercel logs 檢查函式是否觸及時長上限） | 隨平台計費，常含於方案 | 換平台需重建告警與儀表板 | Vercel 用法為文件事實；其他平台待驗證 |
 | 錯誤預算／SLO 程序（approach，非品牌） | 需要明確可靠性目標與取捨規則 | 尚無指標基線的早期產品 | 定義 SLI、計算窗口、燒盡時的決策者 | 主要是溝通與流程成本 | 屬程序，無工具鎖定 | OTel primer 提供 SLI／SLO 定義；SRE SLO 章節已補查 |
 

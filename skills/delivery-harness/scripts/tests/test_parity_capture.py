@@ -68,6 +68,8 @@ def plan_markdown(ui_surfaces: list[dict[str, object]]) -> str:
     )
 
 
+DARWIN_FD_EXEC = "macOS cannot execute /dev/fd/N, so descriptor-bound launch fails closed there"
+
 class ParityCaptureTests(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
@@ -148,6 +150,7 @@ class ParityCaptureTests(unittest.TestCase):
             return []
         return [json.loads(line) for line in self.log_path.read_text().splitlines()]
 
+    @unittest.skipIf(sys.platform == "darwin", DARWIN_FD_EXEC)
     def test_colliding_route_and_state_tokens_keep_distinct_evidence(self) -> None:
         routes = ["/foo/bar", "/foo-bar", "/FOO-BAR", "/" + "long-route-" * 21]
         states = ["ready", "error/value", "error-value"]
@@ -171,6 +174,7 @@ class ParityCaptureTests(unittest.TestCase):
         self.assertTrue(all(Path(path).is_file() for path in paths))
         self.assertTrue(all(len(Path(path).name) <= 140 for path in paths))
 
+    @unittest.skipIf(sys.platform == "darwin", DARWIN_FD_EXEC)
     def test_captures_the_full_non_na_matrix(self) -> None:
         route_map = self.root / "route-map.json"
         route_map.write_text(
@@ -210,6 +214,7 @@ class ParityCaptureTests(unittest.TestCase):
         self.assertIn(["set", "viewport", "390", "1000"], calls)
         self.assertIn(["open", "http://localhost:3000/home"], calls)
 
+    @unittest.skipIf(sys.platform == "darwin", DARWIN_FD_EXEC)
     def test_route_map_state_triggers_capture_non_ready_states(self) -> None:
         route_map = self.root / "route-map.json"
         route_map.write_text(
@@ -233,6 +238,7 @@ class ParityCaptureTests(unittest.TestCase):
         self.assertEqual(0, len(manifest["skipped"]))
         self.assertIn(["eval", "--stdin"], self.calls())
 
+    @unittest.skipIf(sys.platform == "darwin", DARWIN_FD_EXEC)
     def test_a_skipped_required_state_combination_fails(self) -> None:
         route_map = self.root / "route-map.json"
         route_map.write_text(
@@ -252,6 +258,7 @@ class ParityCaptureTests(unittest.TestCase):
             )
         )
 
+    @unittest.skipIf(sys.platform == "darwin", DARWIN_FD_EXEC)
     def test_reference_probe_failure_skips_with_reason(self) -> None:
         os.environ["STUB_PROBE_RESULT"] = "false"
         code, out = self.run_main()
@@ -271,6 +278,7 @@ class ParityCaptureTests(unittest.TestCase):
             3, sum(1 for reason in reasons if "no app_eval trigger" in reason)
         )
 
+    @unittest.skipIf(sys.platform == "darwin", DARWIN_FD_EXEC)
     def test_only_filter_restricts_to_one_route(self) -> None:
         self.plan.write_text(
             plan_markdown(
@@ -316,6 +324,7 @@ class ParityCaptureTests(unittest.TestCase):
         self.assertEqual(1, manifest["selected_combinations"])
         self.assertEqual(["/settings"], manifest["only_routes"])
 
+    @unittest.skipIf(sys.platform == "darwin", DARWIN_FD_EXEC)
     def test_geometry_probe_nonzero_fails_the_capture(self) -> None:
         os.environ["STUB_GEOMETRY_MODE"] = "exit"
         route_map = self.root / "route-map.json"
@@ -342,6 +351,7 @@ class ParityCaptureTests(unittest.TestCase):
         self.assertIn("geometry probe unavailable", board)
         self.assertNotIn("geometry probe: clean", board)
 
+    @unittest.skipIf(sys.platform == "darwin", DARWIN_FD_EXEC)
     def test_geometry_probe_malformed_json_fails_the_capture(self) -> None:
         os.environ["STUB_GEOMETRY_MODE"] = "malformed"
         route_map = self.root / "route-map.json"
@@ -363,6 +373,7 @@ class ParityCaptureTests(unittest.TestCase):
             any("no valid JSON object" in problem for problem in manifest["errors"])
         )
 
+    @unittest.skipIf(sys.platform == "darwin", DARWIN_FD_EXEC)
     def test_browser_arguments_never_cross_a_windows_shell_boundary(self) -> None:
         arguments = [
             "open",
@@ -383,6 +394,18 @@ class ParityCaptureTests(unittest.TestCase):
                 arguments,
             )
 
+    @unittest.skipUnless(sys.platform == "darwin", "macOS descriptor behavior")
+    def test_darwin_launcher_binding_fails_closed_but_reads_still_bind(self) -> None:
+        launcher = Path(sys.executable).resolve()
+        with self.assertRaisesRegex(RuntimeError, "descriptor-backed launcher path is unavailable"):
+            parity_capture._bind_posix_launcher(launcher)
+        bound, descriptor = parity_capture._bind_posix_launcher(launcher, executable=False)
+        try:
+            self.assertEqual(f"/dev/fd/{descriptor}", bound)
+        finally:
+            os.close(descriptor)
+
+    @unittest.skipIf(sys.platform == "darwin", DARWIN_FD_EXEC)
     @unittest.skipUnless(os.name != "nt", "descriptor launcher fixture is POSIX-only")
     def test_posix_launcher_binding_survives_path_replacement(self) -> None:
         launcher = self.root / "launcher"
@@ -401,6 +424,7 @@ class ParityCaptureTests(unittest.TestCase):
         finally:
             os.close(descriptor)
 
+    @unittest.skipIf(sys.platform == "darwin", DARWIN_FD_EXEC)
     @unittest.skipUnless(os.name != "nt", "descriptor launcher fixture is POSIX-only")
     def test_posix_symlink_launcher_fails_closed_and_resolved_inode_stays_bound(self) -> None:
         original = self.root / "original"

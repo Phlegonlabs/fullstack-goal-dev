@@ -15,6 +15,7 @@ import os
 import re
 import secrets
 import subprocess
+import sys
 import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -313,6 +314,45 @@ def _discover_machine_trust_policy(*, root: Path | None = None) -> MachineTrustP
     )
 
 
+_SF_RESTRICTED = 0x00080000  # macOS SIP-protected file flag
+_CSR_ALLOW_UNRESTRICTED_FS = 1 << 1
+
+
+def _sip_enforced() -> bool:
+    """Whether macOS SIP currently blocks changes to restricted files."""
+
+    try:
+        import ctypes
+
+        libsystem = ctypes.CDLL("/usr/lib/libSystem.B.dylib", use_errno=True)
+        csr_check = libsystem.csr_check
+        csr_check.argtypes = [ctypes.c_uint32]
+        csr_check.restype = ctypes.c_int
+        # csr_check returns 0 when the unrestricted-filesystem override is allowed.
+        return csr_check(_CSR_ALLOW_UNRESTRICTED_FS) != 0
+    except (OSError, AttributeError):
+        return False
+
+
+def _sip_protected_executable(path: Path, fd: int) -> bool:
+    """True only for the verified inode of a SIP-restricted file on macOS."""
+
+    if sys.platform != "darwin" or not _sip_enforced():
+        return False
+    # The file and every directory below "/" must be restricted, so no
+    # component of the path can be renamed or replaced.
+    entries = [path, *(parent for parent in path.parents if parent != parent.parent)]
+    try:
+        bound = os.fstat(fd)
+        named = os.stat(path, follow_symlinks=False)
+        flags = [os.stat(entry, follow_symlinks=False).st_flags for entry in entries]
+    except (OSError, AttributeError):
+        return False
+    return (bound.st_dev, bound.st_ino) == (named.st_dev, named.st_ino) and all(
+        flag & _SF_RESTRICTED for flag in flags
+    )
+
+
 def _discover_os_managed_verifier(*, root: Path) -> str:
     """Select an OS-managed ssh-keygen without caller-supplied paths."""
 
@@ -505,7 +545,7 @@ def _verify_execution_evidence_signature(
         raise ManifestError("trusted-host signature or allowed-signers file is missing")
     bound_fds: list[int] = []
 
-    def bind(path: Path, expected: str) -> tuple[int, str]:
+    def bind(path: Path, expected: str, *, executable: bool = False) -> tuple[int, str]:
         if os.name == "nt":
             # Hold the original pathname with FILE_SHARE_READ only.  A same
             # user cannot replace/delete it while ssh-keygen is reading it.
@@ -579,9 +619,17 @@ def _verify_execution_evidence_signature(
             raise
         bound_fds.append(fd)
         if os.name != "nt":
-            for prefix in ("/proc/self/fd", "/dev/fd"):
+            # macOS lists /dev/fd/N but refuses to execute it; reads work.
+            prefixes = ["/proc/self/fd"]
+            if not (executable and sys.platform == "darwin"):
+                prefixes.append("/dev/fd")
+            for prefix in prefixes:
                 if Path(prefix).exists():
                     return fd, f"{prefix}/{fd}"
+            # A SIP-restricted system file cannot be replaced, so its path
+            # names the verified inode as firmly as a descriptor would.
+            if executable and _sip_protected_executable(path, fd):
+                return fd, str(path)
             os.close(fd)
             bound_fds.pop()
             raise ManifestError("no descriptor path is available for trusted-host verifier")
@@ -596,7 +644,9 @@ def _verify_execution_evidence_signature(
         raise ManifestError("signature verifier path does not match request")
     result = None
     try:
-        _, verifier_arg = bind(configured_verifier, request["signature_verifier_sha256"])
+        _, verifier_arg = bind(
+            configured_verifier, request["signature_verifier_sha256"], executable=True
+        )
         _, signers_arg = bind(signers_path, request["trust_policy_sha256"])
         _, signature_arg = bind(signature_path, proof["signature_sha256"])
         command = [

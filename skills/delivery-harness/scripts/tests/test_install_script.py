@@ -48,13 +48,18 @@ def find_powershell() -> str | None:
         path = shutil.which(command)
         if path is None:
             continue
-        probe = subprocess.run(
-            [path, "-NoProfile", "-Command", "$PSVersionTable.PSVersion.Major"],
-            capture_output=True,
-            text=True,
-            timeout=10,
-            check=False,
-        )
+        # A cold pwsh start on CI runners can exceed 10 s; a probe timeout
+        # must not break importing the whole module.
+        try:
+            probe = subprocess.run(
+                [path, "-NoProfile", "-Command", "$PSVersionTable.PSVersion.Major"],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            continue
         if probe.returncode == 0:
             return path
     return None
@@ -160,8 +165,14 @@ class InstallScriptTests(unittest.TestCase):
         )
         job = workflow.split("\n  macos:\n", 1)[1].split("\n  windows-hardening:\n", 1)[0]
         self.assertIn("runs-on: macos-latest", job)
-        # Non-blocking until Harness supports macOS.
-        self.assertIn("continue-on-error: true", job)
+        # macOS is supported, so its job blocks like the others.
+        self.assertNotIn("continue-on-error", job)
+        # Apple's root-owned Git must win over Homebrew's before Python setup.
+        prefer_git = 'echo "/usr/bin" >> "$GITHUB_PATH"'
+        self.assertIn(prefer_git, job)
+        self.assertLess(job.index(prefer_git), job.index("actions/setup-python"))
+        # Test repositories must not sit under the /var -> /private/var link.
+        self.assertIn('echo "TMPDIR=$(cd "$TMPDIR" && pwd -P)/" >> "$GITHUB_ENV"', job)
         for skill in (
             "delivery-harness",
             "product-definition-builder",

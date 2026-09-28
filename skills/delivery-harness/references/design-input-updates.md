@@ -15,7 +15,7 @@ Classify every visual source before planning or implementation:
 
 For an initial delivery or design enhancement, implementation uses the route's `UI-*` entry in `PRD.md`, current approved `ui-design.md`, its copy-complete validated schema-5 `wireframes.html` (or the approved legacy wireframe), and the active visual route. Static strings, action labels, feedback, and alternate-state messages are implementation-bound; dynamic examples are illustrative while their approved source/order/format/count/length/fallback contracts bind implementation. A `required` gate binds `design-system.md` and `design-system.json` together. A `not_required` gate binds the approved immutable page-faithful target instead. Routine maintenance uses the current product and effective requirements as stated above. See `ui-implementation-contract.md`.
 
-A `frontend-design` result produced or requested during implementation is a proposed design-input delta, not code-side authority. Do not apply a new visual direction, token, variant, component, motion pattern, or structure directly. Return target or direction changes to `product-definition-builder`; return formal pair changes to `design-system-compiler`. Resume only against the revised active source.
+A `frontend-design` result produced or requested during implementation is a proposed design-input delta, not code-side authority. Do not apply a new visual direction, token, variant, component, motion pattern, or structure directly. Return target, direction or wireframe changes to `ui-design-builder`; return product behavior, copy/display contracts or stack changes to `product-definition-builder`; return formal pair changes to `design-system-compiler`. Resume only against the revised active source.
 
 ```text
 1. Identify source type and version.
@@ -94,7 +94,7 @@ Use this only when the user explicitly provides page-faithful targets for differ
 | /dashboard | Figma frame <id> | <version or content hash> | mobile/tablet/desktop | loading/empty/error/ready | <named tolerance and allowed deviations> | cards/table/filter | API-002 | screenshot + journey |
 ```
 
-For a required UI surface, `screenshot + journey` means a retained screenshot for every listed breakpoint-by-state combination, plus journey/console/network evidence where applicable. In RUN-v11, read the artifact bytes from the recorded accepted Git commit/ref, safely decode those bytes, then compare `artifact_sha256`; record the screenshot path, hash, and integration head in current RUN state. Uncommitted or mutated working-tree screenshots cannot satisfy v10. Older RUN-v9 UI evidence remains readable and keeps its working-tree binding.
+For a required UI surface, `screenshot + journey` means a retained screenshot for every listed breakpoint-by-state combination, plus journey/console/network evidence where applicable. In RUN-v10 and RUN-v11, read the artifact bytes from the recorded accepted Git commit/ref, safely decode those bytes, then compare `artifact_sha256`; record the screenshot path, hash, and integration head in current RUN state. Uncommitted or mutated working-tree screenshots cannot satisfy v10 or v11. Older RUN-v9 UI evidence remains readable and keeps its working-tree binding.
 
 States to consider:
 
@@ -268,7 +268,7 @@ M5 regression verification
 
 For small accepted refinements, skip worktrees and run direct work with before/after evidence. Use worktrees when several accepted refinements can run independently or when the parent checkout must remain stable.
 
-Every refinement mission that touches UI records its UI-impact classification — `none`, `style`, `structure`, or `both` — in its result under the same rule as `ui-implementation-contract.md`. A refinement that changes regions, states, actions, routes, or responsive behavior is structural: it returns through `product-definition-builder` as a design-input delta before it integrates.
+Every refinement mission that touches UI records its UI-impact classification — `none`, `style`, `structure`, or `both` — in its result under the same rule as `ui-implementation-contract.md`. A refinement that changes regions, states, actions, routes, or responsive behavior is structural: route the affected wireframe and UI target through `ui-design-builder` before integration. New product behavior, wording, display contracts or stack decisions first return to `product-definition-builder`.
 
 ### Regression Protection
 

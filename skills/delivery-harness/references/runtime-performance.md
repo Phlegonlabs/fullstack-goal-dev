@@ -2,20 +2,20 @@
 
 Use this contract for every PLAN-v6/RUN-v11 execution on any host.
 
-The goal is to stop paying for the same work twice, not to hit a number. This file carries no percentage target, and one must not be added back without a measurement behind it. An earlier revision carried invented reduction figures that had never been measured against anything, and chasing a made-up number is how a run ends up slicing missions too small or skipping a gate to make the arithmetic work. Remove repeated work, then measure what that bought.
+Remove repeated work and measure the result. This contract carries no percentage target. Set one only against a measured, comparable baseline; never split missions or skip gates to meet an unsupported target.
 
 Repeated work, in the order it usually costs the most:
 
 1. The scripted write path removes the hand-authored RUN edits between selection and integration: one `record-observation` replaces transcribing `harness_step.py`'s printed snapshot, one `accept-wave` plus one `lease-worker` per mission replace the wave/lease hand edits, `record-integration` closes each mission, and `close-wave` retires the finished wave with its tombstone in one write. Each is a single validated atomic write, so parent output stays flat instead of growing with RUN history. `reserve-review-dispatch --packet-out <path>` renders the reviewer packet from the in-memory reserved run in the same command, removing the separate render pass and its repeated validation; the selector accepts `manifest_already_validated` from callers that just validated the identical pair.
 
-Re-dispatching a reviewer against a commit an earlier review already passed.
-2. Re-running a deterministic local verifier whose inputs did not change.
-3. Serializing verifiers that never contend for a resource.
-4. Making a finished mission wait on a slower sibling before it can integrate.
-5. Re-reading state the parent could have read once.
-6. Re-capturing evidence for a surface the merge did not touch.
+2. Re-dispatching a reviewer against a commit an earlier review already passed.
+3. Re-running a deterministic local verifier whose inputs did not change.
+4. Serializing verifiers that never contend for a resource.
+5. Making a finished mission wait on a slower sibling before it can integrate.
+6. Re-reading state the parent could have read once.
+7. Re-capturing evidence for a surface the merge did not touch.
 
-Each has a rule below or in `verification-gates.md`. None of them weakens authorization, isolation, exact-SHA review, evidence, or final validation.
+Each has a rule below or in `verification-gates.md`.
 
 Performance work never weakens authorization, isolation, scope, exact-SHA review, integration, evidence, or final validation.
 
@@ -30,7 +30,7 @@ The managed runtime uses the same four invariants:
 
 ## Parent Turn Boundaries
 
-The contract fixes the order of mutating actions. It does not fix how many parent turns those actions take, and reading it one command at a time inflated a three-mission run to roughly thirty parent round-trips when about half that is enough.
+Keep mutating actions in their required order. Batch independent reads and preparation when no intervening evidence decision is needed.
 
 Batch into one turn:
 

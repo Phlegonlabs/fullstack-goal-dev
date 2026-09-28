@@ -29,7 +29,7 @@
 
 ## Tailwind CSS 與元件／icon 分離
 
-Tailwind CSS 是可選樣式候選，且不新增 12px 規則。Tailwind 是樣式層，不是應用框架；按鈕、表單元件與 icon 是另一層決策。Next.js 與 Astro 的官方文件選單都出現 Tailwind 相關項目，但安裝與版本正文未收錄，因此 Tailwind v3/v4 相容性、CSS 入口、PostCSS、設計 tokens、暗色模式與 purge 行為全部標記為待驗證。不要從元件庫的樣式推導出整個專案必須使用 Tailwind，也不要把 icon 授權與框架授權混在一起。
+Tailwind CSS 是可選樣式候選。Tailwind 是樣式層，不是應用框架；按鈕、表單元件與 icon 是另一層決策。Next.js 與 Astro 的官方文件選單都出現 Tailwind 相關項目，但安裝與版本正文未收錄，因此 Tailwind v3/v4 相容性、CSS 入口、PostCSS、設計 tokens、暗色模式與 purge 行為全部標記為待驗證。不要從元件庫的樣式推導出整個專案必須使用 Tailwind，也不要把 icon 授權與框架授權混在一起。
 
 ## 情境式建議
 

@@ -25,6 +25,8 @@ Product Definition 撰写英文正式来源 `PRD.md`、`architecture.md` 时，�
 
 > 定义产品。编译设计。交付已验证的软件。
 
+本轮审计修正统一已安装 skill 的命令路径、必要 CLI 参数、500 行职责检查点、schema-5 Wireframe Validation 与 reviewer shell v3。Activation 按发布目标选择正确 profile；security PASS 必须完整覆盖。Product Definition 审查确认 operations 的完整性；schema-5 UI approval gates 会验证已声明的 PRD operations 与 Wireframe／HiFi 的对应。现行 RUN 仅在本地完成，发布及 main promotion 各自保留授权。
+
 ## 统一设计审阅
 
 Wireframe 与 HiFi 共用中性查看器：相同侧栏、字体、间距及控件，并与产品 CSS 隔离。同一入口按 App、Web 前台、管理后台分组，一次显示一个产品画布，各自保留尺寸与状态。新 `wireframes/5` 不提供 Tokens／Design System Draft 页；HiFi 另设完整产品 Tokens 专页，显示名称、用途、实际来源数值和视觉示例。 侧栏采用简洁导航行、清晰的当前页面标记及双列尺寸选择器。长标签可换行，键盘焦点保持可见，交互过渡遵循减少动态效果设置。
@@ -108,7 +110,7 @@ Skills 更新后及实现前，执行[设计有效性检查](skills/ui-design-bu
 - **Parity 靠实拍，不靠记忆。** hosted-browser surface 逐 route×viewport×state capture；extension、native 与 desktop app 使用平台工具或明确的人工 capture，不能用 hosted URL 替代。任何不支持的 required group 都让结果成为 partial、不可作为 gate。每行绑定 Git blob、authority hash、baseline、capture method、trusted launcher identity 与 layout result。 截图文件名包含完整 surface/route/breakpoint/state tuple 的 SHA-256，避免名称规范化或大小写不敏感的路径合并不同证据。
 - **读规则是强制的。** 种子化的项目 `AGENTS.md` 要求：受管工作前必读已安装的 `delivery-harness` SKILL.md，影响产品的直接工作前必读受影响的 PRD 段落；跳过即 blocking review finding。
 - **代码安全是全新的最终审查。** 所有 code PLAN 都必须执行 `code-security-review`；`not_applicable` 只允许窄范围纯文档工作。实际 candidate path 必须落在 mission/security scope，并且永远不能带入 parent coordination files。项目要求的 security commands 是 graph 排序的 host 或 container verifiers；review 前会核对 exact current-head execution key。PASS 必须绑定 exact SHA、完整 coverage、零 exclusion，且不可复用旧结果。
-- **Promotion 一律 main-only。** 初次交付与 enhancement 都从观察到的 remote `main` 开始。Harness 0.38 RUN 在 C 以 local-only 关闭，不能由 RUN push。A 的授权 publication 必须同时携带 pre-archive external anchor、immutable request/attempt/receipt 与 trusted-host/human boundary；candidate gates 通过后，再另行授权与 read-back，把未变更的 A fast-forward 到 `main`。如果 A 之后的 candidate/preview evidence 失败，就在同一 non-default branch 以精确 A 创建新的 PLAN/RUN continuation，导入原 verified scope 与 repair、把 A records 绑定为历史输入，关闭 C2、用新 anchor 收档 A2；不能改写 A history 或复用旧 records。已 publication 的 A 要求 A2 remote pre-state 精确等于 A；未 publication 的 A 则必须保持 absent。
+- **Promotion 一律 main-only。** 初次交付与 enhancement 都从观察到的 remote `main` 开始。Harness 0.38+ RUN 在 C 以 local-only 关闭，不能由 RUN push。A 的授权 publication 必须同时携带 pre-archive external anchor、immutable request/attempt/receipt 与 trusted-host/human boundary；candidate gates 通过后，再另行授权与 read-back，把未变更的 A fast-forward 到 `main`。如果 A 之后的 candidate/preview evidence 失败，就在同一 non-default branch 以精确 A 创建新的 PLAN/RUN continuation，导入原 verified scope 与 repair、把 A records 绑定为历史输入，关闭 C2、用新 anchor 收档 A2；不能改写 A history 或复用旧 records。已 publication 的 A 要求 A2 remote pre-state 精确等于 A；未 publication 的 A 则必须保持 absent。
 
 ## 包含哪些内容
 
@@ -369,9 +371,9 @@ Harness 是围绕明确的边界构建的：
 3. 当任务大到需要时，在动手实现之前先规划依赖关系。
 4. 只有当至少两个安全写入 mission 实际被选中、工作彼此独立且相互隔离，并且每个动作都获得明确授权时，才使用并行工作节点；受管顺序路线仍要证明隔离 writer、scope/head 和 review gates。
 5. 验证任务结果与集成，执行全新的统一 code-security 审查，再验证相关 UI 流程与最终差异（diff）。单 mission 不会凭空增加跨 mission batch gate。
-6. Harness 0.38 RUN 在 C 以 local-only 结束，RUN 不会 push。完成 archive-only A 并重验后，任何 run-branch publication 都要使用新的 action-time instruction 与 checkout 外部 request/attempt/receipt；验证 A 后，才可另行授权把它 fast-forward 到 `main` 并 read-back、验证 production。
+6. Harness 0.38+ RUN 在 C 以 local-only 结束，RUN 不会 push。完成 archive-only A 并重验后，任何 run-branch publication 都要使用新的 action-time instruction 与 checkout 外部 request/attempt/receipt；验证 A 后，才可另行授权把它 fast-forward 到 `main` 并 read-back、验证 production。
 
-对于有计划支撑的工作，它会记录任务范围、依赖关系、工作节点归属、验证命令，以及针对具体动作的授权。一次测试通过并不等于授权推送、移除工作树或删除分支。Harness 0.38 会让 RUN push 保持 false；archive protocol 从 archive 推导 C 与 branch，验证精确 C→A relocation 以及 remote pre-state，绑定规范 URL 与已观察的 trust policy/verifier，只准备精确 URL-only no-force publication handoff 并交给 trusted host；recovery 先验证签名 evidence 再读回 A。Legacy pinned run 只保留旧流程供 recovery。
+对于有计划支撑的工作，它会记录任务范围、依赖关系、工作节点归属、验证命令，以及针对具体动作的授权。一次测试通过并不等于授权推送、移除工作树或删除分支。Harness 0.38+ 会让 RUN push 保持 false；archive protocol 从 archive 推导 C 与 branch，验证精确 C→A relocation 以及 remote pre-state，绑定规范 URL 与已观察的 trust policy/verifier，只准备精确 URL-only no-force publication handoff 并交给 trusted host；recovery 先验证签名 evidence 再读回 A。Legacy pinned run 只保留旧流程供 recovery。
 
 wave 接受前，Harness 会重新检查观测到的非默认集成分支及干净产品树，把 batch 绑定到该精确 head，重跑 selector，并且只接受完整的当前 frontier。clean-tree gate 只排除 transition 必然更新的那个精确 tracked RUN 文件；其他任何变化仍会阻断。集成分支位于 linked worktree 时，该 checkout 会正确记录为 parent，Git 的干净主 checkout 则保留为已识别的同级项。持久 run lock 负责 dispatch；短期操作系统锁串行化每一次 RUN 的读取、验证与写入事务。冻结的 PRD、wireframe 和 design-system source 会在独立校验与 transition 写入路径中按字节 hash 绑定；即使 PLAN 声称 UI surface 为空，冻结的 PRD 仍会被解析。每个结构化 PRD surface 只拥有一个 literal route；带 UI 的翻译 PRD 只能有一对语言无关的边界标记，并且每个条目各有一个 `route` 与 `states` 锚点；各产物的 ID、route 与 state 必须完全一致。design-system 的 Markdown 与 JSON 各有独立 source row，其 generated contract 与 compiler namespace 必须一致；每个 PLAN `DS-*` trace 也必须在同一个全局唯一的 JSON 注册表中解析。product-definition-builder 会按问题工具真实的每次容量分批询问所有适用的封闭决策；没有 Codex 专属的调用次数目标，也不会为了凑宿主次数而丢掉问题。
 
@@ -586,7 +588,7 @@ python -m unittest discover -s skills/seo-growth-review/scripts/tests -v
 git diff --check
 ```
 
-CI 也会运行端到端主干检查。POSIX shell 使用 `HARNESS_GOLDEN_PATH=1 python -m unittest discover -s skills/delivery-harness/scripts/tests -p "test_golden_path.py" -v`；PowerShell 使用 `$env:HARNESS_GOLDEN_PATH='1'; python -m unittest discover -s skills/delivery-harness/scripts/tests -p "test_golden_path.py" -v; Remove-Item Env:HARNESS_GOLDEN_PATH`。它会用合成产品套件走真实 CLI 主干。
+CI 也会运行端到端主干检查。POSIX shell 使用 `HARNESS_GOLDEN_PATH=1 python -m unittest discover -s skills/delivery-harness/scripts/tests -p "test_golden_path.py" -v`；PowerShell 使用 `$env:HARNESS_GOLDEN_PATH='1'; python -m unittest discover -s skills/delivery-harness/scripts/tests -p "test_golden_path.py" -v; Remove-Item Env:HARNESS_GOLDEN_PATH`。它会用合成产品套件走真实 CLI 主干。在 macOS 上，先运行 `export TMPDIR="$(cd "$TMPDIR" && pwd -P)/"`，让测试 repo 避开 `/var` symlink；并让 `PATH` 中的 `/usr/bin` 排在 Homebrew 前面，Harness 才会找到由 root 拥有的 Git。
 
 ## 验证与执行测量
 
@@ -610,7 +612,7 @@ README 是记录文档：每个新增或改动 skill、规则、表格、图或�
 
 ## 发布
 
-Windows CI 会在任意 Python 测试组失败后立即停止。测试数据在绑定可执行文件或仓库身份前先解析临时路径，包括 Windows 8.3 别名。macOS job 运行与 Linux job 相同的 Python 测试组；浏览器测试只在 Linux 运行。Harness 还不支持 macOS（Homebrew Git 路径、`/var` symlink 临时根目录、`/dev/fd`），所以 macOS job 暂时不阻塞合并。
+Windows CI 会在任意 Python 测试组失败后立即停止。测试数据在绑定可执行文件或仓库身份前先解析临时路径，包括 Windows 8.3 别名。macOS job 运行与 Linux job 相同的 Python 测试组；浏览器测试只在 Linux 运行。macOS 无法执行绑定的文件描述符，所以在 macOS 上 sandbox container verifier 和浏览器 parity capture 会直接报错（fail closed）；trusted-host 签名验证只在使用受 SIP 保护的 `/usr/bin/ssh-keygen` 时可用。
 
 HiFi 示例以固定 LF 换行维持跨平台字节哈希。Wireframe 的 Node 测试通过 stdin 读取多行程序，避免 Windows 启动器静默截断断言。
 
@@ -638,7 +640,7 @@ HiFi 示例以固定 LF 换行维持跨平台字节哈希。Wireframe 的 Node �
 
 每次发布都要更新本节，连同上面《发布》一节描述的版本号提升与 tag 一起完成。
 
-- **0.55.1** — 0.55.0 审查修正的后续项目。`check_delivery_acceptance.py` 现在需要 `--candidate-sha` 或 `--candidate-from-head`；在 Git checkout 中，register 的 candidate 必须是 HEAD 或其祖先，之后只能变更 register、它列出的 evidence 与 run 协调文件。检查器不知道 RUN 版本，所以进行中的 0.55.0 run 若 register commit 含其他文件，或 repair 后仍传入过时的 `--candidate-sha`，gate 会失败。在已采用的 runtime contract 下，要求 0.55.1 或更新版本的 run 需要每个 worker 与 reviewer 的 `contract_adoption_check`。PLAN 与 RUNBOOK template 纳入 delivery-acceptance 行与 register 提交顺序。`*` mission 范围下的 mission 启动与 `app_threads` reviewer 会被延后，不再卡住。0.55.0 的 `coordination_paths` 与受保护分支检查只跳过 pin 低于 0.55.0 的 run。Legacy current-HiFi 规则依批准与其 receipt 的日期判定，并在要求 0.55.1 或更新版本的 run 的 UI join 与 design-system pair join 中强制执行，receipt 以 2026-09-27T00:00:00Z 为界。验收 evidence 必须放在 register 旁的 `evidence/` 下，worker 不能写入 register 或其 evidence。崩溃或超时的 review 又可以记录为 `retryable_failure`。交换提交的竞态会把并发写入的 bytes 保留在具名的 recovery 文件。Product Definition 新增 Base UI 与 Radix Primitives 作为 headless component foundation 选项。
+- **0.55.1** — 0.55.0 审查修正的后续项目。`check_delivery_acceptance.py` 现在需要 `--candidate-sha` 或 `--candidate-from-head`；在 Git checkout 中，register 的 candidate 必须是 HEAD 或其祖先，之后只能变更 register、它列出的 evidence 与 run 协调文件。检查器不知道 RUN 版本，所以进行中的 0.55.0 run 若 register commit 含其他文件，或 repair 后仍传入过时的 `--candidate-sha`，gate 会失败。在已采用的 runtime contract 下，要求 0.55.1 或更新版本的 run 需要每个 worker 与 reviewer 的 `contract_adoption_check`。PLAN 与 RUNBOOK template 纳入 delivery-acceptance 行与 register 提交顺序。`*` mission 范围下的 mission 启动与 `app_threads` reviewer 会被延后，不再卡住。0.55.0 的 `coordination_paths` 与受保护分支检查只跳过 pin 低于 0.55.0 的 run。Legacy current-HiFi 规则依批准与其 receipt 的日期判定，并在要求 0.55.1 或更新版本的 run 的 UI join 与 design-system pair join 中强制执行，receipt 以 2026-09-27T00:00:00Z 为界。验收 evidence 必须放在 register 旁的 `evidence/` 下，worker 不能写入 register 或其 evidence。崩溃或超时的 review 又可以记录为 `retryable_failure`。交换提交的竞态会把并发写入的 bytes 保留在具名的 recovery 文件。Product Definition 新增 Base UI 与 Radix Primitives 作为 headless component foundation 选项。 修正审计发现的 skill 指令、prompt 与命令示例，保留历史批准及兼容指针。明确说明产品 operations 审查与自动 approval 对应检查、仅限容器的 verifier 复用及可选动效 skill。包含 macOS CI 与 SIP 保护签名验证器修正。
 
 - **0.55.0** — 修正对七个 skill 进行多代理审查后发现的问题。破坏性变更与使用者需要做的事：重跑 finalize，并重新记录 Product Definition Approval 与 Stack Decision Checkpoint，因为 digest 现在覆盖含 fenced code、缩进行与 HTML 注释的原始文本；在 Mobile/Desktop stack 加上 `Styling approach` 行；Environment Status 的 Checked 值改用带时区的 RFC3339；在要求 0.55.0 的 run 中，清理类 lifecycle 节点（`archive_worker_tasks`、`remove_worktrees`、`delete_branches`）要有精确 target；Visual Approval 前完成 Impeccable critique 与 audit；enhancement 的 UI 行要写明 Wireframe Validation 与 Visual Approval。另外，trusted-host 与 legacy push 与 repository hooks 和 askpass 隔离，RUN、DOCUMENTS 与 design-system 的原子提交支持 macOS，installer 记录源 commit，并新增 macOS CI job。 UI Design Builder 另外新增 Motion 与 Three.js 动效路线、owner 未表态时依内容提出动效建议、HiFi 媒体内嵌限制，以及参考截图留存。
 

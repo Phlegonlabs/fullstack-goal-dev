@@ -131,7 +131,7 @@ Compute lowercase SHA-256 over compact, key-sorted JSON with schema `activation-
 
 Normalize every string to Unicode NFC and trim surrounding whitespace. Exclude capability observations, authorization state, evidence, timestamps, blockers, and task status. Secret values never enter the action or digest.
 
-`scripts/check_activation.py --show-action-digests` prints the current digest without editing the file. A mutation may run only when `Authorized digest` equals the recomputed `Action digest`. Any target, release SHA or artifact, precondition, desired state, dependency, secret name, risk, confirmation, route, capability observation or scope, read-back route/capability, or behavior verification change expires the approval.
+`python "<product-activation-skill-root>/scripts/check_activation.py" --show-action-digests` prints the current digest without editing the file. A mutation may run only when `Authorized digest` equals the recomputed `Action digest`. Any target, release SHA or artifact, precondition, desired state, dependency, secret name, risk, confirmation, route, capability observation or scope, read-back route/capability, or behavior verification change expires the approval.
 
 ## Capability And Route Selection
 
@@ -213,11 +213,11 @@ The complete authority set is every target in the current architecture `## Relea
 Run:
 
 ```text
-python skills/product-activation/scripts/check_activation.py --activation docs/ACTIVATION.md
-python skills/product-activation/scripts/check_activation.py --activation docs/ACTIVATION.md --prd docs/product/PRD.md
-python skills/product-activation/scripts/check_activation.py --activation docs/ACTIVATION.md --require-filled
-python skills/product-activation/scripts/check_activation.py --activation docs/ACTIVATION.md --prd docs/product/PRD.md --architecture docs/product/architecture.md --stack-decisions docs/product/stack-decisions.md --deployment docs/DEPLOYMENT.md --repo-root <repository-root> --require-verified-sources --require-ready <release-target-id>
-python skills/product-activation/scripts/check_activation.py --activation docs/ACTIVATION.md --show-action-digests
+python "<product-activation-skill-root>/scripts/check_activation.py" --activation docs/ACTIVATION.md
+python "<product-activation-skill-root>/scripts/check_activation.py" --activation docs/ACTIVATION.md --prd docs/product/PRD.md
+python "<product-activation-skill-root>/scripts/check_activation.py" --activation docs/ACTIVATION.md --require-filled
+python "<product-activation-skill-root>/scripts/check_activation.py" --activation docs/ACTIVATION.md --prd docs/product/PRD.md --architecture docs/product/architecture.md --stack-decisions docs/product/stack-decisions.md --deployment docs/DEPLOYMENT.md --repo-root <repository-root> --require-verified-sources --require-ready <release-target-id>
+python "<product-activation-skill-root>/scripts/check_activation.py" --activation docs/ACTIVATION.md --show-action-digests
 ```
 
 The checker is read-only. Exit `0` means the requested contract checks pass, `1` means findings were printed, and `2` means the input could not be read or the CLI was invalid. It never calls a provider, executes a recorded command, reads a secret, or edits a document.

@@ -98,10 +98,6 @@ jobs:
     # roots). Browser tests stay on the Linux job and skip here.
     name: macos
     runs-on: macos-latest
-    # Harness does not support macOS yet (Homebrew Git path, /var symlink
-    # temp roots, /dev/fd); report results without blocking. See
-    # docs/epics/EPIC-review-fixes-20260927.md.
-    continue-on-error: true
     env:
       VALIDATED_HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
     steps:
@@ -110,6 +106,16 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ env.VALIDATED_HEAD_SHA }}
+
+      # Harness trusts only a root-owned, non-link Git. Put Apple's /usr/bin/git
+      # ahead of Homebrew's; setup-python below still prepends its Python.
+      - name: Prefer system Git
+        run: echo "/usr/bin" >> "$GITHUB_PATH"
+
+      # macOS TMPDIR sits under the /var -> /private/var link, which the
+      # no-link path checks reject for test repositories. Use the real path.
+      - name: Resolve temp root
+        run: echo "TMPDIR=$(cd "$TMPDIR" && pwd -P)/" >> "$GITHUB_ENV"
 
       - name: Set up Python
         uses: actions/setup-python@v5
