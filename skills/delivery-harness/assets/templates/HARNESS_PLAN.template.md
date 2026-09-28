@@ -424,7 +424,7 @@ For newly authored delivery work, also follow `references/delivery-acceptance-co
 - a `local_command` verifier node `N-ACCEPTANCE-GATE` with `ref: "delivery-acceptance"`;
 - `dependency` edges from `N-FINAL-GATE` to `N-ACCEPTANCE-GATE` and from `N-ACCEPTANCE-GATE` to `N-CLOSEOUT-GATE`.
 
-Use the parent's frozen contract hash, never a value derived from result writers. The PLAN cannot name the candidate H1, because H1 exists only after the last merge; `--candidate-from-head` takes H1 from the register and fails unless Git shows H1 is an ancestor of the checked-out head and every later commit changes only the register, the evidence files it lists and run coordination files. The register commit gets its RUN slot through `record-integration`, in one order:
+Use the parent's frozen contract hash, never a value derived from result writers. The PLAN cannot name the candidate H1, because H1 exists only after the last merge; `--candidate-from-head` takes H1 from the register and fails unless Git shows H1 is an ancestor of the checked-out head and every later commit changes only the register, the evidence files it lists under `docs/verification/evidence/` (the `evidence/` directory next to the register) and run coordination files. The register commit gets its RUN slot through `record-integration`, in one order:
 
 1. Merge the last mission by `merge_rank`, giving H1. Do not record it yet.
 2. Run the scenarios at H1 and write `candidate_sha: H1` in the register.
