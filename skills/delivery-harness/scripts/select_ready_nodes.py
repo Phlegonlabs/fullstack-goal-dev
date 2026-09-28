@@ -1158,10 +1158,11 @@ def _dispatch_reasons(
             ):
                 reasons.add("action_not_authorized")
             # validate_run checks each mission launch receipt (worker:,
-            # task:, worktree:, branch:) against exact mission ids at every
-            # version, and a subagent reviewer's worker: receipt from 0.55.0.
-            # A "*" mission scope cannot produce a valid receipt, so do not
-            # offer that launch.
+            # task:, worktree:, branch:) and an app_threads reviewer's task:
+            # receipt against exact mission ids at every version, and a
+            # subagent reviewer's worker: receipt from 0.55.0. A "*" mission
+            # scope cannot produce a valid receipt, so do not offer that
+            # launch.
             action_scope = (
                 run.get("authorizations", {}).get(action) or {}
             ).get("scope")
@@ -1174,6 +1175,10 @@ def _dispatch_reasons(
                 and "*" in action_missions
                 and (
                     node["kind"] == "mission"
+                    or (
+                        node["kind"] == "verifier"
+                        and action == "create_user_owned_tasks"
+                    )
                     or (
                         node["kind"] == "verifier"
                         and action == "spawn_subagents"
