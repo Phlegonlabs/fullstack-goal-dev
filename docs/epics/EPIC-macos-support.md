@@ -1,6 +1,6 @@
 # macOS Support
 
-Status: integrated into `codex/release-0.56.0`; release pending. PR #129 was superseded by PR #131.
+Status: integrated on `main` in the 0.56 release line. PR #129 was superseded by PR #131.
 Design workflow: maintenance
 UI impact: none
 

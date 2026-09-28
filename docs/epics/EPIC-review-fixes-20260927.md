@@ -235,3 +235,21 @@ Repair verification: the 180 focused contract/command tests passed again on
 the working-tree correction. All nine operation-coverage tests passed, including
 a new regression that reads the documented JSON example and checks both matching
 designs and rejection of missing controls. No runtime validator behavior changed.
+
+### 2026-09-28 — 0.56.1 acceptance evidence binding
+
+At `main` `37d665f8`, all three exact-main CI jobs passed. A read-only Opus 5.5
+review found that `check_delivery_acceptance.py` could report PASS using ignored
+or edited register/evidence bytes absent from that HEAD. This violates the
+exact-head final-gate rule. The review also noted an older pre-0.38 UI path
+issue; it is outside this focused repair and remains unverified here.
+
+Working-tree repair on `codex/release-0.56.1-acceptance-binding`: require the
+register and every listed evidence file to be a regular blob at HEAD with bytes
+identical to those the checker read. Three regressions first reproduced the
+incorrect PASS, then passed after the change. A fourth check verifies that the
+HEAD comparison uses the validated bytes; all 37 acceptance tests passed.
+The direct task has UI impact `none`. Version, four README descriptions and
+release fields move together to 0.56.1. The full Harness suite passed 1,374
+tests (19 skipped) before the final same-bytes adjustment. Exact-candidate CI,
+independent review, PR promotion, tag and local install are pending.

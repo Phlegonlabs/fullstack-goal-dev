@@ -237,7 +237,8 @@ def _under_root(raw_path: str, root: str) -> bool:
 
 
 def _evidence(
-    root: Path, value: Any, path: str, errors: list[str], allowed_root: str
+    root: Path, value: Any, path: str, errors: list[str], allowed_root: str,
+    captured: dict[str, bytes] | None = None,
 ) -> bool:
     if not _exact_keys(value, EVIDENCE_KEYS, path, errors):
         return False
@@ -265,6 +266,8 @@ def _evidence(
     if _sha256(payload) != expected_hash:
         errors.append(f"{path}.sha256 does not match the evidence artifact")
         return False
+    if captured is not None:
+        captured[Path(raw_path).as_posix()] = payload
     return True
 
 
@@ -275,6 +278,7 @@ def _results(
     candidate_sha: str,
     root: Path,
     allowed_root: str,
+    captured: dict[str, bytes],
 ) -> tuple[list[str], list[str]]:
     errors: list[str] = []
     if not _exact_keys(value, RESULT_KEYS, "results", errors):
@@ -309,7 +313,8 @@ def _results(
         status = _enum(row["status"], f"{row_path}.status", STATUSES, errors)
         build = _build(row["build"], f"{row_path}.build", platform, environment, errors)
         evidence_ok = _evidence(
-            root, row["evidence"], f"{row_path}.evidence", errors, allowed_root
+            root, row["evidence"], f"{row_path}.evidence", errors, allowed_root,
+            captured,
         )
         identity = (
             test_id,
@@ -363,6 +368,32 @@ def _evidence_paths(value: dict[str, Any], allowed_root: str) -> set[str]:
         if isinstance(raw, str) and _under_root(raw.strip(), allowed_root):
             paths.add(Path(raw.strip()).as_posix())
     return paths
+
+
+def _committed_file_errors(root: Path, path: str, payload: bytes) -> list[str]:
+    """Require the exact bytes checked here to be a regular file in HEAD."""
+
+    try:
+        entry = run_git(root, "ls-tree", "-z", "HEAD", "--", path, text=False)
+        if entry.returncode != 0:
+            return [f"cannot inspect {path} in HEAD"]
+        lines = [item for item in entry.stdout.split(b"\0") if item]
+        if len(lines) != 1:
+            return [f"{path} is not committed at HEAD"]
+        metadata, separator, listed_path = lines[0].partition(b"\t")
+        fields = metadata.split()
+        if (not separator or listed_path != path.encode("utf-8") or
+                len(fields) != 3 or fields[0] not in {b"100644", b"100755"} or
+                fields[1] != b"blob"):
+            return [f"{path} is not a regular file committed at HEAD"]
+        actual = run_git(root, "hash-object", "--stdin", input=payload, text=False)
+        if actual.returncode != 0:
+            return [f"cannot hash {path} against HEAD"]
+    except (GitMetadataError, OSError, subprocess.SubprocessError) as exc:
+        return [f"cannot verify {path} against HEAD: {exc}"]
+    if actual.stdout.strip() != fields[2]:
+        return [f"{path} bytes differ from HEAD"]
+    return []
 
 
 def _candidate_tree_errors(root: Path, candidate: str, allowed: set[str]) -> list[str]:
@@ -452,11 +483,16 @@ def _run(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
         recorded = results.get("candidate_sha")
         candidate_sha = recorded if isinstance(recorded, str) else ""
     allowed_root = evidence_root(results_path)
+    captured_evidence: dict[str, bytes] = {}
     matched, result_errors = _results(
-        results, scenarios, required_tests, candidate_sha, root, allowed_root
+        results, scenarios, required_tests, candidate_sha, root, allowed_root,
+        captured_evidence,
     )
     errors.extend(result_errors)
     if git_checkout and GIT_SHA_RE.fullmatch(candidate_sha):
+        errors.extend(_committed_file_errors(root, results_path, result_bytes))
+        for path, evidence_bytes in sorted(captured_evidence.items()):
+            errors.extend(_committed_file_errors(root, path, evidence_bytes))
         errors.extend(
             _candidate_tree_errors(
                 root, candidate_sha,

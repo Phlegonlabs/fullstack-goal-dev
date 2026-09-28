@@ -497,6 +497,51 @@ class CandidateTreeTests(unittest.TestCase):
         self.assertEqual(self.h1, payload["candidate_sha"])
         self.assertEqual(0, self.check("--candidate-sha", self.h1)[0])
 
+    def test_head_comparison_uses_the_validated_evidence_bytes(self) -> None:
+        self.commit_register(self.h1)
+        with patch.object(checker, "_read_bytes", wraps=checker._read_bytes) as read:
+            status, payload = self.check("--candidate-from-head")
+        self.assertEqual((0, []), (status, payload["errors"]))
+        evidence_reads = [call for call in read.call_args_list if call.args[1] == "evidence"]
+        self.assertEqual(2, len(evidence_reads))
+
+    def test_ignored_evidence_cannot_satisfy_committed_head(self) -> None:
+        self.write(".gitignore", "*.log\n")
+        candidate = self.commit("ignore logs")
+        (self.root / "evidence").mkdir(exist_ok=True)
+        (self.root / "evidence" / "run.log").write_bytes(EVIDENCE)
+        value = results()
+        value["candidate_sha"] = candidate
+        for row in value["results"]:
+            row["evidence"] = {"path": "evidence/run.log", "sha256": EVIDENCE_SHA}
+        self.write("results.json", json.dumps(value))
+        self.commit("ignored evidence register")
+
+        status, payload = self.check("--candidate-from-head")
+        self.assertEqual(1, status)
+        self.assertIn("evidence/run.log", " ".join(payload["errors"]))
+
+    def test_uncommitted_register_bytes_cannot_satisfy_head(self) -> None:
+        self.commit_register(self.h1)
+        with (self.root / "results.json").open("a", encoding="utf-8") as stream:
+            stream.write("\n")
+
+        status, payload = self.check("--candidate-from-head")
+        self.assertEqual(1, status)
+        self.assertIn("results.json", " ".join(payload["errors"]))
+
+    def test_uncommitted_evidence_bytes_cannot_satisfy_head(self) -> None:
+        self.commit_register(self.h1)
+        changed = b"different synthetic evidence\n"
+        (self.root / "evidence" / "web.txt").write_bytes(changed)
+        value = json.loads((self.root / "results.json").read_text(encoding="utf-8"))
+        value["results"][0]["evidence"]["sha256"] = hashlib.sha256(changed).hexdigest()
+        self.write("results.json", json.dumps(value))
+
+        status, payload = self.check("--candidate-from-head")
+        self.assertEqual(1, status)
+        self.assertIn("evidence/web.txt", " ".join(payload["errors"]))
+
     def test_run_coordination_commit_after_the_register_passes(self) -> None:
         self.commit_register(self.h1)
         self.write("docs/goal/RUN.md", "# RUN\n")

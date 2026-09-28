@@ -1,6 +1,6 @@
 # Remove The Wireframe Stage
 
-Status: committed as `511a7a5b` on `codex/remove-wireframe-stage` and integrated into `codex/release-0.56.0` with the 0.55.1 review follow-ups and macOS support (#129); release pending.
+Status: committed as `511a7a5b`, integrated with review follow-ups and macOS support, then landed on `main` in the 0.56 release line.
 Design workflow: enhancement
 UI impact: none (skill contracts and validators; no product UI authored).
 
