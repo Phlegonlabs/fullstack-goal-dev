@@ -5,7 +5,7 @@ import sys
 import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "product-definition-builder" / "scripts"))
-from operation_coverage import coverage_findings, required_operations
+from operation_coverage import coverage_findings, hifi_coverage_findings, required_operations
 
 
 def prd(operation):
@@ -77,6 +77,15 @@ class OperationCoverageTests(unittest.TestCase):
         self.manifest["interactions"].append({"id": "surprise", "source": {"surface": "UI-001", "state": "ready"},
                                              "control": "surprise", "destination": self.operation["destination"]})
         self.assertIn("lacks a PRD", "\n".join(coverage_findings(prd(self.operation), self.wireframe, self.manifest)))
+
+    def test_whitespace_variant_heading_keeps_required_operations(self):
+        for heading in ("###  UI-001", "###\tUI-001"):
+            text = prd(self.operation).replace("### UI-001", heading)
+            operations, errors = required_operations(text)
+            self.assertEqual([], errors, heading)
+            self.assertEqual(["OP-home"], [row["id"] for row in operations], heading)
+            self.assertIn("OP-home: required operation is missing", "\n".join(
+                hifi_coverage_findings(text, {"interactions": []})))
 
     def test_missing_or_duplicate_anchor_fails(self):
         text = prd(self.operation)

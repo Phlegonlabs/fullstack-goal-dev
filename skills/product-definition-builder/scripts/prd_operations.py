@@ -7,7 +7,12 @@ import json
 import re
 
 from markdown_contract import active_markdown_lines
-from prd_ui_contract import parse_prd_ui_contract, UI_END_MARKER, UI_START_MARKER
+from prd_ui_contract import (
+    parse_prd_ui_contract,
+    UI_END_MARKER,
+    UI_HEADING_RE,
+    UI_START_MARKER,
+)
 
 
 OPERATION_ANCHOR_RE = re.compile(
@@ -33,7 +38,9 @@ def required_operations(prd_text):
     )
     active = "\n".join(line for _, line in active_markdown_lines(prd))
     body = active.split(UI_START_MARKER, 1)[-1].split(UI_END_MARKER, 1)[0]
-    headings = list(re.finditer(r"^### (UI-[A-Z0-9]+(?:-[A-Z0-9]+)*)\b.*$", body, re.M))
+    headings = list(UI_HEADING_RE.finditer(body))
+    for surface in sorted(set(surfaces) - {h.group(1) for h in headings}):
+        errors.append(surface + " has no PRD operations result")
     result = []
     for index, heading in enumerate(headings):
         surface = heading.group(1)
