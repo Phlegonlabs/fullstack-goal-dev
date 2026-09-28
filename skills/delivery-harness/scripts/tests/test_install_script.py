@@ -48,13 +48,18 @@ def find_powershell() -> str | None:
         path = shutil.which(command)
         if path is None:
             continue
-        probe = subprocess.run(
-            [path, "-NoProfile", "-Command", "$PSVersionTable.PSVersion.Major"],
-            capture_output=True,
-            text=True,
-            timeout=10,
-            check=False,
-        )
+        # A cold pwsh start on CI runners can exceed 10 s; a probe timeout
+        # must not break importing the whole module.
+        try:
+            probe = subprocess.run(
+                [path, "-NoProfile", "-Command", "$PSVersionTable.PSVersion.Major"],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            continue
         if probe.returncode == 0:
             return path
     return None
