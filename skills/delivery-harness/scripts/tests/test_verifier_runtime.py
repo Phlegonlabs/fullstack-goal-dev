@@ -177,6 +177,8 @@ def build_execution_key(
     return _build_execution_key(declaration, verifier_context, **kwargs)
 
 
+DARWIN_FD_EXEC = "macOS cannot execute /dev/fd/N, so descriptor-bound launch fails closed there"
+
 class VerifierRuntimeTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
@@ -619,6 +621,7 @@ class VerifierRuntimeTests(unittest.TestCase):
                     sandbox_preflight=preflight,
                 )
 
+    @unittest.skipIf(sys.platform == "darwin", DARWIN_FD_EXEC)
     def test_sandbox_runtime_hash_version_and_repo_digest_drift_fail_closed(self) -> None:
         patch.stopall()
         from verifier_runtime import _run_container_verifier
@@ -708,6 +711,7 @@ class VerifierRuntimeTests(unittest.TestCase):
                     sandbox_preflight=preflight,
                 )
 
+    @unittest.skipIf(sys.platform == "darwin", DARWIN_FD_EXEC)
     def test_container_command_preserves_hidden_cwd_segments(self) -> None:
         patch.stopall()
         from verifier_runtime import _run_container_verifier
@@ -773,6 +777,7 @@ class VerifierRuntimeTests(unittest.TestCase):
                     )
                 )
 
+    @unittest.skipIf(sys.platform == "darwin", DARWIN_FD_EXEC)
     def test_runtime_binding_survives_replace_restore_sentinel_during_run(self) -> None:
         patch.stopall()
         from verifier_runtime import _run_container_verifier
@@ -850,6 +855,16 @@ class VerifierRuntimeTests(unittest.TestCase):
             )
             self.assertNotEqual(commands[2][0], str(runtime))
 
+    @unittest.skipUnless(sys.platform == "darwin", "macOS descriptor behavior")
+    def test_darwin_runtime_binding_fails_closed(self) -> None:
+        binding = verifier_runtime._RuntimeExecutableBinding(Path(sys.executable).resolve())
+        with self.assertRaisesRegex(
+            VerifierRuntimeError, "requires a descriptor-backed launch path"
+        ):
+            binding.__enter__()
+        self.assertIsNone(binding.file_descriptor)
+
+    @unittest.skipIf(sys.platform == "darwin", DARWIN_FD_EXEC)
     @unittest.skipUnless(os.name != "nt", "descriptor-backed execution is POSIX-only")
     def test_posix_runtime_descriptor_executes_original_inode(self) -> None:
         from verifier_runtime import _RuntimeExecutableBinding
@@ -1560,6 +1575,7 @@ class VerifierRuntimeTests(unittest.TestCase):
         self.assertEqual([True], observed_long_active)
         self.assertEqual(2, result["metrics"]["max_parallel"])
 
+    @unittest.skipIf(sys.platform == "darwin", DARWIN_FD_EXEC)
     def test_container_execution_does_not_hold_runtime_lock_during_user_command(self) -> None:
         self._container_patch.stop()
         lock_seen_free = threading.Event()

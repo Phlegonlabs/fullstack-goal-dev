@@ -18,6 +18,7 @@ import re
 import shutil
 import stat
 import subprocess
+import sys
 import threading
 import time
 from pathlib import Path
@@ -162,7 +163,11 @@ class _RuntimeExecutableBinding:
             raise VerifierRuntimeError(
                 "sandbox runtime executable must have an execute bit"
             )
-        candidates = (f"/proc/self/fd/{descriptor}", f"/dev/fd/{descriptor}")
+        # macOS lists /dev/fd/N but refuses to execute it, so it cannot pin
+        # the inode there; fail closed below instead of at exec.
+        candidates = (f"/proc/self/fd/{descriptor}",) + (
+            () if sys.platform == "darwin" else (f"/dev/fd/{descriptor}",)
+        )
         launch_path = next((candidate for candidate in candidates if Path(candidate).exists()), None)
         if launch_path is None:
             os.close(descriptor)

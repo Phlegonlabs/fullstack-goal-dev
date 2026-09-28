@@ -54,6 +54,8 @@ def manifest(heading: str, wrapper: str, value: dict) -> str:
     return f"# Fixture\n\n{heading}\n\n```json\n{json.dumps({wrapper: value}, indent=2)}\n```\n"
 
 
+DARWIN_FD_EXEC = "macOS cannot execute /dev/fd/N, so descriptor-bound launch fails closed there"
+
 class ArchiveFirstPushTests(unittest.TestCase):
     def setUp(self) -> None:
         self._temps: list[tempfile.TemporaryDirectory[str]] = []
@@ -255,6 +257,17 @@ class ArchiveFirstPushTests(unittest.TestCase):
             request_path=Path(fixture["request"]),
         )
 
+    @unittest.skipUnless(sys.platform == "darwin", "macOS descriptor behavior")
+    def test_darwin_signature_verifier_fails_closed(self) -> None:
+        fixture = self._fixture()
+        self._prepare(fixture)
+        handoff = subject.begin_handoff(Path(fixture["root"]), request_path=Path(fixture["request"]))
+        git(Path(fixture["root"]), "--no-replace-objects", "push", "--", "origin", f"{fixture['candidate_a']}:refs/heads/codex/test")
+        self._attest(fixture, handoff)
+        with self.assertRaisesRegex(ManifestError, "no descriptor path is available for trusted-host verifier"):
+            subject.recover_uncertain(Path(fixture["root"]), request_path=Path(fixture["request"]))
+
+    @unittest.skipIf(sys.platform == "darwin", DARWIN_FD_EXEC)
     def test_real_bare_remote_archive_push_happy_path(self) -> None:
         fixture = self._fixture()
         request_value = self._prepare(fixture)
@@ -290,6 +303,7 @@ class ArchiveFirstPushTests(unittest.TestCase):
                 Path(fixture["root"]), request_path=Path(fixture["request"]),
             )
 
+    @unittest.skipIf(sys.platform == "darwin", DARWIN_FD_EXEC)
     def test_trusted_host_execute_evidence_is_accepted_by_recover(self) -> None:
         if shutil.which("ssh-keygen") is None:
             self.skipTest("OpenSSH ssh-keygen is unavailable")
@@ -494,6 +508,7 @@ class ArchiveFirstPushTests(unittest.TestCase):
         a2 = git(root, "rev-parse", "HEAD")
         return {"fixture": fixture, "root": root, "candidate_a": candidate_a, "archive2": archive2, "anchor2": anchor2, "a2": a2}
 
+    @unittest.skipIf(sys.platform == "darwin", DARWIN_FD_EXEC)
     def test_unpublished_prior_a_cannot_appear_on_remote(self) -> None:
         case = self._correction_fixture(publication_state="unpublished")
         fixture = case["fixture"]
@@ -515,16 +530,19 @@ class ArchiveFirstPushTests(unittest.TestCase):
                 archive_anchor=Path(case["anchor2"]),
             )
 
+    @unittest.skipIf(sys.platform == "darwin", DARWIN_FD_EXEC)
     def test_omitted_prior_source_is_rejected_from_archive_lineage(self) -> None:
         case = self._correction_fixture(omit_source=True)
         with self.assertRaisesRegex(ManifestError, "must include exactly one prior archive candidate"):
             subject.verify_archive_candidate(Path(case["root"]), archive_path=Path(case["archive2"]), candidate_a=str(case["a2"]))
 
+    @unittest.skipIf(sys.platform == "darwin", DARWIN_FD_EXEC)
     def test_forged_batch_base_and_two_repairs_still_require_prior_source(self) -> None:
         case = self._correction_fixture(omit_source=True, forged_batch=True)
         with self.assertRaisesRegex(ManifestError, "must include exactly one prior archive candidate"):
             subject.verify_archive_candidate(Path(case["root"]), archive_path=Path(case["archive2"]), candidate_a=str(case["a2"]))
 
+    @unittest.skipIf(sys.platform == "darwin", DARWIN_FD_EXEC)
     def test_alternate_receipt_cannot_replace_missing_deterministic_publication(self) -> None:
         case = self._correction_fixture(publication_state="published")
         fixture = case["fixture"]
@@ -536,6 +554,7 @@ class ArchiveFirstPushTests(unittest.TestCase):
         with self.assertRaisesRegex(ManifestError, "deterministic publication receipt|published prior archive candidate receipt is missing"):
             subject.verify_archive_candidate(Path(case["root"]), archive_path=Path(case["archive2"]), candidate_a=str(case["a2"]))
 
+    @unittest.skipIf(sys.platform == "darwin", DARWIN_FD_EXEC)
     def test_bound_publication_inputs_cannot_be_replaced_during_verifier(self) -> None:
         fixture = self._fixture()
         self._prepare(fixture)
@@ -679,6 +698,7 @@ class ArchiveFirstPushTests(unittest.TestCase):
         candidate_a = git(Path(fixture["root"]), "rev-parse", "HEAD")
         self.assertEqual("codex/test", subject.verify_archive_candidate(Path(fixture["root"]), archive_path=Path(fixture["archive"]), candidate_a=candidate_a)["run_branch"])
 
+    @unittest.skipIf(sys.platform == "darwin", DARWIN_FD_EXEC)
     def test_recovery_requires_attempt_and_never_calls_push(self) -> None:
         fixture = self._fixture()
         self._prepare(fixture)
@@ -702,6 +722,7 @@ class ArchiveFirstPushTests(unittest.TestCase):
             )
         self.assertEqual("PASS", recovered["status"] if "status" in recovered else "PASS")
 
+    @unittest.skipIf(sys.platform == "darwin", DARWIN_FD_EXEC)
     def test_endpoint_retarget_and_execute_replay_are_rejected(self) -> None:
         fixture = self._fixture()
         self._prepare(fixture)
@@ -922,6 +943,7 @@ class ArchiveFirstPushTests(unittest.TestCase):
         with self.assertRaisesRegex(ManifestError, "replacement refs"):
             subject.verify_archive_candidate(root, archive_path=Path(fixture["archive"]), candidate_a=str(fixture["candidate_a"]))
 
+    @unittest.skipIf(sys.platform == "darwin", DARWIN_FD_EXEC)
     def test_published_a_preview_failure_uses_replacement_c2_a2_lineage(self) -> None:
         fixture = self._fixture()
         root = Path(fixture["root"])

@@ -15,6 +15,7 @@ import os
 import re
 import secrets
 import subprocess
+import sys
 import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -505,7 +506,7 @@ def _verify_execution_evidence_signature(
         raise ManifestError("trusted-host signature or allowed-signers file is missing")
     bound_fds: list[int] = []
 
-    def bind(path: Path, expected: str) -> tuple[int, str]:
+    def bind(path: Path, expected: str, *, executable: bool = False) -> tuple[int, str]:
         if os.name == "nt":
             # Hold the original pathname with FILE_SHARE_READ only.  A same
             # user cannot replace/delete it while ssh-keygen is reading it.
@@ -579,7 +580,11 @@ def _verify_execution_evidence_signature(
             raise
         bound_fds.append(fd)
         if os.name != "nt":
-            for prefix in ("/proc/self/fd", "/dev/fd"):
+            # macOS lists /dev/fd/N but refuses to execute it; reads work.
+            prefixes = ["/proc/self/fd"]
+            if not (executable and sys.platform == "darwin"):
+                prefixes.append("/dev/fd")
+            for prefix in prefixes:
                 if Path(prefix).exists():
                     return fd, f"{prefix}/{fd}"
             os.close(fd)
@@ -596,7 +601,9 @@ def _verify_execution_evidence_signature(
         raise ManifestError("signature verifier path does not match request")
     result = None
     try:
-        _, verifier_arg = bind(configured_verifier, request["signature_verifier_sha256"])
+        _, verifier_arg = bind(
+            configured_verifier, request["signature_verifier_sha256"], executable=True
+        )
         _, signers_arg = bind(signers_path, request["trust_policy_sha256"])
         _, signature_arg = bind(signature_path, proof["signature_sha256"])
         command = [
