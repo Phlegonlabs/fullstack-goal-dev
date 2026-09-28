@@ -182,7 +182,7 @@ class ValidateNodeResultTests(unittest.TestCase):
 
         self.assertTrue(any("active attempt" in error for error in errors))
 
-    def test_current_pass_review_result_rejects_findings_without_severity(self) -> None:
+    def _running_review(self) -> tuple[dict, dict, dict]:
         plan = valid_graph_plan()
         run = valid_graph_run(plan)
         digest = plan_digest(plan)
@@ -261,6 +261,10 @@ class ValidateNodeResultTests(unittest.TestCase):
             "refinement_request": None,
             "evidence_paths": ["review.json"],
         }
+        return plan, run, result
+
+    def test_current_pass_review_result_rejects_findings_without_severity(self) -> None:
+        plan, run, result = self._running_review()
 
         errors = validate_node_result(plan, run, result)
 
@@ -268,6 +272,41 @@ class ValidateNodeResultTests(unittest.TestCase):
             any("current PASS review result must not contain findings" in error for error in errors),
             errors,
         )
+
+    def test_review_result_carries_the_contract_adoption_check(self) -> None:
+        plan, run, result = self._running_review()
+        result["worker_result"]["findings"] = []
+        gate = run["runtime_capabilities"]["runtime_adapter"]["version_gate"]
+        gate.update(
+            {
+                "status": "adopted",
+                "required_harness_version": "0.55.1",
+                "contract_adoption": {
+                    "contract_digest_sha256": "c" * 64,
+                    "reading_evidence": ["parent re-read the fixed contract"],
+                },
+            }
+        )
+
+        def contract_errors(value: dict) -> list[str]:
+            return [
+                error
+                for error in validate_node_result(
+                    plan, run, value, manifest_already_validated=True
+                )
+                if "contract_adoption_check" in error
+            ]
+
+        self.assertTrue(contract_errors(result))
+        checked = copy.deepcopy(result)
+        checked["worker_result"]["contract_adoption_check"] = {
+            "digest": "c" * 64,
+            "matched": True,
+            "reading_evidence": ["reviewer read the packet and SKILL.md"],
+        }
+        self.assertEqual([], contract_errors(checked))
+        checked["worker_result"]["contract_adoption_check"]["digest"] = "d" * 64
+        self.assertTrue(contract_errors(checked))
 
     def test_schema_mismatch_reports_the_required_versions(self) -> None:
         # Structural validation normally rejects the pair first. Stub it so
