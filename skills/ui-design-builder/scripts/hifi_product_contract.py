@@ -173,10 +173,14 @@ def _copy_dom_findings(
                         f"HiFi copy {surface_id}/{copy_id} lacks product DOM for locale {locale}"
                     )
                     continue
+                # Visible text must match; value/label count only without it.
                 matched = all(
                     _normalize_text("".join(record.get("text", []))) == expected
-                    or _normalize_text(record.get("value")) == expected
-                    or _normalize_text(record.get("label")) == expected
+                    if _normalize_text("".join(record.get("text", [])))
+                    else expected in {
+                        _normalize_text(record.get("value")),
+                        _normalize_text(record.get("label")),
+                    }
                     for record in candidates
                 )
                 if not matched:
