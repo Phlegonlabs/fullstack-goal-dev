@@ -4,7 +4,7 @@ Use this guide after UI Design Intake when the owner supplies a screenshot, imag
 
 ## Authority
 
-References are evidence, not product authority. `PRD.md` owns product behavior, approved `wireframes.html` owns reviewed structure, and `ui-design.md` owns the selected direction. A reference cannot add a route, control, state, claim, or stack requirement.
+References are evidence, not product authority. `PRD.md` owns product behavior and reviewed structure; `ui-design.md` owns the selected direction and design constraints. A reference cannot add a route, control, state, claim, or stack requirement.
 
 Treat a supplied reference as `design inspiration` unless the owner explicitly requests page-faithful conformance and names the scope and tolerance.
 
@@ -20,7 +20,7 @@ Keep what was inspected, not only a description of it. Save a screenshot, or a s
 
 Adapting a template's markup, CSS or animation code into HiFi is allowed when its license permits it and the code fits the approved stack. Record the source URL, license and what was changed in the `RP-*` principle. Paid or unclear licenses need the owner's decision before any code is copied.
 
-Research composition, typography, spacing, information density, responsive behavior, and control treatment. Two references may support one clear direction. If the owner is uncertain or explicitly asks to compare, use the existing three-distinct-directions gate; changing only an accent color is not a distinct direction. A structural finding returns to wireframe review. Cosmetic direction work belongs after Wireframe Validation.
+Research composition, typography, spacing, information density, responsive behavior, and control treatment. Two references may support one clear direction. A new package defaults to three distinct directions; the owner may explicitly choose one recommendation. Changing only an accent color is not a distinct direction. A structural finding returns to `product-definition-builder`; it cannot become a layout choice inside direction work.
 
 For each useful reference, record whole-template adaptation, selected-component reuse or custom implementation in the RP principle, with stack compatibility, license/cost and maintenance implications. A reference never selects Tailwind or a component library by implication. On native surfaces, inspect platform-native patterns and official guidance instead of treating Web CSS examples as native components. If browsing is declined, unavailable or unsafe for confidential inputs, record the limitation and use inspectable supplied/local references; never invent a source or claim visual inspection from search snippets.
 
@@ -57,8 +57,8 @@ Show the proposed Adopt / Adapt / Avoid set to the human owner and end the turn.
 
 `frontend-design` creates directions only after the Visual Preference Brief and any supplied-reference principles are confirmed. Give each direction a versioned `VD-R<round>-<number>` ID.
 
-- When the owner states a clear direction, create one direction, normally `VD-R1-01`.
-- When the owner asks to compare or remains unsure, create exactly three materially different directions over the same frozen screens, states, and responsive set.
+- When the owner explicitly chooses a single recommendation, create one direction, normally `VD-R1-01`.
+- Otherwise, create exactly three materially different directions over the same approved surfaces, states, and responsive set. Continuing uncertainty does not substitute for that explicit single-direction choice.
 - A rejected set produces a complete new round; do not append a fourth direction to the old round.
 
 Each direction records product fit, the accepted Design Brief page-purpose/profile and type/density/headline constraints, visual rules, confirmed `REF-*` and `RP-*` evidence with useful roles and avoid rationale, tradeoffs, avoid rules, and its relationship to the approved component foundation and styling approach. Carry selected direction decisions into connected HiFi and H1–H9 review; selected profile and motion decisions reach conditional compilation and implementation through their existing contracts. A current public reference may support a direction only after it has been inspected. Market evidence (`MR-*`) and visual evidence (`REF-*`) remain separate.

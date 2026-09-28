@@ -26,7 +26,7 @@ There is no built-in model or effort default. Null PLAN options preserve the hos
 
 Discover the effective instruction chain from repository root to the assigned checkout and include its ordered paths in the bounded context packet. Keep automatic context discovery enabled. Do not inject another runtime's instruction file as this host's instructions. Observe the installed skill identity separately from the actually loaded identity; unknown loaded identity stays unknown.
 
-If a selector directive carries `contract_adoption`, that object is an owner-authorized fixed-contract re-read in the parent session—not proof of what the host loaded at startup. Before any worker or reviewer action, the fresh child independently recomputes the seven-skill digest, compares it with the receipt, reads the fixed contract, and reports that reading evidence. Stop on mismatch; never copy the parent receipt as child evidence.
+If a selector directive carries `contract_adoption`, that object is an owner-authorized fixed-contract re-read in the parent session—not proof of what the host loaded at startup. Before any worker or reviewer action, the fresh child independently recomputes the seven-skill digest, compares it with the receipt, reads the fixed contract, and reports that reading evidence as `contract_adoption_check` (`worker-result-contract.md`). Stop on mismatch; never copy the parent receipt as child evidence.
 
 ## Authorization And Dispatch
 
@@ -56,6 +56,6 @@ Record `runtime_adapter.version_gate` and follow `runtime-upgrades.md`. A host w
 
 Use the Repository Context Contract, Serialized Same-Repository Host Handoff in `execution-state-model.md`, and `runtime-performance.md`. This adapter adds no alternate state or handoff rules and no alternate upgrade rules. Preserve failed, cancelled, stalled, dirty and partial evidence. One failed node does not cancel passing siblings. Reduce concurrency or use another observed native driver only within existing grants; never reset or remove evidence automatically.
 
-The former platform-specific launch templates and `dynamic_workflow`/`workflow_runs` compatibility path are removed. Historical files remain untouched; they are not executable through this contract. Resume unfinished work only after explicit replanning and fresh capability, identity and authorization checks. Do not relabel historical results or silently migrate a live RUN.
+Use only the observed native capability contract above. Historical platform-specific launch templates and `dynamic_workflow`/`workflow_runs` files are not executable through it; preserve them as historical evidence. Resume unfinished work only after explicit replanning and fresh capability, identity and authorization checks. Do not relabel historical results or silently migrate a live RUN.
 
 There is no mechanism in the adapter layer to invoke another provider. Do not stop after printing a non-empty app-task wave; consume every accepted dispatch entry.

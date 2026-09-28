@@ -670,6 +670,150 @@ class ValidateWorkerResultTests(unittest.TestCase):
         )
         self.assertIn("task_scope_escape", error_codes(errors))
 
+    def test_task_commit_cannot_write_the_acceptance_register(self) -> None:
+        # The last mission's scope lists the register for the parent's
+        # commit; no task does, so a worker task commit touching it fails.
+        plan = copy.deepcopy(self.plan)
+        plan["missions"][0]["write_scope"].append("docs/verification/**")
+        result = copy.deepcopy(self.result)
+        task_id = result["task_results"][0]["task_id"]
+        errors = validate(
+            plan,
+            make_run(plan),
+            result,
+            observed_task_changed_files={
+                task_id: ["docs/verification/delivery-results.json"]
+            },
+        )
+        self.assertIn("task_scope_escape", error_codes(errors))
+
+    GATE_ARGV = [
+        "python",
+        "/skills/delivery-harness/scripts/check_delivery_acceptance.py",
+        "--results",
+        "docs/verification/delivery-results.json",
+        "--candidate-from-head",
+    ]
+
+    def _shared_checkout_acceptance_fixture(
+        self, *, gate: bool = True, argv: list[str] | None = None,
+        task_scope: list[str] = (),
+    ):
+        plan = copy.deepcopy(self.plan)
+        plan["missions"][0]["write_scope"].append("docs/verification/**")
+        plan["missions"][0]["tasks"][0]["write_scope"].extend(task_scope)
+        if gate:
+            plan["final_gates"].append(
+                {
+                    **verifier("delivery-acceptance"),
+                    "argv": argv or self.GATE_ARGV,
+                }
+            )
+        run = make_run(plan)
+        run["runtime_capabilities"]["workspace_mode"] = "shared_checkout"
+        run["workers"][0]["workspace_mode"] = "shared_checkout"
+        return plan, run
+
+    def _validate_shared_checkout(
+        self, changed: list[str], *, gate: bool = True, argv: list[str] | None = None,
+        task_scope: list[str] = (),
+    ):
+        plan, run = self._shared_checkout_acceptance_fixture(
+            gate=gate, argv=argv, task_scope=task_scope
+        )
+        result = make_result(plan)
+        result["changed_files"] = changed
+        for item in result["verifiers"]:
+            item["evidence"] = retained_verifier_result(item["id"], plan, changed)[
+                "execution_key"
+            ]
+        return validate(plan, run, result, observed_files=changed)
+
+    def test_shared_checkout_worker_cannot_write_acceptance_paths(self) -> None:
+        # A shared checkout has no per-task commit slices, so the mission-level
+        # check must keep the worker off the register and its evidence.
+        for path in (
+            "docs/verification/delivery-results.json",
+            "docs/verification/evidence/run.log",
+        ):
+            with self.subTest(path=path):
+                errors = self._validate_shared_checkout([CHANGED_FILE, path])
+                self.assertEqual({"acceptance_path_write"}, error_codes(errors))
+
+    def test_task_scope_cannot_let_a_worker_write_acceptance_paths(self) -> None:
+        # A broad task scope such as docs/verification/** still leaves the
+        # register and its evidence/ directory to the parent.
+        broad = ["docs/verification/**"]
+        for path in (
+            "docs/verification/delivery-results.json",
+            "docs/verification/evidence/run.log",
+        ):
+            with self.subTest(path=path):
+                errors = self._validate_shared_checkout(
+                    [CHANGED_FILE, path], task_scope=broad
+                )
+                self.assertEqual({"acceptance_path_write"}, error_codes(errors))
+        # Other task-scoped files beside the register stay writable.
+        self.assertEqual([], self._validate_shared_checkout(
+            [CHANGED_FILE, "docs/verification/notes.md"], task_scope=broad
+        ))
+        # Without the gate, a task scope still covers the same paths.
+        self.assertEqual([], self._validate_shared_checkout(
+            [CHANGED_FILE, "docs/verification/delivery-results.json"],
+            gate=False, task_scope=broad,
+        ))
+
+    def test_acceptance_gate_in_other_argv_forms_still_guards(self) -> None:
+        register = "docs/verification/delivery-results.json"
+        equals = [*self.GATE_ARGV[:2], f"--results={register}", "--candidate-from-head"]
+        wrapper = [
+            "bash", "-c",
+            f"python /x/check_delivery_acceptance.py --results {register}",
+        ]
+        self.assertEqual(
+            (True, [register]),
+            subject._acceptance_register_paths({"final_gates": [{"argv": equals}]}),
+        )
+        # A wrapper hides the register path; the gate still counts as declared.
+        self.assertEqual(
+            (True, []),
+            subject._acceptance_register_paths({"final_gates": [{"argv": wrapper}]}),
+        )
+        # Register paths outside the repository are not trusted as paths.
+        for value in ("../x.json", "/tmp/x.json", "C:/x.json", "--results=../x.json"):
+            argv = ["python", "check_delivery_acceptance.py", value]
+            if not value.startswith("--"):
+                argv.insert(2, "--results")
+            with self.subTest(results=value):
+                self.assertEqual(
+                    (True, []),
+                    subject._acceptance_register_paths({"final_gates": [{"argv": argv}]}),
+                )
+        # With the path unknown, a broad task scope still passes the register;
+        # only the task-scope check applies. PLANs keep the template argv form.
+        self.assertEqual([], self._validate_shared_checkout(
+            [CHANGED_FILE, register], argv=wrapper, task_scope=["docs/verification/**"]
+        ))
+        for label, argv in (("equals", equals), ("wrapper", wrapper)):
+            for path in (register, "docs/verification/evidence/run.log"):
+                with self.subTest(form=label, path=path):
+                    errors = self._validate_shared_checkout(
+                        [CHANGED_FILE, path], argv=argv
+                    )
+                    self.assertEqual({"acceptance_path_write"}, error_codes(errors))
+            with self.subTest(form=label, path=CHANGED_FILE):
+                self.assertEqual(
+                    [], self._validate_shared_checkout([CHANGED_FILE], argv=argv)
+                )
+
+    def test_shared_checkout_acceptance_check_keeps_task_scoped_paths(self) -> None:
+        self.assertEqual([], self._validate_shared_checkout([CHANGED_FILE]))
+        # A PLAN without the acceptance gate keeps the mission-scope rule.
+        path = "docs/verification/delivery-results.json"
+        self.assertEqual(
+            [], self._validate_shared_checkout([CHANGED_FILE, path], gate=False)
+        )
+
     def test_worker_claim_does_not_control_verifier_selection(self) -> None:
         plan = copy.deepcopy(self.plan)
         selection = {
@@ -968,6 +1112,60 @@ class ValidateWorkerResultTests(unittest.TestCase):
                 with self.assertRaises(SystemExit):
                     with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
                         parser.parse_args(argv)
+
+    def _adopt_contract(self, required_version: str) -> None:
+        self.run["runtime_capabilities"]["runtime_adapter"] = {
+            "version_gate": {
+                "status": "adopted",
+                "required_harness_version": required_version,
+                "contract_adoption": {
+                    "contract_digest_sha256": "a" * 64,
+                    "reading_evidence": ["parent re-read the fixed contract"],
+                },
+            }
+        }
+
+    def test_adopted_contract_requires_a_matching_child_check_from_0_55_1(self) -> None:
+        self._adopt_contract("0.55.1")
+        missing = validate(self.plan, self.run, self.result)
+        self.assertIn("contract_adoption_check", error_codes(missing))
+
+        result = copy.deepcopy(self.result)
+        result["contract_adoption_check"] = {
+            "digest": "a" * 64,
+            "matched": True,
+            "reading_evidence": ["worker read SKILL.md and worker-result-contract.md"],
+        }
+        self.assertEqual([], validate(self.plan, self.run, result))
+
+        for field, value in (
+            ("digest", "b" * 64),
+            ("matched", False),
+            ("reading_evidence", []),
+            ("reading_evidence", ["parent re-read the fixed contract"]),
+        ):
+            with self.subTest(field=field, value=value):
+                bad = copy.deepcopy(result)
+                bad["contract_adoption_check"][field] = value
+                self.assertIn(
+                    "contract_adoption_check",
+                    error_codes(validate(self.plan, self.run, bad)),
+                )
+
+    def test_contract_adoption_check_is_optional_before_0_55_1(self) -> None:
+        self._adopt_contract("0.55.0")
+        self.assertEqual([], validate(self.plan, self.run, self.result))
+
+    def test_contract_adoption_check_is_rejected_without_an_adoption(self) -> None:
+        result = copy.deepcopy(self.result)
+        result["contract_adoption_check"] = {
+            "digest": "a" * 64,
+            "matched": True,
+            "reading_evidence": ["worker read the contract"],
+        }
+        self.assertIn(
+            "contract_adoption_check", error_codes(validate(self.plan, self.run, result))
+        )
 
     def test_unknown_result_field_is_rejected(self) -> None:
         result = copy.deepcopy(self.result)

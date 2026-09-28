@@ -1,12 +1,12 @@
-# Style Integration And HiFi Pass
+# PRD, Direction, And HiFi Pass
 
-Run this pass only inside an active `ui-design-builder` flow after Product Definition Approval and internal Wireframe Validation. It turns the approved structural wireframe into a human-approved visual target. `frontend-design` is the single design author. `impeccable` and rubric graders provide review evidence; they do not publish or approve the target.
+Run this pass only inside an active `ui-design-builder` flow after Product Definition Approval. It turns the approved PRD UI Surface Contract into direction studies and then a human-approved visual target; it does not create a gray structural wireframe first. `frontend-design` is the single design author. `impeccable` and rubric graders provide review evidence; they do not publish or approve the target.
 
-Before direction studies, connected HiFi or any repair, run `python "<delivery-harness-skill-root>/scripts/check_skill_bindings.py" --agents-md <target-AGENTS.md> --stage ui-design` with installed-command resolution. The actual writer loads the complete owner-pinned `frontend-design` skill in that same context before authoring. A parent read, snapshot, role label or earlier Wireframe invocation is not proof; never backfill evidence or silently replace the binding. Missing or conflicting dependencies block only the current authoring stage and preserve the validated Wireframe, earlier approvals and closed historical records. This does not authorize delegation, and the direct parent may author. Reviewer and assembler helpers construct the shell or validate; they do not choose or repair the product design.
+Before direction studies, connected HiFi or any repair, run `python "<delivery-harness-skill-root>/scripts/check_skill_bindings.py" --agents-md <target-AGENTS.md> --stage ui-design` with installed-command resolution. The actual writer loads the complete owner-pinned `frontend-design` skill in that same context before authoring. A parent read, snapshot, role label or prior invocation is not proof; never backfill evidence or silently replace the binding. Missing or conflicting dependencies block only the current authoring stage and preserve earlier approvals and closed historical records. This does not authorize delegation, and the direct parent may author. Reviewer and assembler helpers construct the shell or validate; they do not choose or repair the product design.
 
 ## Rebuild And Reading Scope
 
-Apply `design-translation.md` and `design-freshness.md`. An explicit full rebuild retains product/stack constraints but uses the newly validated wireframe and fresh direction instead of prior design authority. Refine provisional type, optical spacing and fine proportions without changing fixed hierarchy or behavior. Inspect repeated controls across pages, real CJK/Latin copy, stacked bilingual reading where required, text enlargement and dense/alternate states. Use source-bound before/after findings; numerical grades alone prove no improvement. New iOS scope defaults to iPhone; iPad remains conditional on Product Definition, never silently dropped from an existing PRD.
+Apply `design-translation.md` and `design-freshness.md`. An explicit full rebuild retains product/stack constraints but starts from fresh directions built from the PRD UI Surface Contract, not from prior design authority. Refine provisional type, optical spacing and fine proportions without changing the approved behavior or hierarchy of responsibilities. Inspect repeated controls across pages, real CJK/Latin copy, stacked bilingual reading where required, text enlargement and dense/alternate states. Use source-bound before/after findings; numerical grades alone prove no improvement. New iOS scope defaults to iPhone; iPad remains conditional on Product Definition, never silently dropped from an existing PRD.
 
 Apply `ui-grading-rubric.md#layout-integrity-and-anti-slop-review` while authoring and before presenting HiFi. Inspect control compression, alignment, open layers, long content and intermediate Web widths; record measured failures and product-specific visual findings in the existing evidence and defect ledger. Fix shared causes rather than hiding overflow.
 
@@ -14,20 +14,46 @@ Apply `page-design-profiles.md` to each affected surface. Inspect the selected f
 
 ## Frozen Inputs
 
+For a current `ui-design/2` round, the Product Definition preflight uses the exact approved-package check with `--ui-contract ui-design/2`. A failed or unapproved product/stack identity blocks direction work; a missing UI-contract argument must not be treated as a current-package preflight.
+
 For enhancements, apply `enhancement-recommendations.md#incremental-ui-scope` first. Reuse the approved direction and intake unless the accepted delta changes them. The complete matrix remains covered, but only added or changed screens and necessary entry/return controls are authored again. Keep unaffected product DOM, copy, layout, style, IDs and behavior; reviewer-shell migration alone is not a product redesign. Direction studies below apply to a new or changed direction, not automatically to every added feature.
 
 Every direction and HiFi candidate uses the same:
 
 - approved `PRD.md`, `architecture.md`, and `stack-decisions.md` identities;
 - complete `UI-* × responsive target × non-n/a state` matrix;
-- approved `wireframes.html` region order, grouping, actions, flows, states, and media placeholders;
+- the PRD UI Surface Contract's page purposes, element/content responsibilities, operations, flows, states, copy contracts, data/charting and integration boundaries when declared;
 - UI Design Intake and Visual Preference Brief, including the Design Brief for new or changed design scope;
 - Motion and Media Intent rows;
 - exact copy or bounded display contracts;
 - brand, accessibility, platform, performance, component-foundation, and styling constraints; and
 - applicable `MR-*` market evidence plus inspected `REF-*` visual evidence.
 
-The pass cannot add, remove, reorder, or reinterpret product scope, content responsibility, routes, actions, flows, states, trace IDs, responsive targets, or approved stack constraints. A structural finding returns to `product-definition-builder` and Wireframe Validation. A visual direction that needs a different framework, component foundation, styling method, runtime, or provider returns to the Stack Decision Checkpoint and Product Definition Approval.
+The pass may choose hierarchy, grouping, section rhythm, composition, typography, density and visual treatment. It cannot add, remove, reorder, or reinterpret product scope, content responsibility, routes, actions, flows, states, trace IDs, responsive targets, or approved stack constraints. A structural finding returns to `product-definition-builder`. A visual direction that needs a different framework, component foundation, styling method, runtime, or provider returns to the Stack Decision Checkpoint and Product Definition Approval.
+
+## Direction Authoring Prompt
+
+Use this prompt with the approved source paths and the existing Design Brief. Read requirements from those sources; do not copy per-page contracts into another table.
+
+```text
+Read the approved PRD UI Surface Contract, architecture, stack decisions and UI Design Brief at [source paths]. Derive the exact page/surface count and affected UI IDs from the PRD. For each page, satisfy its purpose, content and data responsibilities, required controls and operations, routes, states, responsive targets and sourced copy. Preserve unaffected pages in an enhancement.
+
+For administration, include the required work areas and their responsibilities, data fields, filters, actions and permissions. For charts, honor the declared metric, source, units, time range and loading/empty/error behavior. For agent workflows, show the required inputs, execution progress, human decisions, results, failures and recovery. Use the approved frontend/backend and service boundaries; do not invent endpoints or product capabilities. Report missing product decisions upstream.
+
+Choose composition, hierarchy, grouping, typography, imagery and motion freely within the approved constraints. A hero, introduction, feature group or CTA is a design choice when it serves the page purpose; do not impose a universal section sequence. Use the existing Page-purpose mapping to distinguish fixed requirements from design freedom.
+
+Produce three materially different visual directions by default, with inspected reference lessons and the same representative primary and stress cases. Show applicable motion and reduced-motion treatment. If the owner explicitly requested one direction, produce one. Present comparable studies and wait for the owner's selection before creating the full connected HiFi HTML package.
+```
+
+## Cheap Completeness Check
+
+Before Impeccable, run:
+
+```text
+python "<ui-design-builder-skill-root>/scripts/check_ui_design_contract.py" --ui-design docs/design/ui-design.md --repo-root <root> --prd docs/product/PRD.md --hifi docs/design/ui-references/<run>/index.html --require-hifi-preflight
+```
+
+This checks source identities, the approved Product package, manifest closure, UI IDs, routes, states, responsive sets, operation/control destinations and copy provenance against actual product DOM. Repair failures and rerun before expensive review. Keep the command result with existing task evidence; no extra approval or duplicated requirements table is needed. Structured coverage does not prove chart meaning, data integration, aesthetics or runtime behavior. The author and reviewer check those responsibilities against the PRD; browser evidence still verifies interactions.
 
 ## Style Intake Gate
 
@@ -37,21 +63,21 @@ If the owner supplies a reference, read `design-reference-guide.md` and inspect 
 
 Use the existing Design Brief to connect the page-purpose/profile mapping, typography/density/headline constraints, motion intent, owner answer, reference lessons and visual constraints to Style Integration and MM records as decisions mature. An explicit `no references` answer permits relevant research and recommendations under `design-reference-guide.md`; it is not direction approval. Unanswered optional references stay `not supplied`, and inaccessible material stays uninspected. Continue independent work and wait only for work that depends on the missing input. Preserve answered preferences and unchanged enhancement directions.
 
-When the owner has a clear direction, produce one product-specific direction. When the owner asks to compare or remains unsure after intake, produce exactly three materially different directions over the same frozen screens and states. Never substitute a fixed catalog of style names.
+When the owner explicitly instructs a single recommendation, produce one product-specific direction. Otherwise a new package gets exactly three materially different directions over the same approved surfaces, states and responsive targets. Continuing uncertainty does not convert into that single-direction instruction. Never substitute a fixed catalog of style names.
 
 Present the complete direction set to the human owner. End the turn and wait for `approve`, `select`, `mix`, or `reject`; even a one-direction set needs explicit approval. A mix or rejection creates one complete revised direction set and another explicit decision. Do not create the connected HiFi reference or invoke a generation provider before a direction is selected.
 
 Before this selection, render bounded representative studies for every direction: a frequent primary task and a stress case using dense data, long content, or an approved alternate state. A one-screen product may show two content scenarios in the same approved state; do not invent a state or rewrite frozen copy. Use the same surface, state, target, scenario, and content basis across directions. Cover each in-scope platform. Compare composition, hierarchy, density, typography, and control treatment; changing only an accent color is not a distinct direction.
 
-Where useful, a study may play a bounded local deterministic motion option after Wireframe Validation, within the existing MM scope, and with its normal/reduced-motion behavior visible. This makes a design choice easier to judge; it is not Required motion evidence, native proof, or permission to call a generation provider. Full connected HiFi remains the source of final motion evidence on the selected route, and provider calls remain after direction selection with exact authorization. For a landing or portfolio region with a proposed or selected `expressive` row, at least one direction plays that motion live; a static frame cannot stand in for it.
+Where useful, a study may play a bounded local deterministic motion option within the existing MM scope, and with its normal/reduced-motion behavior visible. This makes a design choice easier to judge; it is not Required motion evidence, native proof, or permission to call a generation provider. Full connected HiFi remains the source of final motion evidence on the selected route, and provider calls remain after direction selection with exact authorization. For a landing or portfolio region with a proposed or selected `expressive` row, at least one direction plays that motion live; a static frame cannot stand in for it.
 
-If proactive reference research introduced a structural option, route the structural scope back through the current wireframe review before HiFi cosmetic work. Do not use an unreviewed reference study to add a route, control, state, or responsive destination.
+If proactive reference research introduces a structural option, route the product-side scope back to `product-definition-builder` before HiFi cosmetic work. Do not use an unreviewed reference study to add a route, control, state, or responsive destination.
 
 Record the studies in `### Direction comparison` under Style Integration using the output contract's table, with inspected screenshot paths/hashes and a concrete rationale for each row. Tie each rationale to the Design Brief's page-purpose/profile, type/density/headline, motion and reference lessons; do not substitute generic style labels. Keep their authorized files under `docs/design/directions/<round>/`. These studies are selection evidence, not the connected HiFi target or production UI. The owner selects from the recorded direction IDs; a mixed direction gets a new complete comparison round before selection. This uses the existing direction gate, not another approval step. Screenshot hashes prove identity, not aesthetic quality or honest inspection.
 
 ## Frontend Design Style Integration
 
-Load `frontend-design` and use its brief-first, subject-grounded design process. It owns the direction, page theme, and connected HiFi design-reference HTML across every surface. Do not load `design-taste-frontend`, `gpt-taste`, Impeccable build/refine commands, or another visual author in parallel.
+Load `frontend-design` and use its brief-first, subject-grounded design process. It owns the direction, page theme, and connected HiFi design-reference HTML across every surface. Taste skills such as `design-taste-frontend` or `gpt-taste` may supplement an approved direction; they never replace `frontend-design` as the author or select a competing direction. Do not run Impeccable build/refine commands or another visual author in parallel.
 
 For each direction, record:
 
@@ -82,19 +108,19 @@ Set `Review medium: HTML projection only`. Studies and HiFi review native appear
 
 ## Motion And Generated Media
 
-Consume the approved Motion and Media Intent rows without re-asking them. Use `motion-and-media-routing.md` to select the lowest applicable route (CSS/WAAPI, Motion, GSAP or Three.js) only after Wireframe Validation.
+Consume the approved Motion and Media Intent rows without re-asking them. Use `motion-and-media-routing.md` to select the lowest applicable route (CSS/WAAPI, Motion, GSAP or Three.js) for the selected direction and final HiFi.
 
 After direction selection, an installed Higgsfield MCP or another owner-approved generation provider may create an approved generated or curated motion asset only after exact provider/action authorization. Record provider capability, prompt, output identity, usage constraints, placement, fallback, and review result. When intake authorized a provider for an MM row, generate its asset after direction selection so the HiFi shows the actual result. Without that authorization, keep the typed static placeholder and name the gap in the handoff. Generated output cannot add copy, controls, states, routes, or claims.
 
 Required deterministic functional UI motion may run locally in the HiFi HTML with its normal and reduced-motion behavior. A generated video or cinematic asset has a static poster/fallback even when the generated output is present.
 
-Every `motion` or `image + motion` intent records its design-projection effect evidence under `### Required motion evidence` before Visual Approval. Intent approval and effect completion are distinct; changing its status to `deferred` cannot waive required evidence. Preserve frozen wireframe intent bytes. Native studies demonstrate the visual intent in HTML; actual native normal/reduced-motion, gesture and haptic results belong to the first implementation slice and final full matrix. The design table never proves native implementation.
+Every `motion` or `image + motion` intent records its design-projection effect evidence under `### Required motion evidence` before Visual Approval. Intent approval and effect completion are distinct; changing its status to `deferred` cannot waive required evidence. Preserve the intent record's approved source and frozen identity. Native studies demonstrate the visual intent in HTML; actual native normal/reduced-motion, gesture and haptic results belong to the first implementation slice and final full matrix. The design table never proves native implementation.
 
 ## Connected HiFi Reference
 
-Produce a connected `ui-hifi/2` HTML package with `index.html` as its entry and sibling HTML files for separate pages. Cover every in-scope `UI-*` screen, responsive target, and non-`n/a` state. Each page embeds its CSS, scripts, fonts, and media. Keep the fixed left version-2 review sidebar, product screen navigation, Overview, Design Tokens, and responsive controls. A product tab or page link uses a real anchor to its declared HTML destination. Buttons change a declared local state, including overlays and feedback. Reviewer sidebar navigation never substitutes for product-control interaction coverage. Every current Visual Approval requires schema 2; schema-1 single-file references remain inspection-only.
+Produce a connected `ui-hifi/2` HTML package with `index.html` as its entry and sibling HTML files for separate pages. Cover every in-scope `UI-*` screen, responsive target, and non-`n/a` state. Each page embeds its CSS, scripts, fonts, and media. Keep the entry's `ui-hifi/2` manifest and `ui-hifi-copy/1` provenance JSON; tag rendered product copy with matching `data-copy-id` and `data-copy-locale`, including paired-language variants. Keep the fixed left version-3 review sidebar, product screen navigation, Overview, Design Tokens, and responsive controls. A product tab or page link uses a real anchor to its declared HTML destination. Buttons change a declared local state, including overlays and feedback. Reviewer sidebar navigation never substitutes for product-control interaction coverage. Every current Visual Approval requires schema 2; schema-1 single-file references remain inspection-only.
 
-Use `skills/ui-design-builder/assets/templates/HIFI_REVIEWER.template.html` as the reusable inline fragment. Keep the exact CSP first. Inline its marked CSS in each page's head; wrap the sole product surface in `main[data-hifi-reviewer-main] > [data-hifi-canvas]`; inline a version-2 shell whose page links and real target buttons match that page's manifest targets; add Overview and Design Tokens panels only to `index.html`; inline the marked runtime and call `connectHifiReviewer()` last. A hybrid bundle keeps each page's target family separate (for example, web viewports do not acquire native size classes). Pass `targetsByPage` to `createHifiReviewerRuntime`, or put space-separated `data-hifi-page-targets` on each page-navigation link, so navigation falls back to the destination page's first valid target when the retained target is unavailable. Mark one actual product input/textarea `data-retention-input` and one actual `select` or selected control with `aria-selected`, `aria-pressed`, or checked semantics as `data-retention-selected` only when those controls exist on the product page; a marked text input is ignored. The runtime exposes `window.createHifiReviewerRuntime({storage, pages, surfaces, targets, targetsByPage, page, defaultSurface})` and `window.connectHifiReviewer()`, with `selectTarget`, `setPage`, `openView`, `showProduct`, `selectSurface`, and `snapshot` methods. It stores only reviewer target/surface selection and toggles panel, canvas, and selected-surface visibility; it never rebuilds product DOM, fetches, or uses an iframe. Product responsive rules must use container queries on the exact-width canvas.
+Use `skills/ui-design-builder/assets/templates/HIFI_REVIEWER.template.html` as the reusable inline fragment. Keep the exact CSP first. Inline its marked CSS in each page's head; wrap the sole product surface in `main[data-hifi-reviewer-main] > [data-hifi-canvas]`; inline a version-3 shell whose page links and real target buttons match that page's manifest targets; add Overview and Design Tokens panels only to `index.html`; inline the marked runtime and call `connectHifiReviewer()` last. A hybrid bundle keeps each page's target family separate (for example, web viewports do not acquire native size classes). Pass `targetsByPage` to `createHifiReviewerRuntime`, or put space-separated `data-hifi-page-targets` on each page-navigation link, so navigation falls back to the destination page's first valid target when the retained target is unavailable. Mark one actual product input/textarea `data-retention-input` and one actual `select` or selected control with `aria-selected`, `aria-pressed`, or checked semantics as `data-retention-selected` only when those controls exist on the product page; a marked text input is ignored. The runtime exposes `window.createHifiReviewerRuntime({storage, pages, surfaces, targets, targetsByPage, page, defaultSurface})` and `window.connectHifiReviewer()`, with `selectTarget`, `setPage`, `openView`, `showProduct`, `selectSurface`, and `snapshot` methods. It stores only reviewer target/surface selection and toggles panel, canvas, and selected-surface visibility; it never rebuilds product DOM, fetches, or uses an iframe. Product responsive rules must use container queries on the exact-width canvas.
 
 The HTML contains exactly one canonical restrictive CSP meta:
 
@@ -108,11 +134,12 @@ The file calls no live backend, credential, identity provider, or unapproved gen
 
 Before human visual approval:
 
-1. Freeze the PRD, `ui-design.md`, wireframe, and HiFi candidate paths and SHA-256 values.
-2. Run `impeccable critique` and `impeccable audit` against the exact connected candidate only with explicit workflow authorization. Impeccable may have side effects, so it needs that authorization, but it is required: Visual Approval and publication need both PASS records, and a declined authorization leaves the stage `blocked`. Its Nielsen, detector, accessibility, responsive, performance, theming, and implementation-integrity scores are diagnostic evidence; the record uses exact `PASS` verdicts after the human gate standard is met.
-3. Run `ui-grading-rubric.md`'s Technical Hard Gate and complete `H1`–`H9` scoring. These scores, not Impeccable's native totals, decide readiness.
-4. Consolidate every Impeccable and rubric finding into one root-cause defect ledger before editing.
-5. Let `frontend-design` make one repair batch. Then re-run the authorized Impeccable critique and audit checks plus the complete rubric once on the new SHA-256.
+1. Freeze the PRD, `ui-design.md`, and HiFi candidate paths and SHA-256 values.
+2. Run the cheap machine completeness preflight on the exact `ui-hifi/2` entry, manifest and sibling hashes against the PRD UI Surface Contract and current UI decisions. Repair missing coverage on the candidate and rerun it before formal review.
+3. Run `impeccable critique` and `impeccable audit` against the exact connected candidate only with explicit workflow authorization. Impeccable may have side effects, so it needs that authorization, but it is required: Visual Approval and publication need both PASS records, and a declined authorization leaves the stage `blocked`. Its Nielsen, detector, accessibility, responsive, performance, theming, and implementation-integrity scores are diagnostic evidence; the record uses exact `PASS` verdicts after the human gate standard is met.
+4. Run `ui-grading-rubric.md`'s Technical Hard Gate and complete `H1`–`H9` scoring. These scores, not Impeccable's native totals, decide readiness.
+5. Consolidate every Impeccable and rubric finding into one root-cause defect ledger before editing.
+6. Let `frontend-design` make one repair batch. Then re-run the authorized Impeccable critique and audit checks plus the complete rubric once on the new SHA-256.
 
 The candidate is ready for the human gate only when overall `H1`–`H9` is at least 90, `H2`, `H4`, and `H8` are each at least 90, `H5`, `H7`, and `H9` are each at least 80, every dimension is at least 60, and no block or disputed dimension remains. Do not repair merely to chase 100. A second failed review stops at `blocked` unless the owner explicitly approves one changed strategy and acceptance matrix.
 
@@ -137,7 +164,7 @@ Retain an approved all-screens target under `docs/design/ui-references/<run-id>/
 After Visual Approval, record exactly one Design System Need result:
 
 - `required`: a formal reusable token/component contract is needed or requested;
-- `not_required`: the approved target, `ui-design.md`, wireframe, and PRD are sufficient; or
+- `not_required`: the approved target, `ui-design.md`, and PRD are sufficient; or
 - `blocked`: a required decision or source is missing.
 
-When `required`, write `Compiled design system pair: pending — design-system-compiler` as the exact handoff marker, run the compiler preflight against the approved PRD/architecture/stack/UI/wireframe/HiFi bytes, compile both files, and then replace the marker with both pair paths and hashes. The ordinary UI checker rejects a pending marker. When `not_required`, publish no placeholder pair and record the machine-bound existing-pair disposition.
+When `required`, write `Compiled design system pair: pending — design-system-compiler` as the exact handoff marker, run the compiler preflight against the approved PRD/architecture/stack/UI/HiFi bytes, compile both files as `design-system/3`, and then replace the marker with both pair paths and hashes. The ordinary UI checker rejects a pending marker. When `not_required`, publish no placeholder pair and record the machine-bound existing-pair disposition.

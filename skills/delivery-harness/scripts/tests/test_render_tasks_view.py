@@ -115,6 +115,7 @@ class RenderTasksViewTests(unittest.TestCase):
             "docs/product/PRD.md": approved_prd.encode("utf-8"),
             "docs/product/architecture.md": approved_architecture.encode("utf-8"),
             "docs/product/stack-decisions.md": approved_stack.encode("utf-8"),
+            "docs/verification/delivery-acceptance.json": b'{"schema": "delivery-acceptance/1"}\n',
         }
         for location, value in product_sources.items():
             path = self.dir / location

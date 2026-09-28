@@ -5,15 +5,20 @@ from __future__ import annotations
 
 import argparse
 import json
+import posixpath
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 from delivery_acceptance_execution import concrete_text, execution, observations
 
 from delivery_acceptance_io import (
-    AcceptanceError, _read_bytes, _load_json, _sha256, _parse_required_prd_tests,
+    AcceptanceError, _read_bytes, _load_json, _safe_file, _sha256,
+    _parse_required_prd_tests,
 )
+from harness_git import GitMetadataError, reject_object_substitution, run_git
+from harness_schema import supported_coordination_path
 
 
 CONTRACT_SCHEMA = "delivery-acceptance/1"
@@ -220,7 +225,20 @@ def _contract(
     return scenarios, errors
 
 
-def _evidence(root: Path, value: Any, path: str, errors: list[str]) -> bool:
+def evidence_root(results_path: str) -> str:
+    """Evidence lives in ``evidence/`` next to the register."""
+
+    return posixpath.join(posixpath.dirname(results_path), "evidence")
+
+
+def _under_root(raw_path: str, root: str) -> bool:
+    posix = Path(raw_path).as_posix()
+    return ".." not in posix.split("/") and posix.startswith(root + "/")
+
+
+def _evidence(
+    root: Path, value: Any, path: str, errors: list[str], allowed_root: str
+) -> bool:
     if not _exact_keys(value, EVIDENCE_KEYS, path, errors):
         return False
     raw_path = _string(value.get("path"), f"{path}.path", errors)
@@ -238,6 +256,9 @@ def _evidence(root: Path, value: Any, path: str, errors: list[str]) -> bool:
     except AcceptanceError:
         errors.append(f"{path}.path cannot be read safely")
         return False
+    if not _under_root(raw_path, allowed_root):
+        errors.append(f"{path}.path {raw_path} must be under {allowed_root}/")
+        return False
     if not payload:
         errors.append(f"{path}.path is empty")
         return False
@@ -253,6 +274,7 @@ def _results(
     required_tests: set[str],
     candidate_sha: str,
     root: Path,
+    allowed_root: str,
 ) -> tuple[list[str], list[str]]:
     errors: list[str] = []
     if not _exact_keys(value, RESULT_KEYS, "results", errors):
@@ -286,7 +308,9 @@ def _results(
         )
         status = _enum(row["status"], f"{row_path}.status", STATUSES, errors)
         build = _build(row["build"], f"{row_path}.build", platform, environment, errors)
-        evidence_ok = _evidence(root, row["evidence"], f"{row_path}.evidence", errors)
+        evidence_ok = _evidence(
+            root, row["evidence"], f"{row_path}.evidence", errors, allowed_root
+        )
         identity = (
             test_id,
             scenario_id,
@@ -328,6 +352,57 @@ def _results(
     return sorted(f"{test_id}/{scenario_id}" for test_id, scenario_id in matched), errors
 
 
+def _evidence_paths(value: dict[str, Any], allowed_root: str) -> set[str]:
+    """Listed evidence paths under the evidence root; no other path is exempt."""
+
+    rows = value.get("results")
+    paths: set[str] = set()
+    for row in rows if isinstance(rows, list) else []:
+        evidence = row.get("evidence") if isinstance(row, dict) else None
+        raw = evidence.get("path") if isinstance(evidence, dict) else None
+        if isinstance(raw, str) and _under_root(raw.strip(), allowed_root):
+            paths.add(Path(raw.strip()).as_posix())
+    return paths
+
+
+def _candidate_tree_errors(root: Path, candidate: str, allowed: set[str]) -> list[str]:
+    """Bind the register's candidate to the checked-out HEAD.
+
+    The candidate must be HEAD or an ancestor of it, and the commits after it
+    may change only the register, the evidence files it lists under the
+    evidence root and run coordination files. Any other change makes a new candidate whose
+    scenarios have not run.
+    """
+
+    try:
+        reject_object_substitution(root)
+        kind = run_git(root, "cat-file", "-t", candidate)
+        if kind.returncode != 0 or kind.stdout.strip() != "commit":
+            return [f"results.candidate_sha {candidate} is not a commit in this checkout"]
+        ancestor = run_git(root, "merge-base", "--is-ancestor", candidate, "HEAD")
+        if ancestor.returncode != 0:
+            return [f"results.candidate_sha {candidate} is not an ancestor of HEAD"]
+        diff = run_git(
+            root, "diff", "--name-only", "-z", "--no-renames", candidate, "HEAD",
+            text=False,
+        )
+    except (GitMetadataError, OSError, subprocess.SubprocessError) as exc:
+        return [f"cannot read Git state for the candidate: {exc}"]
+    if diff.returncode != 0:
+        return ["cannot read the changes after the candidate from Git"]
+    changed = [path for path in diff.stdout.decode("utf-8", "replace").split("\0") if path]
+    extra = sorted(
+        path for path in changed
+        if path not in allowed and not supported_coordination_path(path)
+    )
+    if extra:
+        return [
+            "files changed after the candidate other than the register and its "
+            "evidence: " + ", ".join(extra)
+        ]
+    return []
+
+
 def _response(errors: list[str], **fields: Any) -> dict[str, Any]:
     return {
         "status": "FAIL" if errors else "PASS",
@@ -340,7 +415,7 @@ def _run(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
     if SHA256_RE.fullmatch(args.contract_sha256) is None:
         errors = ["--contract-sha256 must be a lowercase SHA-256 hex digest"]
         return 1, _response(errors)
-    if GIT_SHA_RE.fullmatch(args.candidate_sha) is None:
+    if args.candidate_sha is not None and GIT_SHA_RE.fullmatch(args.candidate_sha) is None:
         errors = ["--candidate-sha must be a lowercase 40-character Git SHA"]
         return 1, _response(errors)
 
@@ -348,9 +423,13 @@ def _run(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
         root = args.repo_root.resolve(strict=True)
         if not root.is_dir():
             raise AcceptanceError("repository root must be a directory")
+        git_checkout = (root / ".git").exists()
+        if args.candidate_from_head and not git_checkout:
+            raise AcceptanceError("--candidate-from-head needs --repo-root to be a Git checkout root")
         prd_bytes = _read_bytes(args.prd, "PRD", root)
         contract_bytes = _read_bytes(args.contract, "contract", root)
         result_bytes = _read_bytes(args.results, "results", root)
+        results_path = _safe_file(root, str(args.results)).relative_to(root).as_posix()
         if _sha256(contract_bytes) != args.contract_sha256:
             return 1, _response(["contract bytes do not match --contract-sha256"])
         contract = _load_json(contract_bytes, "contract")
@@ -366,10 +445,24 @@ def _run(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
     errors.extend(contract_errors)
     if errors:
         return 1, _response(errors)
+    # With --candidate-from-head the register names the candidate, and Git
+    # below must show that its product tree is exactly HEAD's.
+    candidate_sha = args.candidate_sha
+    if candidate_sha is None:
+        recorded = results.get("candidate_sha")
+        candidate_sha = recorded if isinstance(recorded, str) else ""
+    allowed_root = evidence_root(results_path)
     matched, result_errors = _results(
-        results, scenarios, required_tests, args.candidate_sha, root
+        results, scenarios, required_tests, candidate_sha, root, allowed_root
     )
     errors.extend(result_errors)
+    if git_checkout and GIT_SHA_RE.fullmatch(candidate_sha):
+        errors.extend(
+            _candidate_tree_errors(
+                root, candidate_sha,
+                {results_path} | _evidence_paths(results, allowed_root),
+            )
+        )
     payload = _response(
         errors,
         required_tests=sorted(required_tests),
@@ -381,7 +474,7 @@ def _run(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
         matched_scenarios=matched,
         prd_sha256=prd_hash,
         contract_sha256=args.contract_sha256,
-        candidate_sha=args.candidate_sha,
+        candidate_sha=candidate_sha,
     )
     return (0 if not errors else 1), payload
 
@@ -399,7 +492,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--contract", required=True, type=Path)
     parser.add_argument("--contract-sha256", required=True)
     parser.add_argument("--results", required=True, type=Path)
-    parser.add_argument("--candidate-sha", required=True)
+    candidate = parser.add_mutually_exclusive_group(required=True)
+    candidate.add_argument("--candidate-sha")
+    candidate.add_argument("--candidate-from-head", action="store_true")
     args = parser.parse_args(argv)
     status, payload = _run(args)
     print(json.dumps(payload, ensure_ascii=False, sort_keys=True))

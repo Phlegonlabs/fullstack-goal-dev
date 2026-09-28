@@ -35,7 +35,11 @@ from harness_core import (
     path_in_scopes,
     validate_changed_path,
 )
-from harness_contract import contract_digest
+from harness_contract import (
+    contract_adoption_check_errors,
+    contract_adoption_check_evidence,
+    contract_digest,
+)
 from harness_git import GitMetadataError, reject_object_substitution, run_git
 from harness_manifest import (
     _verifier_owners,
@@ -2490,17 +2494,11 @@ def _lease_worker(plan: dict[str, Any], run: dict[str, Any], args: argparse.Name
     # has passed. A rejected phase, dependency, or conflict must not touch even
     # this in-memory copy of the authorization ledger.
     if run.get("schema_version") == 11:
+        receipts: list[tuple[str, str]] = []
         if worker_runtime == "subagent":
-            _materialize_authorized_target(
-                run, "spawn_subagents", args.mission_id, f"worker:{args.worker_id}"
-            )
+            receipts.append(("spawn_subagents", f"worker:{args.worker_id}"))
         elif worker_runtime == "app_task":
-            _materialize_authorized_target(
-                run,
-                "create_user_owned_tasks",
-                args.mission_id,
-                f"task:{task_thread_id}",
-            )
+            receipts.append(("create_user_owned_tasks", f"task:{task_thread_id}"))
         if workspace_mode == "parent_managed_worktree":
             worktree_action = "create_local_worktrees"
         elif workspace_mode == "app_managed_worktree":
@@ -2508,19 +2506,22 @@ def _lease_worker(plan: dict[str, Any], run: dict[str, Any], args: argparse.Name
         else:
             worktree_action = None
         if worktree_action is not None:
-            _materialize_authorized_target(
-                run,
-                worktree_action,
-                args.mission_id,
-                f"worktree:{args.worktree_path}",
-            )
+            receipts.append((worktree_action, f"worktree:{args.worktree_path}"))
             for action in ("create_local_branches", "create_local_commits"):
-                _materialize_authorized_target(
-                    run,
-                    action,
-                    args.mission_id,
-                    f"branch:{args.branch_ref}",
+                receipts.append((action, f"branch:{args.branch_ref}"))
+        # validate_run checks every receipt against exact mission ids at
+        # every version, so a "*" mission scope would record a receipt it
+        # then rejects. The selector defers these launches; refuse here too.
+        for action, _target in receipts:
+            scope = (run.get("authorizations", {}).get(action) or {}).get("scope")
+            missions = scope.get("mission_ids") if isinstance(scope, dict) else None
+            if isinstance(missions, list) and "*" in missions:
+                raise ManifestError(
+                    f"{action} grant has mission_ids '*'; lease-worker needs "
+                    f"exact mission ids including {args.mission_id!r}"
                 )
+        for action, target in receipts:
+            _materialize_authorized_target(run, action, args.mission_id, target)
     node_state.update(
         {
             "phase": "running",
@@ -3700,14 +3701,30 @@ def _run_exchange_commit(
         _run_posix_exchange(parent_fd, temporary_name, path.name)
         displaced_version = _run_document_version_token(Path(temporary_name), parent_fd=parent_fd)
         if displaced_version != expected_version:
-            current = _run_document_version_token(path, parent_fd=parent_fd)
-            if current[-1] == hashlib.sha256(updated).hexdigest():
-                _run_posix_exchange(parent_fd, temporary_name, path.name)
-                restored = _run_document_version_token(path, parent_fd=parent_fd)
-                if restored != expected_version:
-                    raise ManifestError("RUN restore verification failed; recovery artifacts retained")
-                os.unlink(temporary_name, dir_fd=parent_fd)
-            raise ManifestError("RUN displaced bytes changed at atomic exchange; concurrent bytes preserved")
+            # Move displaced bytes off the temp name first: the caller's cleanup deletes it.
+            recovery = path.parent / f".{path.name}.{secrets.token_hex(8)}.recovery"
+            os.rename(temporary_name, recovery.name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
+            preserved = f"RUN displaced bytes changed at atomic exchange; concurrent bytes preserved at {recovery}"
+            payload_hash = hashlib.sha256(updated).hexdigest()
+            try:
+                restore = _run_document_version_token(path, parent_fd=parent_fd)[-1] == payload_hash
+                if restore:
+                    _run_posix_exchange(parent_fd, recovery.name, path.name)
+            except (OSError, ManifestError) as exc:
+                raise ManifestError(preserved) from exc
+            if not restore:
+                raise ManifestError(preserved)
+            restored = _run_document_version_token(path, parent_fd=parent_fd)
+            leftover = _run_document_version_token(recovery, parent_fd=parent_fd)
+            # Delete the swapped-out file only when it is our own payload.
+            if restored != displaced_version or leftover[-1] != payload_hash:
+                raise ManifestError(
+                    f"RUN restore verification failed; recovery artifacts retained at {recovery}"
+                )
+            os.unlink(recovery.name, dir_fd=parent_fd)
+            raise ManifestError(
+                f"RUN displaced bytes changed at atomic exchange; concurrent bytes preserved at {path}"
+            )
         os.unlink(temporary_name, dir_fd=parent_fd)
         os.fsync(parent_fd)
         return
@@ -3716,15 +3733,28 @@ def _run_exchange_commit(
     _run_windows_replace_with_backup(path, temporary, backup)
     displaced_version = _run_document_version_token(backup)
     if displaced_version != expected_version:
-        current = _run_document_version_token(path)
-        if current[-1] == hashlib.sha256(updated).hexdigest():
-            rollback_backup = path.parent / f".{path.name}.{secrets.token_hex(8)}.rollback"
-            _run_windows_replace_with_backup(path, backup, rollback_backup)
-            restored = _run_document_version_token(path)
-            if restored != expected_version:
-                raise ManifestError("RUN restore verification failed; recovery artifacts retained")
-            rollback_backup.unlink(missing_ok=True)
-        raise ManifestError("RUN displaced bytes changed at atomic replacement; concurrent bytes preserved")
+        rollback_backup = path.parent / f".{path.name}.{secrets.token_hex(8)}.rollback"
+        preserved = f"RUN displaced bytes changed at atomic replacement; concurrent bytes preserved at {backup}"
+        payload_hash = hashlib.sha256(updated).hexdigest()
+        try:
+            restore = _run_document_version_token(path)[-1] == payload_hash
+            if restore:
+                _run_windows_replace_with_backup(path, backup, rollback_backup)
+        except (OSError, ManifestError) as exc:
+            raise ManifestError(preserved) from exc
+        if not restore:
+            raise ManifestError(preserved)
+        restored = _run_document_version_token(path)
+        leftover = _run_document_version_token(rollback_backup)
+        # Delete the swapped-out file only when it is our own payload.
+        if restored != displaced_version or leftover[-1] != payload_hash:
+            raise ManifestError(
+                f"RUN restore verification failed; recovery artifacts retained at {rollback_backup}"
+            )
+        rollback_backup.unlink(missing_ok=True)
+        raise ManifestError(
+            f"RUN displaced bytes changed at atomic replacement; concurrent bytes preserved at {path}"
+        )
     backup.unlink(missing_ok=True)
 
 
@@ -4625,6 +4655,36 @@ def _record_review_attempt(
         raise ManifestError("a PASS review cannot contain findings")
     if args.result != "pass" and not findings:
         raise ManifestError("a non-pass review requires at least one --finding")
+    adoption_check_path = getattr(args, "contract_adoption_check", None)
+    adoption_check = None
+    if adoption_check_path is not None:
+        try:
+            adoption_check = json.loads(
+                Path(adoption_check_path).read_text(encoding="utf-8")
+            )
+        except (OSError, ValueError) as exc:
+            raise ManifestError(f"cannot read --contract-adoption-check: {exc}") from exc
+        # Accept the reviewer's returned object with or without its field name.
+        if isinstance(adoption_check, dict) and set(adoption_check) == {
+            "contract_adoption_check"
+        }:
+            adoption_check = adoption_check["contract_adoption_check"]
+        if adoption_check is None:
+            raise ManifestError("--contract-adoption-check must contain an object")
+    # A reviewer that stopped on a digest mismatch reports `blocked`; it may
+    # omit the check or report the digest it saw with matched false. The
+    # parent may record a crashed or timed-out reviewer as retryable_failure,
+    # or a contract_gap, without child output; a supplied check is validated.
+    adoption_errors = contract_adoption_check_errors(
+        run,
+        adoption_check,
+        blocked=args.result == "blocked",
+        optional=args.result in {"retryable_failure", "contract_gap"},
+    )
+    if adoption_errors:
+        raise ManifestError(
+            "invalid --contract-adoption-check: " + "; ".join(adoption_errors)
+        )
     allowance = lineage.get("base_allowance", 0) + lineage.get(
         "additional_allowance", 0
     )
@@ -4666,6 +4726,7 @@ def _record_review_attempt(
         attempt_evidence.append(
             "security_result_sha256:" + _json_sha256(security_result)
         )
+    attempt_evidence.extend(contract_adoption_check_evidence(adoption_check))
     run["attempt_log"].append(
         {
             "attempt_id": args.attempt_id,
@@ -4846,6 +4907,7 @@ def build_parser() -> argparse.ArgumentParser:
     review.add_argument("--evidence", action="append", required=True)
     review.add_argument("--finding", action="append")
     review.add_argument("--security-result", type=Path)
+    review.add_argument("--contract-adoption-check", type=Path)
     review.add_argument("--failure-family-id")
     review.add_argument("--failure-primitive")
     review.add_argument("--equivalence-class", action="append")

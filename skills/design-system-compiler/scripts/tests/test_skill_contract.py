@@ -19,7 +19,7 @@ class DesignSystemCompilerSkillContractTests(unittest.TestCase):
             "Product Definition Approval",
             "Stack Decision Checkpoint",
             "docs/design/ui-design.md",
-            "Wireframe Validation",
+            "complete approved `ui-hifi/2` package",
             "Visual Approval",
             "Design System Need Gate: required",
             "check_product_package.py",
@@ -34,7 +34,7 @@ class DesignSystemCompilerSkillContractTests(unittest.TestCase):
         self.assertIn("`PRD.md` owns product behavior", skill)
         self.assertIn("`ui-design-builder` owns", skill)
         self.assertIn("docs/design/ui-design.md", contract)
-        self.assertIn("docs/design/wireframes.html", lifecycle)
+        self.assertIn("approved HiFi target", lifecycle)
         self.assertIn("docs/design/design-system.md", lifecycle)
         self.assertIn("Legacy `docs/product/wireframes.html`", lifecycle)
 
@@ -92,7 +92,7 @@ class DesignSystemCompilerSkillContractTests(unittest.TestCase):
         self.assertIn("Every required PRD element maps to the final registry", contract)
         self.assertIn("Approved UI design contract", template_md)
         self.assertIn("Style Integration and HiFi evidence", template_md)
-        self.assertIn('"schema": "design-system/2"', template_json)
+        self.assertIn('"schema": "design-system/3"', template_json)
         self.assertIn('"sourceBindings"', template_json)
         self.assertIn('"hifi"', template_json)
         self.assertIn('"requiredContentOrder"', template_json)
@@ -123,11 +123,20 @@ class DesignSystemCompilerSkillContractTests(unittest.TestCase):
 
         for content in (skill, guide, contract, template_md, template_json):
             self.assertIn("at least two", content)
-        self.assertIn("all sets match the PRD, validated schema-5 wireframe (or approved legacy wireframe), and stack", skill)
-        self.assertIn("Copy the exact approved PRD and wireframe set", guide)
+        self.assertIn("all sets match the PRD, approved HiFi scope, and stack", skill)
+        self.assertIn("Copy the exact approved PRD and HiFi set", guide)
         self.assertIn("Unintended overlap, clipping, occlusion", guide)
         self.assertIn("passing browser-matrix evidence", contract)
         self.assertIn("named stacking, focus, and dismissal", template_md)
+
+    def test_template_responsive_set_comes_from_prd_and_hifi(self) -> None:
+        template_md = self.read("assets/templates/DESIGN_SYSTEM.template.md")
+        responsive = next(
+            line for line in template_md.splitlines() if line.startswith("- Responsive set:")
+        )
+        self.assertIn("exact approved PRD and HiFi manifest viewports or sizeClasses", responsive)
+        self.assertIn("wireframe JSON only for a legacy design-system/2 pair", responsive)
+        self.assertNotIn("PRD and wireframe JSON", responsive)
 
 
 if __name__ == "__main__":

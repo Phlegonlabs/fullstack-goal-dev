@@ -54,6 +54,10 @@ def manifest(heading: str, wrapper: str, value: dict) -> str:
     return f"# Fixture\n\n{heading}\n\n```json\n{json.dumps({wrapper: value}, indent=2)}\n```\n"
 
 
+DARWIN_FD_EXEC = "macOS cannot execute /dev/fd/N, so descriptor-bound launch fails closed there"
+# macOS runs the OS verifier by path only while SIP protects it.
+DARWIN_WITHOUT_SIP = sys.platform == "darwin" and not subject._sip_enforced()
+
 class ArchiveFirstPushTests(unittest.TestCase):
     def setUp(self) -> None:
         self._temps: list[tempfile.TemporaryDirectory[str]] = []
@@ -255,6 +259,47 @@ class ArchiveFirstPushTests(unittest.TestCase):
             request_path=Path(fixture["request"]),
         )
 
+    @unittest.skipUnless(sys.platform == "darwin", "macOS descriptor behavior")
+    def test_darwin_unprotected_signature_verifier_fails_closed(self) -> None:
+        fixture = self._fixture()
+        self._prepare(fixture)
+        handoff = subject.begin_handoff(Path(fixture["root"]), request_path=Path(fixture["request"]))
+        git(Path(fixture["root"]), "--no-replace-objects", "push", "--", "origin", f"{fixture['candidate_a']}:refs/heads/codex/test")
+        self._attest(fixture, handoff)
+        with patch.object(subject, "_sip_protected_executable", return_value=False):
+            with self.assertRaisesRegex(ManifestError, "no descriptor path is available for trusted-host verifier"):
+                subject.recover_uncertain(Path(fixture["root"]), request_path=Path(fixture["request"]))
+
+    def test_sip_path_launch_needs_macos_enforced_sip_and_restricted_inode(self) -> None:
+        verifier = Path("/usr/bin/ssh-keygen")
+        if sys.platform != "darwin" or not verifier.is_file():
+            fd = os.open(__file__, os.O_RDONLY)
+            try:
+                self.assertFalse(subject._sip_protected_executable(Path(__file__), fd))
+            finally:
+                os.close(fd)
+            return
+        fd = os.open(verifier, os.O_RDONLY)
+        try:
+            self.assertEqual(
+                subject._sip_enforced(), subject._sip_protected_executable(verifier, fd)
+            )
+            with patch.object(subject, "_sip_enforced", return_value=False):
+                self.assertFalse(subject._sip_protected_executable(verifier, fd))
+            # The path must name the verified inode, not just any restricted file.
+            self.assertFalse(subject._sip_protected_executable(Path("/usr/bin/true"), fd))
+        finally:
+            os.close(fd)
+        unrestricted = Path(tempfile.mkdtemp()) / "tool"
+        unrestricted.write_text("#!/bin/sh\n", encoding="utf-8")
+        fd = os.open(unrestricted, os.O_RDONLY)
+        try:
+            self.assertFalse(subject._sip_protected_executable(unrestricted, fd))
+        finally:
+            os.close(fd)
+            shutil.rmtree(unrestricted.parent)
+
+    @unittest.skipIf(DARWIN_WITHOUT_SIP, DARWIN_FD_EXEC)
     def test_real_bare_remote_archive_push_happy_path(self) -> None:
         fixture = self._fixture()
         request_value = self._prepare(fixture)
@@ -290,6 +335,7 @@ class ArchiveFirstPushTests(unittest.TestCase):
                 Path(fixture["root"]), request_path=Path(fixture["request"]),
             )
 
+    @unittest.skipIf(DARWIN_WITHOUT_SIP, DARWIN_FD_EXEC)
     def test_trusted_host_execute_evidence_is_accepted_by_recover(self) -> None:
         if shutil.which("ssh-keygen") is None:
             self.skipTest("OpenSSH ssh-keygen is unavailable")
@@ -494,6 +540,7 @@ class ArchiveFirstPushTests(unittest.TestCase):
         a2 = git(root, "rev-parse", "HEAD")
         return {"fixture": fixture, "root": root, "candidate_a": candidate_a, "archive2": archive2, "anchor2": anchor2, "a2": a2}
 
+    @unittest.skipIf(DARWIN_WITHOUT_SIP, DARWIN_FD_EXEC)
     def test_unpublished_prior_a_cannot_appear_on_remote(self) -> None:
         case = self._correction_fixture(publication_state="unpublished")
         fixture = case["fixture"]
@@ -515,16 +562,19 @@ class ArchiveFirstPushTests(unittest.TestCase):
                 archive_anchor=Path(case["anchor2"]),
             )
 
+    @unittest.skipIf(DARWIN_WITHOUT_SIP, DARWIN_FD_EXEC)
     def test_omitted_prior_source_is_rejected_from_archive_lineage(self) -> None:
         case = self._correction_fixture(omit_source=True)
         with self.assertRaisesRegex(ManifestError, "must include exactly one prior archive candidate"):
             subject.verify_archive_candidate(Path(case["root"]), archive_path=Path(case["archive2"]), candidate_a=str(case["a2"]))
 
+    @unittest.skipIf(DARWIN_WITHOUT_SIP, DARWIN_FD_EXEC)
     def test_forged_batch_base_and_two_repairs_still_require_prior_source(self) -> None:
         case = self._correction_fixture(omit_source=True, forged_batch=True)
         with self.assertRaisesRegex(ManifestError, "must include exactly one prior archive candidate"):
             subject.verify_archive_candidate(Path(case["root"]), archive_path=Path(case["archive2"]), candidate_a=str(case["a2"]))
 
+    @unittest.skipIf(DARWIN_WITHOUT_SIP, DARWIN_FD_EXEC)
     def test_alternate_receipt_cannot_replace_missing_deterministic_publication(self) -> None:
         case = self._correction_fixture(publication_state="published")
         fixture = case["fixture"]
@@ -536,6 +586,7 @@ class ArchiveFirstPushTests(unittest.TestCase):
         with self.assertRaisesRegex(ManifestError, "deterministic publication receipt|published prior archive candidate receipt is missing"):
             subject.verify_archive_candidate(Path(case["root"]), archive_path=Path(case["archive2"]), candidate_a=str(case["a2"]))
 
+    @unittest.skipIf(DARWIN_WITHOUT_SIP, DARWIN_FD_EXEC)
     def test_bound_publication_inputs_cannot_be_replaced_during_verifier(self) -> None:
         fixture = self._fixture()
         self._prepare(fixture)
@@ -559,7 +610,8 @@ class ArchiveFirstPushTests(unittest.TestCase):
                         os.replace(swap, path)
                         replace_results.append(False)
                         path.write_bytes(payload)
-                    except PermissionError:
+                    except OSError:
+                        # Windows share locks and macOS SIP refuse the swap.
                         replace_results.append(True)
                         if swap.exists():
                             swap.unlink()
@@ -573,6 +625,9 @@ class ArchiveFirstPushTests(unittest.TestCase):
             self.assertEqual([True, True, True], replace_results)
         else:
             self.assertEqual(3, len(replace_results))
+        if sys.platform == "darwin":
+            # The path-launched verifier must be one nobody can replace.
+            self.assertTrue(replace_results[0])
 
     def test_caller_supplied_prose_or_ref_is_rejected_before_request_creation(self) -> None:
         fixture = self._fixture()
@@ -679,6 +734,7 @@ class ArchiveFirstPushTests(unittest.TestCase):
         candidate_a = git(Path(fixture["root"]), "rev-parse", "HEAD")
         self.assertEqual("codex/test", subject.verify_archive_candidate(Path(fixture["root"]), archive_path=Path(fixture["archive"]), candidate_a=candidate_a)["run_branch"])
 
+    @unittest.skipIf(DARWIN_WITHOUT_SIP, DARWIN_FD_EXEC)
     def test_recovery_requires_attempt_and_never_calls_push(self) -> None:
         fixture = self._fixture()
         self._prepare(fixture)
@@ -702,6 +758,7 @@ class ArchiveFirstPushTests(unittest.TestCase):
             )
         self.assertEqual("PASS", recovered["status"] if "status" in recovered else "PASS")
 
+    @unittest.skipIf(DARWIN_WITHOUT_SIP, DARWIN_FD_EXEC)
     def test_endpoint_retarget_and_execute_replay_are_rejected(self) -> None:
         fixture = self._fixture()
         self._prepare(fixture)
@@ -922,6 +979,7 @@ class ArchiveFirstPushTests(unittest.TestCase):
         with self.assertRaisesRegex(ManifestError, "replacement refs"):
             subject.verify_archive_candidate(root, archive_path=Path(fixture["archive"]), candidate_a=str(fixture["candidate_a"]))
 
+    @unittest.skipIf(DARWIN_WITHOUT_SIP, DARWIN_FD_EXEC)
     def test_published_a_preview_failure_uses_replacement_c2_a2_lineage(self) -> None:
         fixture = self._fixture()
         root = Path(fixture["root"])

@@ -91,6 +91,10 @@ SOURCE_BINDING_KEYS = (
     "wireframe",
     "hifi",
 )
+CURRENT_SCHEMA = "design-system/3"
+CURRENT_SOURCE_BINDING_KEYS = tuple(
+    key for key in SOURCE_BINDING_KEYS if key != "wireframe"
+)
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 VALID_PLATFORMS = {"web", "ios", "android", "flutter", "react-native", "macos", "windows", "desktop"}
 VALID_HYBRID_SURFACE_CLASSES = {
@@ -332,14 +336,28 @@ def _windows_replace_commit(
 
     backup = path.parent / f".{path.name}.{secrets.token_hex(8)}.backup"
     _windows_replace_with_backup(path, temporary_path, backup)
-    if _path_version(backup) != expected_version:
-        if _path_version(path)[-1] == hashlib.sha256(payload).hexdigest():
-            rollback_backup = path.parent / f".{path.name}.{secrets.token_hex(8)}.rollback"
-            _windows_replace_with_backup(path, backup, rollback_backup)
-            if _path_version(path) != expected_version:
-                raise ConcurrentModificationError("design-system restore verification failed; artifacts retained")
-            rollback_backup.unlink(missing_ok=True)
-        raise ConcurrentModificationError("design-system displaced bytes changed; concurrent bytes preserved")
+    displaced_version = _path_version(backup)
+    if displaced_version != expected_version:
+        rollback_backup = path.parent / f".{path.name}.{secrets.token_hex(8)}.rollback"
+        preserved = f"design-system displaced bytes changed; concurrent bytes preserved at {backup}"
+        payload_hash = hashlib.sha256(payload).hexdigest()
+        try:
+            restore = _path_version(path)[-1] == payload_hash
+            if restore:
+                _windows_replace_with_backup(path, backup, rollback_backup)
+        except (OSError, ConcurrentModificationError) as exc:
+            raise ConcurrentModificationError(preserved) from exc
+        if not restore:
+            raise ConcurrentModificationError(preserved)
+        # Delete the swapped-out file only when it is our own payload.
+        if _path_version(path) != displaced_version or _path_version(rollback_backup)[-1] != payload_hash:
+            raise ConcurrentModificationError(
+                f"design-system restore verification failed; artifacts retained at {rollback_backup}"
+            )
+        rollback_backup.unlink(missing_ok=True)
+        raise ConcurrentModificationError(
+            f"design-system displaced bytes changed; concurrent bytes preserved at {path}"
+        )
     backup.unlink(missing_ok=True)
 
 
@@ -354,14 +372,30 @@ def _posix_exchange_commit(
     """Commit by exchange, then verify the displaced bytes and restore on mismatch."""
 
     _posix_rename_exchange(parent_fd, temporary_path.name, path.name)
-    displaced = path.parent / temporary_path.name
-    if _path_version(displaced) != expected_version:
-        if _path_version(path)[-1] == hashlib.sha256(payload).hexdigest():
-            _posix_rename_exchange(parent_fd, temporary_path.name, path.name)
-            if _path_version(path) != expected_version:
-                raise ConcurrentModificationError("design-system restore verification failed; artifacts retained")
-            os.unlink(temporary_path.name, dir_fd=parent_fd)
-        raise ConcurrentModificationError("design-system displaced bytes changed; concurrent bytes preserved")
+    displaced_version = _path_version(path.parent / temporary_path.name)
+    if displaced_version != expected_version:
+        # Move displaced bytes off the temp name first: the caller's cleanup deletes it.
+        recovery = path.parent / f".{path.name}.{secrets.token_hex(8)}.recovery"
+        os.rename(temporary_path.name, recovery.name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
+        preserved = f"design-system displaced bytes changed; concurrent bytes preserved at {recovery}"
+        payload_hash = hashlib.sha256(payload).hexdigest()
+        try:
+            restore = _path_version(path)[-1] == payload_hash
+            if restore:
+                _posix_rename_exchange(parent_fd, recovery.name, path.name)
+        except (OSError, ConcurrentModificationError) as exc:
+            raise ConcurrentModificationError(preserved) from exc
+        if not restore:
+            raise ConcurrentModificationError(preserved)
+        # Delete the swapped-out file only when it is our own payload.
+        if _path_version(path) != displaced_version or _path_version(recovery)[-1] != payload_hash:
+            raise ConcurrentModificationError(
+                f"design-system restore verification failed; artifacts retained at {recovery}"
+            )
+        os.unlink(recovery.name, dir_fd=parent_fd)
+        raise ConcurrentModificationError(
+            f"design-system displaced bytes changed; concurrent bytes preserved at {path}"
+        )
     os.unlink(temporary_path.name, dir_fd=parent_fd)
     os.fsync(parent_fd)
 
@@ -645,15 +679,25 @@ def validate_registry(registry: dict[str, Any]) -> list[str]:
     """Validate the structured fields the pair checker promises to mirror."""
     problems: list[str] = []
     schema = registry.get("schema")
-    if schema not in {"design-system/1", "design-system/2"}:
+    if schema not in {"design-system/1", "design-system/2", CURRENT_SCHEMA}:
         problems.append(
-            "design-system.json schema must be 'design-system/1' or 'design-system/2'"
+            "design-system.json schema must be 'design-system/1', "
+            "'design-system/2', or 'design-system/3'"
         )
 
     hybrid_surface_contracts = registry.get("surfaceContracts")
-    if hybrid_surface_contracts is not None and schema != "design-system/2":
-        problems.append("design-system.json surfaceContracts requires design-system/2")
-    hybrid = schema == "design-system/2" and hybrid_surface_contracts is not None
+    if hybrid_surface_contracts is not None and schema not in {
+        "design-system/2",
+        CURRENT_SCHEMA,
+    }:
+        problems.append(
+            "design-system.json surfaceContracts requires design-system/2 or "
+            "design-system/3"
+        )
+    hybrid = (
+        schema in {"design-system/2", CURRENT_SCHEMA}
+        and hybrid_surface_contracts is not None
+    )
     product = registry.get("product")
     if not isinstance(product, str) or not product.strip():
         problems.append("design-system.json product must be a non-empty string")
@@ -812,15 +856,21 @@ def validate_registry(registry: dict[str, Any]) -> list[str]:
                     f"design-system.json {key} entry {item!r} must be an exact repo-relative path"
                 )
 
-    if schema == "design-system/2":
+    if schema in {"design-system/2", CURRENT_SCHEMA}:
+        expected_keys = set(
+            CURRENT_SOURCE_BINDING_KEYS
+            if schema == CURRENT_SCHEMA
+            else SOURCE_BINDING_KEYS
+        )
         bindings = registry.get("sourceBindings")
         if not isinstance(bindings, dict):
             problems.append(
                 "design-system.json sourceBindings must be an object with prd, "
-                "architecture, stack, uiDesign, wireframe, and hifi"
+                "architecture, stack, uiDesign, "
+                + ("and hifi" if schema == CURRENT_SCHEMA else "wireframe, and hifi")
             )
         else:
-            expected = set(SOURCE_BINDING_KEYS)
+            expected = expected_keys
             missing = sorted(expected - set(bindings))
             extra = sorted(set(bindings) - expected)
             if missing:
@@ -832,7 +882,7 @@ def validate_registry(registry: dict[str, Any]) -> list[str]:
                     "design-system.json sourceBindings names unexpected keys: "
                     + ", ".join(extra)
                 )
-            for key in SOURCE_BINDING_KEYS:
+            for key in expected_keys:
                 binding = bindings.get(key)
                 path_name = f"sourceBindings.{key}"
                 if not isinstance(binding, dict):
@@ -850,7 +900,7 @@ def validate_registry(registry: dict[str, Any]) -> list[str]:
                     )
             paths = [
                 bindings[key].get("path")
-                for key in SOURCE_BINDING_KEYS
+                for key in expected_keys
                 if isinstance(bindings.get(key), dict)
             ]
             if len(paths) != len(set(paths)):
@@ -860,8 +910,9 @@ def validate_registry(registry: dict[str, Any]) -> list[str]:
                 "architecture": "architecture.md",
                 "stack": "stack-decisions.md",
                 "uiDesign": "ui-design.md",
-                "wireframe": "wireframes.html",
             }
+            if schema != CURRENT_SCHEMA:
+                semantic_suffixes["wireframe"] = "wireframes.html"
             for key, suffix in semantic_suffixes.items():
                 binding = bindings.get(key)
                 path = binding.get("path") if isinstance(binding, dict) else None
@@ -872,7 +923,10 @@ def validate_registry(registry: dict[str, Any]) -> list[str]:
             hifi = bindings.get("hifi")
             hifi_path = hifi.get("path") if isinstance(hifi, dict) else None
             if isinstance(hifi_path, str) and hifi_path.casefold().endswith("wireframes.html"):
-                problems.append("design-system.json sourceBindings.hifi.path must be a distinct HiFi target")
+                problems.append(
+                    "design-system.json sourceBindings.hifi.path must be a "
+                    "distinct HiFi target"
+                )
 
     primitives = registry.get("primitives")
     seen_ds_ids: set[str] = set()
@@ -1012,7 +1066,8 @@ def _diff(expected: Any, actual: Any, path: str, problems: list[str]) -> None:
 
 def _ui_identity_bindings(
     bindings: dict[str, Any], *, repo_root: Path, problems: list[str], require_contract: bool = False,
-    surface_contracts: dict[str, Any] | None = None,
+    surface_contracts: dict[str, Any] | None = None, apply_current_hifi_cutover: bool = True,
+    schema: str = "design-system/2",
 ) -> None:
     """Cross-check pair source bindings against the UI contract they name."""
 
@@ -1055,6 +1110,13 @@ def _ui_identity_bindings(
         problems.append("design-system.json sourceBindings.uiDesign requires an active Design System Need Gate Decision: required")
     if isinstance(gate, dict) and gate.get("replacement"):
         problems.append("design-system.json sourceBindings.uiDesign must not contain a not_required replacement for a required pair")
+    if schema == CURRENT_SCHEMA and view.get("contract_version") != "ui-design/2":
+        problems.append(
+            "design-system.json sourceBindings.uiDesign must select UI contract "
+            "ui-design/2 for design-system/3"
+        )
+    if schema != CURRENT_SCHEMA and view.get("contract_version") == "ui-design/2":
+        problems.append("design-system/2 requires a legacy UI contract; ui-design/2 requires design-system/3")
     identities = view.get("source_identities") if isinstance(view, dict) else {}
     target_scope = view.get("target_scope") if isinstance(view, dict) else None
     if surface_contracts is not None:
@@ -1087,8 +1149,9 @@ def _ui_identity_bindings(
         "prd": "prd",
         "architecture": "architecture",
         "stack": "stack",
-        "wireframe": "wireframe",
     }
+    if schema != CURRENT_SCHEMA:
+        mapping["wireframe"] = "wireframe"
     for key, view_key in mapping.items():
         binding = bindings.get(key)
         if not isinstance(binding, dict):
@@ -1116,7 +1179,12 @@ def _ui_identity_bindings(
         try:
             ui_checker = __import__("check_ui_design_contract")
             source_binding = {
-                key: bindings.get(key) for key in ("prd", "architecture", "stack", "wireframe", "hifi")
+                key: bindings.get(key)
+                for key in (
+                    CURRENT_SOURCE_BINDING_KEYS
+                    if schema == CURRENT_SCHEMA
+                    else SOURCE_BINDING_KEYS
+                )
             }
             paths = {
                 key: value.get("path")
@@ -1127,8 +1195,13 @@ def _ui_identity_bindings(
                 candidate,
                 repo_root=repo_root,
                 prd_path=repo_root / paths["prd"] if "prd" in paths else None,
-                wireframes_path=repo_root / paths["wireframe"] if "wireframe" in paths else None,
+                wireframes_path=(
+                    repo_root / paths["wireframe"]
+                    if "wireframe" in paths
+                    else None
+                ),
                 hifi_path=repo_root / paths["hifi"] if "hifi" in paths else None,
+                apply_current_hifi_cutover=apply_current_hifi_cutover,
             )
             problems.extend(f"ui-design: {item}" for item in ui_checker_problems)
         except Exception as exc:
@@ -1337,12 +1410,19 @@ def compare(
     *,
     require_filled: bool = False,
     repo_root: Path | None = None,
+    apply_current_hifi_cutover: bool = True,
 ) -> list[str]:
+    """Check a design-system pair.
+
+    ``apply_current_hifi_cutover`` passes to the UI preflight. It stays on for
+    the compiler; a Harness join turns it off for RUNs its version gate exempts.
+    """
+
     problems = validate_registry(registry)
     if require_filled:
-        if registry.get("schema") != "design-system/2":
+        if registry.get("schema") not in {"design-system/2", CURRENT_SCHEMA}:
             problems.append(
-                "current publication requires design-system/2; design-system/1 is inspection-only"
+                "current publication requires design-system/2 or design-system/3; design-system/1 is inspection-only"
             )
         problems.extend(unfilled_placeholders(registry))
     generated, parse_problems = _extract_generated_contract(markdown_text)
@@ -1354,13 +1434,20 @@ def compare(
             "generated contract",
             problems,
         )
-    if registry.get("schema") == "design-system/2" and repo_root is None:
+    registry_schema = registry.get("schema")
+    uses_bindings = registry_schema in {"design-system/2", CURRENT_SCHEMA}
+    binding_keys = (
+        CURRENT_SOURCE_BINDING_KEYS
+        if registry_schema == CURRENT_SCHEMA
+        else SOURCE_BINDING_KEYS
+    )
+    if uses_bindings and repo_root is None:
         problems.append("design-system.json source bindings require repo_root")
-    elif registry.get("schema") == "design-system/2" and repo_root is not None:
+    elif uses_bindings and repo_root is not None:
         root = repo_root.resolve()
         bindings = registry.get("sourceBindings")
         if isinstance(bindings, dict):
-            for key in SOURCE_BINDING_KEYS:
+            for key in binding_keys:
                 binding = bindings.get(key)
                 if not isinstance(binding, dict):
                     continue
@@ -1402,6 +1489,8 @@ def compare(
                     problems=problems,
                     require_contract=require_filled,
                     surface_contracts=registry.get("surfaceContracts") if isinstance(registry, dict) else None,
+                    apply_current_hifi_cutover=apply_current_hifi_cutover,
+                    schema=registry_schema,
                 )
                 stack_binding = bindings.get("stack")
                 stack_path = (
@@ -1493,7 +1582,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--repo-root",
         type=Path,
-        help="repository root used to resolve and hash design-system/2 source bindings",
+        help=(
+            "repository root used to resolve and hash design-system/2 and "
+            "design-system/3 source bindings"
+        ),
     )
     args = parser.parse_args(argv)
 

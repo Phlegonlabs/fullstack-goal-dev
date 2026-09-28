@@ -627,7 +627,7 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         ):
             self.assertIn(command, runbook)
         self.assertIn(
-            "Hand-editing the RUN JSON for these steps is the path the transitions replaced",
+            "Hand-editing the RUN JSON for these steps is forbidden",
             self.read("references/worktree-thread-orchestration.md"),
         )
         self.assertIn(
@@ -1138,7 +1138,7 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("`integration_push` remains legacy recovery state only", runbook)
         self.assertIn("`pushed_head_sha` stays null", runbook)
         self.assertIn("checkout-external immutable artifacts", runbook)
-        self.assertIn("Harness 0.38 RUNs start and finish `local_only`", runbook)
+        self.assertIn("Harness 0.38+ RUNs start and finish `local_only`", runbook)
 
 
 
@@ -1295,7 +1295,7 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         # The command must be runnable (both required args) and read-only.
         for content in (contract, verification):
             commands = re.findall(
-                r"`python skills/design-system-compiler/scripts/check_design_system_pair\.py [^`]+`",
+                r'`python "<design-system-compiler-skill-root>/scripts/check_design_system_pair\.py" [^`]+`',
                 content,
             )
             self.assertEqual(1, len(commands), commands)
@@ -1318,7 +1318,7 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
 
     def test_both_documented_schema2_pair_commands_bind_repo_root(self) -> None:
         expected = (
-            "python skills/design-system-compiler/scripts/check_design_system_pair.py "
+            'python "<design-system-compiler-skill-root>/scripts/check_design_system_pair.py" '
             "--markdown <design-system.md> --registry <design-system.json> "
             "--repo-root <repository-root> --require-filled"
         )

@@ -42,6 +42,40 @@ from release_targets import parse_release_targets  # noqa: E402
 from prd_ui_contract import parse_prd_ui_contract  # noqa: E402
 from ui_approval_digest import canonical_ui_approval_sha256  # noqa: E402
 from operation_coverage import coverage_findings  # noqa: E402
+from hifi_product_contract import hifi_prd_findings  # noqa: E402
+
+
+UI_CONTRACT_CURRENT = "ui-design/2"
+UI_CONTRACT_RE = re.compile(r"^UI contract:[ \t]*(?P<version>[^\r\n]*)$", re.MULTILINE)
+
+
+def ui_contract_version(text: str) -> str:
+    """Return ``ui-design/2`` or ``legacy`` without guessing package age.
+
+    The marker is closed.  Missing means an existing package keeps its old
+    checks.  More than one marker, or a claim other than the current contract,
+    is an explicit error rather than a reason to choose a convenient mode.
+    """
+
+    active = active_text(text)
+    markers = list(UI_CONTRACT_RE.finditer(active))
+    if not markers:
+        return "legacy"
+    if len(markers) != 1:
+        raise ValueError("UI contract marker must occur exactly once")
+    version = markers[0].group("version").strip()
+    if version != UI_CONTRACT_CURRENT:
+        raise ValueError(f"unknown UI contract marker: {version}")
+    heading = re.search(r"^# UI Design Contract\s*$", active, re.MULTILINE)
+    next_heading = re.search(r"^##\s+", active, re.MULTILINE)
+    marker_start = markers[0].start()
+    if (
+        heading is None
+        or heading.end() > marker_start
+        or (next_heading is not None and next_heading.start() < marker_start)
+    ):
+        raise ValueError("UI contract marker must be top-level under # UI Design Contract")
+    return version
 
 
 def is_structure_review(text: str) -> bool:
@@ -62,6 +96,9 @@ REQUIRED_HEADINGS = (
     "## HiFi Review",
     "## Visual Approval",
     "## Design System Need Gate",
+)
+REQUIRED_HEADINGS_CURRENT = tuple(
+    heading for heading in REQUIRED_HEADINGS if heading != "## Wireframe Approval"
 )
 ANGLE_PLACEHOLDER_RE = re.compile(r"<[^<>]+>")
 SOURCE_RE = re.compile(r"^(?P<path>[A-Za-z0-9._/-]+) @ sha256:(?P<sha256>[0-9a-f]{64})$")
@@ -297,6 +334,29 @@ def _date(value: str | None) -> bool:
     return True
 
 
+# 0.55.0 release date. A commit can make an Approved target look historical,
+# and the approval date is author-entered, so HiFi receipt times count too.
+CURRENT_HIFI_CUTOVER = date(2026, 9, 27)
+CURRENT_HIFI_CUTOVER_INSTANT = datetime(2026, 9, 27, tzinfo=timezone.utc)
+
+
+def current_hifi_cutover_applies(decided_on: str | None, receipt_times: list[datetime]) -> bool:
+    """Return whether a legacy Visual Approval falls under the current HiFi rule.
+
+    It does when the approval was decided on or after the 0.55.0 cutover, when
+    that date is missing or invalid (validation reports the bad date), or when
+    any HiFi Review or motion-effect receipt ran at or after
+    2026-09-27T00:00:00Z. Receipt instants are compared directly so no
+    time-zone rounding moves a release-day receipt before the cutover.
+    """
+
+    if not _date(decided_on):
+        return True
+    if date.fromisoformat((decided_on or "").strip()) >= CURRENT_HIFI_CUTOVER:
+        return True
+    return any(item >= CURRENT_HIFI_CUTOVER_INSTANT for item in receipt_times)
+
+
 def _pass_evidence(value: str | None, label: str, problems: list[str]) -> dict[str, str] | None:
     """Parse a PASS line that is independently bound to a hashed evidence file."""
 
@@ -314,7 +374,12 @@ def _pass_evidence(value: str | None, label: str, problems: list[str]) -> dict[s
     }
 
 
-def _replacement_parts(value: str | None, problems: list[str]) -> dict[str, str]:
+def _replacement_parts(
+    value: str | None,
+    problems: list[str],
+    *,
+    include_wireframe: bool = True,
+) -> dict[str, str]:
     """Parse the exact not_required visual contract replacement inventory."""
 
     parts: dict[str, str] = {}
@@ -326,18 +391,21 @@ def _replacement_parts(value: str | None, problems: list[str]) -> dict[str, str]
             _add(
                 problems,
                 "Replacement visual contract when not_required must contain exactly "
-                "target, ui-design, wireframe, and prd path/hash entries",
+                + ("target, ui-design, wireframe, and prd" if include_wireframe else "target, ui-design, and prd")
+                + " path/hash entries",
             )
             continue
         key = match.group("key")
         if key in parts:
             _add(problems, f"Replacement visual contract duplicates {key}")
         parts[key] = f"{match.group('path')} @ sha256:{match.group('sha256')}"
-    if set(parts) != {"target", "ui-design", "wireframe", "prd"}:
+    expected_keys = {"target", "ui-design", "prd"} | ({"wireframe"} if include_wireframe else set())
+    if set(parts) != expected_keys:
         _add(
             problems,
             "Replacement visual contract when not_required must contain exactly "
-            "target, ui-design, wireframe, and prd path/hash entries",
+            + ("target, ui-design, wireframe, and prd" if include_wireframe else "target, ui-design, and prd")
+            + " path/hash entries",
         )
     return parts
 
@@ -369,8 +437,15 @@ def parse_ui_contract_view(text: str) -> tuple[dict[str, Any], list[str]]:
     """
 
     active = active_text(text)
+    try:
+        contract_version = ui_contract_version(active)
+    except ValueError as exc:
+        contract_version = None
+        parse_problems = [f"UI contract marker: {exc}"]
+    else:
+        parse_problems = []
     source_section = _section(active, "## Source Product Definition") or ""
-    wireframe_section = _section(active, wireframe_heading(active)) or ""
+    wireframe_section = "" if contract_version == UI_CONTRACT_CURRENT else _section(active, wireframe_heading(active)) or ""
     style_section = _section(active, "## Style Integration") or ""
     visual_section = _section(active, "## Visual Approval") or ""
     gate_section = _section(active, "## Design System Need Gate") or ""
@@ -392,7 +467,6 @@ def parse_ui_contract_view(text: str) -> tuple[dict[str, Any], list[str]]:
 
     target_raw = _field(visual_section, "Approved target")
     target_match = TARGET_SOURCE_RE.fullmatch((target_raw or "").strip()) if target_raw else None
-    parse_problems: list[str] = []
     target_scope = _target_scope(target_raw, "Approved target", parse_problems)
     approved_target = None
     if target_match is not None:
@@ -441,10 +515,13 @@ def parse_ui_contract_view(text: str) -> tuple[dict[str, Any], list[str]]:
                 },
             }
     replacement = _replacement_parts(
-        replacement_values[0] if replacement_values else None, parse_problems
+        replacement_values[0] if replacement_values else None,
+        parse_problems,
+        include_wireframe=contract_version != UI_CONTRACT_CURRENT,
     ) if replacement_values else {}
 
     view: dict[str, Any] = {
+        "contract_version": contract_version,
         "structure_review": is_structure_review(active),
         "source_identities": sources,
         # Short aliases keep the exported view ergonomic while the longer
@@ -638,7 +715,7 @@ def _platform_rules(style: str, scope: dict[str, Any] | None, problems: list[str
 def _validate_motion_table(
     section: str, *, require_filled: bool, problems: list[str]
 ) -> dict[str, dict[str, str]]:
-    rows = _table_rows(section)
+    rows = _table_rows(section.split("### Frontend Design Usage", 1)[0])
     expected = [
         "intent id",
         "ui scope / region",
@@ -1483,7 +1560,7 @@ def _validate_target_scope_join(
     scope: dict[str, Any],
     *,
     prd_path: Path,
-    wireframes_path: Path,
+    wireframes_path: Path | None,
     stack_text: str,
     architecture_text: str,
     problems: list[str],
@@ -1493,15 +1570,18 @@ def _validate_target_scope_join(
     except (OSError, UnicodeError) as exc:
         _add(problems, f"cannot read PRD for Approved target scope join: {exc}")
         return
-    wireframe_data = _read_wireframe_data(wireframes_path, problems)
-    if wireframe_data is None:
-        return
+    if wireframes_path is None:
+        wireframe_data = {}
+    else:
+        wireframe_data = _read_wireframe_data(wireframes_path, problems)
+        if wireframe_data is None:
+            return
     _validate_stack_semantics_join(scope, stack_text=stack_text, problems=problems)
     prd_surfaces, prd_findings = parse_prd_ui_contract(
         prd_text,
         require_responsive=True,
-        require_copy=wireframe_data.get("schema") in {"wireframes/4", "wireframes/5"},
-        web_floor=3 if wireframe_data.get("schema") in check_wireframe_html.INTERACTIVE_WIREFRAME_SCHEMAS else 2,
+        require_copy=True if wireframes_path is None else wireframe_data.get("schema") in {"wireframes/4", "wireframes/5"},
+        web_floor=3 if wireframes_path is None or wireframe_data.get("schema") in check_wireframe_html.INTERACTIVE_WIREFRAME_SCHEMAS else 2,
     )
     problems.extend(f"target scope PRD: {finding}" for finding in prd_findings)
     target_by_id = {item.get("id"): item for item in scope.get("surfaces", []) if isinstance(item, dict)}
@@ -1512,12 +1592,12 @@ def _validate_target_scope_join(
         for item in (wireframe_data.get("screens") or [])
         if isinstance(item, dict) and isinstance(item.get("id"), str)
     }
-    if set(target_by_id) != set(screens):
+    if wireframes_path is not None and set(target_by_id) != set(screens):
         _add(problems, "Approved target surfaces must exactly match wireframe screen identities")
     for surface_id, target in target_by_id.items():
         prd = prd_surfaces.get(surface_id)
         screen = screens.get(surface_id)
-        if prd is None or screen is None:
+        if prd is None or (wireframes_path is not None and screen is None):
             continue
         expected_states = list(prd.get("states", []))
         if target.get("route") != (prd.get("routes") or [None])[0] or target.get("states") != expected_states:
@@ -1543,9 +1623,12 @@ def _validate_target_scope_join(
             }
             if target_responsive != expected_responsive:
                 _add(problems, f"Approved target surface {surface_id} responsive set differs from PRD")
-        if target.get("route") != screen.get("route") or {str(item).casefold() for item in target.get("states", [])} != _screen_state_ids(screen):
+        if screen is not None and (
+            target.get("route") != screen.get("route")
+            or {str(item).casefold() for item in target.get("states", [])} != _screen_state_ids(screen)
+        ):
             _add(problems, f"Approved target surface {surface_id} route/states differ from wireframe")
-        if isinstance(wireframe_data.get("responsiveBySurface"), dict):
+        if wireframes_path is not None and isinstance(wireframe_data.get("responsiveBySurface"), dict):
             wireframe_responsive = wireframe_data["responsiveBySurface"].get(surface_id)
             comparable_wireframe_responsive = (
                 {
@@ -1571,10 +1654,15 @@ def _validate_target_scope_join(
     prd_sets = {(entry.get("responsiveKind"), tuple(entry.get("responsiveTargets", []))) for entry in prd_surfaces.values()}
     expected_prd = next(iter(prd_sets), (None, ()))
     target_targets = responsive.get("targets") if isinstance(responsive, dict) else None
-    if scope.get("captureMode") != "mixed" and responsive_by_surface is None:
+    if wireframes_path is not None and scope.get("captureMode") != "mixed" and responsive_by_surface is None:
         if not isinstance(responsive, dict) or responsive.get("kind") != wire_kind or list(target_targets or []) != list(wire_targets):
             _add(problems, "Approved target responsive kind/targets must match wireframe")
         if expected_prd[0] != wire_kind or [str(item) for item in expected_prd[1]] != [str(item) for item in wire_targets]:
+            _add(problems, "Approved target responsive kind/targets must match PRD")
+    elif wireframes_path is None and scope.get("captureMode") != "mixed":
+        if (len(prd_sets) != 1 or not isinstance(responsive, dict)
+                or responsive.get("kind") != expected_prd[0]
+                or [str(item) for item in target_targets or []] != [str(item) for item in expected_prd[1]]):
             _add(problems, "Approved target responsive kind/targets must match PRD")
     capture = scope.get("captureMode")
     release_contract, release_findings = parse_release_targets(architecture_text)
@@ -1619,7 +1707,11 @@ def _validate_target_scope_join(
         elif capture not in expected:
             _add(problems, "Approved target captureMode must match the typed ReleaseTarget surface class")
         expected_kind = "sizeClasses" if capture in {"native", "desktop"} else "viewports"
-        if capture in {"hosted-browser", "browser-extension", "native", "desktop"} and wire_kind != expected_kind:
+        if (
+            wireframes_path is not None
+            and capture in {"hosted-browser", "browser-extension", "native", "desktop"}
+            and wire_kind != expected_kind
+        ):
             _add(problems, "Approved target responsive kind must match captureMode platform")
 
 
@@ -1965,6 +2057,16 @@ def _resolve_evidence(
 def _receipt_date(value: str | None, repo_root: Path) -> date | None:
     """Return the earliest calendar date of a PASS receipt's executedAt, if readable."""
 
+    executed = _receipt_instant(value, repo_root)
+    if executed is None:
+        return None
+    # UTC-12 gives the earliest local date for that instant, so no owner time zone is rejected.
+    return (executed - timedelta(hours=12)).date()
+
+
+def _receipt_instant(value: str | None, repo_root: Path) -> datetime | None:
+    """Return a PASS receipt's executedAt as a UTC instant, if readable."""
+
     match = EVIDENCE_RE.fullmatch((value or "").strip())
     if match is None:
         return None
@@ -1977,8 +2079,7 @@ def _receipt_date(value: str | None, repo_root: Path) -> date | None:
         return None
     if executed.tzinfo is None:
         return None
-    # UTC-12 gives the earliest local date for that instant, so no owner time zone is rejected.
-    return (executed.astimezone(timezone.utc) - timedelta(hours=12)).date()
+    return executed.astimezone(timezone.utc)
 
 
 def _evidence_check(label: str, capture_mode: str | None) -> str | None:
@@ -2398,19 +2499,39 @@ def validate_text(
     require_wireframe_approved: bool = False,
     require_structure_validated: bool = False,
     require_visual_approved: bool = False,
+    require_hifi_preflight: bool = False,
     allow_pending_design_system_pair: bool = False,
 ) -> list[str]:
     text = active_text(text)
     problems: list[str] = []
+    try:
+        current = ui_contract_version(text) == UI_CONTRACT_CURRENT
+    except ValueError as exc:
+        return [f"UI contract marker: {exc}"]
     positions: list[int] = []
     sections: dict[str, str] = {}
     modern = is_structure_review(text)
+    if current:
+        modern = True
+        if re.search(r"^## Wireframe (?:Approval|Validation)\s*$", text, re.MULTILINE):
+            _add(problems, "ui-design/2 must not contain a legacy Wireframe gate")
+        if re.search(r"^\|\s*wireframe\s*\|", text, re.MULTILINE | re.IGNORECASE):
+            _add(problems, "ui-design/2 must not declare wireframe authoring usage")
     structural_gate = require_structure_validated or require_wireframe_approved or require_visual_approved
-    if modern and require_wireframe_approved:
+    if require_hifi_preflight:
+        require_filled = True
+        structural_gate = True
+        if not current:
+            _add(problems, "--require-hifi-preflight requires UI contract: ui-design/2")
+    if current and (require_wireframe_approved or require_structure_validated):
+        _add(problems, "--require-wireframe-approved and --require-structure-validated are legacy gates; use --require-visual-approved")
+    elif modern and require_wireframe_approved:
         _add(problems, "--require-wireframe-approved is a legacy gate; use --require-structure-validated")
-    if require_structure_validated and not modern:
+    elif require_structure_validated and not modern:
         _add(problems, "--require-structure-validated requires Wireframe Validation")
-    headings = tuple(wireframe_heading(text) if item == "## Wireframe Approval" else item for item in REQUIRED_HEADINGS)
+    headings = REQUIRED_HEADINGS_CURRENT if current else tuple(
+        wireframe_heading(text) if item == "## Wireframe Approval" else item for item in REQUIRED_HEADINGS
+    )
     for heading in headings:
         matches = list(re.finditer(rf"^{re.escape(heading)}\s*$", text, re.MULTILINE))
         if len(matches) != 1:
@@ -2420,7 +2541,7 @@ def validate_text(
         section = _section(text, heading)
         if section is not None:
             sections[heading] = section
-    if len(positions) == len(REQUIRED_HEADINGS) and positions != sorted(positions):
+    if len(positions) == len(headings) and positions != sorted(positions):
         _add(problems, "required headings are out of order")
 
     source = sections.get("## Source Product Definition")
@@ -2492,7 +2613,7 @@ def validate_text(
             motion, require_filled=require_filled, problems=problems
         )
 
-    wireframe = sections.get(wireframe_heading(text))
+    wireframe = None if current else sections.get(wireframe_heading(text))
     wireframe_source_ok = False
     wireframe_path: Path | None = None
     if wireframe is not None:
@@ -2590,9 +2711,13 @@ def validate_text(
                 _add(problems, "Wireframe blocks must be none")
 
     if modern and (require_filled or structural_gate):
-        problems.extend(author_usage_findings(text, require_hifi=require_visual_approved))
+        problems.extend(author_usage_findings(
+            text,
+            require_hifi=require_visual_approved or require_hifi_preflight,
+            require_wireframe=not current,
+        ))
 
-    if require_visual_approved:
+    if require_visual_approved or require_hifi_preflight:
         style = sections.get("## Style Integration", "")
         style_values = _require_fields(
             style,
@@ -2629,6 +2754,7 @@ def validate_text(
             problems,
         )
 
+    if require_visual_approved:
         review = sections.get("## HiFi Review", "")
         review_values = _require_fields(
             review,
@@ -2785,7 +2911,7 @@ def validate_text(
                     "not_required Design System Need Gate must not name a compiled pair",
                 )
             if len(replacement) == 1:
-                _replacement_parts(replacement[0], problems)
+                _replacement_parts(replacement[0], problems, include_wireframe=not current)
 
         disposition = gate_values.get("Existing design-system pair disposition", "")
         disposition_match = PAIR_DISPOSITION_RE.fullmatch(disposition.strip())
@@ -2827,28 +2953,40 @@ def _validate_impl(
     require_wireframe_approved: bool = False,
     require_structure_validated: bool = False,
     require_visual_approved: bool = False,
+    require_hifi_preflight: bool = False,
     require_current_hifi_evidence: bool = False,
+    apply_current_hifi_cutover: bool = False,
 ) -> list[str]:
     try:
         text = ui_design_path.read_text(encoding="utf-8")
     except (OSError, UnicodeError) as exc:
         return [f"ui-design: cannot read UTF-8 file {ui_design_path}: {exc}"]
+    try:
+        current = ui_contract_version(text) == UI_CONTRACT_CURRENT
+    except ValueError as exc:
+        return [f"UI contract marker: {exc}"]
+    require_hifi_preflight = require_hifi_preflight or (current and require_visual_approved)
     problems = validate_text(
         text,
         require_filled=require_filled,
         require_wireframe_approved=require_wireframe_approved,
         require_structure_validated=require_structure_validated,
         require_visual_approved=require_visual_approved,
+        require_hifi_preflight=require_hifi_preflight,
         allow_pending_design_system_pair=_allow_pending_design_system_pair,
     )
 
     active = active_text(text)
-    modern = is_structure_review(active)
+    try:
+        current = ui_contract_version(active) == UI_CONTRACT_CURRENT
+    except ValueError as exc:
+        return problems + [f"UI contract marker: {exc}"]
+    modern = current or is_structure_review(active)
     # A new or changed HiFi approval always needs current evidence; only an
     # unchanged historical legacy approval keeps its ui-evidence/2 receipts.
     current_hifi = modern or require_current_hifi_evidence
-    needs_repo_root = require_filled or require_structure_validated or require_wireframe_approved or require_visual_approved
-    approved_gate = require_structure_validated or require_wireframe_approved or require_visual_approved
+    needs_repo_root = require_filled or require_structure_validated or require_wireframe_approved or require_visual_approved or require_hifi_preflight
+    approved_gate = require_structure_validated or require_wireframe_approved or require_visual_approved or require_hifi_preflight
     if needs_repo_root and repo_root is None:
         _add(problems, "source verification requires --repo-root")
         return problems
@@ -2858,7 +2996,7 @@ def _validate_impl(
 
     root = repo_root.resolve()
     source = _section(active, "## Source Product Definition") or ""
-    wireframe = _section(active, wireframe_heading(active)) or ""
+    wireframe = "" if current else _section(active, wireframe_heading(active)) or ""
     style = _section(active, "## Style Integration") or ""
     visual = _section(active, "## Visual Approval") or ""
     gate = _section(active, "## Design System Need Gate") or ""
@@ -2872,16 +3010,18 @@ def _validate_impl(
     recorded_target = _field(visual, "Approved target")
     for name, value in source_values.items():
         _resolve_source(value, repo_root=root, label=name, problems=problems)
-    _resolve_source(recorded_wireframe, repo_root=root, label="Wireframe", problems=problems)
-    _resolve_source(
-        _field(wireframe, "Frozen PRD basis"),
-        repo_root=root,
-        label="Frozen PRD basis",
-        problems=problems,
-    )
-    if not modern or require_visual_approved:
+    if not current:
+        _resolve_source(recorded_wireframe, repo_root=root, label="Wireframe", problems=problems)
+        _resolve_source(
+            _field(wireframe, "Frozen PRD basis"),
+            repo_root=root,
+            label="Frozen PRD basis",
+            problems=problems,
+        )
+    if require_hifi_preflight or not modern or require_visual_approved:
         _resolve_source(recorded_hifi, repo_root=root, label="Connected HiFi reference", problems=problems)
-        _resolve_target_source(recorded_target, repo_root=root, label="Approved target", problems=problems)
+        if require_visual_approved or not modern:
+            _resolve_target_source(recorded_target, repo_root=root, label="Approved target", problems=problems)
 
     if require_visual_approved:
         _direction_comparison(style, _section(active, "## UI Design Intake") or "", None, problems, repo_root=root)
@@ -2900,6 +3040,7 @@ def _validate_impl(
                     require_filled=True,
                     require_approved=True,
                     repo_root=root,
+                    ui_contract=UI_CONTRACT_CURRENT if current else None,
                 )
                 problems.extend(f"product-definition: {item}" for item in product_problems)
             except (ImportError, OSError, UnicodeError) as exc:
@@ -2914,13 +3055,15 @@ def _validate_impl(
         label="PRD",
         problems=problems,
     ) if approved_gate else prd_path
-    checked_wireframe = _require_exact_cli_path(
-        wireframes_path,
-        recorded_wireframe,
-        repo_root=root,
-        label="Wireframe",
-        problems=problems,
-    ) if approved_gate else wireframes_path
+    checked_wireframe = (
+        None if current else _require_exact_cli_path(
+            wireframes_path,
+            recorded_wireframe,
+            repo_root=root,
+            label="Wireframe",
+            problems=problems,
+        ) if approved_gate else wireframes_path
+    )
 
     target_scope_for_evidence = _target_scope(recorded_target, "Approved target", problems) if approved_gate and (not modern or require_visual_approved) else None
     capture_mode = (
@@ -2947,16 +3090,82 @@ def _validate_impl(
         }
     # Legacy wireframe receipts keep their historical target-derived contract.
     wireframe_capture_mode, wireframe_matrix = capture_mode, evidence_matrix
-    if modern and checked_wireframe is not None:
+    if not current and modern and checked_wireframe is not None:
         data_for_matrix = _read_wireframe_data(checked_wireframe, problems)
         if isinstance(data_for_matrix, dict):
             wireframe_capture_mode, wireframe_matrix = _wireframe_evidence_contract(
                 data_for_matrix, _release_classes(root, source_values.get("Architecture source")))
+    motion_intents_for_evidence: dict[str, dict[str, str]] = {}
+    motion_effect_evidence: dict[str, dict[str, str]] = {}
+    receipt_dates: list[date] = []
+    decided_on = _field(visual, "Decided on")
+    if require_visual_approved:
+        motion_intents_for_evidence = _validate_motion_table(
+            _section(active, "## Motion And Media Intent") or "",
+            require_filled=True,
+            problems=problems,
+        )
+        motion_effect_evidence = _motion_effect_evidence(
+            style,
+            motion_intents_for_evidence,
+            problems,
+        )
+        review_section = _section(active, "## HiFi Review") or ""
+        receipt_values = [
+            *(_field(review_section, name) for name in ("Impeccable critique", "Impeccable audit", "UI grading", "HiFi surface check")),
+            *(f"PASS — evidence={item['path']} @ sha256:{item['sha256']}" for item in motion_effect_evidence.values()),
+        ]
+        receipt_dates = [
+            receipt_date
+            for value in receipt_values
+            if (receipt_date := _receipt_date(value, root)) is not None
+        ]
+        receipt_times = [
+            receipt_time
+            for value in receipt_values
+            if (receipt_time := _receipt_instant(value, root)) is not None
+        ]
+        # Dated rule: a legacy approval decided, or backed by HiFi evidence,
+        # on or after the 0.55.0 cutover is never historical.
+        if apply_current_hifi_cutover and current_hifi_cutover_applies(decided_on, receipt_times):
+            current_hifi = True
     if modern and approved_gate:
-        problems.extend(author_artifact_findings(root, active, require_hifi=require_visual_approved))
+        problems.extend(author_artifact_findings(
+            root,
+            active,
+            require_hifi=require_visual_approved or require_hifi_preflight,
+            require_wireframe=not current,
+        ))
     elif current_hifi and require_visual_approved:
         # A legacy wireframe keeps its historical approval; it has no usage row to backfill.
         problems.extend(author_artifact_findings(root, active, require_hifi=True, require_wireframe=False))
+    if require_hifi_preflight:
+        checked_hifi = _require_exact_cli_path(
+            hifi_path,
+            recorded_hifi,
+            repo_root=root,
+            label="HiFi",
+            problems=problems,
+        )
+        if checked_hifi is not None:
+            _validate_hifi_surface(
+                checked_hifi,
+                problems,
+                require_connected=True,
+                require_reviewer_v3=current,
+            )
+            try:
+                html = checked_hifi.read_text(encoding="utf-8")
+                matches = list(HIFI_MANIFEST_RE.finditer(html))
+                manifest = json.loads(matches[0].group("data")) if len(matches) == 1 else None
+                if not isinstance(manifest, dict) or manifest.get("schema") != "ui-hifi/2":
+                    raise ValueError("cheap preflight requires ui-hifi/2")
+                documents = _hifi_bundle_documents(checked_hifi, html, manifest)
+                if checked_prd is not None:
+                    prd_text = checked_prd.read_text(encoding="utf-8")
+                    problems.extend(hifi_prd_findings(prd_text, manifest, documents))
+            except (OSError, UnicodeError, ValueError, TypeError, json.JSONDecodeError) as exc:
+                _add(problems, f"HiFi completeness preflight cannot run: {exc}")
     if require_visual_approved:
         checked_hifi = _require_exact_cli_path(
             hifi_path,
@@ -2974,30 +3183,10 @@ def _validate_impl(
                 label="Connected HiFi reference",
                 problems=problems,
             )
-        motion_intents_for_evidence = _validate_motion_table(
-            _section(active, "## Motion And Media Intent") or "",
-            require_filled=True,
-            problems=problems,
-        )
-        motion_effect_evidence = _motion_effect_evidence(
-            style,
-            motion_intents_for_evidence,
-            problems,
-        )
-        decided_on = _field(visual, "Decided on")
         # A retained historical approval keeps its original meaning, so only
         # current HiFi evidence is dated against the owner's decision.
         if current_hifi and _date(decided_on):
-            review_section = _section(active, "## HiFi Review") or ""
-            receipt_dates = [
-                receipt_date
-                for value in [
-                    *(_field(review_section, name) for name in ("Impeccable critique", "Impeccable audit", "UI grading", "HiFi surface check")),
-                    *(f"PASS — evidence={item['path']} @ sha256:{item['sha256']}" for item in motion_effect_evidence.values()),
-                ]
-                if (receipt_date := _receipt_date(value, root)) is not None
-            ]
-            if receipt_dates and date.fromisoformat(decided_on.strip()) < max(receipt_dates):
+            if receipt_dates and date.fromisoformat((decided_on or "").strip()) < max(receipt_dates):
                 _add(problems, "Visual Approval Decided on predates the newest HiFi review evidence; the owner must decide on the current candidate")
         for field_name in (
             "Impeccable critique",
@@ -3041,7 +3230,7 @@ def _validate_impl(
             ):
                 _add(problems, "Connected HiFi reference and Approved target must be identical")
 
-    if approved_gate:
+    if approved_gate and not current:
         for field_name in ("Responsive surface check", "UI grading"):
             _resolve_evidence(
                 _field(wireframe, field_name),
@@ -3098,7 +3287,7 @@ def _validate_impl(
         except (OSError, UnicodeError, ValueError, TypeError) as exc:
             _add(problems, f"operation coverage cannot be established: {exc}")
 
-    if require_visual_approved and checked_prd is not None and checked_wireframe is not None:
+    if require_visual_approved and checked_prd is not None and (current or checked_wireframe is not None):
         scope = _target_scope(recorded_target, "Approved target", problems)
         architecture_match = SOURCE_RE.fullmatch((source_values.get("Architecture source") or "").strip())
         stack_match = SOURCE_RE.fullmatch((source_values.get("Stack source") or "").strip())
@@ -3164,11 +3353,15 @@ def _validate_impl(
                         _add(problems, f"cannot read compiled design system pair: {exc}")
                     else:
                         if isinstance(pair_registry, dict):
+                            expected_schema = "design-system/3" if current else "design-system/2"
+                            if pair_registry.get("schema") != expected_schema:
+                                _add(problems, f"compiled pair must use {expected_schema} for this UI contract")
                             pair_problems = compare_pair(
                                 pair_markdown,
                                 pair_registry,
                                 require_filled=True,
                                 repo_root=root,
+                                apply_current_hifi_cutover=apply_current_hifi_cutover,
                             )
                             problems.extend(f"design-system pair: {item}" for item in pair_problems)
                             bindings = pair_registry.get("sourceBindings")
@@ -3197,15 +3390,16 @@ def _validate_impl(
                                 if actual.get("path") != expected_match.group("path") or actual.get("sha256") != expected_match.group("sha256"):
                                     _add(problems, f"compiled pair sourceBindings.{key} does not match UI/Product identities")
         elif gate_decision == "not_required":
-            parts = _replacement_parts(replacement, problems)
+            parts = _replacement_parts(replacement, problems, include_wireframe=not current)
             if design_system_markdown_path is not None or design_system_registry_path is not None:
                 _add(problems, "not_required Design System Need Gate must not receive compiled pair CLI paths")
             expected_values = {
                 "prd": recorded_prd,
-                "wireframe": recorded_wireframe,
                 "target": None,
                 "ui-design": None,
             }
+            if not current:
+                expected_values["wireframe"] = recorded_wireframe
             target_match = TARGET_SOURCE_RE.fullmatch((recorded_target or "").strip())
             if target_match is not None:
                 expected_values["target"] = (
@@ -3258,13 +3452,18 @@ def validate(
     require_wireframe_approved: bool = False,
     require_structure_validated: bool = False,
     require_visual_approved: bool = False,
+    require_hifi_preflight: bool = False,
     require_current_hifi_evidence: bool = False,
+    apply_current_hifi_cutover: bool = False,
 ) -> list[str]:
     """Validate a UI contract for normal publication.
 
     ``require_current_hifi_evidence`` makes a legacy-heading contract meet the
     current HiFi evidence rules. Publication sets it unless the Approved target
-    equals the one already recorded at HEAD.
+    equals the one already recorded at HEAD. ``apply_current_hifi_cutover``
+    also requires them when the approval or any HiFi receipt is dated on or
+    after the 0.55.0 cutover; publication, the compiler preflight and the
+    Harness UI and pair joins for gated RUNs set it.
 
     Pair verification is deliberately not a caller-selectable boolean.  The
     only pair-less route is the exact compiler preflight below, which requires
@@ -3283,7 +3482,9 @@ def validate(
         require_wireframe_approved=require_wireframe_approved,
         require_structure_validated=require_structure_validated,
         require_visual_approved=require_visual_approved,
+        require_hifi_preflight=require_hifi_preflight,
         require_current_hifi_evidence=require_current_hifi_evidence,
+        apply_current_hifi_cutover=apply_current_hifi_cutover,
     )
 
 
@@ -3294,14 +3495,17 @@ def _validate_for_design_system_preflight(
     prd_path: Path,
     wireframes_path: Path,
     hifi_path: Path,
+    apply_current_hifi_cutover: bool = True,
 ) -> list[str]:
     """Validate an exact required-gate candidate immediately before compile.
 
     This is intentionally the sole internal pair-less entry point.  It is not
     exposed as a CLI switch and refuses to run without every upstream source
-    and the final visual gate.
+    and the final visual gate. It applies the dated current-HiFi cutover rule
+    unless a Harness join for an older RUN turns it off.
     """
 
+    text = ui_design_path.read_text(encoding="utf-8")
     return _validate_impl(
         ui_design_path,
         repo_root=repo_root,
@@ -3309,9 +3513,10 @@ def _validate_for_design_system_preflight(
         wireframes_path=wireframes_path,
         hifi_path=hifi_path,
         require_filled=True,
-        require_wireframe_approved=not is_structure_review(ui_design_path.read_text(encoding="utf-8")),
-        require_structure_validated=is_structure_review(ui_design_path.read_text(encoding="utf-8")),
+        require_wireframe_approved=ui_contract_version(text) == "legacy" and not is_structure_review(text),
+        require_structure_validated=is_structure_review(text),
         require_visual_approved=True,
+        apply_current_hifi_cutover=apply_current_hifi_cutover,
         _allow_pending_design_system_pair=True,
     )
 
@@ -3329,6 +3534,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--require-wireframe-approved", action="store_true")
     parser.add_argument("--require-structure-validated", action="store_true")
     parser.add_argument("--require-visual-approved", action="store_true")
+    parser.add_argument("--require-hifi-preflight", action="store_true")
     return parser.parse_args(argv)
 
 
@@ -3346,6 +3552,7 @@ def main(argv: list[str] | None = None) -> int:
         require_wireframe_approved=args.require_wireframe_approved,
         require_structure_validated=args.require_structure_validated,
         require_visual_approved=args.require_visual_approved,
+        require_hifi_preflight=args.require_hifi_preflight,
     )
     if problems:
         for problem in problems:

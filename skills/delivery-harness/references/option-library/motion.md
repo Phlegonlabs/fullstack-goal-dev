@@ -54,6 +54,6 @@ PRD 先記錄產品行為、平台、無障礙與效能約束；具體動效偏�
 
 ## 沿用既有 Skill 分工
 
-若專案已選 GSAP：一般補間可參考 `gsap-core`；需要多元素順序、重疊和控制時參考 `gsap-timeline`；只有捲動觸發／進度／pin 需求才參考 `gsap-scrolltrigger`。實際使用遵循各 skill 自身入口與專案既有授權，不因文件提到便自動呼叫。Motion、CSS 或原生動畫已足夠時，不額外引入 GSAP。Three.js 只用在已核准的 3D 區塊，不拿來做一般 UI 動效。
+若專案已選 GSAP：一般補間可參考 `gsap-core`；需要多元素順序、重疊和控制時參考 `gsap-timeline`；只有捲動觸發／進度／pin 需求才參考 `gsap-scrolltrigger`。這些是可選的外部 skill，安裝器不隨附；缺少時不新增安裝授權，也不改變已選動效路線。實際使用遵循各 skill 自身入口與專案既有授權，不因文件提到便自動呼叫。Motion、CSS 或原生動畫已足夠時，不額外引入 GSAP。Three.js 只用在已核准的 3D 區塊，不拿來做一般 UI 動效。
 
 `motion-doctrine` 可作動畫意圖與節奏的參考；HyperFrames／Remotion 類技能用在影片資產，不等同 live UI 動效。Taste／GPT Taste 的動畫偏好只提供方向，不能覆蓋 PRD、reduced motion 或效能需求。採納結論寫入既有 ui-design／motion specification 與驗收紀錄。

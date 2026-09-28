@@ -260,7 +260,11 @@ def _bind_posix_launcher(path: Path, *, executable: bool = True) -> tuple[str, i
         if not os.path.isfile(path) or (executable and not (info.st_mode & 0o111)):
             os.close(fd)
             raise RuntimeError(f"launcher is not executable: {path}")
-        for candidate in (f"/proc/self/fd/{fd}", f"/dev/fd/{fd}"):
+        # macOS lists /dev/fd/N but refuses to execute it; only reads work there.
+        candidates = [f"/proc/self/fd/{fd}"]
+        if not (executable and sys.platform == "darwin"):
+            candidates.append(f"/dev/fd/{fd}")
+        for candidate in candidates:
             if Path(candidate).exists():
                 return candidate, fd
         os.close(fd)

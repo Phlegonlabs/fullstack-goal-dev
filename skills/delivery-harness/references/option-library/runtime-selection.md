@@ -24,7 +24,7 @@
 
 ## 事實與推論分界
 
-Cloudflare Workers、Workers limits、compatibility flags、Python Workers 與 Cloudflare changelog 的能力描述來自官方內文。Node.js、Deno 與 Bun 官方正文已補查。具體套件相容性仍需測試。跨 runtime 的風險判斷、容器優先、工具沙箱與紀錄設計是研究推論，不是已驗證的平台結論。
+Cloudflare Workers、Workers limits 與 compatibility flags 的能力描述有 sources.md 所列官方來源。Python Workers 與 Cloudflare changelog 未在來源清單留存，相關能力須在採納前補查。Node.js、Deno 與 Bun 官方正文已補查。具體套件相容性仍需測試。跨 runtime 的風險判斷、容器優先、工具沙箱與紀錄設計是研究推論，不是已驗證的平台結論。
 
 ## 成本與移轉差異（整理判斷）
 

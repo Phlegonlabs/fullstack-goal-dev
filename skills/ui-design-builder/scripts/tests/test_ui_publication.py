@@ -1,5 +1,6 @@
 """Publication checkout paths retain approval identities and upstream history."""
 import hashlib
+import json
 import shutil
 import subprocess
 import sys
@@ -10,6 +11,32 @@ from pathlib import Path
 from test_ui_design_contract import materialize_publication
 import check_ui_publication as publication
 from ui_approval_digest import canonical_ui_approval_sha256
+
+
+# After the 0.55.0 cutover instant, and still on 2026-09-27 under the UTC-12
+# receipt date that the "Decided on predates" check uses.
+POST_CUTOVER_RECEIPT = "2026-09-27T20:00:00Z"
+# After the cutover instant, but 2026-09-26 under the UTC-12 receipt date.
+RELEASE_DAY_RECEIPT = "2026-09-27T08:00:00Z"
+PRE_CUTOVER_RECEIPT = "2020-01-01T00:00:00Z"
+DATED_CASES = (
+    # (Visual Approval Decided on, HiFi receipt executedAt, historical)
+    ("2026-09-26", PRE_CUTOVER_RECEIPT, True),
+    ("2026-09-27", PRE_CUTOVER_RECEIPT, False),
+    # A backdated approval cannot hide post-cutover HiFi evidence.
+    ("2026-09-26", POST_CUTOVER_RECEIPT, False),
+    # Time-zone rounding cannot move a release-day receipt before the cutover.
+    ("2026-09-26", RELEASE_DAY_RECEIPT, False),
+)
+
+
+def assert_current_hifi_findings(test, findings, backdated):
+    joined = "\n".join(findings)
+    test.assertIn("requires ui-evidence/3 machine observation", joined)
+    test.assertIn("reviewer shell version 3", joined)
+    test.assertIn("Frontend Design Usage", joined)
+    if backdated:
+        test.assertIn("Decided on predates the newest HiFi review evidence", joined)
 
 
 class PublicationTests(unittest.TestCase):
@@ -102,6 +129,66 @@ class PublicationTests(unittest.TestCase):
                 self.assertIn("requires ui-evidence/3 machine observation", findings)
                 self.assertIn("reviewer shell version 3", findings)
                 self.assertIn("Frontend Design Usage", findings)
+
+    def test_dated_legacy_approval_needs_current_hifi_even_when_committed(self):
+        # The approval is committed at HEAD unchanged; only its decision and
+        # HiFi receipt dates decide whether ui-evidence/2 HiFi receipts may stay.
+        for decided_on, executed_at, historical in DATED_CASES:
+            with self.subTest(decided_on=decided_on, executed_at=executed_at), \
+                    tempfile.TemporaryDirectory() as temp:
+                source, candidate = Path(temp) / "source", Path(temp) / "candidate"
+                source.mkdir()
+                materialize_publication(source, required=False, visual_decided_on=decided_on,
+                                        hifi_executed_at=executed_at)
+                def git(*args):
+                    subprocess.run(["git", "-C", str(source), *args], check=True, capture_output=True)
+                git("init", "-q")
+                git("add", ".")
+                git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+                    "-c", "commit.gpgsign=false", "commit", "-qm", "fixture")
+                shutil.copytree(source, candidate)
+                findings = publication.validate(
+                    source, candidate, hifi=Path("docs/design/ui-references/run-1/index.html"))
+                if historical:
+                    self.assertEqual([], findings)
+                else:
+                    assert_current_hifi_findings(self, findings, executed_at == POST_CUTOVER_RECEIPT)
+
+    def test_compiler_preflight_applies_the_dated_current_hifi_rule(self):
+        import check_design_system_pair
+        for decided_on, executed_at, historical in DATED_CASES:
+            with self.subTest(decided_on=decided_on, executed_at=executed_at), \
+                    tempfile.TemporaryDirectory() as temp:
+                root = Path(temp)
+                _, _, _, _, _, pair = materialize_publication(
+                    root, required=True, visual_decided_on=decided_on, hifi_executed_at=executed_at)
+                problems = check_design_system_pair.compare(
+                    pair[0].read_text(encoding="utf-8"),
+                    json.loads(pair[1].read_text(encoding="utf-8")),
+                    require_filled=True, repo_root=root)
+                if historical:
+                    self.assertEqual([], problems)
+                else:
+                    self.assertIn("ui-design: ", "\n".join(problems))
+                    assert_current_hifi_findings(self, problems, executed_at == POST_CUTOVER_RECEIPT)
+                    # A Harness join for an older RUN turns the dated rule off.
+                    self.assertEqual([], check_design_system_pair.compare(
+                        pair[0].read_text(encoding="utf-8"),
+                        json.loads(pair[1].read_text(encoding="utf-8")),
+                        require_filled=True, repo_root=root, apply_current_hifi_cutover=False))
+
+    def test_current_hifi_cutover_boundaries(self):
+        from datetime import datetime, timezone
+        applies = publication.ui.current_hifi_cutover_applies
+        def utc(*parts):
+            return datetime(*parts, tzinfo=timezone.utc)
+        self.assertFalse(applies("2026-09-26", []))
+        self.assertFalse(applies("2026-09-26", [utc(2026, 9, 26, 23, 59, 59)]))
+        self.assertTrue(applies("2026-09-26", [utc(2026, 9, 1), utc(2026, 9, 27)]))
+        self.assertTrue(applies("2026-09-26", [utc(2026, 9, 27, 8)]))
+        self.assertTrue(applies("2026-09-27", []))
+        self.assertTrue(applies("later", []))
+        self.assertTrue(applies(None, []))
 
     def test_digest_cli_is_stable_across_derived_linkage(self):
         text = "# UI\n\nApproved direction\nCompiled design system pair: pending\n"

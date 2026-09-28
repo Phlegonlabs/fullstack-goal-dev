@@ -23,13 +23,13 @@ Expected coordination:
 Requested actions, pending explicit user authorization:
 - <one or more exact ledger keys, or none>
 
-For automatic app-task fan-out, request the local execution bundle `create_user_owned_tasks`, `create_app_managed_worktrees`, `create_local_branches`, `create_local_commits`, and `integrate_locally` with exact scope. Workers never delegate. Harness 0.38 RUN push stays false; any later archive-candidate publication needs a new action-time request after A exists.
+For automatic app-task fan-out, request the local execution bundle `create_user_owned_tasks`, `create_app_managed_worktrees`, `create_local_branches`, `create_local_commits`, and `integrate_locally` with exact scope. Workers never delegate. Harness 0.38+ RUN push stays false; any later archive-candidate publication needs a new action-time request after A exists.
 
 For native sibling-agent fan-out with isolated mission writes, request the local bundle `spawn_subagents`, `create_local_worktrees`, `create_local_branches`, `create_local_commits`, and `integrate_locally` with exact scope. The parent allocates one worktree per mission and runs one flat workflow. This requests local approval only; it grants no post-archive publication.
 
-For a large route with no usable agent capability, select `sequential_parent` and follow the Sequential Parent Route in `skills/delivery-harness/references/execution-state-model.md`: the PLAN mission keeps `executor: runtime_worker`, RUN records the parent-owned binding solely for lease/state validation, and the parent executes one mission at a time under the same PLAN/RUN graph and exact-head review gates.
+For a large route with no usable agent capability, select `sequential_parent` and follow the Sequential Parent Route in `<delivery-harness-skill-root>/references/execution-state-model.md` (resolve the installed skill root first): the PLAN mission keeps `executor: runtime_worker`, RUN records the parent-owned binding solely for lease/state validation, and the parent executes one mission at a time under the same PLAN/RUN graph and exact-head review gates.
 
-For ordinary mission work, resolve the non-protected run branch from observed `main`. Harness 0.38 RUNs close `local_only` at C. Archive with exact main evidence and an immutable external anchor, commit the moved set plus `ARCHIVE_RECEIPT.json` as A, and reverify it against that anchor. A new exact instruction plus external request/attempt/receipt may publish A. Candidate gates and separate exact-A `main` promotion follow. Never recreate `development` or force-push.
+For ordinary mission work, resolve the non-protected run branch from observed `main`. Harness 0.38+ RUNs close `local_only` at C. Archive with exact main evidence and an immutable external anchor, commit the moved set plus `ARCHIVE_RECEIPT.json` as A, and reverify it against that anchor. A new exact instruction plus external request/attempt/receipt may publish A. Candidate gates and separate exact-A `main` promotion follow. Never recreate `development` or force-push.
 
 Before any implementation, map every must-have requirement to a trace, dependency-ordered mission, immutable flat task ID, supported write/deny scope, complete typed resource inventory, worker verifier, integration verifier, and final gate. Write static definitions to PLAN.md and live state to the canonical JSON in RUN.md. Validate plan structure and pass the Plan Readiness Gate.
 
@@ -48,13 +48,13 @@ Stop on requirements conflict, unsupported scope/resource claims, stale plan dig
 
 - [ ] One objective and stopping condition are explicit.
 - [ ] Canonical sources are linked, not duplicated.
-- [ ] UI-bearing work freezes the human-owned `ui-design.md`, approved wireframe, Style Integration, Impeccable HiFi review, H1-H9 result, Visual Approval, and required validation depth; owner approval is not representative-user usability proof.
+- [ ] UI-bearing work freezes the human-owned `ui-design.md` (`ui-design/2`), complete approved HiFi package, Style Integration, Impeccable HiFi review, H1-H9 result, Visual Approval, and required validation depth (a pinned legacy contract also freezes its approved wireframe); owner approval is not representative-user usability proof.
 - [ ] PLAN contains the complete static trace, mission/task DAG, scopes, resources, and verifiers.
 - [ ] RUN contains the matching plan revision/digest and current observed facts.
 - [ ] Provider, observed drivers, selected route, runtime, workspace, and completion channel are recorded consistently.
 - [ ] Plan Readiness passes before implementation begins.
 - [ ] Every needed action is explicitly authorized in RUN; all other ledger entries remain false.
-- [ ] The Harness 0.38 RUN is verified `local_only` with push false. Archive-only A has exact relocation proof; any run-branch publication has an external request/attempt/receipt and exact read-back. `main` promotion has separate authorization and full A evidence.
+- [ ] The Harness 0.38+ RUN is verified `local_only` with push false. Archive-only A has exact relocation proof; any run-branch publication has an external request/attempt/receipt and exact read-back. `main` promotion has separate authorization and full A evidence.
 - [ ] UI evidence and final E2E gates are defined when applicable, including the automated E2E command, current-head check/evidence, target environment, and manual-smoke disposition.
 - [ ] The fixed integration base and post-batch recomputation rule are recorded.
 - [ ] Destructive actions and external writes remain separate approval boundaries.

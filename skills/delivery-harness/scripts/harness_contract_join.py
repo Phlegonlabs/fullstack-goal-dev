@@ -329,6 +329,9 @@ def normalized_responsive(
 WEB_VIEWPORT_FLOOR_VERSION = (0, 34, 0)
 UI_DESIGN_CONTRACT_REQUIRED_VERSION = (0, 37, 0)
 STRICT_UI_AUTHORITY_VERSION = (0, 38, 0)
+# 0.55.1 is the release that adds the UI checker's dated current-HiFi rule
+# to the UI and pair joins. A RUN frozen under 0.55.0 keeps its old meaning.
+CURRENT_HIFI_EVIDENCE_VERSION = (0, 55, 1)
 
 
 _STRICT_SOURCE_SPECS: dict[str, dict[str, Any]] = {
@@ -384,6 +387,12 @@ def strict_ui_authority_required(run: dict[str, Any] | None) -> bool:
             run_required_harness_version(run), STRICT_UI_AUTHORITY_VERSION
         )
     )
+
+
+def wireframe_free_required(run: dict[str, Any] | None) -> bool:
+    """Only a pinned 0.56+ RUN selects the new UI source family."""
+    return bool(isinstance(run, dict) and version_at_least(
+        run_required_harness_version(run), (0, 56, 0)))
 
 
 def web_viewport_floor_required(run: dict[str, Any] | None) -> bool:
@@ -1741,6 +1750,7 @@ def full_product_package_checker_errors(
     *,
     sibling_scripts: Path | None = None,
     repo_root: str | Path | None = None,
+    ui_contract: str | None = None,
 ) -> list[str]:
     """Run Product Definition's approval checker on frozen core-package bytes."""
 
@@ -1770,6 +1780,8 @@ def full_product_package_checker_errors(
     }
     if repo_root is not None and "repo_root" in inspect.signature(validate_package).parameters:
         kwargs["repo_root"] = Path(repo_root)
+    if ui_contract is not None:
+        kwargs["ui_contract"] = ui_contract
     try:
         return validate_package(
             prd_text,
@@ -1789,13 +1801,20 @@ def full_ui_design_checker_errors_at_paths(
     *,
     repo_root: Path,
     prd_path: Path,
-    wireframes_path: Path,
+    wireframes_path: Path | None,
     hifi_path: Path,
     design_system_markdown_path: Path | None = None,
     design_system_registry_path: Path | None = None,
     sibling_scripts: Path | None = None,
+    apply_current_hifi_cutover: bool = False,
 ) -> list[str]:
-    """Run the canonical UI checker against the actual repository paths."""
+    """Run the canonical UI checker against the actual repository paths.
+
+    ``apply_current_hifi_cutover`` (set for Harness 0.55.1+ RUNs) applies the
+    UI checker's dated rule: a legacy-heading Visual Approval decided on or
+    after the 0.55.0 cutover, or backed by a HiFi receipt from then on, must
+    carry current HiFi evidence.
+    """
 
     scripts = sibling_scripts or sibling_ui_design_scripts_dir()
     try:
@@ -1812,6 +1831,12 @@ def full_ui_design_checker_errors_at_paths(
             f"(missing {scripts / 'check_ui_design_contract.py'})"
         ]
     try:
+        view, findings = _load_ui_contract_view(scripts)(ui_design_path.read_text(encoding="utf-8"))
+        if findings:
+            return findings
+        legacy_flags = {} if view.get("contract_version") == "ui-design/2" else (
+            {"require_structure_validated": True} if view.get("structure_review")
+            else {"require_wireframe_approved": True})
         return validate_ui_design(
             ui_design_path,
             repo_root=repo_root,
@@ -1821,8 +1846,9 @@ def full_ui_design_checker_errors_at_paths(
             design_system_markdown_path=design_system_markdown_path,
             design_system_registry_path=design_system_registry_path,
             require_filled=True,
-            **({"require_structure_validated": True} if _load_ui_contract_view(scripts)(ui_design_path.read_text(encoding="utf-8"))[0].get("structure_review") else {"require_wireframe_approved": True}),
+            **legacy_flags,
             require_visual_approved=True,
+            apply_current_hifi_cutover=apply_current_hifi_cutover,
         )
     except Exception as exc:
         return [
@@ -1837,8 +1863,13 @@ def full_design_system_checker_errors_at_paths(
     *,
     repo_root: Path,
     sibling_scripts: Path | None = None,
+    apply_current_hifi_cutover: bool = False,
 ) -> list[str]:
-    """Run the compiler's canonical design-system pair checker on real files."""
+    """Run the compiler's canonical design-system pair checker on real files.
+
+    ``apply_current_hifi_cutover`` passes to the compiler's UI preflight, with
+    the same RUN version gate as the UI join.
+    """
 
     scripts = sibling_scripts or (
         Path(__file__).resolve().parents[2] / "design-system-compiler" / "scripts"
@@ -1869,6 +1900,7 @@ def full_design_system_checker_errors_at_paths(
             registry,
             require_filled=True,
             repo_root=repo_root,
+            apply_current_hifi_cutover=apply_current_hifi_cutover,
         )
     except Exception as exc:
         return [
@@ -1960,16 +1992,48 @@ def _strict_ui_surface_errors(
     return sorted(set(errors))
 
 
+def _frozen_ui_contract_version(rows: list[dict[str, Any]], root: Path) -> str | None:
+    """Read the frozen ui-design contract version, or None when unreadable."""
+
+    if len(rows) != 1:
+        return None
+    contents, errors = _resolve_source_bytes(rows[0], root, label="ui-design", strict=True)
+    parser = _load_ui_contract_view(sibling_ui_design_scripts_dir())
+    if errors or contents is None or parser is None:
+        return None
+    try:
+        view, _parser_errors = parser(contents.decode("utf-8"))
+    except Exception:
+        return None
+    return view.get("contract_version") if isinstance(view, dict) else None
+
+
 def _validate_strict_frozen_contract_joins(
-    plan: dict[str, Any], repo_root: str | Path, *, run: dict[str, Any]
+    plan: dict[str, Any], repo_root: str | Path, *, run: dict[str, Any] | None,
+    current_ui: bool = False,
 ) -> list[str]:
     """Enforce the 0.38 source authority and UI/design-system XOR contract."""
 
     inventory, errors = _strict_source_inventory(plan)
     has_ui = bool(plan.get("ui_surfaces"))
+    current = current_ui or wireframe_free_required(run)
+    maintenance, maintenance_errors = _frozen_maintenance_record(plan, Path(repo_root).resolve())
+    if maintenance and not maintenance_errors and (
+        inventory["wireframes"]
+        or has_ui and _frozen_ui_contract_version(inventory["ui-design"], Path(repo_root).resolve()) == "legacy"
+    ):
+        # A recorded maintenance round preserves its frozen historical design.
+        # Only new design work must migrate the whole contract together. A
+        # legacy contract without its wireframe row then reports that row.
+        current = False
     required_keys = {"prd", "architecture", "stack"}
     if has_ui:
-        required_keys.update({"ui-design", "wireframes", "approved-target"})
+        required_keys.update({"ui-design", "approved-target"})
+        if current:
+            if inventory["wireframes"]:
+                errors.append("plan.sources: Harness 0.56+ UI delivery must not freeze a wireframe source")
+        else:
+            required_keys.add("wireframes")
     for key in sorted(required_keys):
         rows = inventory[key]
         if len(rows) != 1:
@@ -2042,13 +2106,14 @@ def _validate_strict_frozen_contract_joins(
             )
     errors.extend(
         full_product_package_checker_errors(
-            resolved["prd"], resolved["architecture"], resolved["stack"], repo_root=root
+            resolved["prd"], resolved["architecture"], resolved["stack"], repo_root=root,
+            **({"ui_contract": "ui-design/2"} if current and has_ui else {})
         )
     )
     if not has_ui:
         return sorted(set(errors))
 
-    if not all(key in resolved for key in ("ui-design", "wireframes", "approved-target")):
+    if not required_keys.issubset(resolved):
         return sorted(set(errors))
     parser = _load_ui_contract_view(sibling_ui_design_scripts_dir())
     if parser is None:
@@ -2068,9 +2133,13 @@ def _validate_strict_frozen_contract_joins(
         errors.append(f"ui-design: is not valid UTF-8 ({exc})")
         return sorted(set(errors))
     errors.extend(parser_errors)
+    version = view.get("contract_version", "legacy")
+    if current and version != "ui-design/2":
+        errors.append("ui-design: Harness 0.56+ requires UI contract: ui-design/2")
+    elif not current and version != "legacy":
+        errors.append("ui-design: pinned legacy RUN cannot consume ui-design/2")
     errors.extend(_strict_ui_surface_errors(plan, view))
 
-    maintenance, maintenance_errors = _frozen_maintenance_record(plan, root)
     errors.extend(maintenance_errors)
     if maintenance:
         # The current approved Product Definition and PLAN still own routes,
@@ -2096,6 +2165,8 @@ def _validate_strict_frozen_contract_joins(
         ("stack", "stack"),
         ("wireframe", "wireframes"),
     ):
+        if current and view_key == "wireframe":
+            continue
         identity = source_identity_map.get(view_key) if isinstance(source_identity_map, dict) else None
         row = inventory[source_key][0]
         if not isinstance(identity, dict) or identity.get("path") != row.get("location") or identity.get("sha256") != row.get("content_sha256"):
@@ -2116,15 +2187,19 @@ def _validate_strict_frozen_contract_joins(
     else:
         if target.get("path") != target_row.get("location") or target.get("sha256") != target_row.get("content_sha256"):
             errors.append("plan.sources: approved UI target source does not match ui-design Approved target")
+    apply_cutover = version_at_least(
+        run_required_harness_version(run), CURRENT_HIFI_EVIDENCE_VERSION
+    )
     errors.extend(
         full_ui_design_checker_errors_at_paths(
             paths["ui-design"],
             repo_root=root,
             prd_path=paths["prd"],
-            wireframes_path=paths["wireframes"],
+            wireframes_path=paths.get("wireframes"),
             hifi_path=paths["approved-target"],
             design_system_markdown_path=paths.get("design-system.md"),
             design_system_registry_path=paths.get("design-system.json"),
+            apply_current_hifi_cutover=apply_cutover,
         )
     )
 
@@ -2143,7 +2218,10 @@ def _validate_strict_frozen_contract_joins(
         elif paths.get("design-system.md") and paths.get("design-system.json"):
             errors.extend(
                 full_design_system_checker_errors_at_paths(
-                    paths["design-system.md"], paths["design-system.json"], repo_root=root
+                    paths["design-system.md"],
+                    paths["design-system.json"],
+                    repo_root=root,
+                    apply_current_hifi_cutover=apply_cutover,
                 )
             )
             try:
@@ -2154,6 +2232,9 @@ def _validate_strict_frozen_contract_joins(
                 errors.append(f"design-system: cannot read registry for PLAN join: {exc}")
             else:
                 try:
+                    expected_schema = "design-system/3" if current else "design-system/2"
+                    if registry.get("schema") != expected_schema:
+                        errors.append(f"design-system: this RUN requires {expected_schema}")
                     errors.extend(validate_ui_surface_design_registry(plan, registry))
                 except Exception as exc:
                     errors.append(
@@ -2164,7 +2245,8 @@ def _validate_strict_frozen_contract_joins(
         if ds_rows_present or ds_trace_present:
             errors.append("plan.sources: not_required Design System Need Gate must have no design-system rows or DS traces")
         replacement = gate.get("replacement") if isinstance(gate, dict) else None
-        if not isinstance(replacement, dict) or set(replacement) != {"target", "ui-design", "wireframe", "prd"}:
+        replacement_keys = {"target", "ui-design", "prd"} | (set() if current else {"wireframe"})
+        if not isinstance(replacement, dict) or set(replacement) != replacement_keys:
             errors.append("ui-design: not_required Design System Need Gate replacement must name the exact visual contract")
     else:
         errors.append("ui-design: Design System Need Gate must be required or not_required")
@@ -2189,6 +2271,22 @@ def validate_frozen_contract_joins(
         return []
     if strict_ui_authority_required(run):
         return _validate_strict_frozen_contract_joins(plan, repo_root, run=run)
+    if run is None and plan.get("ui_surfaces"):
+        ui_rows = frozen_sources(plan, kinds=UI_DESIGN_SOURCE_KINDS, filenames={"ui-design.md"})
+        if len(ui_rows) == 1:
+            payload, source_errors = _resolve_source_bytes(ui_rows[0], Path(repo_root).resolve(), label="UI contract", strict=False)
+            if source_errors:
+                return source_errors
+            parser = _load_ui_contract_view(sibling_ui_design_scripts_dir())
+            if payload is not None and parser is not None:
+                try:
+                    view, findings = parser(payload.decode("utf-8"))
+                except (ValueError, UnicodeError) as exc:
+                    return [f"ui-design: cannot determine PLAN contract: {exc}"]
+                if view.get("contract_version") == "ui-design/2":
+                    return findings + _validate_strict_frozen_contract_joins(plan, repo_root, run=None, current_ui=True)
+                if findings and not view.get("contract_version"):
+                    return findings
     errors = required_contract_source_errors(plan)
     has_ui = bool(plan.get("ui_surfaces"))
     prd_sources = frozen_sources(
@@ -2378,7 +2476,14 @@ def validate_frozen_contract_joins(
         else:
             try:
                 errors.extend(
-                    compare_design_system_pair(markdown_text, registry, repo_root=repo_root)
+                    compare_design_system_pair(
+                        markdown_text,
+                        registry,
+                        repo_root=repo_root,
+                        apply_current_hifi_cutover=version_at_least(
+                            required_version, CURRENT_HIFI_EVIDENCE_VERSION
+                        ),
+                    )
                 )
             except Exception as exc:
                 errors.append(

@@ -89,11 +89,11 @@ def impact_for(name, reason):
     if filename in {"AGENTS.md", "AGENTS.override.md", "CLAUDE.md", "DOCUMENTS.md"}:
         artifacts, stages, checks = ["scoped live documents"], ["intake", "affected stages"], ["required reading", "references and skill bindings"]
     elif name == "docs/product/PRD.md":
-        artifacts, stages, checks = ["architecture", "stack", "wireframes", "HiFi", "acceptance"], ["product", "design", "delivery"], ["product package", "affected UI gates", "requirement-linked tests"]
+        artifacts, stages, checks = ["architecture", "stack", "HiFi", "legacy wireframes when pinned", "acceptance"], ["product", "design", "delivery"], ["product package", "affected UI gates", "requirement-linked tests"]
     elif name in {"docs/product/architecture.md", "docs/product/stack-decisions.md"}:
         artifacts, stages, checks = ["implementation", "deployment", "acceptance"], ["product", "delivery"], ["product package", "API and permission tests", "migration and recovery"]
     elif name.startswith("docs/design/"):
-        artifacts, stages, checks = ["wireframes", "HiFi", "conditional design-system pair", "implementation"], ["design", "delivery"], ["UI contract", "product interactions", "visual and accessibility evidence"]
+        artifacts, stages, checks = ["HiFi", "legacy wireframes when pinned", "conditional design-system pair", "implementation"], ["design", "delivery"], ["UI contract", "product interactions", "visual and accessibility evidence"]
     elif filename in {"DEPLOYMENT.md", "ACTIVATION.md"}:
         artifacts, stages, checks = ["release evidence", "operational readiness"], ["deployment", "activation"], ["environment isolation", "build readback", "recovery and readiness"]
     elif name.startswith("docs/epics/"):

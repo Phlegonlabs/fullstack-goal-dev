@@ -30,6 +30,106 @@ import archive_run  # noqa: E402
 import manifest_fixtures as mf  # noqa: E402
 
 
+class _DirFdOs:
+    """Real ``os`` with a chosen ``name`` and ``dir_fd`` resolved against one directory."""
+
+    def __init__(self, name: str, directory: Path) -> None:
+        self.name = name
+        self._directory = directory
+
+    def __getattr__(self, attribute: str):
+        return getattr(os, attribute)
+
+    def _resolve(self, name, dir_fd):
+        return self._directory / name if dir_fd is not None else name
+
+    def unlink(self, name, *, dir_fd=None):
+        os.unlink(self._resolve(name, dir_fd))
+
+    def rename(self, source, target, *, src_dir_fd=None, dst_dir_fd=None):
+        os.rename(self._resolve(source, src_dir_fd), self._resolve(target, dst_dir_fd))
+
+    def fsync(self, descriptor):
+        del descriptor
+
+
+def _documents_exchange_race(
+    branch: str, writes: dict[tuple[str, int], object], payload: bytes
+) -> tuple[str, bytes | None, bytes, list[str]]:
+    """Run one DOCUMENTS exchange commit with scripted concurrent writes.
+
+    ``writes`` maps ("before"|"after", primitive call number) to bytes written
+    (or a callable applied to the destination path)
+    to DOCUMENTS.md around that call. Returns the error text, the final
+    destination bytes, the bytes at the path the error reports, and the
+    docs directory listing.
+    """
+
+    with tempfile.TemporaryDirectory() as temp:
+        root = Path(temp).resolve()
+        directory = root / "docs"
+        directory.mkdir()
+        documents = directory / "DOCUMENTS.md"
+        documents.write_bytes(b"# Documents\n")
+        temporary = directory / ".DOCUMENTS.md.pending"
+        temporary.write_bytes(payload)
+        identity, original = archive_run._path_identity_and_bytes(documents)
+        calls: list[int] = []
+
+        def write(stage: str) -> None:
+            data = writes.get((stage, len(calls)))
+            if callable(data):
+                data(documents)
+            elif data is not None:
+                documents.write_bytes(data)
+
+        def exchange(_parent_fd: int, left: str, right: str) -> None:
+            calls.append(1)
+            write("before")
+            hold = directory / ".swap-hold"
+            os.replace(directory / left, hold)
+            os.replace(directory / right, directory / left)
+            os.replace(hold, directory / right)
+            write("after")
+
+        def replace(target: Path, replacement: Path, backup: Path) -> None:
+            calls.append(1)
+            write("before")
+            if backup.exists():
+                raise FileExistsError(backup)
+            os.replace(target, backup)
+            os.replace(replacement, target)
+            write("after")
+
+        primitive = (
+            ("_posix_rename_exchange", exchange)
+            if branch == "posix"
+            else ("_windows_replace_file", replace)
+        )
+        with patch.object(archive_run, "os", _DirFdOs(branch, directory)), \
+                patch.object(archive_run, primitive[0], side_effect=primitive[1]):
+            try:
+                archive_run._documents_exchange_commit(
+                    root,
+                    documents,
+                    temporary,
+                    temporary_name=temporary.name,
+                    parent_fd=7 if branch == "posix" else None,
+                    expected_identity=identity,
+                    expected_bytes=original,
+                    payload=payload,
+                )
+            except OSError as exc:
+                message = str(exc)
+            else:
+                raise AssertionError("exchange race was not detected")
+        retained = Path(message.rsplit(" at ", 1)[1]).read_bytes()
+        final = documents.read_bytes() if documents.is_file() else None
+        return message, final, retained, sorted(
+            item.name for item in directory.iterdir()
+        )
+
+
 def run_markdown(status: str = "complete", gates: object = None) -> str:
     payload = {
         "run_id": "RUN-20260911-demo",
@@ -366,6 +466,8 @@ class ArchiveRunTests(unittest.TestCase):
         self.assertEqual(b"injected at replace boundary\n", documents.read_bytes())
 
     def test_documents_exchange_primitive_preserves_displaced_edit(self) -> None:
+        # Only the first primitive call races; the restore call must stay clean.
+        calls: list[int] = []
         documents = self.root / "docs" / "DOCUMENTS.md"
         original = documents.read_bytes()
         concurrent = b"concurrent edit inside exchange primitive\n"
@@ -373,7 +475,9 @@ class ArchiveRunTests(unittest.TestCase):
             primitive = archive_run._windows_replace_file
 
             def inject(destination: Path, replacement: Path, backup: Path) -> None:
-                destination.write_bytes(concurrent)
+                if not calls:
+                    destination.write_bytes(concurrent)
+                calls.append(1)
                 primitive(destination, replacement, backup)
 
             patcher = patch.object(archive_run, "_windows_replace_file", side_effect=inject)
@@ -381,19 +485,112 @@ class ArchiveRunTests(unittest.TestCase):
             primitive = archive_run._posix_rename_exchange
 
             def inject(parent_fd: int, left_name: str, right_name: str) -> None:
-                documents.write_bytes(concurrent)
+                if not calls:
+                    documents.write_bytes(concurrent)
+                calls.append(1)
                 primitive(parent_fd, left_name, right_name)
 
             patcher = patch.object(archive_run, "_posix_rename_exchange", side_effect=inject)
         with patcher:
-            with self.assertRaisesRegex(OSError, "displaced bytes|preserved|restore"):
+            with self.assertRaisesRegex(OSError, "displaced bytes changed") as caught:
                 archive_run._atomic_write_documents(
                     self.root,
                     documents,
                     b"transaction output\n",
                     expected_bytes=original,
                 )
+        self.assertNotIn("restore", str(caught.exception))
         self.assertEqual(concurrent, documents.read_bytes())
+
+    def test_documents_double_concurrent_write_keeps_displaced_bytes(self) -> None:
+        documents = self.root / "docs" / "DOCUMENTS.md"
+        original = documents.read_bytes()
+        first = b"first concurrent edit\n"
+        second = b"second concurrent edit\n"
+        if os.name == "nt":
+            primitive = archive_run._windows_replace_file
+
+            def inject(destination: Path, replacement: Path, backup: Path) -> None:
+                destination.write_bytes(first)
+                primitive(destination, replacement, backup)
+                destination.write_bytes(second)
+
+            patcher = patch.object(archive_run, "_windows_replace_file", side_effect=inject)
+        else:
+            primitive = archive_run._posix_rename_exchange
+
+            def inject(parent_fd: int, left_name: str, right_name: str) -> None:
+                documents.write_bytes(first)
+                primitive(parent_fd, left_name, right_name)
+                documents.write_bytes(second)
+
+            patcher = patch.object(archive_run, "_posix_rename_exchange", side_effect=inject)
+        with patcher:
+            with self.assertRaisesRegex(OSError, "displaced bytes changed") as caught:
+                archive_run._atomic_write_documents(
+                    self.root,
+                    documents,
+                    b"transaction output\n",
+                    expected_bytes=original,
+                )
+        retained = Path(str(caught.exception).rsplit(" at ", 1)[1])
+        self.assertEqual(second, documents.read_bytes())
+        self.assertEqual(first, retained.read_bytes())
+
+    def test_documents_exchange_commit_races_keep_concurrent_bytes(self) -> None:
+        payload = b"transaction output\n"
+        first, second = b"first concurrent edit\n", b"second concurrent edit\n"
+        scenarios = {
+            "concurrent edit": ({("before", 1): first}, "displaced bytes changed", first, first, 1),
+            "double write": (
+                {("before", 1): first, ("after", 1): second},
+                "displaced bytes changed",
+                second,
+                first,
+                2,
+            ),
+            "restore overwritten": (
+                {("before", 1): first, ("after", 2): second},
+                "restore verification failed",
+                second,
+                payload,
+                2,
+            ),
+            "second write before restore": (
+                {("before", 1): first, ("before", 2): second},
+                "restore verification failed",
+                first,
+                second,
+                2,
+            ),
+            "destination removed after exchange": (
+                {("before", 1): first, ("after", 1): Path.unlink},
+                "displaced bytes changed",
+                None,
+                first,
+                1,
+            ),
+            "destination replaced by a directory": (
+                {("before", 1): first, ("after", 1): lambda target: (target.unlink(), target.mkdir())},
+                "displaced bytes changed",
+                None,
+                first,
+                2,
+            ),
+        }
+        for branch in ("posix", "nt"):
+            for label, (writes, message, final, kept, count) in scenarios.items():
+                with self.subTest(branch=branch, scenario=label):
+                    result, destination, retained, names = _documents_exchange_race(
+                        branch, writes, payload
+                    )
+                    self.assertIn(message, result)
+                    if message != "restore verification failed":
+                        self.assertNotIn("restore", result)
+                    self.assertEqual(final, destination)
+                    self.assertEqual(kept, retained)
+                    self.assertNotIn(".DOCUMENTS.md.pending", names)
+                    self.assertEqual(count, len(names), names)
 
     def test_posix_rename_exchange_uses_linux_or_macos_primitive(self) -> None:
         for symbol in ("renameat2", "renameatx_np"):

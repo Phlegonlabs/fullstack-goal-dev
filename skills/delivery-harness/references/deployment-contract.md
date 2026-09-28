@@ -1,6 +1,6 @@
 # Deployment Contract
 
-Use this reference when a delivery will be deployed, verified, or moved between platforms. Harness 0.38 RUNs end local-only at C. `branch-promotion-contract.md` controls candidate verification and the separately authorized exact-A promotion to `main`; promotion does not require prior run-branch publication of A, which is needed only when a candidate environment must build from the remote run branch. This contract maps those SHAs to environments and verifies what the platform serves.
+Use this reference when a delivery will be deployed, verified, or moved between platforms. Harness 0.38+ RUNs end local-only at C. `branch-promotion-contract.md` controls candidate verification and the separately authorized exact-A promotion to `main`; promotion does not require prior run-branch publication of A, which is needed only when a candidate environment must build from the remote run branch. This contract maps those SHAs to environments and verifies what the platform serves.
 
 ## Model
 

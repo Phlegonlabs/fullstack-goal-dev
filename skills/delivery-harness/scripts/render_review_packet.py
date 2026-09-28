@@ -166,8 +166,11 @@ def render_packet(
         (
             "Before any review action, independently recompute the seven-skill contract"
             " digest, compare it with `contract_adoption.contract_digest_sha256`, read"
-            " the supplied fixed contract, and include that fresh reading evidence in"
-            " the review result. An adoption receipt is not loaded-at-start evidence."
+            " the supplied fixed contract, and return your own reading evidence as"
+            " `contract_adoption_check` (shape: `references/worker-result-contract.md`,"
+            " Contract Adoption Check), beside your review result and never inside a"
+            " security review result. Stop on a mismatch. An adoption receipt is not"
+            " loaded-at-start evidence."
             if contract_adoption is not None
             else ""
         ),

@@ -1,57 +1,7 @@
 """Join explicit PRD operations to product controls in Wireframe and HiFi."""
 from __future__ import annotations
 
-import json
-import re
-
-from markdown_contract import active_markdown_lines
-from prd_ui_contract import parse_prd_ui_contract, UI_START_MARKER, UI_END_MARKER
-
-
-def required_operations(prd):
-    surfaces, errors = parse_prd_ui_contract(prd, require_responsive=True, require_copy=True, web_floor=3)
-    active = "\n".join(line for _, line in active_markdown_lines(prd))
-    body = active.split(UI_START_MARKER, 1)[-1].split(UI_END_MARKER, 1)[0]
-    headings = list(re.finditer(r"^### (UI-[A-Z0-9]+(?:-[A-Z0-9]+)*)\b.*$", body, re.M))
-    result = []
-    for index, heading in enumerate(headings):
-        surface = heading.group(1)
-        block = body[heading.end():headings[index + 1].start() if index + 1 < len(headings) else len(body)]
-        values = re.findall(r"^\s*-\s*"+chr(96)+r"operations"+chr(96)+r"\s*:\s*(.+)$", block, re.M)
-        if len(values) != 1:
-            errors.append(surface + " requires one PRD operations anchor, including Home/back/cancel where required")
-            continue
-        if values[0].startswith("none — ") and len(values[0][7:].strip()) >= 12:
-            continue
-        try:
-            operations = json.loads(values[0])
-            if not isinstance(operations, list) or not operations:
-                raise ValueError("operations must be a nonempty JSON list or none — <reason>")
-            for operation in operations:
-                if not isinstance(operation, dict) or set(operation) != {
-                    "id", "trigger", "control", "sourceState", "destination", "presentation"
-                }:
-                    raise ValueError("operations require id, trigger, control, sourceState, destination and presentation")
-                if any(not isinstance(operation[k], str) or not operation[k].strip()
-                       for k in ("id", "trigger", "control", "sourceState", "presentation")):
-                    raise ValueError("operation text fields must be nonempty")
-                destination = operation["destination"]
-                if not isinstance(destination, dict) or set(destination) != {"surface", "state"}:
-                    raise ValueError("operation destination needs surface and state")
-                if operation["sourceState"] not in surfaces.get(surface, {}).get("states", []):
-                    raise ValueError("operation source state must be declared")
-                target = surfaces.get(destination.get("surface"), {})
-                if destination.get("state") not in target.get("states", []):
-                    raise ValueError("operation destination must be a declared surface/state")
-                if operation["presentation"] not in {"page", "overlay", "feedback", "state", "tab"}:
-                    raise ValueError("operation presentation is unknown")
-                result.append(dict(operation, surface=surface))
-        except (ValueError, TypeError) as exc:
-            errors.append(surface + ": " + str(exc))
-    keys = [(row["surface"], row["control"], row["sourceState"]) for row in result]
-    if len(keys) != len(set(keys)) or len({row["id"] for row in result}) != len(result):
-        errors.append("PRD operations contain duplicate ids or control/source-state cases")
-    return result, errors
+from prd_operations import required_operations  # re-export for legacy callers
 
 
 def coverage_findings(prd, wireframe, manifest=None):
@@ -88,4 +38,66 @@ def coverage_findings(prd, wireframe, manifest=None):
             source = action.get("source", {})
             if (source.get("surface"), source.get("state"), action.get("control")) not in declared:
                 errors.append("HiFi product interaction lacks a PRD operation: " + str(action.get("id")))
+    return errors
+
+
+def hifi_coverage_findings(prd, manifest):
+    """Join explicit PRD operations directly to the ui-hifi/2 manifest.
+
+    This is the cheap wireframe-free preflight.  It does not infer an omitted
+    operation from prose or use reviewer chrome as a product control.  The
+    manifest's ``kind`` is intentionally narrower than the PRD's presentation:
+    a page transition must navigate, while overlay, feedback, state, and tab
+    changes are all observable state interactions.
+    """
+
+    operations, errors = required_operations(prd)
+    actions = manifest.get("interactions", []) if isinstance(manifest, dict) else []
+    if not isinstance(actions, list):
+        errors.append("HiFi manifest interactions must be an array")
+        actions = []
+    def matches(operation, action):
+        if not isinstance(action, dict):
+            return False
+        source = action.get("source")
+        return (
+            isinstance(source, dict)
+            and source.get("surface") == operation["surface"]
+            and source.get("state") == operation["sourceState"]
+            and action.get("control") == operation["control"]
+        )
+
+    for operation in operations:
+        exact = [action for action in actions if matches(operation, action)]
+        label = operation["id"]
+        if len(exact) != 1:
+            errors.append(label + ": required operation is missing or ambiguous in HiFi")
+            continue
+        action = exact[0]
+        if action.get("id") != operation["id"]:
+            errors.append(label + ": HiFi operation ID differs from PRD")
+        if action.get("destination") != operation["destination"]:
+            errors.append(label + ": HiFi destination state differs from PRD")
+        expected_kind = "navigate" if operation["presentation"] == "page" else "state"
+        if action.get("kind") != expected_kind:
+            errors.append(
+                label + ": HiFi interaction kind does not represent PRD presentation "
+                + operation["presentation"]
+            )
+    declared = {
+        (row["surface"], row["sourceState"], row["control"])
+        for row in operations
+    }
+    for action in actions:
+        if not isinstance(action, dict):
+            errors.append("HiFi manifest interaction must be an object")
+            continue
+        source = action.get("source")
+        key = (
+            source.get("surface") if isinstance(source, dict) else None,
+            source.get("state") if isinstance(source, dict) else None,
+            action.get("control"),
+        )
+        if key not in declared:
+            errors.append("HiFi product interaction lacks a PRD operation: " + str(action.get("id")))
     return errors

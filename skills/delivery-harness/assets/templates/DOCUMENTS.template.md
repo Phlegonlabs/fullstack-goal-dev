@@ -8,7 +8,8 @@ The manifest of every document this delivery flow produces or governs. Keep it a
 | `CLAUDE.md` | root | bootstrap | human + harness | imports `AGENTS.md` | |
 | `PRD.md` | `docs/product/` | PRD | product-definition-builder + owner approval | product definition | |
 | `ui-design.md` | `docs/design/` | Approved Product Definition (UI-bearing) | ui-design-builder + UI Design Intake / Visual Approval | UI decisions and evidence | |
-| `wireframes.html` | `docs/design/` | Approved PRD UI Surface Contract | ui-design-builder + Wireframe Validation | structural projection | |
+| `ui-references/<run-id>/index.html` + manifest pages | `docs/design/` | Visual Approval | ui-design-builder | approved connected HiFi package | |
+| `wireframes.html` | `docs/design/` | legacy contracts only; `ui-design/2` has none | ui-design-builder + Wireframe Validation | retained legacy structural projection | |
 | `design-system.md` + `design-system.json` | `docs/design/` | Approved UI design when required | design-system-compiler | frozen visual contract | |
 | `architecture.md` | `docs/product/` | PRD | product-definition-builder | technical definition | |
 | `PRD.zh-TW.md`, `architecture.zh-TW.md` | `docs/product/` | PRD drafting and owner review | product-definition-builder | no; Chinese review copies of English sources | |
@@ -42,5 +43,5 @@ Notes:
 - `PLAN.md` and `RUN.md` exist only for the managed route; small direct work creates none of the run documents.
 - `tasks.md` is a rendered view: never edit it to change state — change RUN and re-render; its Update Log section is the one hand-maintained part, preserved verbatim by the renderer.
 - The PRD family and the run family never mix: a run references its PRD only through the frozen content hash in PLAN's sources, nothing under `docs/product/` ever enters `docs/goal/archived/`, and the PRD stays published as the living reference for later enhancement runs.
-- Harness 0.38 archival also creates one immutable `ARCHIVE_ANCHOR` at the exact absolute path supplied outside the checkout. It is not a repository document; `ARCHIVE_RECEIPT.json` records its identity, and archive-candidate publication requires the same file.
+- Harness 0.38+ archival also creates one immutable `ARCHIVE_ANCHOR` at the exact absolute path supplied outside the checkout. It is not a repository document; `ARCHIVE_RECEIPT.json` records its identity, and archive-candidate publication requires the same file.
 - Evidence artifacts bind to exact SHAs with lowercase SHA-256 records; they are the only accepted proof for UI and verification gates.

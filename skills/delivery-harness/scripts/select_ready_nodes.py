@@ -1157,26 +1157,37 @@ def _dispatch_reasons(
                 for mission_id in authorization_missions
             ):
                 reasons.add("action_not_authorized")
-            # From 0.55.0 a subagent reviewer needs an exact worker:<id>
-            # receipt, which validate_run checks against exact mission ids,
-            # as it does for mission workers. A "*" mission scope cannot
-            # produce that receipt, so do not offer the reservation.
-            spawn_scope = (
-                run.get("authorizations", {}).get("spawn_subagents") or {}
+            # validate_run checks each mission launch receipt (worker:,
+            # task:, worktree:, branch:) and an app_threads reviewer's task:
+            # receipt against exact mission ids at every version, and a
+            # subagent reviewer's worker: receipt from 0.55.0. A "*" mission
+            # scope cannot produce a valid receipt, so do not offer that
+            # launch.
+            action_scope = (
+                run.get("authorizations", {}).get(action) or {}
             ).get("scope")
-            spawn_missions = (
-                spawn_scope.get("mission_ids") if isinstance(spawn_scope, dict) else None
+            action_missions = (
+                action_scope.get("mission_ids") if isinstance(action_scope, dict) else None
             )
             if (
-                node["kind"] == "verifier"
-                and action == "spawn_subagents"
-                and run["schema_version"] == 11
-                and version_at_least(
-                    run_required_harness_version(run),
-                    EXACT_RECEIPT_REQUIRED_VERSION,
+                run["schema_version"] == 11
+                and isinstance(action_missions, list)
+                and "*" in action_missions
+                and (
+                    node["kind"] == "mission"
+                    or (
+                        node["kind"] == "verifier"
+                        and action == "create_user_owned_tasks"
+                    )
+                    or (
+                        node["kind"] == "verifier"
+                        and action == "spawn_subagents"
+                        and version_at_least(
+                            run_required_harness_version(run),
+                            EXACT_RECEIPT_REQUIRED_VERSION,
+                        )
+                    )
                 )
-                and isinstance(spawn_missions, list)
-                and "*" in spawn_missions
             ):
                 reasons.add("action_not_authorized")
     if node["kind"] == "lifecycle":

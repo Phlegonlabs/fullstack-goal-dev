@@ -22,7 +22,6 @@ Calculate the UI approval digest with `python "<ui-design-builder-skill-root>/sc
 |---|---|---|
 | PRD | JSON `sourceBindings.prd`: current path and SHA-256 | product scope and requirements |
 | PRD UI Surface Contract | JSON `sourceBindings.prd` section | product-owned routes, content responsibilities, actions, states, flows, and responsive obligations |
-| Approved wireframe | JSON `sourceBindings.wireframe`: current path and SHA-256 | structural all-page region order, grouping, element inventory, section labels, states, viewport arrangements, and responsive rearrangement |
 | Approved UI design contract | JSON `sourceBindings.uiDesign`: current path and canonical UI approval SHA-256; `sourceBindings.hifi`: current path and SHA-256; direction ID, structured scope, tolerance, and Design System Need Gate | approved visual input and pair requirement |
 | Style Integration and HiFi evidence | <frontend-design direction, Impeccable critique/audit, H1-H9 result, target manifest and approval> | frozen UI treatment and direction-review evidence |
 
@@ -91,7 +90,7 @@ Do not duplicate the machine-owned primitive, variant, component, composition, o
 
 ## Responsive Rules
 
-- Responsive set: <the exact approved PRD and wireframe JSON viewports or sizeClasses — at least three ascending web viewports, or at least two native/desktop size classes>
+- Responsive set: <the exact approved PRD and HiFi manifest viewports or sizeClasses (wireframe JSON only for a legacy design-system/2 pair) — at least three ascending web viewports, or at least two native/desktop size classes>
 - Reflow and visibility rule: <what moves, stacks, resizes, or may hide at each target; never-drop content remains visible>
 - Layout safety: <no unintended overlap, clipping, occlusion, or horizontal overflow at any target/state; named stacking, focus, and dismissal behavior for intentional overlays>
 - Never-drop content: <what remains visible>

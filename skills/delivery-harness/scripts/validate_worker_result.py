@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import posixpath
 import re
 import sys
 from pathlib import Path
@@ -18,6 +19,7 @@ from harness_core import (
     validate_changed_path,
 )
 from harness_schema import run_required_harness_version, version_at_least
+from harness_contract import contract_adoption_check_errors
 from harness_git import GitMetadataError, reject_object_substitution, run_git
 from harness_manifest import (
     ManifestError,
@@ -521,6 +523,53 @@ def _report_exception(path: str, worker: dict[str, Any]) -> bool:
     if validate_changed_path(report_path) is not None:
         return False
     return report_path == path and report_path.rsplit("/", 1)[-1] == "REPORT.md"
+
+
+def _acceptance_register_paths(plan: dict[str, Any]) -> tuple[bool, list[str]]:
+    """Return whether a PLAN final gate mentions the delivery-acceptance
+    checker, and the register paths parsed from its ``--results`` values.
+
+    A gate found in any form (a wrapper or an unusual flag spelling too)
+    counts as declared even when no register path could be parsed, so the
+    caller can fail closed."""
+
+    declared = False
+    paths: list[str] = []
+    gates = plan.get("final_gates")
+    for gate in gates if isinstance(gates, list) else []:
+        argv = gate.get("argv") if isinstance(gate, dict) else None
+        if not isinstance(argv, list) or not any(
+            isinstance(item, str)
+            and "check_delivery_acceptance.py" in item.replace("\\", "/")
+            for item in argv
+        ):
+            continue
+        declared = True
+        for flag, value in zip(argv, argv[1:] + [None]):
+            if not isinstance(flag, str):
+                continue
+            if flag.startswith("--results="):
+                value = flag[len("--results="):]
+            elif flag != "--results":
+                continue
+            if isinstance(value, str):
+                path = posixpath.normpath(value.replace("\\", "/"))
+                if value and not path.startswith("/") and ":" not in path and (
+                    path.split("/")[0] != ".."
+                ):
+                    paths.append(path)
+    return declared, paths
+
+
+def _acceptance_path(path: str, register_paths: list[str]) -> bool:
+    """True for a register or any path under ``evidence/`` next to it."""
+
+    folded = path.casefold()
+    for register in register_paths:
+        root = posixpath.join(posixpath.dirname(register), "evidence").casefold()
+        if folded == register.casefold() or folded.startswith(root + "/"):
+            return True
+    return False
 
 
 def _declared_verifiers(
@@ -1139,8 +1188,17 @@ def validate_worker_result_data(
         WORKER_RESULT_FIELDS,
         "worker_result",
         errors,
-        optional={"subagent_activity"},
+        optional={"subagent_activity", "contract_adoption_check"},
     )
+    for message in contract_adoption_check_errors(
+        run, result.get("contract_adoption_check")
+    ):
+        _issue(
+            errors,
+            "contract_adoption_check",
+            "worker_result.contract_adoption_check",
+            message,
+        )
 
     result_type = _require_string(result.get("type"), "worker_result.type", errors)
     run_id = _require_string(result.get("run_id"), "worker_result.run_id", errors)
@@ -1392,6 +1450,19 @@ def validate_worker_result_data(
     if mission is not None:
         write_scope = mission.get("write_scope", [])
         deny_scope = mission.get("deny_scope", [])
+        # With a delivery-acceptance gate, the mission scope lists the
+        # register and evidence for the parent's commit only. A worker may
+        # not change them whatever a task scope says, nor any path no task
+        # scope covers. Check that in every workspace mode, since a shared
+        # checkout has no per-task commit slices. A gate whose register path
+        # cannot be parsed still turns on the task-scope check.
+        acceptance_gate, register_paths = _acceptance_register_paths(plan)
+        register_text = ", ".join(register_paths) or "path not parsed from the gate"
+        task_scopes = [
+            task.get("write_scope") if isinstance(task.get("write_scope"), list) else []
+            for task in mission.get("tasks", [])
+            if isinstance(task, dict) and not task.get("replaced_by")
+        ]
         for index, changed_path in enumerate(reported_paths):
             item_path = f"worker_result.changed_files[{index}]"
             if parent_owned_path(changed_path):
@@ -1405,6 +1476,26 @@ def validate_worker_result_data(
                 _issue(errors, "denied_path", item_path, "changed path is denied by the mission")
             elif not allowed:
                 _issue(errors, "scope_escape", item_path, "changed path is outside mission write scope")
+            elif _acceptance_path(changed_path, register_paths):
+                # Even a task scope that covers it does not let a worker
+                # write it; an acceptance rerun is a parent commit.
+                _issue(
+                    errors,
+                    "acceptance_path_write",
+                    item_path,
+                    "only the parent writes the delivery-acceptance register "
+                    f"({register_text}) and the evidence/ directory next to it",
+                )
+            elif acceptance_gate and not any(
+                path_in_scopes(changed_path, scopes) for scopes in task_scopes
+            ):
+                _issue(
+                    errors,
+                    "acceptance_path_write",
+                    item_path,
+                    "no task write scope covers this path; only the parent writes the "
+                    f"delivery-acceptance register ({register_text}) and its evidence",
+                )
 
     verifier_results_raw = result.get("verifiers")
     retained_results: dict[str, dict[str, Any]] = {}

@@ -21,6 +21,7 @@ if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
 import check_delivery_acceptance as checker  # noqa: E402
+import manifest_fixtures as mf  # noqa: E402
 
 
 CANDIDATE = "a" * 40
@@ -211,14 +212,15 @@ class DeliveryAcceptanceTests(unittest.TestCase):
     def test_evidence_is_relative_but_cli_inputs_may_be_absolute(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory).resolve()
-            artifact = root / 'evidence.txt'
+            (root / 'evidence').mkdir()
+            artifact = root / 'evidence' / 'run.txt'
             artifact.write_bytes(EVIDENCE)
             errors = []
             self.assertFalse(checker._evidence(root, {
-                'path': str(artifact), 'sha256': EVIDENCE_SHA}, 'evidence', errors))
+                'path': str(artifact), 'sha256': EVIDENCE_SHA}, 'evidence', errors, 'evidence'))
             self.assertTrue(errors)
             self.assertTrue(checker._evidence(root, {
-                'path': 'evidence.txt', 'sha256': EVIDENCE_SHA}, 'evidence', []))
+                'path': 'evidence/run.txt', 'sha256': EVIDENCE_SHA}, 'evidence', [], 'evidence'))
         self.assertEqual(0, invoke()[0])
 
     def test_unauthenticated_scenario_does_not_require_invented_login(self):
@@ -417,7 +419,14 @@ class DeliveryAcceptanceTests(unittest.TestCase):
         stale_hash = results()
         stale_hash["results"][0]["evidence"]["sha256"] = "d" * 64
 
+        # A readable, hash-matching file outside the evidence root still fails.
+        outside = results()
+        outside["results"][0]["evidence"]["path"] = "PRD.md"
+        outside["results"][0]["evidence"]["sha256"] = hashlib.sha256(
+            PRD.encode("utf-8")).hexdigest()
+
         cases = (
+            ("outside-root", outside, "PRD.md must be under evidence/"),
             ("traversal", traversal, "cannot be read safely"),
             ("secret-name", secret, "cannot be read safely"),
             ("stale-hash", stale_hash, "does not match the evidence artifact"),
@@ -427,6 +436,198 @@ class DeliveryAcceptanceTests(unittest.TestCase):
                 status, payload = invoke(result_value=value)
                 self.assertEqual(1, status)
                 self.assertIn(expected, " ".join(payload["errors"]))
+
+
+class CandidateTreeTests(unittest.TestCase):
+    """In a Git checkout the register's candidate must carry HEAD's product tree."""
+
+    def setUp(self) -> None:
+        self._temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._temp.cleanup)
+        self.root = Path(self._temp.name).resolve()
+        mf.init_repo(self.root, "PRD.md")
+        (self.root / "PRD.md").write_bytes(PRD.encode("utf-8"))
+        value = contract()
+        value["prd_sha256"] = hashlib.sha256(PRD.encode("utf-8")).hexdigest()
+        self.contract_bytes = json.dumps(value, sort_keys=True).encode("utf-8")
+        (self.root / "contract.json").write_bytes(self.contract_bytes)
+        self.write("src/example/foo.py", "x = 1\n")
+        # H1: the product candidate the scenarios ran against.
+        self.h1 = self.commit("last mission")
+
+    def write(self, path: str, text: str) -> None:
+        target = self.root / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text, encoding="utf-8")
+
+    def commit(self, message: str) -> str:
+        mf.git(self.root, "add", "-A")
+        mf.git(self.root, "commit", "-qm", message)
+        return mf.git(self.root, "rev-parse", "HEAD")
+
+    def commit_register(self, candidate: str, *extra: str) -> str:
+        (self.root / "evidence").mkdir(exist_ok=True)
+        (self.root / "evidence" / "web.txt").write_bytes(EVIDENCE)
+        (self.root / "evidence" / "api.txt").write_bytes(EVIDENCE)
+        value = results()
+        value["candidate_sha"] = candidate
+        self.write("results.json", json.dumps(value))
+        for path in extra:
+            self.write(path, "changed with the register\n")
+        return self.commit("acceptance register")
+
+    def check(self, *candidate: str) -> tuple[int, dict[str, Any]]:
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            status = checker.main([
+                "--repo-root", str(self.root),
+                "--prd", "PRD.md",
+                "--contract", "contract.json",
+                "--contract-sha256", hashlib.sha256(self.contract_bytes).hexdigest(),
+                "--results", "results.json",
+                *candidate,
+            ])
+        return status, json.loads(output.getvalue())
+
+    def test_register_only_commit_passes_at_the_register_head(self) -> None:
+        self.commit_register(self.h1)
+
+        status, payload = self.check("--candidate-from-head")
+        self.assertEqual((0, []), (status, payload["errors"]))
+        self.assertEqual(self.h1, payload["candidate_sha"])
+        self.assertEqual(0, self.check("--candidate-sha", self.h1)[0])
+
+    def test_run_coordination_commit_after_the_register_passes(self) -> None:
+        self.commit_register(self.h1)
+        self.write("docs/goal/RUN.md", "# RUN\n")
+        self.commit("coordination checkpoint")
+
+        self.assertEqual(0, self.check("--candidate-from-head")[0])
+
+    def test_product_file_in_the_register_commit_fails(self) -> None:
+        # record-integration accepts this when the file is inside the last
+        # mission's scope; the acceptance gate is what refuses it.
+        self.commit_register(self.h1, "src/example/foo.py")
+
+        for candidate in (["--candidate-from-head"], ["--candidate-sha", self.h1]):
+            with self.subTest(candidate=candidate[0]):
+                status, payload = self.check(*candidate)
+                self.assertEqual(1, status)
+                self.assertIn("src/example/foo.py", " ".join(payload["errors"]))
+
+    def test_product_file_listed_as_evidence_cannot_exempt_itself(self) -> None:
+        # The register must not exempt a product or test file that changed
+        # after H1 by naming it as a row's evidence.
+        self.write("src/example/foo.py", "x = 2\n")
+        self.write("tests/test_foo.py", "assert True\n")
+        self.commit_register(self.h1)
+        value = json.loads((self.root / "results.json").read_text(encoding="utf-8"))
+        for index, path in enumerate(("src/example/foo.py", "tests/test_foo.py")):
+            value["results"][index]["evidence"] = {
+                "path": path,
+                "sha256": hashlib.sha256((self.root / path).read_bytes()).hexdigest(),
+            }
+        self.write("results.json", json.dumps(value))
+        self.commit("register names product files as evidence")
+
+        for candidate in (["--candidate-from-head"], ["--candidate-sha", self.h1]):
+            with self.subTest(candidate=candidate[0]):
+                status, payload = self.check(*candidate)
+                self.assertEqual(1, status)
+                text = " ".join(payload["errors"])
+                self.assertIn("must be under evidence/", text)
+                self.assertIn("src/example/foo.py, tests/test_foo.py", text)
+
+    def test_evidence_root_sits_next_to_the_register(self) -> None:
+        register = "docs/verification/delivery-results.json"
+        (self.root / "docs/verification/evidence").mkdir(parents=True)
+        (self.root / "docs/verification/evidence/web.txt").write_bytes(EVIDENCE)
+        value = results()
+        value["candidate_sha"] = self.h1
+        for row in value["results"]:
+            row["evidence"]["path"] = "docs/verification/evidence/web.txt"
+        self.write(register, json.dumps(value))
+        self.commit("acceptance register")
+        self.assertEqual((0, []), self.check_register(register))
+
+        # Root-level evidence/ is not this register's evidence root.
+        (self.root / "evidence").mkdir()
+        (self.root / "evidence" / "web.txt").write_bytes(EVIDENCE)
+        for row in value["results"]:
+            row["evidence"]["path"] = "evidence/web.txt"
+        self.write(register, json.dumps(value))
+        self.commit("evidence outside the register's root")
+        status, errors = self.check_register(register)
+        self.assertEqual(1, status)
+        self.assertIn("must be under docs/verification/evidence/", " ".join(errors))
+        self.assertIn("evidence: docs/verification/evidence/web.txt, evidence/web.txt",
+                      " ".join(errors))
+
+    def check_register(self, register: str) -> tuple[int, list[str]]:
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            status = checker.main([
+                "--repo-root", str(self.root),
+                "--prd", "PRD.md",
+                "--contract", "contract.json",
+                "--contract-sha256", hashlib.sha256(self.contract_bytes).hexdigest(),
+                "--results", register,
+                "--candidate-from-head",
+            ])
+        return status, json.loads(output.getvalue())["errors"]
+
+    def test_unlisted_evidence_file_in_the_register_commit_fails(self) -> None:
+        self.commit_register(self.h1, "evidence/unlisted.txt")
+
+        status, payload = self.check("--candidate-from-head")
+        self.assertEqual(1, status)
+        self.assertIn("evidence/unlisted.txt", " ".join(payload["errors"]))
+
+    def test_stale_register_after_a_product_repair_fails(self) -> None:
+        self.commit_register(self.h1)
+        self.write("src/example/foo.py", "x = 2\n")
+        self.commit("security repair")
+
+        for candidate in (["--candidate-from-head"], ["--candidate-sha", self.h1]):
+            with self.subTest(candidate=candidate[0]):
+                status, payload = self.check(*candidate)
+                self.assertEqual(1, status)
+                self.assertIn("src/example/foo.py", " ".join(payload["errors"]))
+
+    def test_candidate_must_be_an_ancestor_commit_of_head(self) -> None:
+        mf.git(self.root, "checkout", "-q", "-b", "side")
+        self.write("src/example/side.py", "y = 1\n")
+        side = self.commit("side branch")
+        mf.git(self.root, "checkout", "-q", "main")
+        cases = ((side, "is not an ancestor of HEAD"), (CANDIDATE, "is not a commit"))
+        for candidate, expected in cases:
+            mf.git(self.root, "reset", "-q", "--hard", self.h1)
+            self.commit_register(candidate)
+            for flags in (["--candidate-from-head"], ["--candidate-sha", candidate]):
+                with self.subTest(expected=expected, flag=flags[0]):
+                    status, payload = self.check(*flags)
+                    self.assertEqual(1, status)
+                    self.assertIn(expected, " ".join(payload["errors"]))
+
+    def test_candidate_from_head_needs_a_git_checkout(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "PRD.md").write_text(PRD, encoding="utf-8")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                status = checker.main([
+                    "--repo-root", str(root), "--prd", "PRD.md",
+                    "--contract", "PRD.md", "--contract-sha256", "f" * 64,
+                    "--results", "PRD.md", "--candidate-from-head",
+                ])
+        self.assertEqual(1, status)
+        self.assertIn("Git checkout", " ".join(json.loads(output.getvalue())["errors"]))
+
+    def test_candidate_sha_and_from_head_are_exclusive(self) -> None:
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output), self.assertRaises(SystemExit) as raised:
+            self.check("--candidate-sha", self.h1, "--candidate-from-head")
+        self.assertEqual(2, raised.exception.code)
 
 
 if __name__ == "__main__":

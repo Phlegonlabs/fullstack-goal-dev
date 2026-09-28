@@ -17,30 +17,30 @@ Generated motion, autoplay or sound, material performance budgets, accessibility
 
 For page-specific defaults, use `page-design-profiles.md`. Landing/portfolio expressive motion is proposed through this same intake and becomes required only when selected; accepted no-motion decisions stay valid. Once selected, demonstrate the actual effect and reduced-motion equivalent under the rules below.
 
-After Wireframe Validation, a representative direction study may play a small deterministic motion option locally with CSS/WAAPI or GSAP when that stays within the approved Motion and Media scope, with normal and reduced-motion behavior. It helps the owner judge selection only; it is not Required motion evidence, native proof, or permission to invoke a generation provider. A provider route stays deferred until after direction selection receives its exact provider/action authorization, and the selected effect still needs complete final HiFi motion evidence.
+After the Motion and Media Intent is recorded, a representative direction study may play a small deterministic motion option locally with CSS/WAAPI or GSAP when that stays within the approved scope, with normal and reduced-motion behavior. It helps the owner judge selection only; it is not Required motion evidence, native proof, or permission to invoke a generation provider. A provider route stays deferred until after direction selection receives its exact provider/action authorization, and the selected effect still needs complete final HiFi motion evidence.
 
-## Typed Wireframe Placeholders
+## Typed Motion Intent Records
 
 For every marquee or media-bearing screen region, record one treatment:
 
-| Treatment | Wireframe representation | Later route |
+| Treatment | Intent and direction representation | Later route |
 | --- | --- | --- |
 | `none` | No media placeholder | No provider or animation skill |
 | `image` | Labeled static frame with purpose and content contract | Existing asset or a later explicitly authorized image-generation pass |
 | `motion` | Labeled poster/frame with trigger, purpose, duration intent, and reduced-motion fallback | CSS/WAAPI, GSAP, or an explicitly authorized generation provider |
 | `image + motion` | Labeled static base plus motion layer and fallback | Approved image route plus approved motion route |
 
-The wireframe contains no final asset and invokes no provider. Its `mediaIntent` record uses a stable `id` equal to its `MM-*` row plus `treatment`, `purpose`, `trigger`, `draftPrompt`, `source`, `reducedMotionFallback`, `generationRoute`, and `generationStatus: deferred`.
+The intent record contains no final asset and invokes no provider. Its `MM-*` Motion And Media Intent row carries `treatment`, `purpose`, `trigger`, `draft prompt`, `source`, reduced-motion fallback, generation route, status and `deferred` generation status. Direction studies may render it as a labeled placeholder or bounded local demonstration; HiFi renders and reviews the selected treatment.
 
-An explicit hero or animation request is a required intent, not optional inspiration. A hero intent still records the product message, CTA, composition, media treatment, and mobile destination; the wireframe hero remains a grayscale placeholder. An admin or native surface does not receive a marketing hero unless the owner explicitly requests that surface treatment.
+An explicit hero or animation request is a required intent, not optional inspiration. A hero intent still records the product message, CTA, composition, media treatment, and mobile destination; a direction study may show the proposed treatment without an approved generated asset. An admin or native surface does not receive a marketing hero unless the owner explicitly requests that surface treatment.
 
-After direction selection, a deterministic `motion` or `image + motion` row must demonstrate its trigger, behavior, end state, and reduced-motion fallback in the HiFi review. A static poster, gray placeholder, screenshot, or documented note cannot satisfy a required effect. The frozen wireframe `generationStatus: deferred` remains an intent-time record; it is never edited to claim HiFi completion. Record actual output identity, authorization and review separately in the existing Style Integration evidence. A missing generated asset required by a `motion` or `image + motion` intent keeps its evidence gate blocked until delivered or explicitly removed from scope. Image-only intents remain under connected-HiFi and H6 human media review, including authorization, actual output identity, placement and usage constraints; they do not use normal/reduced-motion receipts. CSS/WAAPI and GSAP serve Web implementation and HTML projections; native implementation uses its approved platform/framework tools and later native evidence.
+After direction selection, a deterministic `motion` or `image + motion` row must demonstrate its trigger, behavior, end state, and reduced-motion fallback in the HiFi review. A static poster, gray placeholder, screenshot, or documented note cannot satisfy a required effect. The MM record's `generationStatus: deferred` remains an intent-time record; it is never edited to claim HiFi completion. Record actual output identity, authorization and review separately in the existing Style Integration evidence. A missing generated asset required by a `motion` or `image + motion` intent keeps its evidence gate blocked until delivered or explicitly removed from scope. Image-only intents remain under connected-HiFi and H6 human media review, including authorization, actual output identity, placement and usage constraints; they do not use normal/reduced-motion receipts. CSS/WAAPI and GSAP serve Web implementation and HTML projections; native implementation uses its approved platform/framework tools and later native evidence.
 
 ## Annotated Animation Boundaries
 
-For newly authored motion regions, attach `motionSpec` to the existing `mediaIntent`: non-empty `scope`, `behavior`, `space`, `compact`, `playback` and `cost` descriptions. Scope names the whole region or exact element; behavior includes the end state; space includes reserved height/pinning/scroll need; compact describes phone behavior; playback includes loop, interruption and replay; cost names loading/performance and dependency limits. Existing trigger and reducedMotionFallback remain authoritative. The canonical wireframe shows these as switchable reviewer annotations over the affected region and retains a visibly deferred placeholder. Never imply that annotated motion is implemented. New providers or dependencies keep their existing authorization/stack gates.
+For newly authored motion regions, keep `motionSpec` detail in the MM record or the existing direction/HiFi evidence: non-empty `scope`, `behavior`, `space`, `compact`, `playback` and `cost` descriptions. Scope names the whole region or exact element; behavior includes the end state; space includes reserved height/pinning/scroll need; compact describes phone behavior; playback includes loop, interruption and replay; cost names loading/performance and dependency limits. Existing trigger and reducedMotionFallback remain authoritative. A direction study may show the proposed effect or a visibly deferred placeholder. Never imply that annotated motion is implemented. New providers or dependencies keep their existing authorization/stack gates.
 
-## Implementation Routing After Wireframe Validation
+## Implementation Routing After Direction Selection
 
 Pick the lowest route that delivers the approved effect. Motion, GSAP and Three.js are production dependencies: use them only when the approved stack includes them, otherwise return the choice to `product-definition-builder`.
 

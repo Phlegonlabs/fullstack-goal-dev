@@ -163,7 +163,7 @@ def wireframe_html(data: object) -> str:
     )
 
 
-def materialize_publication(root: Path, *, required: bool, legacy_hifi: bool = False, motion_route: str = "CSS-WAAPI", reviewer_version: int = 2) -> tuple[Path, Path, Path, Path, Path, Path | None]:
+def materialize_publication(root: Path, *, required: bool, legacy_hifi: bool = False, motion_route: str = "CSS-WAAPI", reviewer_version: int = 2, visual_decided_on: str = "2026-09-13", hifi_executed_at: str = "2020-01-01T00:00:00Z") -> tuple[Path, Path, Path, Path, Path, Path | None]:
     from test_product_package_checker import valid_prd, valid_stack, ui_contract
     from test_wireframe_contract import render_html, wireframe_data
 
@@ -255,6 +255,7 @@ def materialize_publication(root: Path, *, required: bool, legacy_hifi: bool = F
     (captures / "primary.png").write_bytes(PRIMARY_CAPTURE)
     (captures / "stress.png").write_bytes(STRESS_CAPTURE)
     ui = contract().replace("| CSS-WAAPI |", f"| {motion_route} |")
+    ui = ui.replace("Decided on: 2026-09-13\nApproved target:", f"Decided on: {visual_decided_on}\nApproved target:")
     replacements = {
         A_HASH: hashlib.sha256(product.read_bytes()).hexdigest(),
         B_HASH: hashlib.sha256(architecture.read_bytes()).hexdigest(),
@@ -306,7 +307,7 @@ def materialize_publication(root: Path, *, required: bool, legacy_hifi: bool = F
             "matrix": {"cases": evidence_cases},
             "results": [dict(case, result="PASS") for case in evidence_cases],
             "outputArtifact": {"path": output_path.relative_to(root).as_posix(), "sha256": hashlib.sha256(output_path.read_bytes()).hexdigest()},
-            "executedAt": "2020-01-01T00:00:00Z",
+            "executedAt": "2020-01-01T00:00:00Z" if name.startswith("wireframe") else hifi_executed_at,
         }
         evidence = {
             "schema": "ui-evidence/2",
@@ -361,7 +362,7 @@ def materialize_publication(root: Path, *, required: bool, legacy_hifi: bool = F
             "matrix": {"cases": motion_cases},
             "results": [dict(case, result="PASS") for case in motion_cases],
             "outputArtifact": {"path": output_path.relative_to(root).as_posix(), "sha256": hashlib.sha256(output_path.read_bytes()).hexdigest()},
-            "executedAt": "2020-01-01T00:00:00Z",
+            "executedAt": hifi_executed_at,
         }
         evidence = {
             "schema": "ui-evidence/2",

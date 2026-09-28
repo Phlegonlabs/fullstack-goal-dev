@@ -1,4 +1,4 @@
-# Product Design Output Contract
+# Design System Compiler Output Contract
 
 `sourceBindings.uiDesign.sha256` uses the canonical UI approval digest, not the raw file hash. Run `python "<ui-design-builder-skill-root>/scripts/ui_approval_digest.py" <ui-design.md>`; it excludes active derived pair/replacement linkage lines so linking the compiled pair does not invalidate its own input. All other source bindings use raw-file SHA-256.
 
@@ -7,7 +7,7 @@ Publish these files only when `docs/design/ui-design.md` records `Design System 
 - `docs/design/design-system.md`
 - `docs/design/design-system.json`
 
-The pair forms one reusable visual implementation handoff. `PRD.md` owns product behavior; `docs/design/ui-design.md` owns UI decisions and the approved HiFi target; validated `wireframes/5` provides the structural interactive review view. The design-system pair owns tokens, closed variants, reusable components, motion, and the state matrix. Publish or revise both files together. New approval authority belongs to `design-system/2`; `design-system/1` remains inspection-only and is rejected by the publication checker.
+The pair forms one reusable visual implementation handoff. `PRD.md` owns product behavior; `docs/design/ui-design.md` owns UI decisions and the approved complete `ui-hifi/2` package. The design-system pair owns tokens, closed variants, reusable components, motion, and the state matrix. Publish or revise both files together. New `ui-design/2` packages require `design-system/3`, whose bindings exclude wireframe. Legacy `design-system/1` remains inspection-only; `design-system/2` retains its original publication checks for legacy UI packages.
 
 ## `design-system.md`
 
@@ -25,8 +25,8 @@ Include only:
 Keep it the sole structured authority for:
 
 - platform, stack-bound rendering model/component foundation/styling semantics, styling mechanism, enforcement mode, token sources, and primitive sources;
-- `sourceBindings` for current PRD, architecture, stack, `ui-design.md`, validated wireframes/5, and approved HiFi target bytes;
-- one global responsive verification set for homogeneous products, or one set per `surfaceContracts` entry for hybrids; copy the exact approved PRD/wireframe set, with at least three ascending web `viewports` or two native/desktop `sizeClasses`, plus each surface’s release/capture identity and approved stack semantics; hybrids omit global platform, styling mechanism, viewports, and size classes;
+- `sourceBindings` for exactly current PRD, architecture, stack, `ui-design/2`, and approved complete HiFi entry bytes; `design-system/3` has no wireframe binding;
+- one global responsive verification set for homogeneous products, or one set per `surfaceContracts` entry for hybrids; copy the exact approved PRD/HiFi set, with at least three ascending web `viewports` or two native/desktop `sizeClasses`, plus each surface’s release/capture identity and approved stack semantics; hybrids omit global platform, styling mechanism, viewports, and size classes;
 - only the tokens the product uses;
 - four primitive layers with closed variant sets;
 - optional primitive `dsId` values matching `DS-[A-Z]+-<number>` when a primitive needs a trace identity;
@@ -38,14 +38,14 @@ Keep it the sole structured authority for:
 ## Approved Input Quality Check
 
 - The Design System Need Gate is `required` and records its human owner and reason.
-- `ui-design.md` records an approved immutable target, source hash, routes and states, the exact PRD/wireframe responsive set, passing browser-matrix evidence with no unintended overlap, clipping, occlusion, or horizontal overflow, tolerance, and allowed deviations.
-- `wireframes.html` has human approval recorded in `ui-design.md`, and each `UI-*` page matches the PRD.
+- `ui-design/2` is present exactly once. The UI contract records an approved immutable target, source hash, routes and states, the exact PRD/HiFi responsive set, passing browser-matrix evidence with no unintended overlap, clipping, occlusion, or horizontal overflow, tolerance, and allowed deviations.
+- Every HiFi entry, manifest-listed child page, inline asset, and copy-provenance item hashes and loads as the closed approved package. Each `UI-*` surface matches the PRD.
 - Each UI surface has one main purpose, one task-fit layout pattern, a real route or explicit `n/a`, and a density reason.
 - Every visible region carries the complete sourced copy: exact static strings and action labels, complete dynamic source/order/format/count/length/fallback contracts with representative examples, alternate-state copy, content priority, ordered responsibilities, actions, states, responsive behavior, and trace IDs.
 - Public surfaces have bounded SEO fields, correct heading order, and image alt-text contracts.
 - Ready, loading, empty, error, disabled, permission-denied, stale, expired, long-content, reduced-motion, and mobile-reflow states are covered or explicitly `n/a` at every responsive target.
-- Scope, routes, actions, content responsibilities, wireframe structure, responsive rearrangement, and trace IDs stay fixed across visual directions.
-- Copy stays fixed across visual directions. A proposed wording change returns to `product-definition-builder` as a PRD and wireframe copy delta and requires the full HiFi copy review.
+- Scope, routes, actions, content responsibilities, HiFi structure, responsive rearrangement, and trace IDs stay fixed across visual directions.
+- Copy stays fixed across visual directions. A proposed wording change returns to `product-definition-builder` as a PRD and HiFi copy delta and requires the full HiFi copy review.
 
 If product behavior or stack is missing, return a bounded Product Definition update. If UI direction or evidence is missing, return to `ui-design-builder`. Do not invent either in the design system.
 
@@ -66,7 +66,7 @@ python "<design-system-compiler-skill-root>/scripts/render_design_system_preview
 
 The first command emits UTF-8 HTML on stdout only after filled-pair and current-source validation. Capture those exact bytes at an authorized new destination; do not redirect over an existing artifact before validation succeeds. The second command is read-only and rejects changed pair bytes, stale sources, hand-edited or missing previews. It grants no approval and does not validate visual quality. Inspect the generated view in a browser and link it with the pair in the handoff.
 
-The Markdown/JSON pair remains the authority. The HTML is reproducible, contains no scripts, remote resources or imported product CSS, and is not a product route, a HiFi manifest page or a third hand-maintained contract. It is retained as a review artifact, so do not hide it with a broad generated-HTML ignore rule. Existing pairs are not rewritten merely to add a preview. Wireframe has no Tokens view. Do not mutate historical artifacts when adding the separate formal preview.
+The Markdown/JSON pair remains the authority. The HTML is reproducible, contains no scripts, remote resources or imported product CSS, and is not a product route, a HiFi manifest page or a third hand-maintained contract. It is retained as a review artifact, so do not hide it with a broad generated-HTML ignore rule. Existing pairs are not rewritten merely to add a preview. A historical wireframe has no Tokens view. Do not mutate historical artifacts when adding the separate formal preview.
 
 ### Pair Checks
 
@@ -78,7 +78,7 @@ The Markdown/JSON pair remains the authority. The HTML is reproducible, contains
 - The existing direction decision names a direction from the hash-bound Direction comparison table, with primary and stress cases for each platform before full HiFi or token compilation. Platform rules preserve platform-specific type, icons, controls, density, and feedback; compilation never replaces them with Web defaults.
 - Compilation carries only the selected/approved Design Brief profile, typography/density/headline, reference and motion decisions bound to that direction. Pre-selection studies, rejected alternatives, and generic defaults are not production authority and do not reopen taste during compilation.
 - Visual references influenced only confirmed `Adopt / Adapt / Avoid` principles; protected artwork, branding, exact copy, HTML or CSS, source assets, and distinctive composition were not copied.
-- Every token, primitive, component, motion variant, state, and responsive entry is required by a real PRD surface; the responsive set contains at least three ascending web viewports or at least two native/desktop size classes and matches the approved PRD and wireframe exactly.
+- Every token, primitive, component, motion variant, state, and responsive entry is required by a real PRD surface; the responsive set contains at least three ascending web viewports or at least two native/desktop size classes and matches the approved PRD and HiFi exactly.
 - Every required PRD element maps to the final registry, and no unresolved page-local exception remains.
 - Pair generation, filled-pair validation, contrast checks, and type-scale checks pass.
 - Candidate directions, full reference analysis, and UI preview artifacts remain outside the pair.

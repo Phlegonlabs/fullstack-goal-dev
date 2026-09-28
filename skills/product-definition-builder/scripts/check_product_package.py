@@ -12,6 +12,7 @@ from collections import Counter
 from pathlib import Path
 
 from markdown_contract import active_text, active_machine_block
+from prd_operations import required_operations
 from prd_ui_contract import parse_prd_ui_contract
 from release_targets import parse_release_targets
 from git_evidence import GitEvidenceError, verify_revision_path
@@ -386,8 +387,8 @@ STACK_SELECTED_EVIDENCE_RE = re.compile(
     r"[A-Za-z0-9._/-]+)@(?P<revision>[0-9a-f]{40}|sha256:[0-9a-f]{64})\b"
 )
 ENHANCEMENT_ARTIFACT_RE = re.compile(
-    r"\b(?:PRD|architecture|stack-decisions|wireframes|ui-design|design-system|"
-    r"DEPLOYMENT|ACTIVATION|OUTCOME_REVIEW|SEO_REVIEW)\.(?:md|json|html)\b",
+    r"\b(?:(?:PRD|architecture|stack-decisions|wireframes|ui-design|design-system|"
+    r"DEPLOYMENT|ACTIVATION|OUTCOME_REVIEW|SEO_REVIEW)\.(?:md|json|html)|HiFi)\b",
     re.IGNORECASE,
 )
 ENHANCEMENT_REFRESH_REQUIREMENTS = {
@@ -1529,8 +1530,15 @@ def validate_texts(
     require_filled: bool = False,
     require_approved: bool = False,
     repo_root: Path | None = None,
+    ui_contract: str | None = None,
 ) -> list[str]:
     """Validate already-decoded core product-package texts."""
+
+    if ui_contract is not None and ui_contract != "ui-design/2":
+        raise ValueError(
+            "unsupported --ui-contract value; the only current contract is "
+            "ui-design/2"
+        )
 
     problems: list[str] = []
 
@@ -1571,6 +1579,12 @@ def validate_texts(
         web_floor=3,
     )
     problems.extend(ui_contract_errors)
+    if ui_contract == "ui-design/2":
+        # Parse operations from the active contract.  Reusing the parser also
+        # checks one operation anchor per surface and its declared endpoints.
+        _operations, operation_errors = required_operations(prd_text)
+        seen = set(problems)
+        problems.extend(error for error in operation_errors if error not in seen)
     if require_filled:
         _validate_prd_core_sections(
             prd_text, has_ui=bool(ui_surfaces), problems=problems
@@ -3015,15 +3029,39 @@ def validate_texts(
                         required_artifacts: set[str]
                         required_gates: set[str]
                         if area == "ui structure / style":
+                            # Generic product approval accepts either explicit
+                            # refresh vocabulary. Current UI preflight still
+                            # requires HiFi; a legacy-only row cannot pass it.
+                            current_refresh = ui_contract == "ui-design/2" or (
+                                re.search(r"\bhifi\b", refresh) is not None
+                                and "hifi review" in refresh
+                            )
                             if impact == "style":
-                                required_artifacts = {"ui-design.md"}
-                                required_gates = {"visual approval"}
+                                if current_refresh:
+                                    required_artifacts = {"ui-design.md", "hifi"}
+                                    required_gates = {
+                                        "hifi review",
+                                        "visual approval",
+                                    }
+                                else:
+                                    required_artifacts = {"ui-design.md"}
+                                    required_gates = {"visual approval"}
                             else:
-                                required_artifacts = {"wireframes.html", "ui-design.md"}
-                                required_gates = {
-                                    "wireframe validation",
-                                    "visual approval",
-                                }
+                                if current_refresh:
+                                    required_artifacts = {"ui-design.md", "hifi"}
+                                    required_gates = {
+                                        "hifi review",
+                                        "visual approval",
+                                    }
+                                else:
+                                    required_artifacts = {
+                                        "wireframes.html",
+                                        "ui-design.md",
+                                    }
+                                    required_gates = {
+                                        "wireframe validation",
+                                        "visual approval",
+                                    }
                         else:
                             required_artifacts, required_gates = (
                                 ENHANCEMENT_REFRESH_REQUIREMENTS.get(area, (set(), set()))
@@ -3299,6 +3337,7 @@ def validate(
     require_filled: bool = False,
     require_approved: bool = False,
     repo_root: Path | None = None,
+    ui_contract: str | None = None,
 ) -> list[str]:
     """Read and validate the three canonical core package files."""
 
@@ -3319,6 +3358,7 @@ def validate(
         require_filled=require_filled,
         require_approved=require_approved,
         repo_root=repo_root,
+        ui_contract=ui_contract,
     )
 
 
@@ -3329,6 +3369,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--stack-decisions", required=True, type=Path)
     parser.add_argument("--require-filled", action="store_true")
     parser.add_argument("--require-approved", action="store_true")
+    parser.add_argument(
+        "--ui-contract",
+        choices=("ui-design/2",),
+        help="select the current wireframe-free PRD preflight",
+    )
     parser.add_argument("--repo-root", type=Path)
     return parser.parse_args(argv)
 
@@ -3342,6 +3387,7 @@ def main(argv: list[str] | None = None) -> int:
         require_filled=args.require_filled,
         require_approved=args.require_approved,
         repo_root=args.repo_root,
+        ui_contract=args.ui_contract,
     )
     if problems:
         for problem in problems:

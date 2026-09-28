@@ -970,6 +970,18 @@ def _validate_copy_item(
                     )
 
 
+def validate_copy_item(
+    value: object,
+    path: str,
+    problems: list[str],
+    *,
+    require_approved: bool,
+) -> None:
+    """Public wireframes/4 typed-copy validator for wireframe-free joins."""
+
+    _validate_copy_item(value, path, problems, require_approved=require_approved)
+
+
 def _validate_action(
     value: Any,
     path: str,

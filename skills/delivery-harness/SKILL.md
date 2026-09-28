@@ -26,7 +26,7 @@ Keep direct work simple; add PLAN/RUN orchestration only when coordination requi
 Keep upstream ownership separate:
 
 - `product-definition-builder` owns the approved Product Definition revision across `PRD.md`, `architecture.md`, and `stack-decisions.md`, including complete frontend and backend architecture and technology decisions.
-- `ui-design-builder` owns UI Design Intake, validated schema-5 wireframes or approved legacy wireframes, HiFi review, Visual Approval and the HiFi target. `design-system-compiler` owns a required design-system pair.
+- `ui-design-builder` owns UI Design Intake, PRD-led direction studies, HiFi checks, Visual Approval and the HiFi target. `design-system-compiler` owns a required design-system pair.
 - Implement current approved product/stack and applicable UI sources. Every must-have `UX-*` trace still needs objective evidence. `Recommended` and `Provisional` stack rows are proposals. Do not invent product, copy, stack or design decisions.
 - `code-security-review` owns read-only review of the fixed integrated SHA; it neither remediates nor probes live targets.
 
@@ -85,7 +85,7 @@ These rules apply to both routes:
 
 - Selecting this skill grants no mutation permission. Bind each state-changing action to the user's exact instruction and target.
 - Preserve all 12 managed action keys: `invoke_external_runtime`, `spawn_subagents`, `create_user_owned_tasks`, `create_local_worktrees`, `create_app_managed_worktrees`, `create_local_branches`, `create_local_commits`, `integrate_locally`, `push`, `archive_worker_tasks`, `remove_worktrees`, and `delete_branches`.
-- Execution intent covers only applicable local setup, branch, commit, and integration actions; it does not authorize `push`. Harness 0.38 RUNs stay `local_only` with `push` false. Publishing A to the run branch and promoting A to `main` are separate post-RUN actions with separate authorization.
+- Execution intent covers only applicable local setup, branch, commit, and integration actions; it does not authorize `push`. Harness 0.38+ RUNs stay `local_only` with `push` false. Publishing A to the run branch and promoting A to `main` are separate post-RUN actions with separate authorization.
 - This workflow is main-only. Never implement directly on the default branch, and never use the retired `development` name as a run or release branch. Promote only through `references/branch-promotion-contract.md`; never force-push. If no exact run-branch name exists, ask before branch creation; never add a fixed prefix.
 - Archival, worktree removal, and branch deletion are separate actions and are never implied by completion.
 - The parent owns routing, authorization, PLAN/RUN, dispatch, leases, integration, and lifecycle actions. Workers and reviewers never delegate, edit PLAN/RUN, integrate, push, or clean up.
@@ -191,7 +191,7 @@ Read `references/ui-implementation-contract.md` before UI implementation or revi
 
 - `design-system-compiler` alone owns compilation when the Design System Need Gate is `required`.
 - UI implementation runs the bound frontend author under this Harness's conformance contract. Do not claim that skill defines conformance mode or reopen Style Integration.
-- Initial/enhancement system-conformance uses current approved PRD, UI design, wireframe and pair; their responsive sets must agree. Target-conformance uses the approved target when the gate is `not_required`. Routine maintenance follows `references/ui-implementation-contract.md`; a missing required input is a design-input delta.
+- Initial/enhancement system-conformance uses current approved PRD, UI design, HiFi and pair; their responsive sets must agree. Target-conformance uses the approved target when the gate is `not_required`. Routine maintenance follows `references/ui-implementation-contract.md`; a missing required input is a design-input delta.
 - A page-faithful target binds implementation only after the user explicitly requests faithful conformance.
 - After the Final Visual Parity Loop, one read-only page-quality pass (`references/verification-gates.md`) runs on the exact head. Impeccable is not the default; a separately authorized run may add UI evidence, with its subagents, browser/server, snapshot, and download side effects disclosed. It never fills a Harness read-only reviewer node.
 - Bundled defaults exist only for bundled skills. A project's owner-confirmed Skill Bindings table may bind installed external visual-direction, frontend-authoring, or UI-quality tools after their full trees and side effects are checked; an unresolved or incompatible slot blocks its dependent node.
@@ -206,7 +206,7 @@ If the user pauses or cancels a managed run, apply the durable control transitio
 
 ### 2. Plan Large Work
 
-Freeze only approved inputs needed by the graph: Product Definition revision, Stack Decision Checkpoint, source paths and digests, scope, architecture and design boundaries, acceptance criteria, trace IDs, write/deny scopes, dependencies, resources, stop conditions, and exact verifiers. Harness 0.38 requires one canonical frozen PRD, architecture, and stack source for every plan and always runs the full sibling Product package checker with `--repo-root`; UI plans also require the approved UI, wireframe, HiFi target, and conditional design-system authority. Use the bounded review-repair graph and owner-attempt rules. A generic instruction to continue grants no new attempt.
+Freeze only approved inputs needed by the graph: Product Definition revision, Stack Decision Checkpoint, source paths and digests, scope, architecture and design boundaries, acceptance criteria, trace IDs, write/deny scopes, dependencies, resources, stop conditions, and exact verifiers. Harness 0.38+ requires one canonical frozen PRD, architecture, and stack source for every plan and always runs the full sibling Product package checker with `--repo-root`; 0.56+ UI plans freeze `ui-design/2`, complete HiFi and conditional `design-system/3`, without wireframes. Older pins retain historical joins. Use the bounded review-repair graph and owner-attempt rules. A generic instruction to continue grants no new attempt.
 
 ### 3. Pass Plan Readiness
 
@@ -238,6 +238,6 @@ Host verifiers run fresh and serially per runner. Container `session_exact` reus
 
 ### 6. Complete
 
-Harness 0.38 RUNs close `local_only` at C after all gates and security pass. `archive_run.py --anchor-out <external path>` moves coordination, writes `ARCHIVE_RECEIPT.json` plus its immutable external anchor, and rolls back failure; commit only bookkeeping as A and reverify it. A current RUN never pushes. Under a new instruction, `push_archived_candidate.py --archive-anchor <path>` keeps request, attempt, receipt, and trusted-host evidence external, binds the canonical URL plus machine-policy ID/hash/principal and OS-managed verifier digest, returns a URL-only no-force argv, and never invokes `git push`; a trusted host reloads and revalidates the request with sanitized config, signs evidence, publishes, and recovery verifies it before reading A back. Candidate gates and separately authorized exact-A `main` promotion follow.
+Harness 0.38+ RUNs close `local_only` at C after all gates and security pass. `archive_run.py --anchor-out <external path>` moves coordination, writes `ARCHIVE_RECEIPT.json` plus its immutable external anchor, and rolls back failure; commit only bookkeeping as A and reverify it. A current RUN never pushes. Under a new instruction, `push_archived_candidate.py --archive-anchor <path>` keeps request, attempt, receipt, and trusted-host evidence external, binds the canonical URL plus machine-policy ID/hash/principal and OS-managed verifier digest, returns a URL-only no-force argv, and never invokes `git push`; a trusted host reloads and revalidates the request with sanitized config, signs evidence, publishes, and recovery verifies it before reading A back. Candidate gates and separately authorized exact-A `main` promotion follow.
 
 `product-activation` preparation requires a fixed SHA and separate authorization. Readiness, measurement handoff, outcome review, and SEO require promotion and production verification; no RUN grant authorizes them.
