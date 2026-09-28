@@ -318,6 +318,26 @@ class CandidateResumeTests(unittest.TestCase):
         finally:
             self.run = original
 
+    def test_acceptance_register_recommit_needs_a_plan_revision(self) -> None:
+        # The template lists the register in the last mission's scope, never in
+        # a task's, so a repair cannot carry a rerun register through the
+        # unchanged PLAN.
+        register = [
+            "docs/verification/delivery-results.json",
+            "docs/verification/evidence/TEST-001.log",
+        ]
+        self.plan["missions"][0]["write_scope"].extend(
+            ["docs/verification/delivery-results.json", "docs/verification/evidence/**"]
+        )
+        for changed in (register, ["src/a/one.py", *register]):
+            with self.subTest(changed=changed):
+                before = copy.deepcopy(self.run)
+                with self.assertRaisesRegex(
+                    ManifestError, "docs/verification/delivery-results.json"
+                ):
+                    self.reconcile(changed_paths=changed)
+                self.assertEqual(before, self.run)
+
     def test_active_work_and_exhausted_gate_budget_refuse(self) -> None:
         self.run["active_wave"].update(
             {

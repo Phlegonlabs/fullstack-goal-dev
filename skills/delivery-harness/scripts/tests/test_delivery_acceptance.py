@@ -21,6 +21,7 @@ if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
 import check_delivery_acceptance as checker  # noqa: E402
+import manifest_fixtures as mf  # noqa: E402
 
 
 CANDIDATE = "a" * 40
@@ -427,6 +428,137 @@ class DeliveryAcceptanceTests(unittest.TestCase):
                 status, payload = invoke(result_value=value)
                 self.assertEqual(1, status)
                 self.assertIn(expected, " ".join(payload["errors"]))
+
+
+class CandidateTreeTests(unittest.TestCase):
+    """In a Git checkout the register's candidate must carry HEAD's product tree."""
+
+    def setUp(self) -> None:
+        self._temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._temp.cleanup)
+        self.root = Path(self._temp.name).resolve()
+        mf.init_repo(self.root, "PRD.md")
+        (self.root / "PRD.md").write_bytes(PRD.encode("utf-8"))
+        value = contract()
+        value["prd_sha256"] = hashlib.sha256(PRD.encode("utf-8")).hexdigest()
+        self.contract_bytes = json.dumps(value, sort_keys=True).encode("utf-8")
+        (self.root / "contract.json").write_bytes(self.contract_bytes)
+        self.write("src/example/foo.py", "x = 1\n")
+        # H1: the product candidate the scenarios ran against.
+        self.h1 = self.commit("last mission")
+
+    def write(self, path: str, text: str) -> None:
+        target = self.root / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text, encoding="utf-8")
+
+    def commit(self, message: str) -> str:
+        mf.git(self.root, "add", "-A")
+        mf.git(self.root, "commit", "-qm", message)
+        return mf.git(self.root, "rev-parse", "HEAD")
+
+    def commit_register(self, candidate: str, *extra: str) -> str:
+        (self.root / "evidence").mkdir(exist_ok=True)
+        (self.root / "evidence" / "web.txt").write_bytes(EVIDENCE)
+        (self.root / "evidence" / "api.txt").write_bytes(EVIDENCE)
+        value = results()
+        value["candidate_sha"] = candidate
+        self.write("results.json", json.dumps(value))
+        for path in extra:
+            self.write(path, "changed with the register\n")
+        return self.commit("acceptance register")
+
+    def check(self, *candidate: str) -> tuple[int, dict[str, Any]]:
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            status = checker.main([
+                "--repo-root", str(self.root),
+                "--prd", "PRD.md",
+                "--contract", "contract.json",
+                "--contract-sha256", hashlib.sha256(self.contract_bytes).hexdigest(),
+                "--results", "results.json",
+                *candidate,
+            ])
+        return status, json.loads(output.getvalue())
+
+    def test_register_only_commit_passes_at_the_register_head(self) -> None:
+        self.commit_register(self.h1)
+
+        status, payload = self.check("--candidate-from-head")
+        self.assertEqual((0, []), (status, payload["errors"]))
+        self.assertEqual(self.h1, payload["candidate_sha"])
+        self.assertEqual(0, self.check("--candidate-sha", self.h1)[0])
+
+    def test_run_coordination_commit_after_the_register_passes(self) -> None:
+        self.commit_register(self.h1)
+        self.write("docs/goal/RUN.md", "# RUN\n")
+        self.commit("coordination checkpoint")
+
+        self.assertEqual(0, self.check("--candidate-from-head")[0])
+
+    def test_product_file_in_the_register_commit_fails(self) -> None:
+        # record-integration accepts this when the file is inside the last
+        # mission's scope; the acceptance gate is what refuses it.
+        self.commit_register(self.h1, "src/example/foo.py")
+
+        for candidate in (["--candidate-from-head"], ["--candidate-sha", self.h1]):
+            with self.subTest(candidate=candidate[0]):
+                status, payload = self.check(*candidate)
+                self.assertEqual(1, status)
+                self.assertIn("src/example/foo.py", " ".join(payload["errors"]))
+
+    def test_unlisted_evidence_file_in_the_register_commit_fails(self) -> None:
+        self.commit_register(self.h1, "evidence/unlisted.txt")
+
+        status, payload = self.check("--candidate-from-head")
+        self.assertEqual(1, status)
+        self.assertIn("evidence/unlisted.txt", " ".join(payload["errors"]))
+
+    def test_stale_register_after_a_product_repair_fails(self) -> None:
+        self.commit_register(self.h1)
+        self.write("src/example/foo.py", "x = 2\n")
+        self.commit("security repair")
+
+        for candidate in (["--candidate-from-head"], ["--candidate-sha", self.h1]):
+            with self.subTest(candidate=candidate[0]):
+                status, payload = self.check(*candidate)
+                self.assertEqual(1, status)
+                self.assertIn("src/example/foo.py", " ".join(payload["errors"]))
+
+    def test_candidate_must_be_an_ancestor_commit_of_head(self) -> None:
+        mf.git(self.root, "checkout", "-q", "-b", "side")
+        self.write("src/example/side.py", "y = 1\n")
+        side = self.commit("side branch")
+        mf.git(self.root, "checkout", "-q", "main")
+        cases = ((side, "is not an ancestor of HEAD"), (CANDIDATE, "is not a commit"))
+        for candidate, expected in cases:
+            mf.git(self.root, "reset", "-q", "--hard", self.h1)
+            self.commit_register(candidate)
+            for flags in (["--candidate-from-head"], ["--candidate-sha", candidate]):
+                with self.subTest(expected=expected, flag=flags[0]):
+                    status, payload = self.check(*flags)
+                    self.assertEqual(1, status)
+                    self.assertIn(expected, " ".join(payload["errors"]))
+
+    def test_candidate_from_head_needs_a_git_checkout(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "PRD.md").write_text(PRD, encoding="utf-8")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                status = checker.main([
+                    "--repo-root", str(root), "--prd", "PRD.md",
+                    "--contract", "PRD.md", "--contract-sha256", "f" * 64,
+                    "--results", "PRD.md", "--candidate-from-head",
+                ])
+        self.assertEqual(1, status)
+        self.assertIn("Git checkout", " ".join(json.loads(output.getvalue())["errors"]))
+
+    def test_candidate_sha_and_from_head_are_exclusive(self) -> None:
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output), self.assertRaises(SystemExit) as raised:
+            self.check("--candidate-sha", self.h1, "--candidate-from-head")
+        self.assertEqual(2, raised.exception.code)
 
 
 if __name__ == "__main__":

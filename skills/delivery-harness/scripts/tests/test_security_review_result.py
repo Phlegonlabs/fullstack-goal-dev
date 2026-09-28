@@ -377,10 +377,15 @@ class SecurityReviewTransitionTests(unittest.TestCase):
 
     def test_record_requires_and_persists_exact_structured_result(self) -> None:
         plan, run = self.state()
+        result = valid_result(self._security_head, self._security_head)
+        # The template's security scope also covers the acceptance register.
+        result["scope"] = next(
+            node["review"]["scope"]
+            for node in plan["graph"]["nodes"]
+            if node["id"] == "N-SECURITY-REVIEW"
+        )
         with tempfile.TemporaryDirectory() as temp:
-            path = self.write_result(
-                temp, valid_result(self._security_head, self._security_head)
-            )
+            path = self.write_result(temp, result)
 
             harness_transition._record_review_attempt(
                 plan, run, self.args(path)

@@ -45,6 +45,17 @@ Use this template as `docs/goal/PLAN.md` for managed work that needs durable coo
         "source_revision": "0000000000000000000000000000000000000000",
         "staged_revision": null,
         "notes": "approved stack authority"
+      },
+      {
+        "id": "SRC-004",
+        "kind": "delivery acceptance",
+        "location": "docs/verification/delivery-acceptance.json",
+        "owner": "<human or team>",
+        "status": "frozen",
+        "content_sha256": null,
+        "source_revision": "0000000000000000000000000000000000000000",
+        "staged_revision": null,
+        "notes": "frozen delivery-acceptance scenario contract"
       }
     ],
     "traces": [
@@ -70,6 +81,26 @@ Use this template as `docs/goal/PLAN.md` for managed work that needs durable coo
         "id": "final-check",
         "cwd": ".",
         "argv": ["<runner>", "<final-argument>"],
+        "pass_signal": "exit 0",
+        "execution": {
+          "parallel_safe": false,
+          "resources": [],
+          "isolation": "host"
+        }
+      },
+      {
+        "id": "delivery-acceptance",
+        "cwd": ".",
+        "argv": [
+          "python",
+          "<installed-delivery-harness>/scripts/check_delivery_acceptance.py",
+          "--repo-root", ".",
+          "--prd", "docs/product/PRD.md",
+          "--contract", "docs/verification/delivery-acceptance.json",
+          "--contract-sha256", "<parent-frozen-hash>",
+          "--results", "docs/verification/delivery-results.json",
+          "--candidate-from-head"
+        ],
         "pass_signal": "exit 0",
         "execution": {
           "parallel_safe": false,
@@ -149,7 +180,11 @@ Use this template as `docs/goal/PLAN.md` for managed work that needs durable coo
             "type": "security",
             "lineage_id": "REVIEW-SECURITY",
             "mission_ids": ["M1"],
-            "scope": ["src/example/**"],
+            "scope": [
+              "src/example/**",
+              "docs/verification/delivery-results.json",
+              "docs/verification/evidence/**"
+            ],
             "required_evidence": ["reviewed_sha", "trust-boundary coverage", "source-to-sink findings", "tool coverage and gaps", "pass or blocked decision"]
           }
         },
@@ -157,6 +192,15 @@ Use this template as `docs/goal/PLAN.md` for managed work that needs durable coo
           "id": "N-FINAL-GATE",
           "kind": "verifier",
           "ref": "final-check",
+          "executor": "local_command",
+          "allowed_outcomes": ["pass", "retryable_failure", "blocked", "contract_gap"],
+          "max_attempts": 2,
+          "runtime": null
+        },
+        {
+          "id": "N-ACCEPTANCE-GATE",
+          "kind": "verifier",
+          "ref": "delivery-acceptance",
           "executor": "local_command",
           "allowed_outcomes": ["pass", "retryable_failure", "blocked", "contract_gap"],
           "max_attempts": 2,
@@ -198,9 +242,17 @@ Use this template as `docs/goal/PLAN.md` for managed work that needs durable coo
           "max_traversals": null
         },
         {
-          "id": "E-FINAL-CLOSEOUT",
+          "id": "E-FINAL-ACCEPTANCE",
           "kind": "dependency",
           "from": "N-FINAL-GATE",
+          "to": "N-ACCEPTANCE-GATE",
+          "on_outcomes": ["pass"],
+          "max_traversals": null
+        },
+        {
+          "id": "E-ACCEPTANCE-CLOSEOUT",
+          "kind": "dependency",
+          "from": "N-ACCEPTANCE-GATE",
           "to": "N-CLOSEOUT-GATE",
           "on_outcomes": ["pass"],
           "max_traversals": null
@@ -215,7 +267,11 @@ Use this template as `docs/goal/PLAN.md` for managed work that needs durable coo
         "priority": 100,
         "merge_rank": 10,
         "trace_ids": ["PRD-001"],
-        "write_scope": ["src/example/**"],
+        "write_scope": [
+          "src/example/**",
+          "docs/verification/delivery-results.json",
+          "docs/verification/evidence/**"
+        ],
         "deny_scope": ["docs/goal/PLAN.md", "docs/goal/RUN.md"],
         "resource_inventory_complete": true,
         "serialized_resources": [],
@@ -305,7 +361,7 @@ The single-mission example deliberately leaves `batch_verifiers` empty: a one-mi
 
 For each `runtime_worker` node, record the actually allowed host identities in `allowed_providers`, with `preferred_provider` null unless explicitly chosen. The `generic` example is a placeholder for an unknown host, not a wildcard. Leave model and effort null to preserve installed defaults. Set explicit supported options only when selected; the agent observes native capability rather than applying provider-specific rules.
 
-Harness 0.38 always freezes the three exact rows shown above with current `content_sha256`; if `source_revision` is present, that full-SHA Git blob and current bytes must both match. Contract joins consume those immutable bytes. UI work adds exact `ui design`, `wireframe`, and `approved ui target` rows at their canonical `docs/design/` paths. A `required` Design System Need gate adds exact `design system` and `design system json` rows; `not_required` adds neither and permits no `DS-*` trace. Every UI surface records `capture_mode: hosted-browser | browser-extension | native | desktop`. URLs are never fetched or joined as authority. A `staged_revision` is not an executable publication. Publish the accepted revision to the canonical source location, clear staging, and increment PLAN revision/digest.
+Harness 0.38 always freezes the three exact PRD, architecture and stack rows shown above with current `content_sha256`; if `source_revision` is present, that full-SHA Git blob and current bytes must both match. Contract joins consume those immutable bytes. UI work adds exact `ui design`, `wireframe`, and `approved ui target` rows at their canonical `docs/design/` paths. A `required` Design System Need gate adds exact `design system` and `design system json` rows; `not_required` adds neither and permits no `DS-*` trace. Every UI surface records `capture_mode: hosted-browser | browser-extension | native | desktop`. URLs are never fetched or joined as authority. A `staged_revision` is not an executable publication. Publish the accepted revision to the canonical source location, clear staging, and increment PLAN revision/digest.
 
 Every executable verifier declaration uses an explicit isolation mode. New templates default to `isolation: "host"`, `parallel_safe: false`, and disabled cache: the command runs in the exact checkout cwd with the project's local tools and environment, and host builds may create ignored artifacts but tracked source and protected Git state must remain unchanged. Host mode is not OS isolation and never reuses results. To use the legacy pinned container route instead, declare the full container policy explicitly and replace the example image reference with a locally observed immutable RepoDigest before readiness; zero or fabricated template digests are rejected, and omission never downgrades to host. External, network, browser, and mutable-environment checks use an external-wait, lifecycle, or browser route instead of a local candidate subprocess. Task and worker declarations may use the exact `selection.mode: "changed_files"` form shown by the machine manifest's `"mode": "changed_files"` value; targeted checks follow parent-observed changed files.
 
@@ -361,14 +417,22 @@ These are planning expectations, not authorization. Record explicit action autho
 
 ## Plan Readiness Gate
 
-For newly authored delivery work, also follow `references/delivery-acceptance-contract.md`. The example manifest above omits these entries; add all of them before readiness:
+For newly authored delivery work, also follow `references/delivery-acceptance-contract.md`. The example manifest above shows these entries; keep all of them before readiness:
 
 - a source `SRC-004` of kind `delivery acceptance` at `docs/verification/delivery-acceptance.json`, frozen like the other rows;
-- a final gate `delivery-acceptance` with no `selection` (so it always runs) whose argv runs `check_delivery_acceptance.py` with `--repo-root`, `--prd`, `--contract`, `--contract-sha256`, `--results` and `--candidate-sha`;
+- a final gate `delivery-acceptance` with no `selection` (so it always runs) whose argv runs `check_delivery_acceptance.py` with `--repo-root`, `--prd`, `--contract`, `--contract-sha256`, `--results` and `--candidate-from-head`;
 - a `local_command` verifier node `N-ACCEPTANCE-GATE` with `ref: "delivery-acceptance"`;
 - `dependency` edges from `N-FINAL-GATE` to `N-ACCEPTANCE-GATE` and from `N-ACCEPTANCE-GATE` to `N-CLOSEOUT-GATE`.
 
-Use the parent's frozen contract hash and observed candidate SHA, never values derived from result writers. `--candidate-sha` is the pre-register candidate H1 that the scenarios ran against. Commit only the register and its evidence on top of H1, giving H2, before the unified reviews; every review and final gate, including `N-ACCEPTANCE-GATE`, then runs at H2. The result register is `docs/verification/delivery-results.json`; evidence remains SHA-bound. The template's neutral command placeholders must be replaced before execution.
+Use the parent's frozen contract hash, never a value derived from result writers. The PLAN cannot name the candidate H1, because H1 exists only after the last merge; `--candidate-from-head` takes H1 from the register and fails unless Git shows H1 is an ancestor of the checked-out head and every later commit changes only the register, the evidence files it lists and run coordination files. The register commit gets its RUN slot through `record-integration`, in one order:
+
+1. Merge the last mission by `merge_rank`, giving H1. Do not record it yet.
+2. Run the scenarios at H1 and write `candidate_sha: H1` in the register.
+3. Commit only the register and the evidence files it lists on top of H1, giving H2.
+4. Run `record-integration --integrated-sha H2` for that mission, so H2 is the recorded integration head.
+5. Run every unified review and final gate, including `N-ACCEPTANCE-GATE`, at H2.
+
+For this, the last mission's `write_scope` lists `docs/verification/delivery-results.json` and `docs/verification/evidence/**`, as M1 shows, and so does the security review's `scope` (the validator requires it to cover every mission scope). `record-integration` checks only that mission scope, so `N-ACCEPTANCE-GATE` is what refuses a product file committed with the register. Only the parent writes these paths, and every evidence file the register lists comes from its own run at H1. No task `write_scope` lists them, so in isolated workspaces a worker commit that touches them fails worker-result validation; a shared checkout does not run that per-commit check. They are not coordination paths, so a register commit after the recorded head leaves RUN stale. Any candidate repair after H2 changes files outside the register, so `N-ACCEPTANCE-GATE` fails at the repaired head. `reconcile-candidate-head` accepts only paths in the repair task's `write_scope`, which never lists the register, so rerunning acceptance after H2 needs a formal PLAN revision with fresh owner authorization: the new digest stops the old execution grants from covering anything. The revision adds a repair task whose `write_scope` lists only the register and evidence paths; that is safe then because the mission is already integrated. The template's neutral command placeholders must be replaced before execution.
 
 The manifest validator does not check that these entries exist, so the parent's readiness review must confirm them; passing schema validation alone is insufficient. Do not retrofit or silently migrate a running legacy PLAN/RUN. Direct work runs the acceptance CLI without these artifacts.
 

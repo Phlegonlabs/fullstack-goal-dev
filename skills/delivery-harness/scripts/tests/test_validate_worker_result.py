@@ -670,6 +670,23 @@ class ValidateWorkerResultTests(unittest.TestCase):
         )
         self.assertIn("task_scope_escape", error_codes(errors))
 
+    def test_task_commit_cannot_write_the_acceptance_register(self) -> None:
+        # The last mission's scope lists the register for the parent's
+        # commit; no task does, so a worker task commit touching it fails.
+        plan = copy.deepcopy(self.plan)
+        plan["missions"][0]["write_scope"].append("docs/verification/**")
+        result = copy.deepcopy(self.result)
+        task_id = result["task_results"][0]["task_id"]
+        errors = validate(
+            plan,
+            make_run(plan),
+            result,
+            observed_task_changed_files={
+                task_id: ["docs/verification/delivery-results.json"]
+            },
+        )
+        self.assertIn("task_scope_escape", error_codes(errors))
+
     def test_worker_claim_does_not_control_verifier_selection(self) -> None:
         plan = copy.deepcopy(self.plan)
         selection = {
