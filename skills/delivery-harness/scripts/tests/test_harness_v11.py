@@ -407,7 +407,8 @@ class HarnessV11Tests(unittest.TestCase):
 
     def test_validate_run_rejects_product_and_frozen_coordination_paths(self) -> None:
         # An older in-flight RUN keeps its recorded coordination_paths; the
-        # allowlist checks apply to 0.55.0+ RUNs.
+        # allowlist checks apply to 0.55.0+ RUNs and to a null or malformed
+        # pin.
         plan = valid_plan()
         run = valid_run(plan)
         self.assertEqual([], validate_run(plan, run))
@@ -417,7 +418,12 @@ class HarnessV11Tests(unittest.TestCase):
             ("src/app.ts", "unsupported product-path coordination entries: src/app.ts"),
             ("docs/product/PRD.md", "frozen product/design sources cannot be coordination paths"),
         )
-        for version, rejected in (("0.54.5", False), ("0.55.0", True)):
+        for version, rejected in (
+            ("0.54.5", False),
+            ("0.55.0", True),
+            (None, True),
+            ("0.54", True),
+        ):
             gate["required_harness_version"] = version
             run["integration"]["coordination_paths"][-1] = "docs/epics/EPIC-1.md"
             # The fixture has other version-gated gaps; compare against them.

@@ -44,6 +44,7 @@ from harness_schema import (
     is_valid_provider_id,
     run_required_harness_version,
     archive_first_required,
+    parse_harness_version,
     required_harness_version,
     RUNTIME_REVIEW_TYPES,
     RUNTIME_REASONING_EFFORTS,
@@ -5564,6 +5565,10 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
     if not _keys(errors, "run", run, run_keys, optional_run_keys):
         return sorted(errors)
     required_harness_version = run_required_harness_version(run)
+    # The 0.55.0 shape checks skip only a pin that parses below 0.55.0; a
+    # null or malformed pin gets the strict checks.
+    parsed_pin = parse_harness_version(required_harness_version)
+    apply_0550_shape_checks = parsed_pin is None or parsed_pin >= EXACT_RECEIPT_REQUIRED_VERSION
     if (
         schema_version == 11
         and version_at_least(required_harness_version, (0, 28, 0))
@@ -5902,10 +5907,7 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                 if (
                     action == "delete_branches"
                     and entry["authorized"]
-                    and version_at_least(
-                        run_required_harness_version(run),
-                        EXACT_RECEIPT_REQUIRED_VERSION,
-                    )
+                    and apply_0550_shape_checks
                 ):
                     delete_scope = entry.get("scope")
                     delete_targets = (
@@ -6612,9 +6614,7 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
             # files changed, so a product path listed here would hide
             # untested product commits. validate_run checks this from 0.55.0;
             # the closeout live-head check applies the allowlist to every RUN.
-            allowlist_required = version_at_least(
-                run_required_harness_version(run), EXACT_RECEIPT_REQUIRED_VERSION
-            )
+            allowlist_required = apply_0550_shape_checks
             frozen_paths = sorted(
                 path for path in coordination_paths
                 if frozen_coordination_path(path, plan)
