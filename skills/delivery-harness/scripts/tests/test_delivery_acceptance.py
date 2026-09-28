@@ -505,6 +505,62 @@ class CandidateTreeTests(unittest.TestCase):
         evidence_reads = [call for call in read.call_args_list if call.args[1] == "evidence"]
         self.assertEqual(2, len(evidence_reads))
 
+    def test_crlf_register_needs_byte_preserving_git_attributes(self) -> None:
+        mf.git(self.root, "config", "core.autocrlf", "true")
+        self.commit_register(self.h1)
+        value = json.loads((self.root / "results.json").read_text(encoding="utf-8"))
+        (self.root / "results.json").write_bytes(
+            json.dumps(value, indent=2).replace("\n", "\r\n").encode("utf-8")
+        )
+        self.commit("format register with CRLF")
+        self.assertEqual("", mf.git(self.root, "status", "--porcelain"))
+
+        status, payload = self.check("--candidate-from-head")
+        self.assertEqual(1, status)
+        self.assertIn("line-ending or Git filter conversion", " ".join(payload["errors"]))
+
+    def test_byte_preserving_git_attributes_allow_crlf_register(self) -> None:
+        self.write(".gitattributes", "results.json -text -filter\nevidence/** -text -filter\n")
+        candidate = self.commit("keep acceptance bytes unchanged")
+        mf.git(self.root, "config", "core.autocrlf", "true")
+        self.commit_register(candidate)
+        value = json.loads((self.root / "results.json").read_text(encoding="utf-8"))
+        (self.root / "results.json").write_bytes(
+            json.dumps(value, indent=2).replace("\n", "\r\n").encode("utf-8")
+        )
+        self.commit("format byte-preserved register with CRLF")
+
+        status, payload = self.check("--candidate-from-head")
+        self.assertEqual((0, []), (status, payload["errors"]))
+
+    def test_reused_evidence_path_must_not_change_between_rows(self) -> None:
+        candidate = self.commit_register(self.h1)
+        changed = b"alternate synthetic evidence\n"
+        value = results()
+        value["candidate_sha"] = candidate
+        value["results"][0]["evidence"] = {
+            "path": "evidence/web.txt", "sha256": hashlib.sha256(changed).hexdigest()
+        }
+        value["results"][1]["evidence"] = {
+            "path": "evidence/web.txt", "sha256": EVIDENCE_SHA
+        }
+        self.write("results.json", json.dumps(value))
+        self.commit("reuse evidence path")
+        original_read = checker._read_bytes
+        reads = 0
+
+        def changing_read(path: Path, label: str, root: Path) -> bytes:
+            nonlocal reads
+            if label == "evidence" and Path(path).as_posix() == "evidence/web.txt":
+                reads += 1
+                return changed if reads == 1 else EVIDENCE
+            return original_read(path, label, root)
+
+        with patch.object(checker, "_read_bytes", side_effect=changing_read):
+            status, payload = self.check("--candidate-from-head")
+        self.assertEqual(1, status)
+        self.assertIn("changed between result rows", " ".join(payload["errors"]))
+
     def test_ignored_evidence_cannot_satisfy_committed_head(self) -> None:
         self.write(".gitignore", "*.log\n")
         candidate = self.commit("ignore logs")

@@ -608,7 +608,7 @@ Document sync 只略过明确退役列表中的旧名称；实际引用和未知
 
 ### Git checkout 中的验收证据
 
-交付验收 gate 会确认 register 及其列出的每个 evidence 文件，其字节都与 `HEAD` 中已提交的普通文件相同。即使记录的 hash 符合工作目录内容，被忽略、未跟踪或已修改的证据仍会失败。请先提交 register 和证据，再运行最终 gate。
+在 Git checkout 根目录，交付验收 gate 会确认 register 及其列出的每个 evidence 文件，其字节都与 `HEAD` 中已提交的普通文件相同。即使记录的 hash 符合工作目录内容，被忽略、未跟踪或已修改的证据仍会失败。提交前，先为 register 和证据路径设置 `-text -filter` 属性，避免 Windows 换行或 Git filter 改变提交的字节，再运行最终 gate。
 
 ## 保持 README 与代码同步
 
@@ -644,7 +644,7 @@ HiFi 示例以固定 LF 换行维持跨平台字节哈希。Wireframe 的 Node �
 
 每次发布都要更新本节，连同上面《发布》一节描述的版本号提升与 tag 一起完成。
 
-- **0.56.1** — 将交付验收结果与证据绑定到 `HEAD` 已提交的确切字节；被忽略、未跟踪或已修改的文件不能获得 gate PASS。
+- **0.56.1** — 在 Git checkout 根目录，将交付验收结果与证据绑定到 `HEAD` 已提交的确切字节；被忽略、未跟踪或已修改的文件不能获得 gate PASS，并须设置保留字节的 Git 属性。
 
 - **0.56.0** — 移除新包的 Wireframe 阶段。明确的 ui-design/2 直接读 PRD、默认三方向，并在审查前验证 HiFi 文案与操作。Harness 0.56 冻结完整 HiFi 包；design-system/3 移除 Wireframe binding。旧契约保留原本检查。0.55.0 审查修正的后续项目。`check_delivery_acceptance.py` 现在需要 `--candidate-sha` 或 `--candidate-from-head`；在 Git checkout 中，register 的 candidate 必须是 HEAD 或其祖先，之后只能变更 register、它列出的 evidence 与 run 协调文件。检查器不知道 RUN 版本，所以进行中的 0.55.0 run 若 register commit 含其他文件，或 repair 后仍传入过时的 `--candidate-sha`，gate 会失败。在已采用的 runtime contract 下，要求 0.55.1 或更新版本的 run 需要每个 worker 与 reviewer 的 `contract_adoption_check`。PLAN 与 RUNBOOK template 纳入 delivery-acceptance 行与 register 提交顺序。`*` mission 范围下的 mission 启动与 `app_threads` reviewer 会被延后，不再卡住。0.55.0 的 `coordination_paths` 与受保护分支检查只跳过 pin 低于 0.55.0 的 run。Legacy current-HiFi 规则依批准与其 receipt 的日期判定，并在要求 0.55.1 或更新版本的 run 的 UI join 与 design-system pair join 中强制执行，receipt 以 2026-09-27T00:00:00Z 为界。验收 evidence 必须放在 register 旁的 `evidence/` 下，worker 不能写入 register 或其 evidence。崩溃或超时的 review 又可以记录为 `retryable_failure`。交换提交的竞态会把并发写入的 bytes 保留在具名的 recovery 文件。Product Definition 新增 Base UI 与 Radix Primitives 作为 headless component foundation 选项。 修正审计发现的 skill 指令、prompt 与命令示例，保留历史批准及兼容指针。明确说明产品 operations 审查与自动 approval 对应检查、仅限容器的 verifier 复用及可选动效 skill。包含 macOS CI 与 SIP 保护签名验证器修正。
 

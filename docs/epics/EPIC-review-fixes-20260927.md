@@ -244,12 +244,19 @@ or edited register/evidence bytes absent from that HEAD. This violates the
 exact-head final-gate rule. The review also noted an older pre-0.38 UI path
 issue; it is outside this focused repair and remains unverified here.
 
-Working-tree repair on `codex/release-0.56.1-acceptance-binding`: require the
+Initial repair committed as `79c2c6bb` on `codex/release-0.56.1-acceptance-binding`: require the
 register and every listed evidence file to be a regular blob at HEAD with bytes
 identical to those the checker read. Three regressions first reproduced the
 incorrect PASS, then passed after the change. A fourth check verifies that the
 HEAD comparison uses the validated bytes; all 37 acceptance tests passed.
 The direct task has UI impact `none`. Version, four README descriptions and
 release fields move together to 0.56.1. The full Harness suite passed 1,374
-tests (19 skipped) before the final same-bytes adjustment. Exact-candidate CI,
-independent review, PR promotion, tag and local install are pending.
+tests (19 skipped) before the final same-bytes adjustment. The independent
+Opus 5.5 review found no fabricated PASS, but identified a Windows CRLF/filter
+compatibility risk, a repeated-path race and stale document wording. The
+checker intentionally requires byte-preserving Git storage; the contract and
+four READMEs now explain the required `-text -filter` attributes. New tests
+cover both CRLF failure and attribute-protected success, and repeated-path
+changes are rejected. All 40 focused acceptance tests passed on this follow-up
+working tree. Exact-candidate CI, PR promotion, tag and local install remain
+pending. The older pre-0.38 UI path issue remains a separate unverified gap.

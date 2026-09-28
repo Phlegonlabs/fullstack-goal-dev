@@ -267,7 +267,12 @@ def _evidence(
         errors.append(f"{path}.sha256 does not match the evidence artifact")
         return False
     if captured is not None:
-        captured[Path(raw_path).as_posix()] = payload
+        normalized = Path(raw_path).as_posix()
+        prior = captured.get(normalized)
+        if prior is not None and prior != payload:
+            errors.append(f"{path}.path {normalized} changed between result rows")
+            return False
+        captured[normalized] = payload
     return True
 
 
@@ -392,7 +397,9 @@ def _committed_file_errors(root: Path, path: str, payload: bytes) -> list[str]:
     except (GitMetadataError, OSError, subprocess.SubprocessError) as exc:
         return [f"cannot verify {path} against HEAD: {exc}"]
     if actual.stdout.strip() != fields[2]:
-        return [f"{path} bytes differ from HEAD"]
+        return [
+            f"{path} bytes differ from HEAD; check line-ending or Git filter conversion"
+        ]
     return []
 
 
