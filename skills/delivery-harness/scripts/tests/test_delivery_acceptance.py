@@ -505,6 +505,36 @@ class CandidateTreeTests(unittest.TestCase):
         evidence_reads = [call for call in read.call_args_list if call.args[1] == "evidence"]
         self.assertEqual(2, len(evidence_reads))
 
+    def test_head_move_during_check_cannot_combine_two_commits(self) -> None:
+        register_head = self.commit_register(self.h1)
+        original_register = (self.root / "results.json").read_bytes()
+        changed = b"later evidence bytes\n"
+        (self.root / "evidence" / "web.txt").write_bytes(changed)
+        value = json.loads(original_register)
+        value["results"][0]["evidence"]["sha256"] = hashlib.sha256(changed).hexdigest()
+        self.write("results.json", json.dumps(value))
+        later_head = self.commit("later register and evidence")
+        mf.git(self.root, "update-ref", "HEAD", register_head, later_head)
+        mf.git(self.root, "read-tree", register_head)
+        (self.root / "results.json").write_bytes(original_register)
+        (self.root / "evidence" / "web.txt").write_bytes(EVIDENCE)
+        self.assertEqual("", mf.git(self.root, "status", "--porcelain"))
+        original_git = checker.run_git
+        moved = False
+
+        def moving_git(root: Path, *arguments: str, **options: Any) -> Any:
+            nonlocal moved
+            if arguments[:3] == ("cat-file", "-t", self.h1) and not moved:
+                mf.git(self.root, "update-ref", "HEAD", later_head, register_head)
+                moved = True
+            return original_git(root, *arguments, **options)
+
+        with patch.object(checker, "run_git", side_effect=moving_git):
+            status, payload = self.check("--candidate-from-head")
+        self.assertTrue(moved)
+        self.assertEqual(1, status)
+        self.assertIn("HEAD changed during acceptance check", " ".join(payload["errors"]))
+
     def test_crlf_register_needs_byte_preserving_git_attributes(self) -> None:
         mf.git(self.root, "config", "core.autocrlf", "true")
         self.commit_register(self.h1)

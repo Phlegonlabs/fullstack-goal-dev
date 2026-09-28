@@ -608,7 +608,7 @@ Chinese review checks now detect missing heading-level counts, table shapes/rows
 
 ### Acceptance evidence in Git checkouts
 
-When `--repo-root` is the Git checkout root, the delivery-acceptance gate checks that the register and every listed evidence file have the same bytes as regular files committed at `HEAD`. This root requirement also applies to the H1/H2 check above. Ignored, untracked and edited evidence fails even when its recorded hash matches the working copy. Add and commit `-text -filter` attributes for the register and evidence paths before candidate H1, so Windows line endings or Git filters cannot change their committed bytes. After running at H1, commit only the register and evidence as H2, then run the final gate.
+When `--repo-root` is the Git checkout root, the delivery-acceptance gate checks that the register and every listed evidence file have the same bytes as regular files committed at one fixed `HEAD`; it fails if HEAD moves during the check. This root requirement also applies to the H1/H2 check above. Ignored, untracked and edited evidence fails even when its recorded hash matches the working copy. Add and commit `-text -filter` attributes for the register and evidence paths before candidate H1, so Windows line endings or Git filters cannot change their committed bytes. After running at H1, commit only the register and evidence as H2, then run the final gate.
 
 ## Keeping the READMEs current
 

@@ -268,3 +268,11 @@ that attributes are committed before H1, and the managed PLAN template now
 requires readiness review to check them or grant a pre-H1 task the attribute
 path. The contract also states that Git binding requires `--repo-root` to be
 the checkout root. Full exact-candidate checks and promotion remain pending.
+
+Automated PR review also found that separate reads of symbolic `HEAD` could
+combine different commits into one gate PASS. A new regression reproduced that
+PASS by moving the ref between blob checks and candidate checks. The checker
+now pins one commit SHA for the invocation and fails when HEAD moves before
+returning. All 41 focused acceptance tests passed on the follow-up working
+tree. The repeated-path comment from the same review was already addressed in
+`9c2ba405`. Full exact-candidate checks and promotion remain pending.
