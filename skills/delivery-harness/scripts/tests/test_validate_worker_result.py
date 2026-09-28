@@ -696,10 +696,12 @@ class ValidateWorkerResultTests(unittest.TestCase):
     ]
 
     def _shared_checkout_acceptance_fixture(
-        self, *, gate: bool = True, argv: list[str] | None = None
+        self, *, gate: bool = True, argv: list[str] | None = None,
+        task_scope: list[str] = (),
     ):
         plan = copy.deepcopy(self.plan)
         plan["missions"][0]["write_scope"].append("docs/verification/**")
+        plan["missions"][0]["tasks"][0]["write_scope"].extend(task_scope)
         if gate:
             plan["final_gates"].append(
                 {
@@ -713,9 +715,12 @@ class ValidateWorkerResultTests(unittest.TestCase):
         return plan, run
 
     def _validate_shared_checkout(
-        self, changed: list[str], *, gate: bool = True, argv: list[str] | None = None
+        self, changed: list[str], *, gate: bool = True, argv: list[str] | None = None,
+        task_scope: list[str] = (),
     ):
-        plan, run = self._shared_checkout_acceptance_fixture(gate=gate, argv=argv)
+        plan, run = self._shared_checkout_acceptance_fixture(
+            gate=gate, argv=argv, task_scope=task_scope
+        )
         result = make_result(plan)
         result["changed_files"] = changed
         for item in result["verifiers"]:
@@ -734,6 +739,29 @@ class ValidateWorkerResultTests(unittest.TestCase):
             with self.subTest(path=path):
                 errors = self._validate_shared_checkout([CHANGED_FILE, path])
                 self.assertEqual({"acceptance_path_write"}, error_codes(errors))
+
+    def test_task_scope_cannot_let_a_worker_write_acceptance_paths(self) -> None:
+        # A broad task scope such as docs/verification/** still leaves the
+        # register and its evidence/ directory to the parent.
+        broad = ["docs/verification/**"]
+        for path in (
+            "docs/verification/delivery-results.json",
+            "docs/verification/evidence/run.log",
+        ):
+            with self.subTest(path=path):
+                errors = self._validate_shared_checkout(
+                    [CHANGED_FILE, path], task_scope=broad
+                )
+                self.assertEqual({"acceptance_path_write"}, error_codes(errors))
+        # Other task-scoped files beside the register stay writable.
+        self.assertEqual([], self._validate_shared_checkout(
+            [CHANGED_FILE, "docs/verification/notes.md"], task_scope=broad
+        ))
+        # Without the gate, a task scope still covers the same paths.
+        self.assertEqual([], self._validate_shared_checkout(
+            [CHANGED_FILE, "docs/verification/delivery-results.json"],
+            gate=False, task_scope=broad,
+        ))
 
     def test_acceptance_gate_in_other_argv_forms_still_guards(self) -> None:
         register = "docs/verification/delivery-results.json"

@@ -561,6 +561,17 @@ def _acceptance_register_paths(plan: dict[str, Any]) -> tuple[bool, list[str]]:
     return declared, paths
 
 
+def _acceptance_path(path: str, register_paths: list[str]) -> bool:
+    """True for a register or any path under ``evidence/`` next to it."""
+
+    folded = path.casefold()
+    for register in register_paths:
+        root = posixpath.join(posixpath.dirname(register), "evidence").casefold()
+        if folded == register.casefold() or folded.startswith(root + "/"):
+            return True
+    return False
+
+
 def _declared_verifiers(
     mission: dict[str, Any] | None,
 ) -> dict[str, tuple[dict[str, Any], str, str | None]]:
@@ -1440,10 +1451,11 @@ def validate_worker_result_data(
         write_scope = mission.get("write_scope", [])
         deny_scope = mission.get("deny_scope", [])
         # With a delivery-acceptance gate, the mission scope lists the
-        # register and evidence for the parent's commit only; no task scope
-        # does. Check that in every workspace mode, since a shared checkout
-        # has no per-task commit slices. A gate whose register path cannot
-        # be parsed still turns the check on.
+        # register and evidence for the parent's commit only. A worker may
+        # not change them whatever a task scope says, nor any path no task
+        # scope covers. Check that in every workspace mode, since a shared
+        # checkout has no per-task commit slices. A gate whose register path
+        # cannot be parsed still turns on the task-scope check.
         acceptance_gate, register_paths = _acceptance_register_paths(plan)
         register_text = ", ".join(register_paths) or "path not parsed from the gate"
         task_scopes = [
@@ -1464,6 +1476,16 @@ def validate_worker_result_data(
                 _issue(errors, "denied_path", item_path, "changed path is denied by the mission")
             elif not allowed:
                 _issue(errors, "scope_escape", item_path, "changed path is outside mission write scope")
+            elif _acceptance_path(changed_path, register_paths):
+                # Even a task scope that covers it does not let a worker
+                # write it; an acceptance rerun is a parent commit.
+                _issue(
+                    errors,
+                    "acceptance_path_write",
+                    item_path,
+                    "only the parent writes the delivery-acceptance register "
+                    f"({register_text}) and the evidence/ directory next to it",
+                )
             elif acceptance_gate and not any(
                 path_in_scopes(changed_path, scopes) for scopes in task_scopes
             ):
