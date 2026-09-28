@@ -124,7 +124,11 @@ CONTRACT_ADOPTION_CHECK_KEYS = {"digest", "matched", "reading_evidence"}
 
 
 def contract_adoption_check_errors(
-    run: dict[str, Any], check: Any, *, blocked: bool = False
+    run: dict[str, Any],
+    check: Any,
+    *,
+    blocked: bool = False,
+    optional: bool = False,
 ) -> list[str]:
     """Check a worker's or reviewer's own contract-adoption report.
 
@@ -133,7 +137,9 @@ def contract_adoption_check_errors(
     or later; older RUNs may omit it. A report must never appear without an
     adopted contract. Pass ``blocked=True`` for a blocked review: it may omit
     the report, or report a mismatch with ``matched`` false so the observed
-    digest is kept.
+    digest is kept. Pass ``optional=True`` for a result the parent may record
+    without child output: it may omit the report, but one it supplies is
+    checked in full.
     """
 
     runtime = run.get("runtime_capabilities") if isinstance(run, dict) else None
@@ -147,6 +153,7 @@ def contract_adoption_check_errors(
     if check is None:
         if (
             not blocked
+            and not optional
             and isinstance(adoption, dict)
             and version_at_least(run_required_harness_version(run), (0, 55, 1))
         ):

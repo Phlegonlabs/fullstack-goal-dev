@@ -690,7 +690,7 @@ class HarnessV11Tests(unittest.TestCase):
                     mission_id="M1",
                     result=result,
                     evidence=["reviewed the reserved head"],
-                    finding=["digest mismatch"] if result == "blocked" else None,
+                    finding=["digest mismatch"] if result != "pass" else None,
                     security_result=None,
                     contract_adoption_check=path,
                     failure_family_id=None,
@@ -733,6 +733,40 @@ class HarnessV11Tests(unittest.TestCase):
             run = blocked_run
             record("blocked", None, root)
             self.assertEqual("blocked", run["review_workers"][-1]["phase"])
+            run = original
+
+            # fix_required still needs the reviewer's check.
+            run = copy.deepcopy(original)
+            with self.assertRaisesRegex(harness_transition.ManifestError, "is required"):
+                record("fix_required", None, root)
+            run = original
+
+            # The parent can record a crashed or timed-out reviewer, or a
+            # contract gap, without child output, so the node can retry.
+            # The PLAN template's review nodes allow retryable_failure.
+            outcomes = next(
+                item for item in plan["graph"]["nodes"] if item["id"] == "N-FRONTEND-REVIEW"
+            )["allowed_outcomes"]
+            outcomes.append("retryable_failure")
+            for result in ("retryable_failure", "contract_gap"):
+                with self.subTest(optional=result):
+                    run = copy.deepcopy(original)
+                    record(result, None, root)
+                    self.assertEqual(result, run["review_workers"][-1]["outcome"])
+                    if result == "retryable_failure":
+                        self.assertEqual(
+                            "failed",
+                            run["graph_state"]["node_states"]["N-FRONTEND-REVIEW"]["phase"],
+                        )
+                    # A check that is supplied is still validated in full.
+                    for check, message in (
+                        ({**valid, "matched": False}, "matched must be true"),
+                        ({**valid, "digest": "d" * 64}, "adopted contract digest"),
+                    ):
+                        run = copy.deepcopy(original)
+                        with self.assertRaisesRegex(harness_transition.ManifestError, message):
+                            record(result, check, root)
+            outcomes.remove("retryable_failure")
             run = original
 
             # A blocked reviewer may report the digest it saw; it is kept.

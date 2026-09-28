@@ -4672,9 +4672,14 @@ def _record_review_attempt(
         if adoption_check is None:
             raise ManifestError("--contract-adoption-check must contain an object")
     # A reviewer that stopped on a digest mismatch reports `blocked`; it may
-    # omit the check or report the digest it saw with matched false.
+    # omit the check or report the digest it saw with matched false. The
+    # parent may record a crashed or timed-out reviewer as retryable_failure,
+    # or a contract_gap, without child output; a supplied check is validated.
     adoption_errors = contract_adoption_check_errors(
-        run, adoption_check, blocked=args.result == "blocked"
+        run,
+        adoption_check,
+        blocked=args.result == "blocked",
+        optional=args.result in {"retryable_failure", "contract_gap"},
     )
     if adoption_errors:
         raise ManifestError(
