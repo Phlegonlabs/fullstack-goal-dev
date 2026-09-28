@@ -83,9 +83,12 @@ def validate(source: Path, root: Path, *, hifi: Path, required: bool = False,
                                     repo_root=root, require_filled=True, require_approved=True)
         ui_text = (root / "docs/design/ui-design.md").read_text(encoding="utf-8")
         modern = ui.is_structure_review(ui_text)
-        # Legacy ui-evidence/2 HiFi receipts stay valid only for the approval already committed.
+        # Legacy ui-evidence/2 HiFi receipts stay valid only for a pre-0.55.0
+        # approval whose target is already committed. A later-dated approval is
+        # never historical, so committing it first cannot skip current evidence.
         current_target = _approved_target(ui_text)
-        historical = current_target is not None and current_target == _committed_target(source)
+        historical = (not ui.current_hifi_evidence_required(ui_text)
+                      and current_target is not None and current_target == _committed_target(source))
         problems += ui.validate(root / "docs/design/ui-design.md", repo_root=root,
                                 prd_path=root / "docs/product/PRD.md",
                                 wireframes_path=root / "docs/design/wireframes.html",

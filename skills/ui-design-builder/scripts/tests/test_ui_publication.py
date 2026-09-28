@@ -1,5 +1,6 @@
 """Publication checkout paths retain approval identities and upstream history."""
 import hashlib
+import json
 import shutil
 import subprocess
 import sys
@@ -102,6 +103,62 @@ class PublicationTests(unittest.TestCase):
                 self.assertIn("requires ui-evidence/3 machine observation", findings)
                 self.assertIn("reviewer shell version 3", findings)
                 self.assertIn("Frontend Design Usage", findings)
+
+    def test_dated_legacy_approval_needs_current_hifi_even_when_committed(self):
+        # The approval is committed at HEAD unchanged; only its decision date
+        # decides whether ui-evidence/2 HiFi receipts may stay.
+        for decided_on, historical in (("2026-09-26", True), ("2026-09-27", False)):
+            with self.subTest(decided_on=decided_on), tempfile.TemporaryDirectory() as temp:
+                source, candidate = Path(temp) / "source", Path(temp) / "candidate"
+                source.mkdir()
+                materialize_publication(source, required=False, visual_decided_on=decided_on)
+                def git(*args):
+                    subprocess.run(["git", "-C", str(source), *args], check=True, capture_output=True)
+                git("init", "-q")
+                git("add", ".")
+                git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+                    "-c", "commit.gpgsign=false", "commit", "-qm", "fixture")
+                shutil.copytree(source, candidate)
+                findings = publication.validate(
+                    source, candidate, hifi=Path("docs/design/ui-references/run-1/index.html"))
+                if historical:
+                    self.assertEqual([], findings)
+                else:
+                    joined = "\n".join(findings)
+                    self.assertIn("requires ui-evidence/3 machine observation", joined)
+                    self.assertIn("reviewer shell version 3", joined)
+                    self.assertIn("Frontend Design Usage", joined)
+
+    def test_compiler_preflight_applies_the_dated_current_hifi_rule(self):
+        import check_design_system_pair
+        for decided_on, historical in (("2026-09-26", True), ("2026-09-27", False)):
+            with self.subTest(decided_on=decided_on), tempfile.TemporaryDirectory() as temp:
+                root = Path(temp)
+                _, _, _, _, _, pair = materialize_publication(
+                    root, required=True, visual_decided_on=decided_on)
+                problems = check_design_system_pair.compare(
+                    pair[0].read_text(encoding="utf-8"),
+                    json.loads(pair[1].read_text(encoding="utf-8")),
+                    require_filled=True, repo_root=root)
+                if historical:
+                    self.assertEqual([], problems)
+                else:
+                    joined = "\n".join(problems)
+                    self.assertIn("ui-design: ", joined)
+                    self.assertIn("requires ui-evidence/3 machine observation", joined)
+                    self.assertIn("Frontend Design Usage", joined)
+
+    def test_current_hifi_cutover_date_boundaries(self):
+        ui = publication.ui
+        def legacy(decided_on):
+            return "## Wireframe Approval\n\n## Visual Approval\n\nDecided on: " + decided_on + "\n"
+        self.assertFalse(ui.current_hifi_evidence_required(legacy("2026-09-26")))
+        self.assertTrue(ui.current_hifi_evidence_required(legacy("2026-09-27")))
+        self.assertTrue(ui.current_hifi_evidence_required(legacy("later")))
+        self.assertTrue(ui.current_hifi_evidence_required("## Wireframe Approval\n"))
+        self.assertTrue(ui.current_hifi_evidence_required(
+            "## Wireframe Validation\n\n## Visual Approval\n\nDecided on: 2026-09-01\n"))
+        self.assertIs(False, ui.parse_ui_contract_view(legacy("2026-09-26"))[0]["current_hifi_required"])
 
     def test_digest_cli_is_stable_across_derived_linkage(self):
         text = "# UI\n\nApproved direction\nCompiled design system pair: pending\n"

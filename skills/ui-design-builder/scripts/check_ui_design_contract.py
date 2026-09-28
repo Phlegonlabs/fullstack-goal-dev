@@ -297,6 +297,28 @@ def _date(value: str | None) -> bool:
     return True
 
 
+# 0.55.0 release date. A commit can make an Approved target look historical;
+# it cannot change the owner's recorded decision date without editing the approval.
+CURRENT_HIFI_CUTOVER = date(2026, 9, 27)
+
+
+def current_hifi_evidence_required(text: str) -> bool:
+    """Return whether the active Visual Approval always needs current HiFi evidence.
+
+    Structure-review contracts always do. A legacy-heading contract does when
+    its Visual Approval was decided on or after the 0.55.0 cutover, or when
+    that date is missing or invalid (validation reports the bad date).
+    """
+
+    active = active_text(text)
+    if is_structure_review(active):
+        return True
+    decided_on = _field(_section(active, "## Visual Approval") or "", "Decided on")
+    if not _date(decided_on):
+        return True
+    return date.fromisoformat(decided_on.strip()) >= CURRENT_HIFI_CUTOVER
+
+
 def _pass_evidence(value: str | None, label: str, problems: list[str]) -> dict[str, str] | None:
     """Parse a PASS line that is independently bound to a hashed evidence file."""
 
@@ -446,6 +468,7 @@ def parse_ui_contract_view(text: str) -> tuple[dict[str, Any], list[str]]:
 
     view: dict[str, Any] = {
         "structure_review": is_structure_review(active),
+        "current_hifi_required": current_hifi_evidence_required(text),
         "source_identities": sources,
         # Short aliases keep the exported view ergonomic while the longer
         # names remain the canonical serialized shape.
@@ -3263,8 +3286,9 @@ def validate(
     """Validate a UI contract for normal publication.
 
     ``require_current_hifi_evidence`` makes a legacy-heading contract meet the
-    current HiFi evidence rules. Publication sets it unless the Approved target
-    equals the one already recorded at HEAD.
+    current HiFi evidence rules. Publication sets it unless the approval was
+    decided before the 0.55.0 cutover and its Approved target equals the one
+    already recorded at HEAD.
 
     Pair verification is deliberately not a caller-selectable boolean.  The
     only pair-less route is the exact compiler preflight below, which requires
@@ -3299,9 +3323,11 @@ def _validate_for_design_system_preflight(
 
     This is intentionally the sole internal pair-less entry point.  It is not
     exposed as a CLI switch and refuses to run without every upstream source
-    and the final visual gate.
+    and the final visual gate. A legacy approval dated on or after the 0.55.0
+    cutover must carry current HiFi evidence here too.
     """
 
+    text = ui_design_path.read_text(encoding="utf-8")
     return _validate_impl(
         ui_design_path,
         repo_root=repo_root,
@@ -3309,9 +3335,10 @@ def _validate_for_design_system_preflight(
         wireframes_path=wireframes_path,
         hifi_path=hifi_path,
         require_filled=True,
-        require_wireframe_approved=not is_structure_review(ui_design_path.read_text(encoding="utf-8")),
-        require_structure_validated=is_structure_review(ui_design_path.read_text(encoding="utf-8")),
+        require_wireframe_approved=not is_structure_review(text),
+        require_structure_validated=is_structure_review(text),
         require_visual_approved=True,
+        require_current_hifi_evidence=current_hifi_evidence_required(text),
         _allow_pending_design_system_pair=True,
     )
 
