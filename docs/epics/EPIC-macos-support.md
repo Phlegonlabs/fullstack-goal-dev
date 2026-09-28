@@ -35,3 +35,9 @@ Remaining 22: descriptor-bound exec through `/dev/fd/N` returns EACCES on macOS 
 ### 2026-09-27 — branch `codex/macos-support`
 
 - `20a43c01` ci(harness): macos job puts `/usr/bin` on `GITHUB_PATH` before setup-python; test asserts the step and order. Verified locally with `test_install_script.py -k macos` (OK); not yet run in CI.
+- `74a048ab` ci(harness): macos job sets `TMPDIR` to its real path through `GITHUB_ENV`; four READMEs give the macOS test setup. Product temp dirs were not involved (see Baseline), so the no-link policy is unchanged.
+- `c1dc379f` fix(harness): descriptor-bound exec refuses `/dev/fd` on darwin and raises the existing binding error in `verifier_runtime`, `parity_capture` (executables only) and `push_archived_candidate` (the signature verifier only; bound data files still read through `/dev/fd`). 26 tests that need descriptor exec skip on darwin with a stated reason; three darwin tests assert the fail-closed errors.
+- Mac mini at `c1dc379f` (resolved `TMPDIR`, `/usr/bin/git`): Harness 1324 OK (54 skipped), Product Definition 240 OK, UI Design 293 OK (3 skipped), Design System Compiler 116 OK (2 skipped), Product Activation 56 OK, SEO 21 OK, golden path OK, skill spec and pyflakes pass.
+- Windows: `test_push_archived_candidate` 35 OK, `test_verifier_runtime` 46 OK. `test_parity_capture` failed once (4 failures, 4 errors, 721 s, details not kept), then passed twice (17 OK, ~22 s); treated as a flaky browser timeout, not a regression.
+
+Until MAC-3 has an owner-approved alternative, macOS cannot run sandboxed container verifiers, browser parity capture, or trusted-host signature verification; each fails closed with its own error.
