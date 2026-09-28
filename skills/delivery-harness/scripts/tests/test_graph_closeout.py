@@ -78,9 +78,14 @@ def dormant_edge() -> dict:
 
 
 class CloseoutRuleTests(unittest.TestCase):
-    def complete_pair(self) -> tuple[dict, dict]:
+    def complete_pair(self, fix_dependency: bool = False) -> tuple[dict, dict]:
         plan = mf.valid_plan()
         add_repair_approval(plan)
+        if fix_dependency:
+            # The repair node also waits on a node that ran.
+            plan["graph"]["edges"].append(
+                {"id": "E-M1-FIX", "kind": "dependency", "from": "N-M1", "to": "N-FIX"}
+            )
         run = mf.valid_closeout_run(plan)
         mf.mark_complete(plan, run)
         # Undo what mark_complete writes but no transition does.
@@ -100,6 +105,11 @@ class CloseoutRuleTests(unittest.TestCase):
 
     def test_dormant_dependencies_and_an_unused_repair_loop_close(self) -> None:
         plan, run = self.complete_pair()
+        self.assertEqual([], validate_run(plan, run))
+
+    def test_a_dependency_does_not_activate_an_untaken_repair_route(self) -> None:
+        plan, run = self.complete_pair(fix_dependency=True)
+        # Its fix_required route never fired, so closeout must not wait for it.
         self.assertEqual([], validate_run(plan, run))
 
     def test_a_pending_node_on_the_taken_path_still_blocks(self) -> None:

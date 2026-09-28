@@ -7823,7 +7823,9 @@ def _closeout_reached_nodes(
     Start from the entry nodes and every node that left dormant, then follow
     every edge except routes that were never taken. A node outside this set
     (for example a repair node behind an unused fix_required route) never ran
-    and never will, so closeout does not wait for it.
+    and never will, so closeout does not wait for it. As in the selector, a
+    dependency alone never activates a route-gated node; only a review node
+    keeps its dependency start.
     """
 
     if not isinstance(node_states, dict):
@@ -7849,6 +7851,14 @@ def _closeout_reached_nodes(
         if isinstance(edge, dict)
         and all(isinstance(edge.get(key), str) for key in ("id", "from", "to"))
     ]
+    route_gated = {edge.get("to") for edge in edges if edge.get("kind") == "route"}
+    review_nodes = {
+        node.get("id")
+        for node in (graph.get("nodes") if isinstance(graph.get("nodes"), list) else [])
+        if isinstance(node, dict)
+        and node.get("kind") == "verifier"
+        and isinstance(node.get("review"), dict)
+    }
     changed = True
     while changed:
         changed = False
@@ -7858,6 +7868,13 @@ def _closeout_reached_nodes(
                 edge_states.get(edge.get("id")) if isinstance(edge_states, dict) else None
             )
             taken = isinstance(edge_state, dict) and edge_state.get("status") == "traversed"
+            if (
+                edge.get("kind") == "dependency"
+                and target in route_gated
+                and target not in review_nodes
+                and not taken
+            ):
+                continue
             if (
                 edge.get("from") in reached
                 and target not in reached
