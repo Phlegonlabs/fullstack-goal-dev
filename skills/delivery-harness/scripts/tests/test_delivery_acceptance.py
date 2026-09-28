@@ -532,12 +532,13 @@ class CandidateTreeTests(unittest.TestCase):
         mf.git(self.root, "checkout", "-q", "main")
         cases = ((side, "is not an ancestor of HEAD"), (CANDIDATE, "is not a commit"))
         for candidate, expected in cases:
-            with self.subTest(expected=expected):
-                mf.git(self.root, "reset", "-q", "--hard", self.h1)
-                self.commit_register(candidate)
-                status, payload = self.check("--candidate-from-head")
-                self.assertEqual(1, status)
-                self.assertIn(expected, " ".join(payload["errors"]))
+            mf.git(self.root, "reset", "-q", "--hard", self.h1)
+            self.commit_register(candidate)
+            for flags in (["--candidate-from-head"], ["--candidate-sha", candidate]):
+                with self.subTest(expected=expected, flag=flags[0]):
+                    status, payload = self.check(*flags)
+                    self.assertEqual(1, status)
+                    self.assertIn(expected, " ".join(payload["errors"]))
 
     def test_candidate_from_head_needs_a_git_checkout(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
