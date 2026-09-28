@@ -3700,14 +3700,25 @@ def _run_exchange_commit(
         _run_posix_exchange(parent_fd, temporary_name, path.name)
         displaced_version = _run_document_version_token(Path(temporary_name), parent_fd=parent_fd)
         if displaced_version != expected_version:
+            # Move retained bytes off the temp name: the caller's cleanup deletes it.
+            recovery = path.parent / f".{path.name}.{secrets.token_hex(8)}.recovery"
             current = _run_document_version_token(path, parent_fd=parent_fd)
             if current[-1] == hashlib.sha256(updated).hexdigest():
                 _run_posix_exchange(parent_fd, temporary_name, path.name)
                 restored = _run_document_version_token(path, parent_fd=parent_fd)
-                if restored != expected_version:
-                    raise ManifestError("RUN restore verification failed; recovery artifacts retained")
+                if restored != displaced_version:
+                    os.rename(temporary_name, recovery.name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
+                    raise ManifestError(
+                        f"RUN restore verification failed; recovery artifacts retained at {recovery}"
+                    )
                 os.unlink(temporary_name, dir_fd=parent_fd)
-            raise ManifestError("RUN displaced bytes changed at atomic exchange; concurrent bytes preserved")
+                raise ManifestError(
+                    f"RUN displaced bytes changed at atomic exchange; concurrent bytes preserved at {path}"
+                )
+            os.rename(temporary_name, recovery.name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
+            raise ManifestError(
+                f"RUN displaced bytes changed at atomic exchange; concurrent bytes preserved at {recovery}"
+            )
         os.unlink(temporary_name, dir_fd=parent_fd)
         os.fsync(parent_fd)
         return
@@ -3721,10 +3732,17 @@ def _run_exchange_commit(
             rollback_backup = path.parent / f".{path.name}.{secrets.token_hex(8)}.rollback"
             _run_windows_replace_with_backup(path, backup, rollback_backup)
             restored = _run_document_version_token(path)
-            if restored != expected_version:
-                raise ManifestError("RUN restore verification failed; recovery artifacts retained")
+            if restored != displaced_version:
+                raise ManifestError(
+                    f"RUN restore verification failed; recovery artifacts retained at {rollback_backup}"
+                )
             rollback_backup.unlink(missing_ok=True)
-        raise ManifestError("RUN displaced bytes changed at atomic replacement; concurrent bytes preserved")
+            raise ManifestError(
+                f"RUN displaced bytes changed at atomic replacement; concurrent bytes preserved at {path}"
+            )
+        raise ManifestError(
+            f"RUN displaced bytes changed at atomic replacement; concurrent bytes preserved at {backup}"
+        )
     backup.unlink(missing_ok=True)
 
 
