@@ -160,7 +160,12 @@ class StrictAuthorityJoinTests(unittest.TestCase):
 
     @classmethod
     def _ui_fixture(
-        cls, root: Path, *, required: bool, visual_decided_on: str = "2026-09-13"
+        cls,
+        root: Path,
+        *,
+        required: bool,
+        visual_decided_on: str = "2026-09-13",
+        hifi_executed_at: str = "2020-01-01T00:00:00Z",
     ) -> tuple[dict[str, object], dict[str, object], dict[str, Path]]:
         original_path = list(sys.path)
         try:
@@ -169,7 +174,10 @@ class StrictAuthorityJoinTests(unittest.TestCase):
                     sys.path.insert(0, str(candidate))
             product, architecture, stack, wireframe, hifi, pair = (
                 materialize_publication(
-                    root, required=required, visual_decided_on=visual_decided_on
+                    root,
+                    required=required,
+                    visual_decided_on=visual_decided_on,
+                    hifi_executed_at=hifi_executed_at,
                 )
             )
         finally:
@@ -406,18 +414,25 @@ class StrictAuthorityJoinTests(unittest.TestCase):
             target["location"] = "docs/design/ui-references/missing/index.html"
             self.assertTrue(any("approved UI target" in error for error in validate_frozen_contract_joins(plan, root, run=run)))
 
-    def test_dated_legacy_approval_needs_current_hifi_from_0_55_1(self) -> None:
+    def test_dated_legacy_approval_needs_current_hifi_from_0_55_0(self) -> None:
+        before, after = "2020-01-01T00:00:00Z", "2026-09-27T20:00:00Z"
         cases = (
-            ("2026-09-27", "0.55.1", False),
-            ("2026-09-27", "0.55.0", True),
-            ("2026-09-26", "0.55.1", True),
+            # (Decided on, HiFi receipt executedAt, RUN pin, passes)
+            ("2026-09-27", before, "0.55.0", False),
+            ("2026-09-26", before, "0.55.0", True),
+            ("2026-09-26", after, "0.55.0", False),
+            ("2026-09-27", before, "0.54.5", True),
         )
-        for decided_on, version, passes in cases:
-            with self.subTest(decided_on=decided_on, version=version), \
-                    tempfile.TemporaryDirectory() as directory:
+        for decided_on, executed_at, version, passes in cases:
+            with self.subTest(
+                decided_on=decided_on, executed_at=executed_at, version=version
+            ), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 plan, run, _paths = self._ui_fixture(
-                    root, required=False, visual_decided_on=decided_on
+                    root,
+                    required=False,
+                    visual_decided_on=decided_on,
+                    hifi_executed_at=executed_at,
                 )
                 run["runtime_capabilities"]["runtime_adapter"]["version_gate"][
                     "required_harness_version"
@@ -430,6 +445,11 @@ class StrictAuthorityJoinTests(unittest.TestCase):
                     self.assertIn("requires ui-evidence/3 machine observation", joined)
                     self.assertIn("reviewer shell version 3", joined)
                     self.assertIn("Frontend Design Usage", joined)
+                    if executed_at == after:
+                        self.assertIn(
+                            "Decided on predates the newest HiFi review evidence",
+                            joined,
+                        )
 
     def test_schema_five_structure_validation_joins_strict_plan(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

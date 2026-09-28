@@ -329,7 +329,9 @@ def normalized_responsive(
 WEB_VIEWPORT_FLOOR_VERSION = (0, 34, 0)
 UI_DESIGN_CONTRACT_REQUIRED_VERSION = (0, 37, 0)
 STRICT_UI_AUTHORITY_VERSION = (0, 38, 0)
-CURRENT_HIFI_EVIDENCE_VERSION = (0, 55, 1)
+# The UI checker's own 0.55.0 decision/receipt date cutover keeps earlier
+# approvals historical, so 0.55.0 RUNs can enforce it without re-reading them.
+CURRENT_HIFI_EVIDENCE_VERSION = (0, 55, 0)
 
 
 _STRICT_SOURCE_SPECS: dict[str, dict[str, Any]] = {
@@ -1795,13 +1797,14 @@ def full_ui_design_checker_errors_at_paths(
     design_system_markdown_path: Path | None = None,
     design_system_registry_path: Path | None = None,
     sibling_scripts: Path | None = None,
-    require_current_hifi_evidence: bool = False,
+    apply_current_hifi_cutover: bool = False,
 ) -> list[str]:
     """Run the canonical UI checker against the actual repository paths.
 
-    ``require_current_hifi_evidence`` (set for Harness 0.55.1+ RUNs) applies
-    the UI checker's dated rule: a legacy-heading Visual Approval decided on or
-    after the 0.55.0 cutover must carry current HiFi evidence.
+    ``apply_current_hifi_cutover`` (set for Harness 0.55.0+ RUNs) applies the
+    UI checker's dated rule: a legacy-heading Visual Approval decided on or
+    after the 0.55.0 cutover, or backed by a HiFi receipt from then on, must
+    carry current HiFi evidence.
     """
 
     scripts = sibling_scripts or sibling_ui_design_scripts_dir()
@@ -1831,9 +1834,7 @@ def full_ui_design_checker_errors_at_paths(
             require_filled=True,
             **({"require_structure_validated": True} if view.get("structure_review") else {"require_wireframe_approved": True}),
             require_visual_approved=True,
-            require_current_hifi_evidence=(
-                require_current_hifi_evidence and view.get("current_hifi_required") is True
-            ),
+            apply_current_hifi_cutover=apply_current_hifi_cutover,
         )
     except Exception as exc:
         return [
@@ -2136,7 +2137,7 @@ def _validate_strict_frozen_contract_joins(
             hifi_path=paths["approved-target"],
             design_system_markdown_path=paths.get("design-system.md"),
             design_system_registry_path=paths.get("design-system.json"),
-            require_current_hifi_evidence=version_at_least(
+            apply_current_hifi_cutover=version_at_least(
                 run_required_harness_version(run), CURRENT_HIFI_EVIDENCE_VERSION
             ),
         )
