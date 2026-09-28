@@ -426,7 +426,9 @@ if [ "${#existing[@]}" -gt 0 ]; then
   stamp="$(date +%Y%m%d-%H%M%S)"
   backup_dir="$backup_root/$stamp"
   collision=1
-  while [ -e "$backup_dir" ]; do
+  # Skip names whose backup or receipt path already exists (or is a link).
+  while [ -e "$backup_dir" ] || [ -L "$backup_dir" ] ||
+    [ -e "$backup_dir.source" ] || [ -L "$backup_dir.source" ]; do
     backup_dir="$backup_root/$stamp-$collision"
     collision=$((collision + 1))
   done
@@ -496,10 +498,13 @@ stage_root=""
 release_lock
 trap - EXIT HUP INT TERM
 
-# Keep the source line next to the backup this install replaced.
+# Keep the source line next to the backup this install replaced. Create it
+# exclusively: never follow a link or overwrite an existing file.
 if [ -n "$backup_dir" ]; then
-  printf '%s\n' "$source_line" >"$backup_dir.source" ||
+  if [ -e "$backup_dir.source" ] || [ -L "$backup_dir.source" ] ||
+    ! (set -o noclobber; printf '%s\n' "$source_line" >"$backup_dir.source") 2>/dev/null; then
     echo "warning: could not write $backup_dir.source" >&2
+  fi
 fi
 
 echo "done. start a fresh host session so it discovers the skills."

@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import datetime
 import os
 import shutil
 import subprocess
@@ -640,6 +641,50 @@ class InstallScriptTests(unittest.TestCase):
         self.assertEqual(
             "# dirty ui-design-builder\n",
             (self.destination / "ui-design-builder" / "SKILL.md").read_text(encoding="utf-8"),
+        )
+
+    def assert_planted_receipt_preserved(self, install) -> None:
+        # A leftover or planted <stamp>.source must not be overwritten: the
+        # backup name skips it and the receipt is created exclusively.
+        self.seed_managed_copies()
+        self.backup_root.mkdir(parents=True)
+        start = datetime.datetime.now()
+        planted = []
+        for offset in range(-2, 60):
+            stamp = (start + datetime.timedelta(seconds=offset)).strftime("%Y%m%d-%H%M%S")
+            sidecar = self.backup_root / f"{stamp}.source"
+            sidecar.write_text("unrelated\n", encoding="utf-8", newline="\n")
+            planted.append(sidecar)
+        result = install()
+        self.assertEqual(0, result.returncode, result.stderr or result.stdout)
+        for sidecar in planted:
+            self.assertEqual("unrelated\n", sidecar.read_text(encoding="utf-8"))
+        backups = [child for child in self.backup_root.iterdir() if child.is_dir()]
+        self.assertEqual(1, len(backups))
+        record = backups[0].with_name(backups[0].name + ".source")
+        self.assertIn("source commit", record.read_text(encoding="utf-8"))
+
+    @unittest.skipIf(BASH is None, "no usable bash is available")
+    def test_bash_keeps_an_existing_source_receipt(self) -> None:
+        source = self.make_minimal_repo()
+        self.assert_planted_receipt_preserved(
+            lambda: self.run_bash(
+                {"SKILL_BACKUP_ROOT": str(self.backup_root)}, installer=source / "install.sh"
+            )
+        )
+
+    @unittest.skipIf(POWERSHELL is None, "neither pwsh nor powershell is available")
+    def test_powershell_keeps_an_existing_source_receipt(self) -> None:
+        source = self.make_minimal_repo()
+        self.assert_planted_receipt_preserved(
+            lambda: subprocess.run(
+                [
+                    POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+                    str(source / "install.ps1"), "-Destination", str(self.destination),
+                    "-BackupRoot", str(self.backup_root),
+                ],
+                capture_output=True, text=True, cwd=self.home, timeout=INSTALL_TIMEOUT,
+            )
         )
 
     @unittest.skipIf(BASH is None, "no usable bash is available")

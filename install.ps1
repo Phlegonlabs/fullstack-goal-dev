@@ -466,7 +466,9 @@ try {
         $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
         $BackupDir = Join-Path $BackupRoot $stamp
         $collision = 1
-        while (Test-Path -LiteralPath $BackupDir) {
+        # Skip names whose backup or receipt path already exists (or is a link).
+        while ((Test-Path -LiteralPath $BackupDir) -or
+            ($null -ne (Get-Item -LiteralPath "$BackupDir.source" -Force -ErrorAction SilentlyContinue))) {
             $BackupDir = Join-Path $BackupRoot "$stamp-$collision"
             $collision++
         }
@@ -551,7 +553,15 @@ try {
     # install is already verified, so a failed write only warns.
     if ($null -ne $BackupDir) {
         try {
-            [IO.File]::WriteAllText("$BackupDir.source", "$sourceLine`n")
+            # CreateNew fails on an existing file or link instead of overwriting it.
+            $receipt = [IO.File]::Open("$BackupDir.source", [IO.FileMode]::CreateNew, [IO.FileAccess]::Write)
+            try {
+                $bytes = [Text.UTF8Encoding]::new($false).GetBytes("$sourceLine`n")
+                $receipt.Write($bytes, 0, $bytes.Length)
+            }
+            finally {
+                $receipt.Dispose()
+            }
         }
         catch {
             Write-Warning "could not write $BackupDir.source"
