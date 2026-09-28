@@ -81,6 +81,25 @@ class ValidateIntegrationHeadAgainstGitTests(unittest.TestCase):
         self.assertIn(self.first_sha, errors[0])
         self.assertIn("RUN.md is stale", errors[0])
 
+    def test_register_commit_after_the_recorded_head_is_stale(self) -> None:
+        # The acceptance register is not a coordination path: committing it
+        # after record-integration leaves RUN stale, even when RUN lists it.
+        run = _make_run(self.branch, self.first_sha)
+        run["schema_version"] = 11
+        run["integration"]["coordination_paths"] = [
+            "docs/goal/RUN.md",
+            "docs/verification/delivery-results.json",
+        ]
+        register = self.repo_root / "docs" / "verification" / "delivery-results.json"
+        register.parent.mkdir(parents=True)
+        register.write_text("{}\n", encoding="utf-8")
+        git(self.repo_root, *["add", "docs/verification/delivery-results.json"])
+        git(self.repo_root, *["commit", "-m", "acceptance register"])
+
+        errors = validate_integration_head_against_git(run, self.repo_root)
+        self.assertEqual(len(errors), 1)
+        self.assertIn("RUN.md is stale", errors[0])
+
     def test_nonexistent_branch_is_reported_as_unverifiable(self) -> None:
         run = _make_run("branch-that-does-not-exist", self.first_sha)
         errors = validate_integration_head_against_git(run, self.repo_root)

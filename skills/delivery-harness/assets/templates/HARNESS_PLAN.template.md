@@ -180,7 +180,11 @@ Use this template as `docs/goal/PLAN.md` for managed work that needs durable coo
             "type": "security",
             "lineage_id": "REVIEW-SECURITY",
             "mission_ids": ["M1"],
-            "scope": ["src/example/**"],
+            "scope": [
+              "src/example/**",
+              "docs/verification/delivery-results.json",
+              "docs/verification/evidence/**"
+            ],
             "required_evidence": ["reviewed_sha", "trust-boundary coverage", "source-to-sink findings", "tool coverage and gaps", "pass or blocked decision"]
           }
         },
@@ -263,7 +267,11 @@ Use this template as `docs/goal/PLAN.md` for managed work that needs durable coo
         "priority": 100,
         "merge_rank": 10,
         "trace_ids": ["PRD-001"],
-        "write_scope": ["src/example/**"],
+        "write_scope": [
+          "src/example/**",
+          "docs/verification/delivery-results.json",
+          "docs/verification/evidence/**"
+        ],
         "deny_scope": ["docs/goal/PLAN.md", "docs/goal/RUN.md"],
         "resource_inventory_complete": true,
         "serialized_resources": [],
@@ -416,7 +424,15 @@ For newly authored delivery work, also follow `references/delivery-acceptance-co
 - a `local_command` verifier node `N-ACCEPTANCE-GATE` with `ref: "delivery-acceptance"`;
 - `dependency` edges from `N-FINAL-GATE` to `N-ACCEPTANCE-GATE` and from `N-ACCEPTANCE-GATE` to `N-CLOSEOUT-GATE`.
 
-Use the parent's frozen contract hash and observed candidate SHA, never values derived from result writers. `--candidate-sha` is the pre-register candidate H1 that the scenarios ran against. Commit only the register and its evidence on top of H1, giving H2, before the unified reviews; every review and final gate, including `N-ACCEPTANCE-GATE`, then runs at H2. The result register is `docs/verification/delivery-results.json`; evidence remains SHA-bound. The template's neutral command placeholders must be replaced before execution.
+Use the parent's frozen contract hash and observed candidate SHA, never values derived from result writers. The register commit gets its RUN slot through `record-integration`, in one order:
+
+1. Merge the last mission by `merge_rank`, giving H1. Do not record it yet.
+2. Run the scenarios at H1 and write `candidate_sha: H1` in the register.
+3. Commit only the register and its evidence on top of H1, giving H2.
+4. Run `record-integration --integrated-sha H2` for that mission, so H2 is the recorded integration head.
+5. Run every unified review and final gate, including `N-ACCEPTANCE-GATE`, at H2 with `--candidate-sha H1`.
+
+For this, the last mission's `write_scope` lists `docs/verification/delivery-results.json` and `docs/verification/evidence/**`, as M1 shows, and so does the security review's `scope` (the validator requires it to cover every mission scope). Only the parent writes them; the pre-integration review rejects a worker diff that touches them. They are not coordination paths, so a register commit after the recorded head leaves RUN stale. A repair that reruns acceptance lists the same paths in its repair task's `write_scope` and in the failed review's `scope`. The template's neutral command placeholders must be replaced before execution.
 
 The manifest validator does not check that these entries exist, so the parent's readiness review must confirm them; passing schema validation alone is insufficient. Do not retrofit or silently migrate a running legacy PLAN/RUN. Direct work runs the acceptance CLI without these artifacts.
 

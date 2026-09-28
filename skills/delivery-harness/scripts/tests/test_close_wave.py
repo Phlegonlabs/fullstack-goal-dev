@@ -23,6 +23,7 @@ if str(SCRIPTS_DIR) not in sys.path:
 import harness_transition  # noqa: E402
 from harness_authorization import execution_covers  # noqa: E402
 from harness_core import ManifestError, plan_digest  # noqa: E402
+from harness_manifest import validate_integration_head_against_git  # noqa: E402
 import manifest_fixtures as mf  # noqa: E402
 
 
@@ -867,6 +868,67 @@ class RecordIntegrationGuardTests(unittest.TestCase):
         gate = self.run["graph_state"]["node_states"]["N-REVIEW-PASS-M1"]
         self.assertEqual("ready", gate["phase"])
         self.assertEqual(new_head, self.run["integration"]["integration_head_sha"])
+
+    # The parent commits the delivery-acceptance register on top of the last
+    # mission's merged head H1, then records that commit H2 as the mission's
+    # integration head. The register paths must be in the mission's scope.
+    ACCEPTANCE_SCOPES = [
+        "docs/verification/delivery-results.json",
+        "docs/verification/evidence/**",
+    ]
+
+    def _register_commit(self, *extra: str) -> tuple[str, str]:
+        self.run["integration"]["integration_head_sha"] = self.head
+        (self.root / "src" / "a").mkdir(parents=True)
+        (self.root / "src" / "a" / "one.py").write_text("x = 1\n", encoding="utf-8")
+        mf.git(self.root, "add", "src/a/one.py")
+        mf.git(self.root, "commit", "-qm", "last mission")
+        merged = mf.git(self.root, "rev-parse", "HEAD")
+        self.run["mission_states"]["M1"]["head_sha"] = merged
+        evidence = self.root / "docs" / "verification" / "evidence" / "TEST-001.log"
+        evidence.parent.mkdir(parents=True)
+        evidence.write_text("assertions passed\n", encoding="utf-8")
+        (self.root / "docs" / "verification" / "delivery-results.json").write_text(
+            json.dumps({"candidate_sha": merged}) + "\n", encoding="utf-8"
+        )
+        for path in extra:
+            target = self.root / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text("changed with the register\n", encoding="utf-8")
+        mf.git(self.root, "add", "-A")
+        mf.git(self.root, "commit", "-qm", "acceptance register")
+        return merged, mf.git(self.root, "rev-parse", "HEAD")
+
+    def test_register_commit_is_recorded_as_the_integration_head(self) -> None:
+        self.plan["missions"][0]["write_scope"].extend(self.ACCEPTANCE_SCOPES)
+        merged, register_head = self._register_commit()
+
+        self.record(integrated_sha=register_head)
+
+        self.assertNotEqual(merged, register_head)
+        self.assertEqual(
+            register_head, self.run["integration"]["integration_head_sha"]
+        )
+        self.assertEqual(
+            [], validate_integration_head_against_git(self.run, self.root)
+        )
+
+    def test_register_outside_the_mission_scope_is_refused(self) -> None:
+        _, register_head = self._register_commit()
+        before = json.dumps(self.run, sort_keys=True)
+
+        with self.assertRaisesRegex(
+            ManifestError, "outside declared mission/integration scopes"
+        ):
+            self.record(integrated_sha=register_head)
+        self.assertEqual(before, json.dumps(self.run, sort_keys=True))
+
+    def test_product_file_in_the_register_commit_is_refused(self) -> None:
+        self.plan["missions"][0]["write_scope"].extend(self.ACCEPTANCE_SCOPES)
+        _, register_head = self._register_commit("src/b/two.py")
+
+        with self.assertRaisesRegex(ManifestError, "src/b/two.py"):
+            self.record(integrated_sha=register_head)
 
 
 class CoordinationHeadGuardTests(unittest.TestCase):

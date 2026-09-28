@@ -119,6 +119,15 @@ class NewRunTests(unittest.TestCase):
             "docs/verification/delivery-acceptance.json", sources["SRC-004"]["location"]
         )
 
+        # The parent commits the register before record-integration, so the
+        # last mission's scope must hold the register and its evidence.
+        self.assertTrue(
+            {
+                "docs/verification/delivery-results.json",
+                "docs/verification/evidence/**",
+            }.issubset(self.plan["missions"][0]["write_scope"])
+        )
+
         run = load_run(self.generate())
 
         self.assertEqual(
