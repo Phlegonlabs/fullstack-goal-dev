@@ -1042,7 +1042,7 @@ def _diff(expected: Any, actual: Any, path: str, problems: list[str]) -> None:
 
 def _ui_identity_bindings(
     bindings: dict[str, Any], *, repo_root: Path, problems: list[str], require_contract: bool = False,
-    surface_contracts: dict[str, Any] | None = None,
+    surface_contracts: dict[str, Any] | None = None, apply_current_hifi_cutover: bool = True,
 ) -> None:
     """Cross-check pair source bindings against the UI contract they name."""
 
@@ -1159,6 +1159,7 @@ def _ui_identity_bindings(
                 prd_path=repo_root / paths["prd"] if "prd" in paths else None,
                 wireframes_path=repo_root / paths["wireframe"] if "wireframe" in paths else None,
                 hifi_path=repo_root / paths["hifi"] if "hifi" in paths else None,
+                apply_current_hifi_cutover=apply_current_hifi_cutover,
             )
             problems.extend(f"ui-design: {item}" for item in ui_checker_problems)
         except Exception as exc:
@@ -1367,7 +1368,14 @@ def compare(
     *,
     require_filled: bool = False,
     repo_root: Path | None = None,
+    apply_current_hifi_cutover: bool = True,
 ) -> list[str]:
+    """Check a design-system pair.
+
+    ``apply_current_hifi_cutover`` passes to the UI preflight. It stays on for
+    the compiler; a Harness join turns it off for RUNs its version gate exempts.
+    """
+
     problems = validate_registry(registry)
     if require_filled:
         if registry.get("schema") != "design-system/2":
@@ -1432,6 +1440,7 @@ def compare(
                     problems=problems,
                     require_contract=require_filled,
                     surface_contracts=registry.get("surfaceContracts") if isinstance(registry, dict) else None,
+                    apply_current_hifi_cutover=apply_current_hifi_cutover,
                 )
                 stack_binding = bindings.get("stack")
                 stack_path = (

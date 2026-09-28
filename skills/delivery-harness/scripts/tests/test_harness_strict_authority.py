@@ -28,6 +28,7 @@ from harness_contract_join import (  # noqa: E402
     _load_canonical_prd_ui_contract_parser,
     _strict_ui_surface_errors,
     _resolve_source_bytes,
+    full_design_system_checker_errors_at_paths,
     full_ui_design_checker_errors,
     validate_frozen_contract_joins,
 )
@@ -414,14 +415,17 @@ class StrictAuthorityJoinTests(unittest.TestCase):
             target["location"] = "docs/design/ui-references/missing/index.html"
             self.assertTrue(any("approved UI target" in error for error in validate_frozen_contract_joins(plan, root, run=run)))
 
-    def test_dated_legacy_approval_needs_current_hifi_from_0_55_0(self) -> None:
+    def test_dated_legacy_approval_needs_current_hifi_from_0_55_1(self) -> None:
         before, after = "2020-01-01T00:00:00Z", "2026-09-27T20:00:00Z"
         cases = (
             # (Decided on, HiFi receipt executedAt, RUN pin, passes)
-            ("2026-09-27", before, "0.55.0", False),
-            ("2026-09-26", before, "0.55.0", True),
-            ("2026-09-26", after, "0.55.0", False),
+            ("2026-09-27", before, "0.55.1", False),
+            ("2026-09-26", before, "0.55.1", True),
+            ("2026-09-26", after, "0.55.1", False),
             ("2026-09-27", before, "0.54.5", True),
+            # A RUN frozen under 0.55.0 keeps its legacy approval historical.
+            ("2026-09-27", before, "0.55.0", True),
+            ("2026-09-26", after, "0.55.0", True),
         )
         for decided_on, executed_at, version, passes in cases:
             with self.subTest(
@@ -450,6 +454,52 @@ class StrictAuthorityJoinTests(unittest.TestCase):
                             "Decided on predates the newest HiFi review evidence",
                             joined,
                         )
+
+    def test_required_pair_join_gates_the_dated_current_hifi_rule(self) -> None:
+        # The compiler preflight inside the pair join follows the RUN pin,
+        # so an older RUN keeps its dated legacy approval historical.
+        for version, passes in (("0.54.5", True), ("0.55.0", True), ("0.55.1", False)):
+            with self.subTest(version=version), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                plan, run, paths = self._ui_fixture(
+                    root, required=True, visual_decided_on="2026-09-27"
+                )
+                run["runtime_capabilities"]["runtime_adapter"]["version_gate"][
+                    "required_harness_version"
+                ] = version
+                errors = validate_frozen_contract_joins(plan, root, run=run)
+                if passes:
+                    self.assertEqual([], errors)
+                else:
+                    pair_errors = full_design_system_checker_errors_at_paths(
+                        paths["design_markdown"],
+                        paths["design_json"],
+                        repo_root=root,
+                        apply_current_hifi_cutover=True,
+                    )
+                    self.assertTrue(any(
+                        item.startswith("ui-design: ")
+                        and "requires ui-evidence/3 machine observation" in item
+                        for item in pair_errors
+                    ))
+                    self.assertTrue(set(pair_errors) <= set(errors))
+                    self.assertEqual([], full_design_system_checker_errors_at_paths(
+                        paths["design_markdown"],
+                        paths["design_json"],
+                        repo_root=root,
+                    ))
+
+    def test_pre_strict_pair_join_keeps_dated_legacy_approval_historical(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            plan, run, _paths = self._ui_fixture(
+                root, required=True, visual_decided_on="2026-09-27"
+            )
+            run["runtime_capabilities"]["runtime_adapter"]["version_gate"][
+                "required_harness_version"
+            ] = "0.37.0"
+            errors = validate_frozen_contract_joins(plan, root, run=run)
+            self.assertFalse([item for item in errors if "ui-evidence/3" in item])
 
     def test_schema_five_structure_validation_joins_strict_plan(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

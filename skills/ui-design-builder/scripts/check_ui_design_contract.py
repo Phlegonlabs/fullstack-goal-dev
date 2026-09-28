@@ -298,23 +298,26 @@ def _date(value: str | None) -> bool:
 
 
 # 0.55.0 release date. A commit can make an Approved target look historical,
-# and the approval date is author-entered, so HiFi receipt dates count too.
+# and the approval date is author-entered, so HiFi receipt times count too.
 CURRENT_HIFI_CUTOVER = date(2026, 9, 27)
+CURRENT_HIFI_CUTOVER_INSTANT = datetime(2026, 9, 27, tzinfo=timezone.utc)
 
 
-def current_hifi_cutover_applies(decided_on: str | None, receipt_dates: list[date]) -> bool:
+def current_hifi_cutover_applies(decided_on: str | None, receipt_times: list[datetime]) -> bool:
     """Return whether a legacy Visual Approval falls under the current HiFi rule.
 
     It does when the approval was decided on or after the 0.55.0 cutover, when
     that date is missing or invalid (validation reports the bad date), or when
-    any HiFi Review or motion-effect receipt ran on or after the cutover.
+    any HiFi Review or motion-effect receipt ran at or after
+    2026-09-27T00:00:00Z. Receipt instants are compared directly so no
+    time-zone rounding moves a release-day receipt before the cutover.
     """
 
     if not _date(decided_on):
         return True
     if date.fromisoformat((decided_on or "").strip()) >= CURRENT_HIFI_CUTOVER:
         return True
-    return any(item >= CURRENT_HIFI_CUTOVER for item in receipt_dates)
+    return any(item >= CURRENT_HIFI_CUTOVER_INSTANT for item in receipt_times)
 
 
 def _pass_evidence(value: str | None, label: str, problems: list[str]) -> dict[str, str] | None:
@@ -1985,6 +1988,16 @@ def _resolve_evidence(
 def _receipt_date(value: str | None, repo_root: Path) -> date | None:
     """Return the earliest calendar date of a PASS receipt's executedAt, if readable."""
 
+    executed = _receipt_instant(value, repo_root)
+    if executed is None:
+        return None
+    # UTC-12 gives the earliest local date for that instant, so no owner time zone is rejected.
+    return (executed - timedelta(hours=12)).date()
+
+
+def _receipt_instant(value: str | None, repo_root: Path) -> datetime | None:
+    """Return a PASS receipt's executedAt as a UTC instant, if readable."""
+
     match = EVIDENCE_RE.fullmatch((value or "").strip())
     if match is None:
         return None
@@ -1997,8 +2010,7 @@ def _receipt_date(value: str | None, repo_root: Path) -> date | None:
         return None
     if executed.tzinfo is None:
         return None
-    # UTC-12 gives the earliest local date for that instant, so no owner time zone is rejected.
-    return (executed.astimezone(timezone.utc) - timedelta(hours=12)).date()
+    return executed.astimezone(timezone.utc)
 
 
 def _evidence_check(label: str, capture_mode: str | None) -> str | None:
@@ -2989,17 +3001,23 @@ def _validate_impl(
             problems,
         )
         review_section = _section(active, "## HiFi Review") or ""
+        receipt_values = [
+            *(_field(review_section, name) for name in ("Impeccable critique", "Impeccable audit", "UI grading", "HiFi surface check")),
+            *(f"PASS — evidence={item['path']} @ sha256:{item['sha256']}" for item in motion_effect_evidence.values()),
+        ]
         receipt_dates = [
             receipt_date
-            for value in [
-                *(_field(review_section, name) for name in ("Impeccable critique", "Impeccable audit", "UI grading", "HiFi surface check")),
-                *(f"PASS — evidence={item['path']} @ sha256:{item['sha256']}" for item in motion_effect_evidence.values()),
-            ]
+            for value in receipt_values
             if (receipt_date := _receipt_date(value, root)) is not None
+        ]
+        receipt_times = [
+            receipt_time
+            for value in receipt_values
+            if (receipt_time := _receipt_instant(value, root)) is not None
         ]
         # Dated rule: a legacy approval decided, or backed by HiFi evidence,
         # on or after the 0.55.0 cutover is never historical.
-        if apply_current_hifi_cutover and current_hifi_cutover_applies(decided_on, receipt_dates):
+        if apply_current_hifi_cutover and current_hifi_cutover_applies(decided_on, receipt_times):
             current_hifi = True
     if modern and approved_gate:
         problems.extend(author_artifact_findings(root, active, require_hifi=require_visual_approved))
@@ -3198,6 +3216,7 @@ def _validate_impl(
                                 pair_registry,
                                 require_filled=True,
                                 repo_root=root,
+                                apply_current_hifi_cutover=apply_current_hifi_cutover,
                             )
                             problems.extend(f"design-system pair: {item}" for item in pair_problems)
                             bindings = pair_registry.get("sourceBindings")
@@ -3296,8 +3315,8 @@ def validate(
     current HiFi evidence rules. Publication sets it unless the Approved target
     equals the one already recorded at HEAD. ``apply_current_hifi_cutover``
     also requires them when the approval or any HiFi receipt is dated on or
-    after the 0.55.0 cutover; publication, the compiler preflight and Harness
-    0.55.0+ UI joins set it.
+    after the 0.55.0 cutover; publication, the compiler preflight and the
+    Harness UI and pair joins for gated RUNs set it.
 
     Pair verification is deliberately not a caller-selectable boolean.  The
     only pair-less route is the exact compiler preflight below, which requires
@@ -3328,12 +3347,14 @@ def _validate_for_design_system_preflight(
     prd_path: Path,
     wireframes_path: Path,
     hifi_path: Path,
+    apply_current_hifi_cutover: bool = True,
 ) -> list[str]:
     """Validate an exact required-gate candidate immediately before compile.
 
     This is intentionally the sole internal pair-less entry point.  It is not
     exposed as a CLI switch and refuses to run without every upstream source
-    and the final visual gate. It applies the dated current-HiFi cutover rule.
+    and the final visual gate. It applies the dated current-HiFi cutover rule
+    unless a Harness join for an older RUN turns it off.
     """
 
     text = ui_design_path.read_text(encoding="utf-8")
@@ -3347,7 +3368,7 @@ def _validate_for_design_system_preflight(
         require_wireframe_approved=not is_structure_review(text),
         require_structure_validated=is_structure_review(text),
         require_visual_approved=True,
-        apply_current_hifi_cutover=True,
+        apply_current_hifi_cutover=apply_current_hifi_cutover,
         _allow_pending_design_system_pair=True,
     )
 
