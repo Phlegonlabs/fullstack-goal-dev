@@ -753,6 +753,12 @@ class HarnessV11Tests(unittest.TestCase):
                     run = copy.deepcopy(original)
                     record(result, None, root)
                     self.assertEqual(result, run["review_workers"][-1]["outcome"])
+                    # Recording adds no RUN validation error (the CLI refuses
+                    # a write that would). The fixture has unrelated errors.
+                    self.assertEqual(
+                        set(),
+                        set(validate_run(plan, run)) - set(validate_run(plan, original)),
+                    )
                     if result == "retryable_failure":
                         self.assertEqual(
                             "failed",

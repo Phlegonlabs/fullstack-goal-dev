@@ -172,9 +172,11 @@ def validate_node_result(
                 elif review_result["findings"] and result["outcome"] not in {
                     "fix_required",
                     "blocked",
+                    "retryable_failure",
+                    "contract_gap",
                 }:
                     errors.append(
-                        "node_result.worker_result.findings: current review findings require a fix_required or blocked outcome"
+                        "node_result.worker_result.findings: current review findings require a non-pass review outcome"
                     )
                 if not isinstance(review_result["evidence_summary"], str) or not review_result[
                     "evidence_summary"

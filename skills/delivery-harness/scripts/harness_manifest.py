@@ -1834,6 +1834,9 @@ UI_IMPACT_SUMMARY_REQUIRED_VERSION = (0, 35, 0)
 # cleanup lifecycle node target, coordination_paths allowlist, protected
 # delete_branches grant targets). Older RUNs keep their shape.
 EXACT_RECEIPT_REQUIRED_VERSION = (0, 55, 0)
+# Non-pass review outcomes that carry findings. A crashed or gapped review
+# records its reason as a finding, which record-review-attempt requires.
+REVIEW_FINDING_OUTCOMES = frozenset({"fix_required", "blocked", "retryable_failure", "contract_gap"})
 UI_IMPACT_SUMMARY_ROW_KEYS = {"mission_id", "impact"}
 
 
@@ -7079,11 +7082,11 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                             f"{path}.findings",
                             "current PASS review result must not contain findings",
                         )
-                    elif outcome not in {"fix_required", "blocked"}:
+                    elif outcome not in REVIEW_FINDING_OUTCOMES:
                         _add(
                             errors,
                             f"{path}.findings",
-                            "current review findings require a fix_required or blocked outcome",
+                            "current review findings require a non-pass review outcome",
                         )
                 current_reviewable_shas = {
                     sha
