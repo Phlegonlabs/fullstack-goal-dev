@@ -160,7 +160,7 @@ class StrictAuthorityJoinTests(unittest.TestCase):
 
     @classmethod
     def _ui_fixture(
-        cls, root: Path, *, required: bool
+        cls, root: Path, *, required: bool, visual_decided_on: str = "2026-09-13"
     ) -> tuple[dict[str, object], dict[str, object], dict[str, Path]]:
         original_path = list(sys.path)
         try:
@@ -168,7 +168,9 @@ class StrictAuthorityJoinTests(unittest.TestCase):
                 if str(candidate) not in sys.path:
                     sys.path.insert(0, str(candidate))
             product, architecture, stack, wireframe, hifi, pair = (
-                materialize_publication(root, required=required)
+                materialize_publication(
+                    root, required=required, visual_decided_on=visual_decided_on
+                )
             )
         finally:
             sys.path[:] = original_path
@@ -403,6 +405,31 @@ class StrictAuthorityJoinTests(unittest.TestCase):
             target = next(source for source in plan["sources"] if source["kind"] == "approved ui target")
             target["location"] = "docs/design/ui-references/missing/index.html"
             self.assertTrue(any("approved UI target" in error for error in validate_frozen_contract_joins(plan, root, run=run)))
+
+    def test_dated_legacy_approval_needs_current_hifi_from_0_55_1(self) -> None:
+        cases = (
+            ("2026-09-27", "0.55.1", False),
+            ("2026-09-27", "0.55.0", True),
+            ("2026-09-26", "0.55.1", True),
+        )
+        for decided_on, version, passes in cases:
+            with self.subTest(decided_on=decided_on, version=version), \
+                    tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                plan, run, _paths = self._ui_fixture(
+                    root, required=False, visual_decided_on=decided_on
+                )
+                run["runtime_capabilities"]["runtime_adapter"]["version_gate"][
+                    "required_harness_version"
+                ] = version
+                errors = validate_frozen_contract_joins(plan, root, run=run)
+                if passes:
+                    self.assertEqual([], errors)
+                else:
+                    joined = "\n".join(errors)
+                    self.assertIn("requires ui-evidence/3 machine observation", joined)
+                    self.assertIn("reviewer shell version 3", joined)
+                    self.assertIn("Frontend Design Usage", joined)
 
     def test_schema_five_structure_validation_joins_strict_plan(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
