@@ -127,6 +127,11 @@ class NewRunTests(unittest.TestCase):
                 "docs/verification/evidence/**",
             }.issubset(self.plan["missions"][0]["write_scope"])
         )
+        # No task lists them, so a worker task commit touching them fails.
+        for task in self.plan["missions"][0]["tasks"]:
+            self.assertFalse(
+                any(scope.startswith("docs/verification/") for scope in task["write_scope"])
+            )
 
         run = load_run(self.generate())
 
