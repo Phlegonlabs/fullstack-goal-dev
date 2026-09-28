@@ -13,8 +13,11 @@ import check_ui_publication as publication
 from ui_approval_digest import canonical_ui_approval_sha256
 
 
-# Past, and still on or after the 0.55.0 cutover under the receipt-date UTC-12 shift.
+# After the 0.55.0 cutover instant, and still on 2026-09-27 under the UTC-12
+# receipt date that the "Decided on predates" check uses.
 POST_CUTOVER_RECEIPT = "2026-09-27T20:00:00Z"
+# After the cutover instant, but 2026-09-26 under the UTC-12 receipt date.
+RELEASE_DAY_RECEIPT = "2026-09-27T08:00:00Z"
 PRE_CUTOVER_RECEIPT = "2020-01-01T00:00:00Z"
 DATED_CASES = (
     # (Visual Approval Decided on, HiFi receipt executedAt, historical)
@@ -22,6 +25,8 @@ DATED_CASES = (
     ("2026-09-27", PRE_CUTOVER_RECEIPT, False),
     # A backdated approval cannot hide post-cutover HiFi evidence.
     ("2026-09-26", POST_CUTOVER_RECEIPT, False),
+    # Time-zone rounding cannot move a release-day receipt before the cutover.
+    ("2026-09-26", RELEASE_DAY_RECEIPT, False),
 )
 
 
@@ -168,11 +173,14 @@ class PublicationTests(unittest.TestCase):
                     assert_current_hifi_findings(self, problems, executed_at == POST_CUTOVER_RECEIPT)
 
     def test_current_hifi_cutover_boundaries(self):
-        from datetime import date
+        from datetime import datetime, timezone
         applies = publication.ui.current_hifi_cutover_applies
+        def utc(*parts):
+            return datetime(*parts, tzinfo=timezone.utc)
         self.assertFalse(applies("2026-09-26", []))
-        self.assertFalse(applies("2026-09-26", [date(2026, 9, 26)]))
-        self.assertTrue(applies("2026-09-26", [date(2026, 9, 1), date(2026, 9, 27)]))
+        self.assertFalse(applies("2026-09-26", [utc(2026, 9, 26, 23, 59, 59)]))
+        self.assertTrue(applies("2026-09-26", [utc(2026, 9, 1), utc(2026, 9, 27)]))
+        self.assertTrue(applies("2026-09-26", [utc(2026, 9, 27, 8)]))
         self.assertTrue(applies("2026-09-27", []))
         self.assertTrue(applies("later", []))
         self.assertTrue(applies(None, []))
