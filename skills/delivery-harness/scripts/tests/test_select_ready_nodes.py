@@ -4,9 +4,12 @@
 from __future__ import annotations
 
 import copy
+import io
 import json
 import sys
+import tempfile
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from argparse import Namespace
 from pathlib import Path
 from unittest.mock import patch
@@ -2259,20 +2262,28 @@ class SelectReadyNodesTests(unittest.TestCase):
             {item["node_id"] for item in result["dispatchable_nodes"]},
         )
 
-    def test_wildcard_mission_scope_selection_agrees_with_lease(self) -> None:
-        # From 0.55.1 the selector offers a mission launch only when
-        # lease-worker can record receipts that validate_run accepts.
-        message = (
-            "run.authorizations.spawn_subagents: must exactly authorize M1 "
-            "target worker:W-SEL"
+    def _leasable_wave(self, run: dict[str, object]) -> None:
+        run["control"]["desired_state"] = "running"
+        run["active_wave"].update(
+            {
+                "wave_id": "W-SEL",
+                "status": "active",
+                "batch_base_sha": "a" * 40,
+                "selected_missions": ["M1"],
+            }
         )
+        run["integration"]["batch_base_sha"] = "a" * 40
+
+    def test_wildcard_mission_scope_defers_selection_and_lease(self) -> None:
+        # validate_run rejects a "*" mission receipt at every version, so the
+        # selector and lease-worker refuse the launch for old and new RUNs.
         cases = (
-            ("0.55.0", "spawn_subagents", ["*"], True),
-            ("0.55.1", "spawn_subagents", ["*"], False),
-            ("0.55.1", "create_local_worktrees", ["*"], False),
-            ("0.55.1", "spawn_subagents", None, True),
+            ("0.54.5", "spawn_subagents", ["*"]),
+            ("0.55.0", "spawn_subagents", ["*"]),
+            ("0.55.0", "create_local_worktrees", ["*"]),
+            ("0.55.0", "spawn_subagents", None),
         )
-        for version, action, mission_scope, dispatchable in cases:
+        for version, action, mission_scope in cases:
             with self.subTest(version=version, action=action, mission_scope=mission_scope):
                 plan, run = self._authorized_conflict_free_pair()
                 if mission_scope is not None:
@@ -2292,16 +2303,7 @@ class SelectReadyNodesTests(unittest.TestCase):
                     item["node_id"]: item["reason_codes"]
                     for item in selection["deferred_nodes"]
                 }
-                run["control"]["desired_state"] = "running"
-                run["active_wave"].update(
-                    {
-                        "wave_id": "W-SEL",
-                        "status": "active",
-                        "batch_base_sha": "a" * 40,
-                        "selected_missions": ["M1"],
-                    }
-                )
-                run["integration"]["batch_base_sha"] = "a" * 40
+                self._leasable_wave(run)
                 lease = lambda: harness_transition._lease_worker(  # noqa: E731
                     plan,
                     run,
@@ -2322,29 +2324,152 @@ class SelectReadyNodesTests(unittest.TestCase):
                         report_path=None,
                     ),
                 )
-                if dispatchable:
+                if mission_scope is None:
                     self.assertIn("N-M1", listed)
                     lease()
-                    errors = validate_run(plan, run)
-                    # 0.55.0 keeps its prior behavior: the lease succeeds and
-                    # validation then rejects the "*" mission receipt.
-                    if mission_scope is None:
-                        self.assertNotIn(message, errors)
-                    else:
-                        self.assertIn(message, errors)
-                else:
-                    self.assertNotIn("N-M1", listed)
-                    self.assertIn("action_not_authorized", deferred["N-M1"])
-                    targets = run["authorizations"]["spawn_subagents"]["scope"][
-                        "targets"
+                    self.assertNotIn(
+                        "run.authorizations.spawn_subagents: must exactly "
+                        "authorize M1 target worker:W-SEL",
+                        validate_run(plan, run),
+                    )
+                    continue
+                self.assertNotIn("N-M1", listed)
+                self.assertIn("action_not_authorized", deferred["N-M1"])
+                with self.assertRaisesRegex(
+                    ManifestError, rf"{action} grant has mission_ids '\*'"
+                ):
+                    lease()
+                # The refused lease records no receipt in any grant.
+                for grant in run["authorizations"].values():
+                    if grant.get("authorized"):
+                        self.assertEqual(["*"], grant["scope"]["targets"])
+                self.assertEqual([], run["workers"])
+                # The refusal matches validation: a lease recorded under an
+                # exact scope becomes invalid once the scope reads "*".
+                scope = run["authorizations"][action]["scope"]
+                scope["mission_ids"] = ["M1", "M2"]
+                lease()
+                scope["mission_ids"] = ["*"]
+                self.assertTrue(
+                    any(
+                        error.startswith(
+                            f"run.authorizations.{action}: must exactly "
+                            "authorize M1 target"
+                        )
+                        for error in validate_run(plan, run)
+                    )
+                )
+
+    def test_lease_worker_cli_refuses_wildcard_mission_scope(self) -> None:
+        # Drive lease-worker through the CLI and its final RUN validation.
+        # The fixture pin (0.6.0) predates the 0.38 repo-root authority join,
+        # so the full transition runs without a live repository.
+        for route in ("subagents", "app_threads"):
+            for wildcard in (False, True):
+                with self.subTest(route=route, wildcard=wildcard):
+                    plan, run = self._authorized_conflict_free_pair()
+                    managed_by = "parent"
+                    extra: list[str] = []
+                    action = "spawn_subagents"
+                    if route == "app_threads":
+                        managed_by = "app"
+                        extra = ["--task-thread-id", "T-SEL"]
+                        action = "create_user_owned_tasks"
+                        run["runtime_capabilities"].update(
+                            {
+                                "worker_runtime": "app_task",
+                                "workspace_mode": "app_managed_worktree",
+                                "completion_channel": "thread_poll",
+                            }
+                        )
+                        adapter = run["runtime_capabilities"]["runtime_adapter"]
+                        adapter["available_drivers"] = [
+                            "app_threads",
+                            "sequential_parent",
+                        ]
+                        adapter["capability_probe"] = native_capability_probe(
+                            app_threads=True
+                        )
+                        for granted in (
+                            "create_user_owned_tasks",
+                            "create_app_managed_worktrees",
+                        ):
+                            authorize_action(run, granted, ["M1", "M2"], ["*"])
+                    if wildcard:
+                        run["authorizations"][action]["scope"]["mission_ids"] = ["*"]
+                    selection = select_ready_nodes(
+                        plan, run, manifest_already_validated=True
+                    )
+                    listed = [
+                        item["node_id"] for item in selection["dispatchable_nodes"]
                     ]
-                    with self.assertRaisesRegex(
-                        ManifestError, rf"{action} grant has mission_ids '\*'"
-                    ):
-                        lease()
-                    # The refused lease records no receipt in any grant.
-                    self.assertEqual(["*"], targets)
-                    self.assertEqual([], run["workers"])
+                    self._leasable_wave(run)
+                    run["run_lock"] = {
+                        "session_id": "S-SEL",
+                        "acquired_at": "2026-09-27T00:00:00Z",
+                        "heartbeat_at": "2026-09-27T00:00:00Z",
+                    }
+                    run["observed"]["git"]["worktrees"].append(
+                        {
+                            "path": "C:/tmp/m1-sel",
+                            "branch_ref": "refs/heads/codex/m1-sel",
+                            "head_sha": "a" * 40,
+                            "managed_by": managed_by,
+                            "dirty": False,
+                        }
+                    )
+                    with tempfile.TemporaryDirectory() as tmp:
+                        plan_path = Path(tmp) / "PLAN.md"
+                        run_path = Path(tmp) / "RUN.md"
+                        plan_path.write_text(
+                            "## Harness Plan Manifest\n\n```json\n"
+                            + json.dumps({"harness_plan": plan}, indent=2)
+                            + "\n```\n",
+                            encoding="utf-8",
+                        )
+                        run_path.write_text(
+                            "## Harness Run State\n\n```json\n"
+                            + json.dumps({"harness_run": run}, indent=2)
+                            + "\n```\n",
+                            encoding="utf-8",
+                        )
+                        before = run_path.read_bytes()
+                        stderr = io.StringIO()
+                        with redirect_stderr(stderr), redirect_stdout(io.StringIO()):
+                            code = harness_transition.main(
+                                [
+                                    "--plan", str(plan_path),
+                                    "--run", str(run_path),
+                                    "--session-id", "S-SEL",
+                                    "lease-worker",
+                                    "--mission-id", "M1",
+                                    "--node-id", "N-M1",
+                                    "--worker-id", "W-SEL",
+                                    "--lease-id", "L-SEL",
+                                    "--attempt-id", "ATT-SEL",
+                                    "--branch-ref", "refs/heads/codex/m1-sel",
+                                    "--worktree-path", "C:/tmp/m1-sel",
+                                    *extra,
+                                ]
+                            )
+                        if wildcard:
+                            self.assertNotIn("N-M1", listed)
+                            self.assertEqual(2, code)
+                            self.assertIn(
+                                f"{action} grant has mission_ids '*'",
+                                stderr.getvalue(),
+                            )
+                            self.assertEqual(before, run_path.read_bytes())
+                        else:
+                            self.assertIn("N-M1", listed)
+                            self.assertEqual(0, code, stderr.getvalue())
+                            self.assertEqual(
+                                ["W-SEL"],
+                                [
+                                    worker["worker_id"]
+                                    for worker in load_run(run_path)["workers"]
+                                ],
+                            )
 
     def test_effective_write_budget_one_selects_one_managed_directive(self) -> None:
         plan, run = self._authorized_conflict_free_pair()

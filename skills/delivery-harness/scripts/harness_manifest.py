@@ -1833,9 +1833,6 @@ UI_IMPACT_SUMMARY_REQUIRED_VERSION = (0, 35, 0)
 # cleanup lifecycle node target, coordination_paths allowlist, protected
 # delete_branches grant targets). Older RUNs keep their shape.
 EXACT_RECEIPT_REQUIRED_VERSION = (0, 55, 0)
-# From 0.55.1 the selector and lease-worker refuse a mission launch grant
-# whose mission_ids contain "*"; validate_run needs exact mission ids.
-EXACT_MISSION_SCOPE_VERSION = (0, 55, 1)
 UI_IMPACT_SUMMARY_ROW_KEYS = {"mission_id", "impact"}
 
 

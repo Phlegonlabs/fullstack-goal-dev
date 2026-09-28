@@ -39,7 +39,6 @@ from harness_contract import contract_digest
 from harness_git import GitMetadataError, reject_object_substitution, run_git
 from harness_manifest import (
     _verifier_owners,
-    EXACT_MISSION_SCOPE_VERSION,
     INTERRUPTED_REVIEW_RECEIPT,
     ManifestError,
     UI_AUTHORING_REQUIRED_SKILLS,
@@ -52,7 +51,7 @@ from harness_manifest import (
 )
 from harness_schema import EXACT_TARGET_LIFECYCLE_ACTIONS, RUN_DISPATCH_STATUSES, RUN_HEADING
 from harness_schema import archive_first_required, parse_harness_version, required_harness_version
-from harness_schema import run_required_harness_version, version_at_least
+from harness_schema import version_at_least
 from harness_schema import frozen_coordination_path, supported_coordination_path
 from push_integration_branch import (
     make_push_request,
@@ -2506,20 +2505,17 @@ def _lease_worker(plan: dict[str, Any], run: dict[str, Any], args: argparse.Name
             receipts.append((worktree_action, f"worktree:{args.worktree_path}"))
             for action in ("create_local_branches", "create_local_commits"):
                 receipts.append((action, f"branch:{args.branch_ref}"))
-        # validate_run checks every receipt against exact mission ids, so a
-        # "*" mission scope would record a receipt it then rejects. The
-        # selector defers these launches from 0.55.1; refuse them here too.
-        if version_at_least(
-            run_required_harness_version(run), EXACT_MISSION_SCOPE_VERSION
-        ):
-            for action, _target in receipts:
-                scope = (run.get("authorizations", {}).get(action) or {}).get("scope")
-                missions = scope.get("mission_ids") if isinstance(scope, dict) else None
-                if isinstance(missions, list) and "*" in missions:
-                    raise ManifestError(
-                        f"{action} grant has mission_ids '*'; lease-worker needs "
-                        f"exact mission ids including {args.mission_id!r}"
-                    )
+        # validate_run checks every receipt against exact mission ids at
+        # every version, so a "*" mission scope would record a receipt it
+        # then rejects. The selector defers these launches; refuse here too.
+        for action, _target in receipts:
+            scope = (run.get("authorizations", {}).get(action) or {}).get("scope")
+            missions = scope.get("mission_ids") if isinstance(scope, dict) else None
+            if isinstance(missions, list) and "*" in missions:
+                raise ManifestError(
+                    f"{action} grant has mission_ids '*'; lease-worker needs "
+                    f"exact mission ids including {args.mission_id!r}"
+                )
         for action, target in receipts:
             _materialize_authorized_target(run, action, args.mission_id, target)
     node_state.update(

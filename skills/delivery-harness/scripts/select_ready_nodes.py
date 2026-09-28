@@ -14,7 +14,6 @@ from typing import Any
 from harness_contract import contract_digest
 from harness_core import _nonempty_string, _normalized_branch, classify_execution_route
 from harness_manifest import (
-    EXACT_MISSION_SCOPE_VERSION,
     EXACT_RECEIPT_REQUIRED_VERSION,
     ManifestError,
     UI_AUTHORING_REQUIRED_SKILLS,
@@ -1158,34 +1157,29 @@ def _dispatch_reasons(
                 for mission_id in authorization_missions
             ):
                 reasons.add("action_not_authorized")
-            # validate_run checks each launch receipt (worker:, task:,
-            # worktree:, branch:) against exact mission ids. A "*" mission
-            # scope cannot produce a valid receipt, so do not offer the
-            # launch: from 0.55.0 for a subagent reviewer, and from 0.55.1
-            # for a mission worker. Older RUNs keep their prior selection.
+            # validate_run checks each mission launch receipt (worker:,
+            # task:, worktree:, branch:) against exact mission ids at every
+            # version, and a subagent reviewer's worker: receipt from 0.55.0.
+            # A "*" mission scope cannot produce a valid receipt, so do not
+            # offer that launch.
             action_scope = (
                 run.get("authorizations", {}).get(action) or {}
             ).get("scope")
             action_missions = (
                 action_scope.get("mission_ids") if isinstance(action_scope, dict) else None
             )
-            required_version = run_required_harness_version(run)
             if (
                 run["schema_version"] == 11
                 and isinstance(action_missions, list)
                 and "*" in action_missions
                 and (
-                    (
+                    node["kind"] == "mission"
+                    or (
                         node["kind"] == "verifier"
                         and action == "spawn_subagents"
                         and version_at_least(
-                            required_version, EXACT_RECEIPT_REQUIRED_VERSION
-                        )
-                    )
-                    or (
-                        node["kind"] == "mission"
-                        and version_at_least(
-                            required_version, EXACT_MISSION_SCOPE_VERSION
+                            run_required_harness_version(run),
+                            EXACT_RECEIPT_REQUIRED_VERSION,
                         )
                     )
                 )
