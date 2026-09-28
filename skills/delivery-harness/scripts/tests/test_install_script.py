@@ -351,9 +351,12 @@ class InstallScriptTests(unittest.TestCase):
             timeout=INSTALL_TIMEOUT,
         )
         self.assertNotEqual(0, result.returncode)
+        # pwsh on Linux colors the error record and wraps it with "|" gutters.
+        output = re.sub(r"\x1b\[[0-9;]*m", "", result.stderr + result.stdout)
+        output = re.sub(r"\s*\n\s*\|\s*", " ", output)
         self.assertIn(
             f"non-regular tracked source entry is not installable: mode=120000 path={relative}",
-            result.stderr + result.stdout,
+            output,
         )
         self.assertFalse(self.destination.exists())
 
