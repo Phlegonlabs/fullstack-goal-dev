@@ -329,9 +329,9 @@ def normalized_responsive(
 WEB_VIEWPORT_FLOOR_VERSION = (0, 34, 0)
 UI_DESIGN_CONTRACT_REQUIRED_VERSION = (0, 37, 0)
 STRICT_UI_AUTHORITY_VERSION = (0, 38, 0)
-# The UI checker's own 0.55.0 decision/receipt date cutover keeps earlier
-# approvals historical, so 0.55.0 RUNs can enforce it without re-reading them.
-CURRENT_HIFI_EVIDENCE_VERSION = (0, 55, 0)
+# 0.55.1 is the release that adds the UI checker's dated current-HiFi rule
+# to the UI and pair joins. A RUN frozen under 0.55.0 keeps its old meaning.
+CURRENT_HIFI_EVIDENCE_VERSION = (0, 55, 1)
 
 
 _STRICT_SOURCE_SPECS: dict[str, dict[str, Any]] = {
@@ -1801,7 +1801,7 @@ def full_ui_design_checker_errors_at_paths(
 ) -> list[str]:
     """Run the canonical UI checker against the actual repository paths.
 
-    ``apply_current_hifi_cutover`` (set for Harness 0.55.0+ RUNs) applies the
+    ``apply_current_hifi_cutover`` (set for Harness 0.55.1+ RUNs) applies the
     UI checker's dated rule: a legacy-heading Visual Approval decided on or
     after the 0.55.0 cutover, or backed by a HiFi receipt from then on, must
     carry current HiFi evidence.
