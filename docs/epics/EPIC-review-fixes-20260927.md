@@ -139,6 +139,8 @@ leftover fixes and this documentation sync. All entries are committed.
   (4 skipped), product-activation 56 OK, seo-growth-review 21 OK. Golden path 1 OK. Browser
   tests and Linux/macOS runs are left to CI.
 
+- Release integration (2026-09-28): `codex/review-followups` (#130), `codex/macos-support` (#129) and `codex/remove-wireframe-stage` are combined on `codex/release-0.56.0` as one 0.56.0 release (merges `412db6b4`, `32bb7de1`); 0.55.1 was never tagged. Full suite and final review results follow in the PR.
+
 ### Open follow-ups
 
 - macOS support: Harness fails 353 tests on macos-latest. Causes seen: `_trusted_executable`

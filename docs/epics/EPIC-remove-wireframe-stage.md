@@ -1,6 +1,6 @@
 # Remove The Wireframe Stage
 
-Status: local implementation verified on Windows; uncommitted and unreleased working-tree candidate. POSIX and privileged file-symlink cases remain unverified on this host.
+Status: committed as `511a7a5b` on `codex/remove-wireframe-stage` and integrated into `codex/release-0.56.0` with the 0.55.1 review follow-ups and macOS support (#129); release pending.
 Design workflow: enhancement
 UI impact: none (skill contracts and validators; no product UI authored).
 
@@ -66,3 +66,7 @@ RW-1 through RW-7 are implemented and covered by the checks above. The reusable 
 Final repository: `C:/Users/mps19/Documents/GitHub/product-delivery-harness`, branch `codex/remove-wireframe-stage`, HEAD `2fa9b343175f585aca1da551edc0a8654380de9b`. The changes remain in the working tree, with intent-to-add for new source files and no staged file content. The source/index/task audit agrees with this result. Installed template identity and its authorized source-flow difference are recorded above; installed skills remain 0.55.1.
 
 This is a local implementation handoff, not release completion. Commits, publication, CI on other platforms, exact-SHA main promotion, tagging and installation have not occurred. Those release actions require their existing separate authorizations; platform-limited tests still need an appropriate CI host.
+
+## Integration
+
+- 2026-09-28: the owner asked to commit, push and merge this branch with #129 and #130. Committed as `511a7a5b`, pushed, and merged into `codex/release-0.56.0` (merge `32bb7de1`). Conflicts in 24 files were resolved keeping both sides: `ui-design/2` contracts use this Epic's direct PRD-to-HiFi path; legacy contracts keep the review-fix current-HiFi cutover and its 0.55.1 join gate. One 0.56.0 release carries all three branches.
