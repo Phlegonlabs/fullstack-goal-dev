@@ -3700,14 +3700,30 @@ def _run_exchange_commit(
         _run_posix_exchange(parent_fd, temporary_name, path.name)
         displaced_version = _run_document_version_token(Path(temporary_name), parent_fd=parent_fd)
         if displaced_version != expected_version:
-            current = _run_document_version_token(path, parent_fd=parent_fd)
-            if current[-1] == hashlib.sha256(updated).hexdigest():
-                _run_posix_exchange(parent_fd, temporary_name, path.name)
-                restored = _run_document_version_token(path, parent_fd=parent_fd)
-                if restored != expected_version:
-                    raise ManifestError("RUN restore verification failed; recovery artifacts retained")
-                os.unlink(temporary_name, dir_fd=parent_fd)
-            raise ManifestError("RUN displaced bytes changed at atomic exchange; concurrent bytes preserved")
+            # Move displaced bytes off the temp name first: the caller's cleanup deletes it.
+            recovery = path.parent / f".{path.name}.{secrets.token_hex(8)}.recovery"
+            os.rename(temporary_name, recovery.name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
+            preserved = f"RUN displaced bytes changed at atomic exchange; concurrent bytes preserved at {recovery}"
+            payload_hash = hashlib.sha256(updated).hexdigest()
+            try:
+                restore = _run_document_version_token(path, parent_fd=parent_fd)[-1] == payload_hash
+                if restore:
+                    _run_posix_exchange(parent_fd, recovery.name, path.name)
+            except (OSError, ManifestError) as exc:
+                raise ManifestError(preserved) from exc
+            if not restore:
+                raise ManifestError(preserved)
+            restored = _run_document_version_token(path, parent_fd=parent_fd)
+            leftover = _run_document_version_token(recovery, parent_fd=parent_fd)
+            # Delete the swapped-out file only when it is our own payload.
+            if restored != displaced_version or leftover[-1] != payload_hash:
+                raise ManifestError(
+                    f"RUN restore verification failed; recovery artifacts retained at {recovery}"
+                )
+            os.unlink(recovery.name, dir_fd=parent_fd)
+            raise ManifestError(
+                f"RUN displaced bytes changed at atomic exchange; concurrent bytes preserved at {path}"
+            )
         os.unlink(temporary_name, dir_fd=parent_fd)
         os.fsync(parent_fd)
         return
@@ -3716,15 +3732,28 @@ def _run_exchange_commit(
     _run_windows_replace_with_backup(path, temporary, backup)
     displaced_version = _run_document_version_token(backup)
     if displaced_version != expected_version:
-        current = _run_document_version_token(path)
-        if current[-1] == hashlib.sha256(updated).hexdigest():
-            rollback_backup = path.parent / f".{path.name}.{secrets.token_hex(8)}.rollback"
-            _run_windows_replace_with_backup(path, backup, rollback_backup)
-            restored = _run_document_version_token(path)
-            if restored != expected_version:
-                raise ManifestError("RUN restore verification failed; recovery artifacts retained")
-            rollback_backup.unlink(missing_ok=True)
-        raise ManifestError("RUN displaced bytes changed at atomic replacement; concurrent bytes preserved")
+        rollback_backup = path.parent / f".{path.name}.{secrets.token_hex(8)}.rollback"
+        preserved = f"RUN displaced bytes changed at atomic replacement; concurrent bytes preserved at {backup}"
+        payload_hash = hashlib.sha256(updated).hexdigest()
+        try:
+            restore = _run_document_version_token(path)[-1] == payload_hash
+            if restore:
+                _run_windows_replace_with_backup(path, backup, rollback_backup)
+        except (OSError, ManifestError) as exc:
+            raise ManifestError(preserved) from exc
+        if not restore:
+            raise ManifestError(preserved)
+        restored = _run_document_version_token(path)
+        leftover = _run_document_version_token(rollback_backup)
+        # Delete the swapped-out file only when it is our own payload.
+        if restored != displaced_version or leftover[-1] != payload_hash:
+            raise ManifestError(
+                f"RUN restore verification failed; recovery artifacts retained at {rollback_backup}"
+            )
+        rollback_backup.unlink(missing_ok=True)
+        raise ManifestError(
+            f"RUN displaced bytes changed at atomic replacement; concurrent bytes preserved at {path}"
+        )
     backup.unlink(missing_ok=True)
 
 

@@ -332,14 +332,28 @@ def _windows_replace_commit(
 
     backup = path.parent / f".{path.name}.{secrets.token_hex(8)}.backup"
     _windows_replace_with_backup(path, temporary_path, backup)
-    if _path_version(backup) != expected_version:
-        if _path_version(path)[-1] == hashlib.sha256(payload).hexdigest():
-            rollback_backup = path.parent / f".{path.name}.{secrets.token_hex(8)}.rollback"
-            _windows_replace_with_backup(path, backup, rollback_backup)
-            if _path_version(path) != expected_version:
-                raise ConcurrentModificationError("design-system restore verification failed; artifacts retained")
-            rollback_backup.unlink(missing_ok=True)
-        raise ConcurrentModificationError("design-system displaced bytes changed; concurrent bytes preserved")
+    displaced_version = _path_version(backup)
+    if displaced_version != expected_version:
+        rollback_backup = path.parent / f".{path.name}.{secrets.token_hex(8)}.rollback"
+        preserved = f"design-system displaced bytes changed; concurrent bytes preserved at {backup}"
+        payload_hash = hashlib.sha256(payload).hexdigest()
+        try:
+            restore = _path_version(path)[-1] == payload_hash
+            if restore:
+                _windows_replace_with_backup(path, backup, rollback_backup)
+        except (OSError, ConcurrentModificationError) as exc:
+            raise ConcurrentModificationError(preserved) from exc
+        if not restore:
+            raise ConcurrentModificationError(preserved)
+        # Delete the swapped-out file only when it is our own payload.
+        if _path_version(path) != displaced_version or _path_version(rollback_backup)[-1] != payload_hash:
+            raise ConcurrentModificationError(
+                f"design-system restore verification failed; artifacts retained at {rollback_backup}"
+            )
+        rollback_backup.unlink(missing_ok=True)
+        raise ConcurrentModificationError(
+            f"design-system displaced bytes changed; concurrent bytes preserved at {path}"
+        )
     backup.unlink(missing_ok=True)
 
 
@@ -354,14 +368,30 @@ def _posix_exchange_commit(
     """Commit by exchange, then verify the displaced bytes and restore on mismatch."""
 
     _posix_rename_exchange(parent_fd, temporary_path.name, path.name)
-    displaced = path.parent / temporary_path.name
-    if _path_version(displaced) != expected_version:
-        if _path_version(path)[-1] == hashlib.sha256(payload).hexdigest():
-            _posix_rename_exchange(parent_fd, temporary_path.name, path.name)
-            if _path_version(path) != expected_version:
-                raise ConcurrentModificationError("design-system restore verification failed; artifacts retained")
-            os.unlink(temporary_path.name, dir_fd=parent_fd)
-        raise ConcurrentModificationError("design-system displaced bytes changed; concurrent bytes preserved")
+    displaced_version = _path_version(path.parent / temporary_path.name)
+    if displaced_version != expected_version:
+        # Move displaced bytes off the temp name first: the caller's cleanup deletes it.
+        recovery = path.parent / f".{path.name}.{secrets.token_hex(8)}.recovery"
+        os.rename(temporary_path.name, recovery.name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
+        preserved = f"design-system displaced bytes changed; concurrent bytes preserved at {recovery}"
+        payload_hash = hashlib.sha256(payload).hexdigest()
+        try:
+            restore = _path_version(path)[-1] == payload_hash
+            if restore:
+                _posix_rename_exchange(parent_fd, recovery.name, path.name)
+        except (OSError, ConcurrentModificationError) as exc:
+            raise ConcurrentModificationError(preserved) from exc
+        if not restore:
+            raise ConcurrentModificationError(preserved)
+        # Delete the swapped-out file only when it is our own payload.
+        if _path_version(path) != displaced_version or _path_version(recovery)[-1] != payload_hash:
+            raise ConcurrentModificationError(
+                f"design-system restore verification failed; artifacts retained at {recovery}"
+            )
+        os.unlink(recovery.name, dir_fd=parent_fd)
+        raise ConcurrentModificationError(
+            f"design-system displaced bytes changed; concurrent bytes preserved at {path}"
+        )
     os.unlink(temporary_path.name, dir_fd=parent_fd)
     os.fsync(parent_fd)
 

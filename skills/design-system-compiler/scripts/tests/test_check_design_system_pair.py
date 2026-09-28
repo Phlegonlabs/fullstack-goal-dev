@@ -19,6 +19,104 @@ if str(SCRIPTS_ROOT) not in sys.path:
 import check_design_system_pair as checker  # noqa: E402
 
 
+class _DirFdOs:
+    """Real ``os`` with ``dir_fd`` resolved against one directory."""
+
+    def __init__(self, directory: Path) -> None:
+        self._directory = directory
+
+    def __getattr__(self, attribute: str):
+        return getattr(os, attribute)
+
+    def _resolve(self, name, dir_fd):
+        return self._directory / name if dir_fd is not None else name
+
+    def unlink(self, name, *, dir_fd=None):
+        os.unlink(self._resolve(name, dir_fd))
+
+    def rename(self, source, target, *, src_dir_fd=None, dst_dir_fd=None):
+        os.rename(self._resolve(source, src_dir_fd), self._resolve(target, dst_dir_fd))
+
+    def fsync(self, descriptor):
+        del descriptor
+
+
+def _design_exchange_race(
+    branch: str, writes: dict[tuple[str, int], object], payload: bytes
+) -> tuple[str, bytes | None, bytes, list[str]]:
+    """Run one design-system exchange commit with scripted concurrent writes.
+
+    ``writes`` maps ("before"|"after", primitive call number) to bytes written
+    (or a callable applied to the destination path)
+    to design-system.md around that call. Returns the error text, the final
+    destination bytes, the bytes at the path the error reports, and the
+    directory listing.
+    """
+
+    with tempfile.TemporaryDirectory() as temp:
+        directory = Path(temp)
+        destination = directory / "design-system.md"
+        destination.write_bytes(b"# Original\n")
+        temporary = directory / ".design-system.md.pending"
+        temporary.write_bytes(payload)
+        expected = checker._path_version(destination)
+        calls: list[int] = []
+
+        def write(stage: str) -> None:
+            data = writes.get((stage, len(calls)))
+            if callable(data):
+                data(destination)
+            elif data is not None:
+                destination.write_bytes(data)
+
+        def exchange(_parent_fd: int, left: str, right: str) -> None:
+            calls.append(1)
+            write("before")
+            hold = directory / ".swap-hold"
+            os.replace(directory / left, hold)
+            os.replace(directory / right, directory / left)
+            os.replace(hold, directory / right)
+            write("after")
+
+        def replace(target: Path, replacement: Path, backup: Path) -> None:
+            calls.append(1)
+            write("before")
+            if backup.exists():
+                raise checker.ConcurrentModificationError("backup exists")
+            os.replace(target, backup)
+            os.replace(replacement, target)
+            write("after")
+
+        try:
+            if branch == "posix":
+                with mock.patch.object(checker, "os", _DirFdOs(directory)), \
+                        mock.patch.object(checker, "_posix_rename_exchange", side_effect=exchange):
+                    checker._posix_exchange_commit(
+                        destination,
+                        temporary,
+                        parent_fd=7,
+                        expected_version=expected,
+                        payload=payload,
+                    )
+            else:
+                with mock.patch.object(checker, "_windows_replace_with_backup", side_effect=replace):
+                    checker._windows_replace_commit(
+                        destination,
+                        temporary,
+                        expected_version=expected,
+                        payload=payload,
+                    )
+        except checker.ConcurrentModificationError as exc:
+            message = str(exc)
+        else:
+            raise AssertionError("exchange race was not detected")
+        retained = Path(message.rsplit(" at ", 1)[1]).read_bytes()
+        final = destination.read_bytes() if destination.is_file() else None
+        return message, final, retained, sorted(
+            item.name for item in directory.iterdir()
+        )
+
+
 SOURCE_BINDINGS = {
     "prd": ("docs/product/PRD.md", b"prd"),
     "architecture": ("docs/product/architecture.md", b"architecture"),
@@ -1371,6 +1469,8 @@ class CheckDesignSystemPairTests(unittest.TestCase):
             self.assertEqual(["design-system.md"], [item.name for item in Path(temp).iterdir()])
 
     def test_write_exchange_primitive_preserves_displaced_edit(self) -> None:
+        # Only the first primitive call races; the restore call must stay clean.
+        calls: list[int] = []
         markdown = b"# Original\n"
         concurrent_edit = b"# Concurrent inside primitive\n"
         with tempfile.TemporaryDirectory() as temp:
@@ -1381,7 +1481,9 @@ class CheckDesignSystemPairTests(unittest.TestCase):
                 primitive = checker._windows_replace_with_backup
 
                 def inject(destination: Path, replacement: Path, backup: Path) -> None:
-                    destination.write_bytes(concurrent_edit)
+                    if not calls:
+                        destination.write_bytes(concurrent_edit)
+                    calls.append(1)
                     primitive(destination, replacement, backup)
 
                 patcher = mock.patch.object(
@@ -1391,7 +1493,9 @@ class CheckDesignSystemPairTests(unittest.TestCase):
                 primitive = checker._posix_rename_exchange
 
                 def inject(parent_fd: int, left_name: str, right_name: str) -> None:
-                    md.write_bytes(concurrent_edit)
+                    if not calls:
+                        md.write_bytes(concurrent_edit)
+                    calls.append(1)
                     primitive(parent_fd, left_name, right_name)
 
                 patcher = mock.patch.object(
@@ -1400,10 +1504,105 @@ class CheckDesignSystemPairTests(unittest.TestCase):
             with patcher:
                 with self.assertRaisesRegex(
                     checker.ConcurrentModificationError,
-                    "displaced bytes|preserved|restore",
-                ):
+                    "displaced bytes changed",
+                ) as caught:
                     checker._write_bytes_atomic(md, b"# Replacement\n", markdown)
+            self.assertNotIn("restore", str(caught.exception))
             self.assertEqual(concurrent_edit, md.read_bytes())
+
+    def test_write_double_concurrent_write_keeps_displaced_bytes(self) -> None:
+        markdown = b"# Original\n"
+        first = b"# First concurrent edit\n"
+        second = b"# Second concurrent edit\n"
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            md = root / "design-system.md"
+            md.write_bytes(markdown)
+            if os.name == "nt":
+                primitive = checker._windows_replace_with_backup
+
+                def inject(destination: Path, replacement: Path, backup: Path) -> None:
+                    destination.write_bytes(first)
+                    primitive(destination, replacement, backup)
+                    destination.write_bytes(second)
+
+                patcher = mock.patch.object(
+                    checker, "_windows_replace_with_backup", side_effect=inject
+                )
+            else:
+                primitive = checker._posix_rename_exchange
+
+                def inject(parent_fd: int, left_name: str, right_name: str) -> None:
+                    md.write_bytes(first)
+                    primitive(parent_fd, left_name, right_name)
+                    md.write_bytes(second)
+
+                patcher = mock.patch.object(
+                    checker, "_posix_rename_exchange", side_effect=inject
+                )
+            with patcher:
+                with self.assertRaisesRegex(
+                    checker.ConcurrentModificationError, "displaced bytes changed"
+                ) as caught:
+                    checker._write_bytes_atomic(md, b"# Replacement\n", markdown)
+            retained = Path(str(caught.exception).rsplit(" at ", 1)[1])
+            self.assertEqual(second, md.read_bytes())
+            self.assertEqual(first, retained.read_bytes())
+
+    def test_exchange_commit_races_keep_concurrent_bytes(self) -> None:
+        payload = b"# Replacement\n"
+        first, second = b"# First concurrent edit\n", b"# Second concurrent edit\n"
+        scenarios = {
+            "concurrent edit": ({("before", 1): first}, "displaced bytes changed", first, first, 1),
+            "double write": (
+                {("before", 1): first, ("after", 1): second},
+                "displaced bytes changed",
+                second,
+                first,
+                2,
+            ),
+            "restore overwritten": (
+                {("before", 1): first, ("after", 2): second},
+                "restore verification failed",
+                second,
+                payload,
+                2,
+            ),
+            "second write before restore": (
+                {("before", 1): first, ("before", 2): second},
+                "restore verification failed",
+                first,
+                second,
+                2,
+            ),
+            "destination removed after exchange": (
+                {("before", 1): first, ("after", 1): Path.unlink},
+                "displaced bytes changed",
+                None,
+                first,
+                1,
+            ),
+            "destination replaced by a directory": (
+                {("before", 1): first, ("after", 1): lambda target: (target.unlink(), target.mkdir())},
+                "displaced bytes changed",
+                None,
+                first,
+                2,
+            ),
+        }
+        for branch in ("posix", "nt"):
+            for label, (writes, message, final, kept, count) in scenarios.items():
+                with self.subTest(branch=branch, scenario=label):
+                    result, destination, retained, names = _design_exchange_race(
+                        branch, writes, payload
+                    )
+                    self.assertIn(message, result)
+                    if message != "restore verification failed":
+                        self.assertNotIn("restore", result)
+                    self.assertEqual(final, destination)
+                    self.assertEqual(kept, retained)
+                    self.assertNotIn(".design-system.md.pending", names)
+                    self.assertEqual(count, len(names), names)
 
     def test_replace_and_extract_reject_inverse_and_unmatched_markers(self) -> None:
         cases = {
