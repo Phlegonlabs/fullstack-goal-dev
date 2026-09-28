@@ -779,6 +779,21 @@ class ValidateWorkerResultTests(unittest.TestCase):
             (True, []),
             subject._acceptance_register_paths({"final_gates": [{"argv": wrapper}]}),
         )
+        # Register paths outside the repository are not trusted as paths.
+        for value in ("../x.json", "/tmp/x.json", "C:/x.json", "--results=../x.json"):
+            argv = ["python", "check_delivery_acceptance.py", value]
+            if not value.startswith("--"):
+                argv.insert(2, "--results")
+            with self.subTest(results=value):
+                self.assertEqual(
+                    (True, []),
+                    subject._acceptance_register_paths({"final_gates": [{"argv": argv}]}),
+                )
+        # With the path unknown, a broad task scope still passes the register;
+        # only the task-scope check applies. PLANs keep the template argv form.
+        self.assertEqual([], self._validate_shared_checkout(
+            [CHANGED_FILE, register], argv=wrapper, task_scope=["docs/verification/**"]
+        ))
         for label, argv in (("equals", equals), ("wrapper", wrapper)):
             for path in (register, "docs/verification/evidence/run.log"):
                 with self.subTest(form=label, path=path):
