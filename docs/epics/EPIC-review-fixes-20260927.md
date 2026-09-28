@@ -180,3 +180,31 @@ review and publication receipt is maintained at
 `C:/Users/mps19/Documents/Codex/2026-09-28/pdh-audit-fixes/work/handoff.json` and
 reported in the task handoff. Next owner/action: parent verifies and publishes the
 candidate; owner supplies the separate exact-SHA main-promotion decision when ready.
+
+#### Approval-stage operation coverage correction
+
+At candidate `40cee9e5093f5e2ff846142c238366e29528aa00`, parent inspection
+found the approval-stage caller of `operation_coverage.py`: schema-5 approval
+already enforces PRD-to-Wireframe and Visual Approval HiFi joins. The earlier
+manual-only conclusion was wrong. Correct the references, all four README
+descriptions, L4 disposition and the stale README index status. Preserve the
+earlier checkpoint as history. Product task completeness and browser results
+still need review; the ordinary PRD parser is not the approval-stage checker.
+
+The first full-suite attempt was stopped after specification, pyflakes and
+documentation-size checks passed, because the candidate needs this correction.
+Its process tree was inspected, terminated and confirmed stopped; it is not a
+full-suite PASS. Repeat the required suite and independent review at the new
+committed candidate. Detailed outcomes remain in the external handoff receipt.
+
+Independent Opus 5.5/xhigh review of the prior candidate confirmed this issue
+(F1) and found current README/CLAUDE policy-threshold references still missing
+the plus sign (F2). Correct those current references while retaining release
+history and script compatibility strings. The source review found no security
+issue, but withheld PASS until the repaired SHA has complete suite and macOS
+evidence. Review result: external bridge run `20260928-001856-8a705840`.
+
+Repair verification: the 180 focused contract/command tests passed again on
+the working-tree correction. All nine operation-coverage tests passed, including
+a new regression that reads the documented JSON example and checks both matching
+designs and rejection of missing controls. No runtime validator behavior changed.

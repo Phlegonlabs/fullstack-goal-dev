@@ -33,6 +33,18 @@ class OperationCoverageTests(unittest.TestCase):
     def test_required_action_joins_both_designs(self):
         self.assertEqual([], coverage_findings(prd(self.operation), self.wireframe, self.manifest))
 
+    def test_documented_operation_example_joins_and_detects_missing_controls(self):
+        reference = Path(__file__).resolve().parents[2] / "references/review-workflow.md"
+        prefix = "- `operations`: "
+        examples = [line.removeprefix(prefix) for line in reference.read_text(encoding="utf-8").splitlines()
+                    if line.startswith(prefix)]
+        self.assertEqual(1, len(examples))
+        operations = json.loads(examples[0])
+        self.assertEqual(1, len(operations))
+        example_prd = prd(operations[0])
+        self.assertEqual([], coverage_findings(example_prd, self.wireframe, self.manifest))
+        self.assertEqual(2, len(coverage_findings(example_prd, {"flows": []}, {"interactions": []})))
+
     def test_both_designs_missing_home_still_fail(self):
         findings = coverage_findings(prd(self.operation), {"flows": []}, {"interactions": []})
         self.assertEqual(2, len(findings))

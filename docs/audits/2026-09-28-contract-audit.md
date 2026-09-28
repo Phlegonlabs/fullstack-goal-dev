@@ -52,7 +52,7 @@ The rows below distinguish repairs from findings that did not justify a change.
 | L1 | Fixed: local integration grants no push authority, including within the integration-branch scope. |
 | L2 | Fixed: Taste may supplement the approved direction; Frontend Design remains the sole author. |
 | L3 | Clarified: `persistent` is historical retention compatibility, not permission to reuse a persistent integration branch. |
-| L4 | Fixed documentation gap: add the required operations entry to the PRD example and state that coverage needs manual reconciliation and browser evidence. Current parsers do not enforce that join; no new automatic-check claim or schema migration is introduced. Missing operations still block review. |
+| L4 | Fixed documentation gap: add the required operations entry to the PRD example. Product Definition review checks task completeness; current schema-5 UI approval gates already enforce declared operations against Wireframe flows and HiFi interactions. Browser evidence remains required. The draft manual-only claim was corrected after inspection of the approval-stage caller; no parser or schema change is needed. |
 | L5 | Fixed: RUNBOOK describes container-only, deterministic current-batch `session_exact` reuse and mandatory fresh checks. There is no disk result cache. |
 | L6 | Fixed unsupported claims: Grafana and unindexed Python Workers/changelog statements are marked pending source verification. Retain other indexed evidence and its original dates. |
 | L7 | Clarified: current-facing references say `Harness 0.38+`; this names the policy threshold, not the installed version. Legacy pre-0.38 recovery is unchanged. |

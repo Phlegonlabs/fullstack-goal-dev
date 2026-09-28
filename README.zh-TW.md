@@ -25,7 +25,7 @@ Product Definition 撰寫英文正式來源 `PRD.md`、`architecture.md` 時，�
 
 > 定義產品。編譯設計。交付已驗證的軟體。
 
-本輪稽核修正統一已安裝 skill 的命令路徑、必要 CLI 參數、500 行職責檢查點、schema-5 Wireframe Validation 與 reviewer shell v3。Activation 依發佈目標選擇正確 profile；security PASS 必須完整覆蓋。產品 operations 仍須人工審查，目前 parser 不會驗證 PRD operations 與設計的對應。現行 RUN 僅在本機完成，發佈及 main promotion 各自保留授權。
+本輪稽核修正統一已安裝 skill 的命令路徑、必要 CLI 參數、500 行職責檢查點、schema-5 Wireframe Validation 與 reviewer shell v3。Activation 依發佈目標選擇正確 profile；security PASS 必須完整覆蓋。Product Definition 審查確認 operations 的完整性；schema-5 UI approval gates 會驗證已宣告的 PRD operations 與 Wireframe／HiFi 的對應。現行 RUN 僅在本機完成，發佈及 main promotion 各自保留授權。
 
 ## 統一設計審閱
 
@@ -110,7 +110,7 @@ Skills 更新後及實作前，執行[設計有效性檢查](skills/ui-design-bu
 - **Parity 靠實拍，不靠記憶。** hosted-browser surface 逐 route×viewport×state capture；extension、native 與 desktop app 使用平台工具或明確的人工 capture，不能拿 hosted URL 代替。任何未支援的 required group 都讓結果成為 partial、不可作 gate。每列綁定 Git blob、authority hash、baseline、capture method、trusted launcher identity 與 layout result。 截圖檔名包含完整 surface/route/breakpoint/state tuple 的 SHA-256，避免名稱正規化或大小寫不敏感的路徑合併不同證據。
 - **讀規則是強制的。** 種子化的專案 `AGENTS.md` 要求：受管工作前必讀已安裝的 `delivery-harness` SKILL.md，影響產品的直接工作前必讀受影響的 PRD 段落；跳過即 blocking review finding。
 - **程式安全是全新的最終審查。** 所有 code PLAN 都必須執行 `code-security-review`；`not_applicable` 只允許窄範圍的純文件工作。實際 candidate path 必須落在 mission/security scope，且永遠不能帶入 parent coordination files。專案要求的 security commands 是 graph 排序的 host 或 container verifiers；review 前會核對 exact current-head execution key。PASS 必須綁 exact SHA、完整 coverage、零 exclusion，且不可沿用舊結果。
-- **Promotion 一律 main-only。** 初次交付與 enhancement 都從觀察到的 remote `main` 開始。Harness 0.38 RUN 在 C 以 local-only 關閉，不能由 RUN push。A 的授權 publication 必須同時帶 pre-archive external anchor、immutable request/attempt/receipt 與 trusted-host/human boundary；candidate gates 通過後，再另行授權與 read-back，把未變更的 A fast-forward 到 `main`。若 A 之後的 candidate/preview evidence 失敗，在同一個 non-default branch 以精確 A 建立新的 PLAN/RUN continuation，匯入既有 verified scope 與 repair、把 A records 綁為歷史輸入，關閉 C2、以新 anchor 收檔 A2；不能改寫 A history 或重用舊 records。已 publication 的 A 要求 A2 remote pre-state 精確等於 A；未 publication 的 A 則必須維持 absent。
+- **Promotion 一律 main-only。** 初次交付與 enhancement 都從觀察到的 remote `main` 開始。Harness 0.38+ RUN 在 C 以 local-only 關閉，不能由 RUN push。A 的授權 publication 必須同時帶 pre-archive external anchor、immutable request/attempt/receipt 與 trusted-host/human boundary；candidate gates 通過後，再另行授權與 read-back，把未變更的 A fast-forward 到 `main`。若 A 之後的 candidate/preview evidence 失敗，在同一個 non-default branch 以精確 A 建立新的 PLAN/RUN continuation，匯入既有 verified scope 與 repair、把 A records 綁為歷史輸入，關閉 C2、以新 anchor 收檔 A2；不能改寫 A history 或重用舊 records。已 publication 的 A 要求 A2 remote pre-state 精確等於 A；未 publication 的 A 則必須維持 absent。
 
 ## 包含的內容
 
@@ -371,9 +371,9 @@ Harness 是圍繞明確的邊界所打造的：
 3. 當任務大到需要時，先規劃相依關係，再開始實作。
 4. 只有在至少兩個安全寫入 mission 實際被選中、工作彼此獨立且隔離，並且每個動作都經過明確授權時，才使用平行 worker；受管循序路線仍要證明隔離 writer、scope/head 與 review gates。
 5. 驗證任務結果與整合，執行全新的統一 code-security 審查，再驗證相關 UI 流程與最終 diff。單一 mission 不會憑空增加跨 mission batch gate。
-6. Harness 0.38 RUN 在 C 以 local-only 結束，RUN 不會 push。完成 archive-only A 並重驗後，任何 run-branch publication 都要使用新的 action-time instruction 與 checkout 外部 request/attempt/receipt；驗證 A 後，才可另行授權把它 fast-forward 到 `main` 並 read-back、驗證 production。
+6. Harness 0.38+ RUN 在 C 以 local-only 結束，RUN 不會 push。完成 archive-only A 並重驗後，任何 run-branch publication 都要使用新的 action-time instruction 與 checkout 外部 request/attempt/receipt；驗證 A 後，才可另行授權把它 fast-forward 到 `main` 並 read-back、驗證 production。
 
-對於有計畫支撐的工作，它會記錄任務範圍、相依關係、worker 歸屬、驗證指令，以及各動作專屬的授權。測試通過並不代表授權推送、移除 worktree 或刪除分支。Harness 0.38 會讓 RUN push 保持 false；archive protocol 從 archive 推導 C 與 branch，驗證精確 C→A relocation 以及 remote pre-state，綁定規範 URL 與已觀察的 trust policy/verifier，只準備精確 URL-only no-force publication handoff 並交給 trusted host；recovery 先驗證簽名 evidence 再讀回 A。Legacy pinned run 只保留舊流程供 recovery。
+對於有計畫支撐的工作，它會記錄任務範圍、相依關係、worker 歸屬、驗證指令，以及各動作專屬的授權。測試通過並不代表授權推送、移除 worktree 或刪除分支。Harness 0.38+ 會讓 RUN push 保持 false；archive protocol 從 archive 推導 C 與 branch，驗證精確 C→A relocation 以及 remote pre-state，綁定規範 URL 與已觀察的 trust policy/verifier，只準備精確 URL-only no-force publication handoff 並交給 trusted host；recovery 先驗證簽名 evidence 再讀回 A。Legacy pinned run 只保留舊流程供 recovery。
 
 wave 接受前，Harness 會重新檢查觀測到的非預設整合分支及乾淨產品樹，把 batch 綁到該精確 head，重跑 selector，並且只接受完整的目前 frontier。clean-tree gate 只排除 transition 必然更新的那個精確 tracked RUN 檔案；其他任何變更仍會阻斷。整合分支位於 linked worktree 時，該 checkout 會正確記錄為 parent，Git 的乾淨主要 checkout 則保留為已識別的同層項目。持久 run lock 負責 dispatch；短期作業系統鎖會序列化每一次 RUN 的讀取、驗證與寫入交易。凍結的 PRD、wireframe 與 design-system source 會在獨立驗證和 transition 寫入路徑中按位元組 hash 綁定；即使 PLAN 聲稱 UI surface 為空，凍結的 PRD 仍會被解析。每個結構化 PRD surface 只擁有一個 literal route；帶 UI 的翻譯 PRD 只能有一對語言無關的邊界標記，並且每個條目各有一個 `route` 與 `states` 錨點；各產物的 ID、route 與 state 必須完全一致。design-system 的 Markdown 與 JSON 各有獨立 source row，其 generated contract 與 compiler namespace 必須一致；每個 PLAN `DS-*` trace 也必須在同一個全域唯一的 JSON 註冊表中解析。product-definition-builder 會按問題工具實際的每次容量分批詢問所有適用的封閉決策；沒有 Codex 專屬的呼叫次數目標，也不會為了配合 host 次數而丟掉問題。
 
@@ -640,7 +640,7 @@ HiFi 範例以固定 LF 換行維持跨平台位元組雜湊。Wireframe 的 Nod
 
 每次發佈都要更新這一節，連同上面《發佈》一節描述的版本號提升與 tag 一起完成。
 
-- **0.55.1** — 修正稽核發現的 skill 指示、prompt 與命令範例，保留歷史批准及相容指標。明確說明產品 operations 人工審查、僅限容器的 verifier 重用及可選動效 skill。包含 macOS CI 與 SIP 保護簽章驗證器修正。
+- **0.55.1** — 修正稽核發現的 skill 指示、prompt 與命令範例，保留歷史批准及相容指標。明確說明產品 operations 審查與自動 approval 對應檢查、僅限容器的 verifier 重用及可選動效 skill。包含 macOS CI 與 SIP 保護簽章驗證器修正。
 
 - **0.55.0** — 修正對七個 skill 進行多代理審查後發現的問題。破壞性變更與使用者需要做的事：重跑 finalize，並重新記錄 Product Definition Approval 與 Stack Decision Checkpoint，因為 digest 現在涵蓋含 fenced code、縮排行與 HTML 註解的原始文字；在 Mobile/Desktop stack 加上 `Styling approach` 列；Environment Status 的 Checked 值改用帶時區的 RFC3339；在要求 0.55.0 的 run 中，清理類 lifecycle 節點（`archive_worker_tasks`、`remove_worktrees`、`delete_branches`）要有精確 target；Visual Approval 前完成 Impeccable critique 與 audit；enhancement 的 UI 列要寫明 Wireframe Validation 與 Visual Approval。另外，trusted-host 與 legacy push 與 repository hooks 和 askpass 隔離，RUN、DOCUMENTS 與 design-system 的原子提交支援 macOS，installer 記錄來源 commit，並新增 macOS CI job。 UI Design Builder 另外新增 Motion 與 Three.js 動效路線、owner 未表態時依內容提出動效建議、HiFi 媒體內嵌限制，以及參考截圖留存。
 
