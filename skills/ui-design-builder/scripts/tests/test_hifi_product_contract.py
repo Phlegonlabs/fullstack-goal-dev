@@ -59,6 +59,18 @@ class HiFiProductContractTests(unittest.TestCase):
                     markup + markup.replace('>Home<', '>Wrong<')):
             self.assertTrue(hifi_prd_findings(product, manifest, documents(inventory, bad)), bad)
 
+    def test_assistive_label_cannot_mask_different_visible_text(self):
+        product, manifest, inventory, markup = fixture()
+        for attr in ('aria-label="Home"', 'value="Home"', 'alt="Home"', 'placeholder="Home"'):
+            bad = markup.replace('data-copy-locale="en">Home<', 'data-copy-locale="en" ' + attr + '>Leave<')
+            self.assertIn("product text differs", "\n".join(
+                hifi_prd_findings(product, manifest, documents(inventory, bad))), attr)
+        for good in ('<input data-copy-id="home" data-copy-locale="en" value="Home">',
+                     '<img data-copy-id="home" data-copy-locale="en" alt="Home">',
+                     '<button data-copy-id="home" data-copy-locale="en" aria-label="Home"><svg></svg></button>'):
+            self.assertEqual([], hifi_prd_findings(product, manifest, documents(
+                inventory, '<main data-ui-surface="UI-001">' + good + '</main>')), good)
+
     def test_copy_inventory_missing_extra_and_child_declaration_fail(self):
         product, manifest, inventory, markup = fixture()
         self.assertTrue(hifi_prd_findings(product, manifest, {"index.html": markup}))
