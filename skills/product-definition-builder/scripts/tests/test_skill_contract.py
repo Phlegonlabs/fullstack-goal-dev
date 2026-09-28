@@ -342,7 +342,7 @@ async function agent(_prompt, options) {
         for content in (skill, contract, lifecycle):
             self.assertIn("ui-design-builder", content)
         self.assertFalse((UI_SKILL_ROOT / "assets/templates/WIREFRAMES.template.md").exists())
-        self.assertIn("`ui-design-builder` owns one wireframe deliverable", guide)
+        self.assertIn("legacy inspection and validation only", guide)
         self.assertIn("Create one screen for every `UI-*` entry", guide)
         self.assertIn("## HTML Requirements", guide)
         self.assertIn("Generate one self-contained file", guide)
@@ -2490,9 +2490,9 @@ async function agent(_prompt, options) {
             "references/wireframe-guide.md",
             skill,
         )
-        self.assertIn("Wireframe references consulted:", contract)
+        self.assertIn("Reference lessons:", contract)
         self.assertIn(
-            "or skip reason",
+            "explicitly none",
             contract,
         )
 
@@ -2623,7 +2623,7 @@ async function agent(_prompt, options) {
             "`60–79 — advisory`",
             "`0–59 — block`",
             "wireframe overall score",
-            "overall score is at least `80`",
+            "overall score is at least `90`",
             "design-reference overall score",
             "overall score is at least `90`",
             "each score at least `90`",
@@ -2673,7 +2673,7 @@ async function agent(_prompt, options) {
 
         for content in (skill, guide, rubric, contract):
             self.assertIn("motion and media intent", content.lower())
-        self.assertIn("`mediaIntent`", router)
+        self.assertIn("Motion And Media Intent", router)
         for treatment in ("`none`", "`image`", "`motion`", "`image + motion`"):
             self.assertIn(treatment, router)
         self.assertIn("GSAP", router)
@@ -2790,7 +2790,8 @@ new Function(scripts.at(-1)[1]);
             contract,
         )
         self.assertIn(
-            "full HiFi approval may confirm validated schema-5 wireframe copy without a circular PRD rewrite",
+            "full HiFi approval confirms the embedded copy contract "
+            "(or validated wireframe copy in a pinned legacy package) without a circular PRD rewrite",
             lifecycle,
         )
         self.assertIn(

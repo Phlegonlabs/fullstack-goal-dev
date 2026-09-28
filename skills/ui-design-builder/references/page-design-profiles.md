@@ -4,7 +4,7 @@ Use these authoring defaults for new or changed scope, not retroactive rules for
 
 ## Select And Record
 
-In the existing Design Brief, map each affected `UI-*` to its page purpose and profile. Record typography roles and avoid choices, headline target, density, motion intent, and justified exceptions. Reuse known decisions; resolve only missing choices through the current direction/motion intake. No new required heading, schema field, approval gate or global configuration is introduced. An included App and its showcase website need separate mappings.
+In the existing Design Brief, map each affected `UI-*` to its page purpose and profile. Record typography roles and avoid choices, headline target, density, motion intent, justified exceptions, and the choices the design author may explore. Reuse known decisions; resolve only missing choices through the current direction/motion intake. Point to the PRD UI Surface Contract rather than copying its per-page requirements. No new required heading, schema field, approval gate or global configuration is introduced. An included App and its showcase website need separate mappings.
 
 | Profile | Typography and headline | Density and composition | Motion default to propose |
 | --- | --- | --- | --- |

@@ -4,6 +4,7 @@ The four READMEs remain the documentation of record for the skill bundle.
 
 | Document | Purpose | Status |
 | --- | --- | --- |
+| `docs/epics/EPIC-remove-wireframe-stage.md` | Remove the new-package Wireframe stage; move completeness and frozen-source checks to PRD and HiFi | 0.56.0 local candidate verified on Windows; uncommitted and unreleased on `codex/remove-wireframe-stage` |
 | `docs/epics/EPIC-motion-media-quality.md` | Motion/Three.js routes, silent-owner motion proposal, HiFi media limits and reference captures | Committed on `codex/review-fixes` for 0.55.0 |
 | `docs/epics/EPIC-review-fixes-20260927.md` | Fixes for the verified findings of the seven-skill review; version 0.55.0 | Committed on `codex/review-fixes`; three fix rounds integrated and full suite passed on `27ea4979`; push, CI and release pending |
 | `docs/epics/EPIC-reference-flow-integration.md` | Optional 19-domain reference catalog, selection rule, and stage-local skill pointers | Released in v0.54.4 |
@@ -12,7 +13,7 @@ The four READMEs remain the documentation of record for the skill bundle.
 | `docs/epics/EPIC-design-authoring-flow.md` | PRD-bound style and playable-motion authoring across skills | Released in v0.54.2 |
 | `docs/epics/EPIC-prd-continuous-completeness.md` | First-delivery UI/technical completeness and ongoing evidence-based PRD refinement | Released in v0.54.1 |
 | `docs/epics/EPIC-design-brief-reference-intake.md` | Explicit reference questions and a concise Design Brief in existing UI intake | Released in v0.54.1 |
-| `README.md`, `README.zh-TW.md`, `README.zh-CN.md`, `README.es.md` | Published skill behavior and release instructions | Current on `codex/review-fixes` (0.55.0, unreleased) |
+| `README.md`, `README.zh-TW.md`, `README.zh-CN.md`, `README.es.md` | Skill behavior and release instructions | 0.56.0 working-tree candidate on `codex/remove-wireframe-stage`; not released |
 | `docs/epics/EPIC-runtime-and-verification-reliability.md` | Browser CI, lifecycle, runtime metrics, document review and same-RUN recovery | Released in v0.54.1 |
 | `docs/epics/EPIC-ui-reviewer-integration.md` | Unified Wireframe/HiFi review, evidence, and lifecycle integration | Released in v0.54.1 |
 | `docs/epics/EPIC-001-incremental-design-review.md` | Incremental UI authoring and interactive review repair | Work released through v0.50.0; Epic status still `in_progress` |

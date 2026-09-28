@@ -66,14 +66,14 @@ class CrossSkillPipelineTests(unittest.TestCase):
         self.assertIn("Use this skill only after `product-definition-builder`", ui)
         self.assertIn("does not create wireframes or visual design", product)
 
-    def test_ui_design_builder_owns_wireframe_style_review_and_scores(self) -> None:
+    def test_ui_design_builder_owns_hifi_review_and_retains_legacy_scores(self) -> None:
         ui = self.read("ui-design-builder/SKILL.md")
         wireframe = self.read("ui-design-builder/references/wireframe-guide.md")
         hifi = self.read("ui-design-builder/references/ui-design-pass.md")
         rubric = self.read("ui-design-builder/references/ui-grading-rubric.md")
 
         self.assertIn("docs/design/ui-design.md", ui)
-        self.assertIn("docs/design/wireframes.html", ui)
+        self.assertIn("ui-design/2", ui)
         self.assertIn("wireframes/5", wireframe)
         self.assertIn("wireframes/4", wireframe)
         self.assertIn("frontend-design", hifi)
@@ -105,7 +105,7 @@ class CrossSkillPipelineTests(unittest.TestCase):
                 self.assertIn("actual writer", document)
                 self.assertIn("grants no", document)
         self.assertLess(
-            worker.index("For Wireframe or direction/HiFi authoring or repair"),
+            worker.index("For direction/HiFi authoring or repair"),
             worker.index("For design-system compilation"),
         )
         self.assertIn(
@@ -154,14 +154,14 @@ class CrossSkillPipelineTests(unittest.TestCase):
         self.assertIn("sibling_ui_design_scripts_dir", join)
         self.assertIn("ui-design-builder next to delivery-harness", join)
         self.assertIn("`ui-design-builder` owns UI Design Intake", harness)
-        self.assertIn("validated schema-5 wireframes or approved legacy wireframes", harness)
+        self.assertIn("PRD-led direction studies", harness)
         self.assertIn("Read `PRD.md`, `architecture.md` and `stack-decisions.md`", implementation)
         self.assertIn("## System-Conformance Mode", implementation)
         self.assertIn("## Target-Conformance Mode", implementation)
         self.assertIn("load the owner-bound frontend-authoring skill", implementation)
         self.assertIn("apply this document's conformance rules", implementation)
         self.assertNotIn("load `frontend-design` in conformance mode", implementation)
-        self.assertIn("matching validated and copy-complete schema-5 page", implementation)
+        self.assertIn("matching copy-complete HiFi page", implementation)
         self.assertIn("routine maintenance checks the current accepted product", self.read("delivery-harness/references/verification-gates.md"))
 
     def test_responsive_set_stays_equal_across_product_design_and_harness(self) -> None:
@@ -178,7 +178,7 @@ class CrossSkillPipelineTests(unittest.TestCase):
         self.assertIn("Hybrid surfaces keep separate sets; preserve existing approved targets", prd)
         self.assertIn("one global responsive verification set for homogeneous products", design)
         self.assertIn("one set per `surfaceContracts` entry for hybrids", design)
-        self.assertIn("copy the exact approved PRD/wireframe set", design)
+        self.assertIn("copy the exact approved PRD/HiFi set", design)
         self.assertIn("PRD's `UI-*` surface contract agree exactly", harness)
 
     def test_ui_references_archive_without_deletion(self) -> None:

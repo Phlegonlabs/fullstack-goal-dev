@@ -26,7 +26,7 @@ Keep direct work simple; add PLAN/RUN orchestration only when coordination requi
 Keep upstream ownership separate:
 
 - `product-definition-builder` owns the approved Product Definition revision across `PRD.md`, `architecture.md`, and `stack-decisions.md`, including complete frontend and backend architecture and technology decisions.
-- `ui-design-builder` owns UI Design Intake, validated schema-5 wireframes or approved legacy wireframes, HiFi review, Visual Approval and the HiFi target. `design-system-compiler` owns a required design-system pair.
+- `ui-design-builder` owns UI Design Intake, PRD-led direction studies, HiFi checks, Visual Approval and the HiFi target. `design-system-compiler` owns a required design-system pair.
 - Implement current approved product/stack and applicable UI sources. Every must-have `UX-*` trace still needs objective evidence. `Recommended` and `Provisional` stack rows are proposals. Do not invent product, copy, stack or design decisions.
 - `code-security-review` owns read-only review of the fixed integrated SHA; it neither remediates nor probes live targets.
 
@@ -191,7 +191,7 @@ Read `references/ui-implementation-contract.md` before UI implementation or revi
 
 - `design-system-compiler` alone owns compilation when the Design System Need Gate is `required`.
 - UI implementation runs the bound frontend author under this Harness's conformance contract. Do not claim that skill defines conformance mode or reopen Style Integration.
-- Initial/enhancement system-conformance uses current approved PRD, UI design, wireframe and pair; their responsive sets must agree. Target-conformance uses the approved target when the gate is `not_required`. Routine maintenance follows `references/ui-implementation-contract.md`; a missing required input is a design-input delta.
+- Initial/enhancement system-conformance uses current approved PRD, UI design, HiFi and pair; their responsive sets must agree. Target-conformance uses the approved target when the gate is `not_required`. Routine maintenance follows `references/ui-implementation-contract.md`; a missing required input is a design-input delta.
 - A page-faithful target binds implementation only after the user explicitly requests faithful conformance.
 - After the Final Visual Parity Loop, one read-only page-quality pass (`references/verification-gates.md`) runs on the exact head. Impeccable is not the default; a separately authorized run may add UI evidence, with its subagents, browser/server, snapshot, and download side effects disclosed. It never fills a Harness read-only reviewer node.
 - Bundled defaults exist only for bundled skills. A project's owner-confirmed Skill Bindings table may bind installed external visual-direction, frontend-authoring, or UI-quality tools after their full trees and side effects are checked; an unresolved or incompatible slot blocks its dependent node.
@@ -206,7 +206,7 @@ If the user pauses or cancels a managed run, apply the durable control transitio
 
 ### 2. Plan Large Work
 
-Freeze only approved inputs needed by the graph: Product Definition revision, Stack Decision Checkpoint, source paths and digests, scope, architecture and design boundaries, acceptance criteria, trace IDs, write/deny scopes, dependencies, resources, stop conditions, and exact verifiers. Harness 0.38 requires one canonical frozen PRD, architecture, and stack source for every plan and always runs the full sibling Product package checker with `--repo-root`; UI plans also require the approved UI, wireframe, HiFi target, and conditional design-system authority. Use the bounded review-repair graph and owner-attempt rules. A generic instruction to continue grants no new attempt.
+Freeze only approved inputs needed by the graph: Product Definition revision, Stack Decision Checkpoint, source paths and digests, scope, architecture and design boundaries, acceptance criteria, trace IDs, write/deny scopes, dependencies, resources, stop conditions, and exact verifiers. Harness 0.38 requires one canonical frozen PRD, architecture, and stack source for every plan and always runs the full sibling Product package checker with `--repo-root`; 0.56+ UI plans freeze `ui-design/2`, complete HiFi and conditional `design-system/3`, without wireframes. Older pins retain historical joins. Use the bounded review-repair graph and owner-attempt rules. A generic instruction to continue grants no new attempt.
 
 ### 3. Pass Plan Readiness
 

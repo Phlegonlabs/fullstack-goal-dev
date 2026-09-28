@@ -20,7 +20,7 @@ Distinguish required-now coverage, explicitly deferred scope and owner decisions
 | Checkpoint | New evidence to reconcile |
 | --- | --- |
 | Discovery and candidate review | User needs, constraints, conflicting answers, unsupported assumptions and missing journey steps |
-| Wireframe validation and HiFi review | Missing transitions, states, content, accessibility or responsive behavior; distinguish design defects from product gaps |
+| HiFi preflight and review (Wireframe validation for pinned legacy work) | Missing transitions, states, content, accessibility or responsive behavior; distinguish design defects from product gaps |
 | Implementation and integration | Actual data rules, permission boundaries, integration limits, side effects and failure recovery |
 | Acceptance and release readiness | Negative, boundary and recovery scenarios; setup, migration, availability and operational obligations |
 | Activation and requested outcome review | Verified measurement sources, actual outcomes and operational gaps, preserving original targets and measurement windows |

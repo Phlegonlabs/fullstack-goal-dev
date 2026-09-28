@@ -106,13 +106,13 @@ console.log("hybrid fallback and stale QA assertions completed");
         self.assertIn("name: ui-design-builder", skill)
         self.assertIn("approved Product Definition", skill)
         self.assertIn("docs/design/ui-design.md", skill)
-        self.assertIn("docs/design/wireframes.html", skill)
+        self.assertIn("ui-design/2", skill)
         self.assertIn("Do not use for product scope, backend architecture", skill)
 
     def test_human_intake_precedes_wireframe_and_style(self):
         skill = self.read("SKILL.md")
         intake = skill.index("Combine unanswered design, imagery and motion questions into one intake")
-        wireframe = skill.index("author the affected structure using `references/wireframe-guide.md`")
+        wireframe = skill.index("produce direction studies")
         style = skill.index("author the complete connected `ui-hifi/2` package")
         review = skill.index("Run Impeccable critique/audit under the existing authorization")
         self.assertLess(intake, wireframe)
@@ -151,14 +151,14 @@ console.log("hybrid fallback and stale QA assertions completed");
             "--agents-md <target-AGENTS.md> --stage ui-design"
         )
 
-        self.assertLess(prompt.index("$frontend-design"), prompt.index("Wireframes"))
-        self.assertIn("actual design author for both Wireframes and directions", prompt)
+        self.assertLess(prompt.index("$frontend-design"), prompt.index("directions"))
+        self.assertIn("actual design author for directions", prompt)
         self.assertIn("Before each authoring stage", prompt)
         for document, authoring_marker in (
-            (skill, "author the affected structure using `references/wireframe-guide.md`"),
+            (skill, "produce direction studies"),
             (wireframe, "## Wireframe Validation Gate (wireframes/5)"),
             (hifi, "## Frontend Design Style Integration"),
-            (workflow, "Product/stack confirmation →"),
+            (workflow, "Product/stack and PRD preflight"),
         ):
             with self.subTest(authoring_marker=authoring_marker):
                 self.assertIn(binding, document)
@@ -208,10 +208,10 @@ console.log("hybrid fallback and stale QA assertions completed");
         contract = self.read("references/output-contract.md")
         guide = self.read("references/wireframe-guide.md")
         self.assertLess(
-            skill.index("Record `## Wireframe Validation`"),
+            skill.index("run a cheap machine completeness check"),
             skill.index("Present the complete current HiFi entry"),
         )
-        for marker in ("## Wireframe Validation", "Copy locale:", "Structure validation:", "### Frontend Design Usage"):
+        for marker in ("UI contract: ui-design/2", "ui-hifi-copy/1", "### Frontend Design Usage"):
             self.assertIn(marker, contract)
         self.assertNotIn("Copy Freeze:", contract)
         self.assertNotIn("## Wireframe Approval", contract)
@@ -223,7 +223,7 @@ console.log("hybrid fallback and stale QA assertions completed");
         contract = self.read("references/output-contract.md")
         visual_pass = self.read("references/ui-design-pass.md")
 
-        self.assertLess(skill.index("Record `## Wireframe Validation`"), skill.index("Present the complete current HiFi entry"))
+        self.assertLess(skill.index("run a cheap machine completeness check"), skill.index("Present the complete current HiFi entry"))
         self.assertIn("verified absolute Markdown links", skill)
         self.assertIn("every manifest-listed sibling page", skill)
         self.assertIn("affected `ui-design.md` handoff", skill)
@@ -238,7 +238,7 @@ console.log("hybrid fallback and stale QA assertions completed");
         self.assertIn("a changed candidate reopens the affected decision", contract)
         self.assertIn("plain path cannot replace the links", contract)
         self.assertIn("block readiness", contract)
-        self.assertIn("validated `wireframes.html`", contract)
+        self.assertIn("complete actual HiFi candidate", contract)
         self.assertIn("every manifest-listed sibling page", visual_pass)
         self.assertIn("ask explicitly for Visual Approval", visual_pass)
 
@@ -250,7 +250,7 @@ console.log("hybrid fallback and stale QA assertions completed");
         self.assertIn("Direction decision owner:", contract)
         self.assertIn("Impeccable critique:", contract)
         self.assertIn("Impeccable audit:", contract)
-        self.assertIn("Wireframe score:", contract)
+        self.assertNotIn("Wireframe score:", contract)
         self.assertIn("HiFi score:", contract)
         self.assertIn("H2 score:", contract)
         self.assertIn("H4 score:", contract)

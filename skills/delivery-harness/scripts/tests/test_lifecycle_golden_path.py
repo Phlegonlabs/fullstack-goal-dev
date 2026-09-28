@@ -48,7 +48,9 @@ from manifest_fixtures import (  # noqa: E402
 )
 from test_graph_orchestration import add_security_review as add_graph_security_review  # noqa: E402
 import test_harness_strict_authority as strict_authority_fixtures  # noqa: E402
-from test_structure_publication import modern_publication  # noqa: E402
+if str(UI_TESTS_DIR) not in sys.path:
+    sys.path.insert(0, str(UI_TESTS_DIR))
+from test_wireframe_free_publication import current_publication  # noqa: E402
 from test_check_activation import task_block, task_fields, valid_record_v2  # noqa: E402
 from test_check_seo_review import valid_review_v2  # noqa: E402
 import check_activation  # noqa: E402
@@ -87,7 +89,6 @@ def refresh_plan_source_rows(
         "architecture": paths["architecture"],
         "stack decisions": paths["stack"],
         "ui design": paths["ui"],
-        "wireframe": paths["wireframe"],
         "approved ui target": paths["target"],
         "design system": paths["design_markdown"],
         "design system json": paths["design_json"],
@@ -99,11 +100,12 @@ def refresh_plan_source_rows(
 
 
 def refresh_required_pair(root: Path, paths: dict[str, Path]) -> None:
-    """Rebind the existing compiler fixture after schema-5 publication."""
+    """Rebind the required compiler pair to the current HiFi publication."""
 
     markdown_path = paths["design_markdown"]
     registry_path = paths["design_json"]
     data = json.loads(registry_path.read_text(encoding="utf-8"))
+    data["schema"] = "design-system/3"
     data["stateMatrix"] = ["ready", "updated"]
 
     ui_text = paths["ui"].read_text(encoding="utf-8")
@@ -136,10 +138,6 @@ def refresh_required_pair(root: Path, paths: dict[str, Path]) -> None:
         "uiDesign": {
             "path": paths["ui"].relative_to(root).as_posix(),
             "sha256": ui_digest,
-        },
-        "wireframe": {
-            "path": paths["wireframe"].relative_to(root).as_posix(),
-            "sha256": sha256(paths["wireframe"]),
         },
         "hifi": {
             "path": paths["target"].relative_to(root).as_posix(),
@@ -321,7 +319,7 @@ def seo_review(
 
 
 class SharedLifecycleGoldenPathTests(unittest.TestCase):
-    def test_schema5_release_keeps_one_identity_through_harness_activation_and_seo(self) -> None:
+    def test_current_release_keeps_one_identity_through_harness_activation_and_seo(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             init_repo(root, "README.md")
@@ -329,24 +327,21 @@ class SharedLifecycleGoldenPathTests(unittest.TestCase):
             plan, _seed_run, original_paths = strict_authority_fixtures.StrictAuthorityJoinTests._ui_fixture(
                 root, required=True
             )
-            # Modernize the same logical package path, then rebind the required
-            # compiler pair to the final schema-5 source bytes.
-            ui_path, prd_path, wireframe_path, target_path = modern_publication(root)
+            # Replace the legacy fixture with the same product's current HiFi
+            # contract, then freeze the required schema-3 compiler pair.
+            ui_path, prd_path, target_path = current_publication(root)
+            plan["sources"] = [row for row in plan["sources"] if row["kind"] != "wireframe"]
             paths = {
                 "prd": prd_path,
                 "architecture": root / "docs/product/architecture.md",
                 "stack": root / "docs/product/stack-decisions.md",
                 "ui": ui_path,
-                "wireframe": wireframe_path,
                 "target": target_path,
                 "design_markdown": original_paths["design_markdown"],
                 "design_json": original_paths["design_json"],
             }
-            self.assertEqual("wireframes/5", json.loads(
-                check_ui_design_contract.check_wireframe_html.DATA_BLOCK_RE.search(
-                    wireframe_path.read_text(encoding="utf-8")
-                ).group("data")
-            )["schema"])
+            self.assertIn("UI contract: ui-design/2", ui_path.read_text(encoding="utf-8"))
+            self.assertFalse((root / "docs/design/wireframes.html").exists())
             refresh_required_pair(root, paths)
 
             pair_check = run_cli(
@@ -366,7 +361,7 @@ class SharedLifecycleGoldenPathTests(unittest.TestCase):
                 for key in ("prd", "architecture", "stack", "target")
             }
             registry = json.loads(paths["design_json"].read_text(encoding="utf-8"))
-            registry["sourceBindings"]["wireframe"]["sha256"] = "0" * 64
+            registry["sourceBindings"]["hifi"]["sha256"] = "0" * 64
             paths["design_json"].write_text(
                 json.dumps(registry), encoding="utf-8"
             )
@@ -378,7 +373,7 @@ class SharedLifecycleGoldenPathTests(unittest.TestCase):
                 "--require-filled",
             )
             self.assertNotEqual(0, stale_pair.returncode, stale_pair.stdout + stale_pair.stderr)
-            self.assertIn("wireframe", (stale_pair.stdout + stale_pair.stderr).lower())
+            self.assertIn("hifi", (stale_pair.stdout + stale_pair.stderr).lower())
 
             refresh_required_pair(root, paths)
             self.assertEqual(
@@ -422,7 +417,7 @@ class SharedLifecycleGoldenPathTests(unittest.TestCase):
                     node["review"]["scope"] = ["docs/README.md"]
 
             git(root, "add", "docs")
-            git(root, "commit", "-qm", "freeze schema-5 product package")
+            git(root, "commit", "-qm", "freeze current HiFi product package")
             release_sha = git(root, "rev-parse", "HEAD")
             plan_path = root / "PLAN.md"
             plan_path.write_text(
@@ -446,7 +441,6 @@ class SharedLifecycleGoldenPathTests(unittest.TestCase):
                 "--run", str(run_path),
                 "--repo-root", str(root),
                 "--prd", str(paths["prd"]),
-                "--wireframes", str(paths["wireframe"]),
                 "--design-system-markdown", str(paths["design_markdown"]),
                 "--design-system", str(paths["design_json"]),
             )

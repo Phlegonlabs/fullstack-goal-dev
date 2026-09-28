@@ -17,11 +17,11 @@ The design system exists so frontend implementation can follow one set of tokens
 
 Publish the Markdown and JSON together.
 
-Generate the separate derived HTML view through `render_design_system_preview.py` after pair validation; follow `references/output-contract.md`. It shows registry values and declared contracts without becoming another source. Keep validated wireframe and historical approval bytes unchanged; new wireframes have no Tokens or Design System Draft view. Recheck the preview against current pair/source bytes before handoff.
+Generate the separate derived HTML view through `render_design_system_preview.py` after pair validation; follow `references/output-contract.md`. It shows registry values and declared contracts without becoming another source. Keep validated wireframe and historical approval bytes unchanged; new UI rounds create no wireframe. Recheck the preview against current pair/source bytes before handoff.
 
 ## Contract Boundary
 
-`design-system.json` is the sole structured authority. New approval pairs use `design-system/2`; its `sourceBindings` resolve the current PRD, architecture, stack, `ui-design.md`, validated wireframes/5, and approved HiFi target under `--repo-root` and match their current SHA-256 values. It contains only what implementation and validation need:
+`design-system.json` is the sole structured authority. New approval pairs use `design-system/3`; its `sourceBindings` resolve the current PRD, architecture, stack, `ui-design.md`, and approved HiFi target under `--repo-root` and match their current SHA-256 values. It contains only what implementation and validation need:
 
 Use the closed enums `platform: web | ios | android | flutter | react-native | macos | windows | desktop`, `stylingMechanism: utility CSS | Tailwind CSS | CSS-in-JS | CSS modules | plain CSS | platform theme`, and `enforcement: blocking | advisory`. `stackSemantics` binds the exact approved rendering model (or client strategy), component foundation (or framework), styling approach, and platform. `stackSemantics.stylingMechanism` stays the verbatim Stack styling approach; the global `stylingMechanism` is the closed value that names it, such as `plain CSS` for `modern vanilla CSS`, `Tailwind CSS` for `Tailwind CSS v4`, or `platform theme` for native or component-library-managed styles. A hybrid pair uses `surfaceContracts` instead of global `platform`, `stylingMechanism`, `viewports`, and `sizeClasses`, plus a `stackSemantics` map keyed by every UI-* surface. Platform and styling choices remain grounded in the approved `stack-decisions.md` source binding rather than being invented by the compiler. Shared tokens, primitives, product components, motion variants, and state matrix remain global.
 
@@ -120,7 +120,7 @@ Ship exactly one responsive set for a homogeneous product:
 - at least three ascending `viewports` for web; or
 - at least two `sizeClasses` for native or desktop.
 
-Copy the exact approved PRD and wireframe set; do not add, remove, or rename targets during compilation. Choose that smallest sufficient set upstream during product definition. Native and desktop products use their platform's own size or window classes, not web pixel breakpoints. Each target has an implementation-facing reflow, visibility, interaction, long-content, and intended-overlay rule. Unintended overlap, clipping, occlusion, and horizontal overflow are blocking defects at every target and state.
+Copy the exact approved PRD and HiFi set; do not add, remove, or rename targets during compilation. Choose that smallest sufficient set upstream during product definition. Native and desktop products use their platform's own size or window classes, not web pixel breakpoints. Each target has an implementation-facing reflow, visibility, interaction, long-content, and intended-overlay rule. Unintended overlap, clipping, occlusion, and horizontal overflow are blocking defects at every target and state.
 
 For a hybrid product, each `surfaceContracts` entry carries its own exact responsive set and release/capture contract; do not collapse web viewports and native/desktop size classes into one global set. Platform and styling mechanism stay in the approved stack decision.
 
@@ -154,7 +154,7 @@ Resolve conflicts in this order:
 5. selected Visual Direction;
 6. an explicitly approved selected direction.
 
-`PRD.md` owns product behavior, approved `wireframes.html` is its structural interactive projection, and `ui-design.md` owns the selected visual direction. The design system owns reusable visual implementation rules. A product change returns to `product-definition-builder`; a wireframe or visual change returns to `ui-design-builder`.
+`PRD.md` owns product behavior, approved HiFi is its visual and interactive projection, and `ui-design.md` owns the selected visual direction. The design system owns reusable visual implementation rules. A product change returns to `product-definition-builder`; a wireframe or visual change returns to `ui-design-builder`.
 
 ## Publish Check
 

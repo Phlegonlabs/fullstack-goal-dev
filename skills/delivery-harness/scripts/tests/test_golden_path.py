@@ -10,7 +10,7 @@ CI enables this test explicitly. Run it locally with:
 The per-component suites can stay green while the six skills drift apart;
 this test walks the documented spine in order against one synthetic package —
 `new_run.py` generating RUN from PLAN, `validate_harness_plan.py` re-running
-the frozen source joins including the sibling skills' product, UI-design, and wireframe checkers,
+the frozen source joins including the sibling skills' product, UI-design, and HiFi checkers,
 and `validate_result.py` validating a returned graph payload with `--repo-root`
 — so cross-skill contract drift surfaces here as one red test.
 """
@@ -20,6 +20,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -298,8 +299,28 @@ class GoldenPathTests(unittest.TestCase):
                     root, required=True
                 )
             )
+            # Exercise the current release contract, while strict-authority
+            # tests continue to cover the old pinned wireframe path.
+            sys.path.insert(0, str(strict_authority_fixtures.UI_TESTS_DIR))
+            from test_wireframe_free_publication import current_publication
+            from ui_approval_digest import canonical_ui_approval_sha256
+            ui_path, _, _ = current_publication(root)
+            ui_text = ui_path.read_text(encoding="utf-8").replace("Decision: not_required", "Decision: required")
+            ui_text = re.sub(r"^Replacement visual contract when_not_required:.*$",
+                            "Compiled design system pair: pending — design-system-compiler", ui_text, flags=re.M)
+            ui_path.write_text(ui_text, encoding="utf-8")
+            registry = json.loads(paths["design_json"].read_text(encoding="utf-8"))
+            registry["schema"] = "design-system/3"
+            registry["sourceBindings"].pop("wireframe")
+            for key, binding in registry["sourceBindings"].items():
+                source_path = root / binding["path"]
+                binding["sha256"] = (canonical_ui_approval_sha256(ui_text) if key == "uiDesign"
+                                     else hashlib.sha256(source_path.read_bytes()).hexdigest())
+            strict_authority_fixtures.StrictAuthorityJoinTests._refresh_pair(root, paths, registry)
+            plan["sources"] = [row for row in plan["sources"] if row["kind"] != "wireframe"]
+            for row in plan["sources"]:
+                row["content_sha256"] = hashlib.sha256((root / row["location"]).read_bytes()).hexdigest()
             prd_path = paths["prd"]
-            wireframes_path = paths["wireframe"]
             design_markdown_path = paths["design_markdown"]
             design_json_path = paths["design_json"]
             plan["security_review"] = {
@@ -364,8 +385,6 @@ class GoldenPathTests(unittest.TestCase):
                 str(root),
                 "--prd",
                 str(prd_path),
-                "--wireframes",
-                str(wireframes_path),
                 "--design-system-markdown",
                 str(design_markdown_path),
                 "--design-system",
@@ -377,6 +396,11 @@ class GoldenPathTests(unittest.TestCase):
                 validated.stdout + validated.stderr,
             )
             self.assertEqual("PASS", json.loads(validated.stdout)["status"])
+
+            plan_only = run_cli(str(SCRIPTS_DIR / "validate_harness_plan.py"),
+                "--plan", str(plan_path), "--repo-root", str(root), "--prd", str(prd_path),
+                "--design-system-markdown", str(design_markdown_path), "--design-system", str(design_json_path))
+            self.assertEqual(0, plan_only.returncode, plan_only.stdout + plan_only.stderr)
 
             run = load_run(run_path)
             missing_ui_design = json.loads(json.dumps(plan))

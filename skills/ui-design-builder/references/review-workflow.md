@@ -4,10 +4,10 @@ Use the existing Epic, direct-task record or PLAN/RUN as the work record. These 
 
 | Work | Baseline and required design |
 | --- | --- |
-| Initial design | Approved product/stack, complete structure, direction choice and full HiFi review |
-| Enhancement | Current accepted product; added/changed pages and necessary connecting flows |
+| Initial design | Approved product/stack, PRD completeness preflight, direction choice and full HiFi review |
+| Enhancement | Current accepted product; added/changed pages and necessary connecting flows; retained direction when unchanged |
 | Maintenance | Current product, effective requirements and accepted changes; direct product fixes and verification |
-| Explicit full redesign | Complete design sequence for the named scope |
+| Explicit full redesign | Complete `ui-design/2` sequence for the named scope |
 
 The approved HiFi is this round's implementation baseline. After delivery, accepted product changes become the maintenance baseline. Do not rewrite historic HiFi, tokens or approvals merely to match routine work. A new product or technology decision returns to the corresponding owner flow.
 
@@ -15,13 +15,13 @@ For a managed Harness maintenance route, freeze the matching `docs/epics/EPIC-*.
 
 ## One Author And Consolidated Approval
 
-Before Wireframe authoring or repair, and again before direction/HiFi authoring or repair, run `python "<delivery-harness-skill-root>/scripts/check_skill_bindings.py" --agents-md <target-AGENTS.md> --stage ui-design` with installed-command resolution. The actual writer loads the full owner-pinned `frontend-design` skill in its own context. Parent reading, a snapshot, a role name or prior-stage invocation is no substitute; do not backfill evidence or replace the binding. Missing or conflicting dependencies block only that authoring stage and preserve earlier approvals and closed history. This requirement grants no spawn action; a direct parent may author. Preserve one design author. Assemblers build the shell, Impeccable and graders validate, and neither makes product-design decisions. Record source digest, output identity and applied choices in Frontend Design Usage; the record proves traceability, not quality.
+Before direction/HiFi authoring or repair, run `python "<delivery-harness-skill-root>/scripts/check_skill_bindings.py" --agents-md <target-AGENTS.md> --stage ui-design` with installed-command resolution. The actual writer loads the full owner-pinned `frontend-design` skill in its own context. Parent reading, a snapshot, a role name or prior-stage invocation is no substitute; do not backfill evidence or replace the binding. Missing or conflicting dependencies block only that authoring stage and preserve earlier approvals and closed history. This requirement grants no spawn action; a direct parent may author. Preserve one design author. Assemblers build the shell, Impeccable and graders validate, and neither makes product-design decisions. Record source digest, output identity and applied choices in Frontend Design Usage; the record proves traceability, not quality.
 
 Combine missing design, image and motion preferences. Reuse supplied answers. Run:
 
-Product/stack confirmation → unresolved preferences → internal Wireframe Validation → direction selection → complete HiFi, technical checks, Impeccable and grading → one human Visual Approval → implementation.
+Product/stack and PRD preflight with `--ui-contract ui-design/2` → unresolved preferences → direction selection → complete HiFi, cheap completeness preflight, technical checks, Impeccable and grading → one human Visual Approval → conditional compiler → implementation.
 
-Wireframe has no human Copy Freeze or Wireframe Approval gate in schema 5. It keeps complete sourced wording and W1–W5. The final HiFi review includes wording, structure, product menus, tabs, other interactions, visuals and all product tokens. Formal design-system compilation runs only when the Need Gate requires it.
+A `ui-design/2` package has no wireframe, W1–W5, Copy Freeze or human Wireframe Approval stage. It reads the PRD's complete sourced wording and contract directly. The final HiFi review includes wording, structure, product menus, tabs, other interactions, visuals and all product tokens. Formal design-system compilation runs only when the Need Gate requires it.
 
 ## Incremental Scope And Derived Status
 
@@ -55,18 +55,18 @@ New evidence uses ui-output/3 and ui-evidence/3; see review-evidence.md. Separat
 
 Record source, installed and actually loaded skill identities separately; unknown loaded identity remains unknown. Pin each round. Before upgrading, classify the effect: reviewer shell, schema/format, validation rule, or product design. Evaluate affected evidence and retain valid product decisions.
 
-wireframes/2–4 and ui-evidence/2 remain readable under their original meanings. A schema-4 approved artifact still uses its historical Copy Freeze and human Wireframe Approval. Do not relabel those as schema 5 or fabricate a new human decision. The legacy heading does not keep old HiFi evidence rules: publication accepts ui-evidence/2 HiFi receipts only when the Approved target equals the one committed at HEAD. A new or changed target needs ui-evidence/3, reviewer shell version 3 and `direction`/`hifi` Frontend Design Usage rows. Only `check_ui_publication.py` enforces this; Harness joins and the compiler preflight do not. Run publication before handoff: once an approval is committed without it, HEAD makes the target look historical and nothing later catches it. New or next enhancement packages use schema 5; existing products migrate gradually under authorized scope. Migrate data through reviewable changes, rerun structure and affected product checks, and preserve historical bytes/receipts. A shell-only update never authorizes product redesign.
+wireframes/2–5 and `ui-design` packages without `UI contract: ui-design/2` remain readable under their original meanings. A legacy approved artifact still uses its historical Copy Freeze, Wireframe Approval, W1–W5 and compiler inputs. Do not relabel it or fabricate a new human decision. The legacy heading does not keep old HiFi evidence rules: publication accepts ui-evidence/2 HiFi receipts only when the Approved target equals the one committed at HEAD. A new or changed target needs ui-evidence/3, reviewer shell version 3 and `direction`/`hifi` Frontend Design Usage rows. Only `check_ui_publication.py` enforces this; Harness joins and the compiler preflight do not. Run publication before handoff: once an approval is committed without it, HEAD makes the target look historical and nothing later catches it. New packages use `ui-design/2`; existing products migrate gradually under authorized scope. Migrate through a fresh owner-selected direction and complete HiFi, rerun affected product checks, and preserve historical bytes/receipts. A shell-only update never authorizes product redesign.
 
 Publication, installation, commits, branches/worktrees, provider calls and cleanup retain their own exact authorization boundaries.
 
 ## Required Product Operations
 
-Before designing, derive necessary Home, back, cancel, recovery, navigation and tab actions from each PRD task. In each UI surface's existing contract, add one invariant operations anchor. Keep its meaning product-owned. This explicit list prevents Wireframe and HiFi from both omitting the same operation.
+Before designing, read necessary Home, back, cancel, recovery, navigation and tab actions from each PRD task. The PRD UI Surface Contract's invariant operations anchor keeps their meaning product-owned. This explicit list prevents directions and HiFi from both omitting the same operation.
 
 Example:
 
 - `operations`: [{"id":"OP-account-home","trigger":"Home","control":"home","sourceState":"ready","destination":{"surface":"UI-001","state":"ready"},"presentation":"page"}]
 
-Each operation uses exactly id, trigger (Wireframe action label), control (HiFi product control ID), sourceState, destination (surface/state) and presentation (page, overlay, feedback, state or tab). IDs are unique. An informational surface with no action records none — followed by a concrete reason. Include open/close, selection, recovery and state changes when the PRD requires them. Compare actual browser destinations and visible content; updating an active class alone is insufficient.
+Each operation uses exactly id, trigger, control (HiFi product control ID), sourceState, destination (surface/state) and presentation (page, overlay, feedback, state or tab). IDs are unique. An informational surface with no action records none — followed by a concrete reason. Include open/close, selection, recovery and state changes when the PRD requires them. Compare actual browser destinations and visible content; updating an active class alone is insufficient.
 
-The new UI checker joins these PRD operations to Wireframe flows and HiFi interactions. It rejects missing required controls, invented states/destinations and HiFi actions without a product operation. The schema cannot infer an omitted requirement from prose: the Product Definition review must reconcile this list with user tasks, including Home/back/cancel.
+The PRD-side checker joins these operations to the UI Surface Contract, and the HiFi completeness preflight joins them to manifest interactions before formal review. The browser checker rejects missing required controls, invented states/destinations and HiFi actions without a product operation. Neither check can infer an omitted requirement from prose: the Product Definition review must reconcile this list with user tasks, including Home/back/cancel.
