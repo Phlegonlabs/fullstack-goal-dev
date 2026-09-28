@@ -100,6 +100,11 @@ committed; no working-tree changes are recorded.
   failed 1 test, macos failed 353 (209 failures, 144 errors). The Linux failure was the
   tracked-symlink installer test reading pwsh's colored, "|"-wrapped error record; fixed in
   `7db24835`. The macos job is set non-blocking in `221bac00` (owner decision, 2026-09-27).
+- PR #128 review (Codex connector) left two P1 threads that blocked the squash merge:
+  closeout reachability let a dependency activate an untaken repair route (fixed in `fd9600b1`,
+  regression `test_a_dependency_does_not_activate_an_untaken_repair_route`), and both installers
+  could overwrite an existing `<backup>.source` receipt (fixed in `b125ba8f`, regressions
+  `test_*_keeps_an_existing_source_receipt`; installer tests 21 OK on Windows).
 
 ### Open follow-ups
 
