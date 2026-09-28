@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.55.0-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.55.1-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -637,6 +637,8 @@ This repository is licensed under the MIT License — see [LICENSE](LICENSE).
 ## Version history
 
 Update this section with each release, as part of the version bump and tag described in Releasing above.
+
+- **0.55.1** — Follow-ups to the 0.55.0 review fixes. `check_delivery_acceptance.py` now needs `--candidate-sha` or `--candidate-from-head`, and in a Git checkout it requires the register's candidate to be HEAD or an ancestor with only the register, its listed evidence and run coordination files changed after it. The checker has no RUN version, so an in-flight 0.55.0 run fails the gate if its register commit holds other files or it passes a stale `--candidate-sha` after a repair. Under an adopted runtime contract, runs that require 0.55.1 or later need every worker's and reviewer's `contract_adoption_check`. The PLAN and RUNBOOK templates include the delivery-acceptance rows and the register commit order. Mission launches and `app_threads` reviewers under a `*` mission scope are deferred instead of stalling. The 0.55.0 `coordination_paths` and protected-branch checks skip only runs pinned below 0.55.0. The legacy current-HiFi rule is dated by the approval and its receipts and is enforced in UI joins for runs that require 0.55.0 or later. Exchange-commit races keep concurrent bytes in a named recovery file. Product Definition adds Base UI and Radix Primitives as headless component-foundation options.
 
 - **0.55.0** — Fixes from a multi-agent review of all seven skills. Breaking changes and what consumers must do: re-run finalize and re-record Product Definition Approval and the Stack Decision Checkpoint, because their digests now cover the raw text including fenced code, indented lines and HTML comments; add a `Styling approach` row to Mobile/Desktop stacks; write Environment Status Checked values as RFC3339 with a timezone; give cleanup lifecycle nodes (`archive_worker_tasks`, `remove_worktrees`, `delete_branches`) an exact target in runs that require 0.55.0; complete Impeccable critique and audit before Visual Approval; name Wireframe Validation and Visual Approval in enhancement UI rows. Also isolates trusted-host and legacy pushes from repository hooks and askpass, keeps atomic RUN, DOCUMENTS and design-system commits on macOS, records each install's source commit and adds a macOS CI job. UI Design Builder also adds Motion and Three.js motion routes, a content-based motion proposal when the owner is silent, HiFi media embedding limits and captured references.
 

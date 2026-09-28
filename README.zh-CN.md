@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.55.0-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.55.1-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -637,6 +637,8 @@ HiFi 示例以固定 LF 换行维持跨平台字节哈希。Wireframe 的 Node �
 ## 版本历史
 
 每次发布都要更新本节，连同上面《发布》一节描述的版本号提升与 tag 一起完成。
+
+- **0.55.1** — 0.55.0 审查修正的后续项目。`check_delivery_acceptance.py` 现在需要 `--candidate-sha` 或 `--candidate-from-head`；在 Git checkout 中，register 的 candidate 必须是 HEAD 或其祖先，之后只能变更 register、它列出的 evidence 与 run 协调文件。检查器不知道 RUN 版本，所以进行中的 0.55.0 run 若 register commit 含其他文件，或 repair 后仍传入过时的 `--candidate-sha`，gate 会失败。在已采用的 runtime contract 下，要求 0.55.1 或更新版本的 run 需要每个 worker 与 reviewer 的 `contract_adoption_check`。PLAN 与 RUNBOOK template 纳入 delivery-acceptance 行与 register 提交顺序。`*` mission 范围下的 mission 启动与 `app_threads` reviewer 会被延后，不再卡住。0.55.0 的 `coordination_paths` 与受保护分支检查只跳过 pin 低于 0.55.0 的 run。Legacy current-HiFi 规则依批准与其 receipt 的日期判定，并在要求 0.55.0 或更新版本的 run 的 UI join 中强制执行。交换提交的竞态会把并发写入的 bytes 保留在具名的 recovery 文件。Product Definition 新增 Base UI 与 Radix Primitives 作为 headless component foundation 选项。
 
 - **0.55.0** — 修正对七个 skill 进行多代理审查后发现的问题。破坏性变更与使用者需要做的事：重跑 finalize，并重新记录 Product Definition Approval 与 Stack Decision Checkpoint，因为 digest 现在覆盖含 fenced code、缩进行与 HTML 注释的原始文本；在 Mobile/Desktop stack 加上 `Styling approach` 行；Environment Status 的 Checked 值改用带时区的 RFC3339；在要求 0.55.0 的 run 中，清理类 lifecycle 节点（`archive_worker_tasks`、`remove_worktrees`、`delete_branches`）要有精确 target；Visual Approval 前完成 Impeccable critique 与 audit；enhancement 的 UI 行要写明 Wireframe Validation 与 Visual Approval。另外，trusted-host 与 legacy push 与 repository hooks 和 askpass 隔离，RUN、DOCUMENTS 与 design-system 的原子提交支持 macOS，installer 记录源 commit，并新增 macOS CI job。 UI Design Builder 另外新增 Motion 与 Three.js 动效路线、owner 未表态时依内容提出动效建议、HiFi 媒体内嵌限制，以及参考截图留存。
 

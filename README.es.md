@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.55.0-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.55.1-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -636,6 +636,8 @@ Este repositorio está bajo la Licencia MIT — ver [LICENSE](LICENSE).
 ## Historial de versiones
 
 Actualiza esta sección con cada release, como parte del bump de versión y el tag descritos en Releasing arriba.
+
+- **0.55.1** — Seguimiento de las correcciones de la revisión 0.55.0. `check_delivery_acceptance.py` ahora necesita `--candidate-sha` o `--candidate-from-head`, y en un checkout Git exige que el candidato del registro sea HEAD o un ancestro, y que después solo cambien el registro, la evidencia que lista y los archivos de coordinación del run. El checker no conoce la versión del RUN, así que un run 0.55.0 en curso falla el gate si su commit del registro contiene otros archivos o si pasa un `--candidate-sha` obsoleto tras una reparación. Bajo un contrato de runtime adoptado, los runs que requieren 0.55.1 o posterior necesitan el `contract_adoption_check` de cada worker y reviewer. Las plantillas PLAN y RUNBOOK incluyen las filas de delivery-acceptance y el orden del commit del registro. Los lanzamientos de misión y los reviewers `app_threads` bajo un alcance de misión `*` se difieren en lugar de quedarse bloqueados. Las comprobaciones de `coordination_paths` y de ramas protegidas de 0.55.0 solo se omiten en runs fijados por debajo de 0.55.0. La regla legacy de HiFi actual se fecha por la aprobación y sus receipts, y los joins de UI la aplican en runs que requieren 0.55.0 o posterior. Las carreras del commit por intercambio conservan los bytes concurrentes en un archivo de recuperación con nombre. Product Definition añade Base UI y Radix Primitives como opciones headless de component foundation.
 
 - **0.55.0** — Correcciones de una revisión multiagente de los siete skills. Cambios breaking y qué deben hacer los consumidores: vuelve a ejecutar finalize y registra de nuevo Product Definition Approval y el Stack Decision Checkpoint, porque sus digests ahora cubren el texto crudo con code fences, líneas indentadas y comentarios HTML; añade una fila `Styling approach` a los stacks Mobile/Desktop; escribe los valores Checked de Environment Status en RFC3339 con zona horaria; da un target exacto a los nodos lifecycle de limpieza (`archive_worker_tasks`, `remove_worktrees`, `delete_branches`) en runs que requieren 0.55.0; completa Impeccable critique y audit antes de Visual Approval; nombra Wireframe Validation y Visual Approval en las filas UI de enhancement. Además aísla los pushes de trusted host y legacy de hooks y askpass del repositorio, mantiene commits atómicos de RUN, DOCUMENTS y design-system en macOS, registra el commit de origen de cada instalación y añade un job de CI en macOS. UI Design Builder añade además rutas de movimiento Motion y Three.js, una propuesta de movimiento basada en el contenido cuando el propietario no se pronuncia, límites de medios incrustados en HiFi y capturas de las referencias.
 
