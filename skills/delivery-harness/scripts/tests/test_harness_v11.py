@@ -752,11 +752,12 @@ class HarnessV11Tests(unittest.TestCase):
                 with self.subTest(optional=result):
                     run = copy.deepcopy(original)
                     record(result, None, root)
-                    self.assertEqual("worker_failed", run["review_workers"][-1]["phase"])
-                    self.assertEqual(
-                        "failed",
-                        run["graph_state"]["node_states"]["N-FRONTEND-REVIEW"]["phase"],
-                    )
+                    self.assertEqual(result, run["review_workers"][-1]["outcome"])
+                    if result == "retryable_failure":
+                        self.assertEqual(
+                            "failed",
+                            run["graph_state"]["node_states"]["N-FRONTEND-REVIEW"]["phase"],
+                        )
                     # A check that is supplied is still validated in full.
                     for check, message in (
                         ({**valid, "matched": False}, "matched must be true"),
