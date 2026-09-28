@@ -4,7 +4,7 @@ The four READMEs remain the documentation of record for the skill bundle.
 
 | Document | Purpose | Status |
 | --- | --- | --- |
-| `docs/epics/EPIC-macos-support.md` | Run the skill bundle and CI suites on macOS | In progress on `codex/macos-support` |
+| `docs/epics/EPIC-macos-support.md` | Run the skill bundle and CI suites on macOS | PR #129 open on `codex/macos-support` |
 | `docs/epics/EPIC-motion-media-quality.md` | Motion/Three.js routes, silent-owner motion proposal, HiFi media limits and reference captures | Committed on `codex/review-fixes` for 0.55.0 |
 | `docs/epics/EPIC-review-fixes-20260927.md` | Fixes for the verified findings of the seven-skill review; version 0.55.0 | Committed on `codex/review-fixes`; three fix rounds integrated and full suite passed on `27ea4979`; push, CI and release pending |
 | `docs/epics/EPIC-reference-flow-integration.md` | Optional 19-domain reference catalog, selection rule, and stage-local skill pointers | Released in v0.54.4 |

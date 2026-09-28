@@ -1,6 +1,6 @@
 # macOS Support
 
-Status: in progress on `codex/macos-support`; not pushed to GitHub, not released.
+Status: PR #129 open on `codex/macos-support`; not merged or released.
 Design workflow: maintenance
 UI impact: none
 
@@ -40,4 +40,11 @@ Remaining 22: descriptor-bound exec through `/dev/fd/N` returns EACCES on macOS 
 - Mac mini at `c1dc379f` (resolved `TMPDIR`, `/usr/bin/git`): Harness 1324 OK (54 skipped), Product Definition 240 OK, UI Design 293 OK (3 skipped), Design System Compiler 116 OK (2 skipped), Product Activation 56 OK, SEO 21 OK, golden path OK, skill spec and pyflakes pass.
 - Windows: `test_push_archived_candidate` 35 OK, `test_verifier_runtime` 46 OK. `test_parity_capture` failed once (4 failures, 4 errors, 721 s, details not kept), then passed twice (17 OK, ~22 s); treated as a flaky browser timeout, not a regression.
 
-Until MAC-3 has an owner-approved alternative, macOS cannot run sandboxed container verifiers, browser parity capture, or trusted-host signature verification; each fails closed with its own error.
+Owner decision (2026-09-27): allow path launch only for SIP-protected files; keep container verifiers and parity capture fail-closed on macOS; push the branch and open a PR.
+
+- `7395efce` feat(harness): the trusted-host signature verifier runs by path on macOS when `csr_check` shows SIP filesystem protection enforced and the path names the hash-verified inode of a restricted file. Mac mini: `test_push_archived_candidate.py` 36 OK (the 10 formerly skipped tests run again); Windows 36 OK, 1 skipped.
+- Security review of `7395efce` against `2fa9b343`: PASS, three informational notes. Note 1 (check the restricted flag on every path component) fixed in `9039decb`; Mac mini 36 OK.
+- PR #129 CI on `7395efce` (run 36386171742): macos success, windows-hardening success, validate failed because `test_install_script` could not import after the `pwsh` probe hit its 10 s timeout on a cold runner. Fixed in `94c8a21a` (60 s, timeout means unavailable).
+- The macos job is blocking again and the READMEs state the macOS limits (`ci(harness): make the macos job blocking again`).
+
+Still fail-closed on macOS: sandboxed container verifiers and browser parity capture.
