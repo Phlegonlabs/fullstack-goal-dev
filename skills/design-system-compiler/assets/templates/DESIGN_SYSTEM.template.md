@@ -90,7 +90,7 @@ Do not duplicate the machine-owned primitive, variant, component, composition, o
 
 ## Responsive Rules
 
-- Responsive set: <the exact approved PRD and wireframe JSON viewports or sizeClasses — at least three ascending web viewports, or at least two native/desktop size classes>
+- Responsive set: <the exact approved PRD and HiFi manifest viewports or sizeClasses (wireframe JSON only for a legacy design-system/2 pair) — at least three ascending web viewports, or at least two native/desktop size classes>
 - Reflow and visibility rule: <what moves, stacks, resizes, or may hide at each target; never-drop content remains visible>
 - Layout safety: <no unintended overlap, clipping, occlusion, or horizontal overflow at any target/state; named stacking, focus, and dismissal behavior for intentional overlays>
 - Never-drop content: <what remains visible>

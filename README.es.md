@@ -504,11 +504,11 @@ Usa $product-definition-builder para definir este producto, incluyendo arquitect
 ```
 
 ```text
-La Product Definition está aprobada. Usa $ui-design-builder y $frontend-design obligatorio para wireframes/5, selección de dirección y HiFi completo. Valida el wireframe internamente y pide una sola revisión de texto, estructura, menús, pestañas, visuales y tokens.
+La Product Definition está aprobada. Usa $ui-design-builder con el contrato `ui-design/2` y $frontend-design obligatorio. Ejecuta el preflight del producto, lee directamente el PRD UI Surface Contract y muestra tres direcciones materialmente distintas sobre los mismos casos representativos para que yo elija.
 ```
 
 ```text
-La estructura y el texto con fuentes de wireframes/5 pasaron la validación interna. Continúa $ui-design-builder con Style Integration de $frontend-design, crea una referencia HiFi conectada, ejecuta critique y audit de $impeccable solo con su autorización más scoring H1-H9, obtén una Visual Approval completa e invoca $design-system-compiler solo cuando se requiera.
+Elegí una dirección. Continúa $ui-design-builder con $frontend-design: crea el HiFi conectado completo, ejecuta el preflight de completitud del HiFi y luego critique y audit de $impeccable solo con su autorización más scoring H1-H9. Pide una sola Visual Approval completa de texto, estructura, menús de producto, pestañas, visuales y tokens, e invoca $design-system-compiler solo cuando se requiera.
 ```
 
 ```text

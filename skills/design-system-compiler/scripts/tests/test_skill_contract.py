@@ -129,6 +129,15 @@ class DesignSystemCompilerSkillContractTests(unittest.TestCase):
         self.assertIn("passing browser-matrix evidence", contract)
         self.assertIn("named stacking, focus, and dismissal", template_md)
 
+    def test_template_responsive_set_comes_from_prd_and_hifi(self) -> None:
+        template_md = self.read("assets/templates/DESIGN_SYSTEM.template.md")
+        responsive = next(
+            line for line in template_md.splitlines() if line.startswith("- Responsive set:")
+        )
+        self.assertIn("exact approved PRD and HiFi manifest viewports or sizeClasses", responsive)
+        self.assertIn("wireframe JSON only for a legacy design-system/2 pair", responsive)
+        self.assertNotIn("PRD and wireframe JSON", responsive)
+
 
 if __name__ == "__main__":
     unittest.main()
