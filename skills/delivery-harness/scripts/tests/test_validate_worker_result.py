@@ -986,6 +986,60 @@ class ValidateWorkerResultTests(unittest.TestCase):
                     with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
                         parser.parse_args(argv)
 
+    def _adopt_contract(self, required_version: str) -> None:
+        self.run["runtime_capabilities"]["runtime_adapter"] = {
+            "version_gate": {
+                "status": "adopted",
+                "required_harness_version": required_version,
+                "contract_adoption": {
+                    "contract_digest_sha256": "a" * 64,
+                    "reading_evidence": ["parent re-read the fixed contract"],
+                },
+            }
+        }
+
+    def test_adopted_contract_requires_a_matching_child_check_from_0_55_1(self) -> None:
+        self._adopt_contract("0.55.1")
+        missing = validate(self.plan, self.run, self.result)
+        self.assertIn("contract_adoption_check", error_codes(missing))
+
+        result = copy.deepcopy(self.result)
+        result["contract_adoption_check"] = {
+            "digest": "a" * 64,
+            "matched": True,
+            "reading_evidence": ["worker read SKILL.md and worker-result-contract.md"],
+        }
+        self.assertEqual([], validate(self.plan, self.run, result))
+
+        for field, value in (
+            ("digest", "b" * 64),
+            ("matched", False),
+            ("reading_evidence", []),
+            ("reading_evidence", ["parent re-read the fixed contract"]),
+        ):
+            with self.subTest(field=field, value=value):
+                bad = copy.deepcopy(result)
+                bad["contract_adoption_check"][field] = value
+                self.assertIn(
+                    "contract_adoption_check",
+                    error_codes(validate(self.plan, self.run, bad)),
+                )
+
+    def test_contract_adoption_check_is_optional_before_0_55_1(self) -> None:
+        self._adopt_contract("0.55.0")
+        self.assertEqual([], validate(self.plan, self.run, self.result))
+
+    def test_contract_adoption_check_is_rejected_without_an_adoption(self) -> None:
+        result = copy.deepcopy(self.result)
+        result["contract_adoption_check"] = {
+            "digest": "a" * 64,
+            "matched": True,
+            "reading_evidence": ["worker read the contract"],
+        }
+        self.assertIn(
+            "contract_adoption_check", error_codes(validate(self.plan, self.run, result))
+        )
+
     def test_unknown_result_field_is_rejected(self) -> None:
         result = copy.deepcopy(self.result)
         result["unexpected"] = True

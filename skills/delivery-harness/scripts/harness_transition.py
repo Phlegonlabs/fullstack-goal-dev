@@ -35,7 +35,11 @@ from harness_core import (
     path_in_scopes,
     validate_changed_path,
 )
-from harness_contract import contract_digest
+from harness_contract import (
+    contract_adoption_check_errors,
+    contract_adoption_check_evidence,
+    contract_digest,
+)
 from harness_git import GitMetadataError, reject_object_substitution, run_git
 from harness_manifest import (
     _verifier_owners,
@@ -4651,6 +4655,31 @@ def _record_review_attempt(
         raise ManifestError("a PASS review cannot contain findings")
     if args.result != "pass" and not findings:
         raise ManifestError("a non-pass review requires at least one --finding")
+    adoption_check_path = getattr(args, "contract_adoption_check", None)
+    adoption_check = None
+    if adoption_check_path is not None:
+        try:
+            adoption_check = json.loads(
+                Path(adoption_check_path).read_text(encoding="utf-8")
+            )
+        except (OSError, ValueError) as exc:
+            raise ManifestError(f"cannot read --contract-adoption-check: {exc}") from exc
+        # Accept the reviewer's returned object with or without its field name.
+        if isinstance(adoption_check, dict) and set(adoption_check) == {
+            "contract_adoption_check"
+        }:
+            adoption_check = adoption_check["contract_adoption_check"]
+        if adoption_check is None:
+            raise ManifestError("--contract-adoption-check must contain an object")
+    # A reviewer that stopped on a digest mismatch reports `blocked`; it may
+    # omit the check or report the digest it saw with matched false.
+    adoption_errors = contract_adoption_check_errors(
+        run, adoption_check, blocked=args.result == "blocked"
+    )
+    if adoption_errors:
+        raise ManifestError(
+            "invalid --contract-adoption-check: " + "; ".join(adoption_errors)
+        )
     allowance = lineage.get("base_allowance", 0) + lineage.get(
         "additional_allowance", 0
     )
@@ -4692,6 +4721,7 @@ def _record_review_attempt(
         attempt_evidence.append(
             "security_result_sha256:" + _json_sha256(security_result)
         )
+    attempt_evidence.extend(contract_adoption_check_evidence(adoption_check))
     run["attempt_log"].append(
         {
             "attempt_id": args.attempt_id,
@@ -4872,6 +4902,7 @@ def build_parser() -> argparse.ArgumentParser:
     review.add_argument("--evidence", action="append", required=True)
     review.add_argument("--finding", action="append")
     review.add_argument("--security-result", type=Path)
+    review.add_argument("--contract-adoption-check", type=Path)
     review.add_argument("--failure-family-id")
     review.add_argument("--failure-primitive")
     review.add_argument("--equivalence-class", action="append")

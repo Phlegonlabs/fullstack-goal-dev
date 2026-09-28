@@ -18,6 +18,7 @@ from harness_core import (
     validate_changed_path,
 )
 from harness_schema import run_required_harness_version, version_at_least
+from harness_contract import contract_adoption_check_errors
 from harness_git import GitMetadataError, reject_object_substitution, run_git
 from harness_manifest import (
     ManifestError,
@@ -1139,8 +1140,17 @@ def validate_worker_result_data(
         WORKER_RESULT_FIELDS,
         "worker_result",
         errors,
-        optional={"subagent_activity"},
+        optional={"subagent_activity", "contract_adoption_check"},
     )
+    for message in contract_adoption_check_errors(
+        run, result.get("contract_adoption_check")
+    ):
+        _issue(
+            errors,
+            "contract_adoption_check",
+            "worker_result.contract_adoption_check",
+            message,
+        )
 
     result_type = _require_string(result.get("type"), "worker_result.type", errors)
     run_id = _require_string(result.get("run_id"), "worker_result.run_id", errors)

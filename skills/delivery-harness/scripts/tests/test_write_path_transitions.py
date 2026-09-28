@@ -1006,6 +1006,76 @@ class WritePathTransitionTests(unittest.TestCase):
             )
         )
 
+        # A worker's contract-adoption check is validated and retained. This
+        # fixture predates 0.55.1, so the check is optional here; the
+        # validator tests cover the 0.55.1 requirement.
+        adopted_run = copy.deepcopy(self.run)
+        gate = adopted_run["runtime_capabilities"]["runtime_adapter"]["version_gate"]
+        gate.update(
+            {
+                "status": "adopted",
+                "loaded_contract_digest": None,
+                "installed_contract_digest": "c" * 64,
+                "contract_adoption": {
+                    "session_id": gate["session_id"],
+                    "adopted_at": "2026-09-27T00:00:00Z",
+                    "contract_digest_sha256": "c" * 64,
+                    "owner_source": "owner instruction in this test",
+                    "reading_evidence": ["parent re-read the fixed contract"],
+                },
+                "contract_adoption_history": [],
+            }
+        )
+
+        def record_with_check(run: dict, digest: str) -> None:
+            checked = copy.deepcopy(node_result)
+            checked["worker_result"]["contract_adoption_check"] = {
+                "digest": digest,
+                "matched": True,
+                "reading_evidence": ["worker read SKILL.md and WORKER_GOAL"],
+            }
+            checked_path = self.root / f"checked-{digest[0]}-node-result.json"
+            checked_path.write_text(
+                json.dumps({"node_result": checked}), encoding="utf-8"
+            )
+            record_worker_result(
+                self.plan,
+                run,
+                Namespace(
+                    repo_root=self.root,
+                    node_result=checked_path,
+                    worker_result=None,
+                    verifier_result=retained_paths,
+                ),
+            )
+
+        wrong_digest_run = copy.deepcopy(adopted_run)
+        record_with_check(wrong_digest_run, "d" * 64)
+        self.assertEqual(
+            "worker_failed", wrong_digest_run["mission_states"]["M1"]["phase"]
+        )
+        self.assertTrue(
+            any(
+                "adopted contract digest" in blocker
+                for blocker in wrong_digest_run["mission_states"]["M1"]["blockers"]
+            )
+        )
+        record_with_check(adopted_run, "c" * 64)
+        self.assertEqual("worker_passed", adopted_run["mission_states"]["M1"]["phase"])
+        dispatch = next(
+            item
+            for item in adopted_run["attempt_log"]
+            if item["attempt_id"] == "ATT-M1-RESULT"
+        )
+        self.assertIn(f"contract_adoption_digest:{'c' * 64}", dispatch["evidence"])
+        self.assertIn(
+            "contract_adoption_reading:worker read SKILL.md and WORKER_GOAL",
+            dispatch["evidence"],
+        )
+        self.assertEqual(
+            [], harness_transition.validate_current_plan_run(self.plan, adopted_run)
+        )
+
         record_args = Namespace(
             repo_root=self.root,
             node_result=node_path,

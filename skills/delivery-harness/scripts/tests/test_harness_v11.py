@@ -487,6 +487,8 @@ class HarnessV11Tests(unittest.TestCase):
             self.assertIn('"required_tools": []', packet)
             self.assertIn('"contract_adoption"', packet)
             self.assertIn("independently recompute the seven-skill contract digest", packet)
+            self.assertIn("`contract_adoption_check`", packet)
+            self.assertIn("never inside a security review result", packet)
             self.assertNotIn('"harness_plan"', packet)
 
             for node in plan["graph"]["nodes"]:
@@ -640,6 +642,139 @@ class HarnessV11Tests(unittest.TestCase):
                 "consumed_attempts"
             ],
         )
+
+    def test_review_under_adopted_contract_requires_the_reviewer_check(self) -> None:
+        plan, run = current_preintegration_review_state()
+        harness_transition._reserve_review_dispatch(
+            plan,
+            run,
+            Namespace(
+                node_id="N-FRONTEND-REVIEW",
+                worker_id="RW-ADOPTED",
+                attempt_id="ATT-ADOPTED",
+                report_path=None,
+            ),
+            repo_root=None,
+        )
+        gate = run["runtime_capabilities"]["runtime_adapter"]["version_gate"]
+        fixture_version = gate["required_harness_version"]
+        gate.update(
+            {
+                "status": "adopted",
+                "required_harness_version": "0.55.1",
+                "loaded_contract_digest": None,
+                "installed_contract_digest": "c" * 64,
+                "contract_adoption": {
+                    "session_id": gate["session_id"],
+                    "adopted_at": "2026-09-27T00:00:00Z",
+                    "contract_digest_sha256": "c" * 64,
+                    "owner_source": "owner instruction in this test",
+                    "reading_evidence": ["parent re-read the fixed contract"],
+                },
+                "contract_adoption_history": [],
+            }
+        )
+
+        def record(result: str, check: object | None, root: Path) -> None:
+            path = None
+            if check is not None:
+                path = root / f"check-{len(list(root.iterdir()))}.json"
+                path.write_text(json.dumps(check), encoding="utf-8")
+            harness_transition._record_review_attempt(
+                plan,
+                run,
+                Namespace(
+                    lineage="REVIEW-N-FRONTEND-REVIEW",
+                    worker_id="RW-ADOPTED",
+                    attempt_id="ATT-ADOPTED",
+                    mission_id="M1",
+                    result=result,
+                    evidence=["reviewed the reserved head"],
+                    finding=["digest mismatch"] if result == "blocked" else None,
+                    security_result=None,
+                    contract_adoption_check=path,
+                    failure_family_id=None,
+                    failure_primitive=None,
+                    equivalence_class=None,
+                    strategy=None,
+                    tree_sha=None,
+                ),
+            )
+
+        valid = {
+            "digest": "c" * 64,
+            "matched": True,
+            "reading_evidence": ["reviewer read SKILL.md and the review packet"],
+        }
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            for check, message in (
+                (None, "is required"),
+                ({**valid, "digest": "d" * 64}, "adopted contract digest"),
+                ({**valid, "matched": False}, "matched must be true"),
+                (
+                    {**valid, "reading_evidence": ["parent re-read the fixed contract"]},
+                    "not the parent receipt",
+                ),
+                (
+                    {"contract_adoption_check": valid, "extra": True},
+                    "exactly digest, matched, and reading_evidence",
+                ),
+                ({"contract_adoption_check": None}, "must contain an object"),
+            ):
+                with self.subTest(message=message):
+                    with self.assertRaisesRegex(harness_transition.ManifestError, message):
+                        record("pass", check, root)
+            self.assertEqual("leased", run["review_workers"][-1]["phase"])
+
+            # A reviewer that stopped on a mismatch can still report blocked.
+            blocked_run = copy.deepcopy(run)
+            original = run
+            run = blocked_run
+            record("blocked", None, root)
+            self.assertEqual("blocked", run["review_workers"][-1]["phase"])
+            run = original
+
+            # A blocked reviewer may report the digest it saw; it is kept.
+            mismatch = {"digest": "d" * 64, "matched": False, "reading_evidence": []}
+            for check, message in (
+                ({**mismatch, "matched": True}, "matched must be true exactly when"),
+                ({**valid, "matched": False}, "matched must be true exactly when"),
+            ):
+                with self.subTest(blocked=message):
+                    run = copy.deepcopy(original)
+                    with self.assertRaisesRegex(harness_transition.ManifestError, message):
+                        record("blocked", check, root)
+            run = copy.deepcopy(original)
+            record("blocked", mismatch, root)
+            self.assertEqual("blocked", run["review_workers"][-1]["phase"])
+            self.assertIn(
+                f"contract_adoption_mismatch:{'d' * 64}", run["attempt_log"][-1]["evidence"]
+            )
+            run = original
+
+            # The file may hold the bare object or the reviewer's wrapped reply.
+            wrapped_run = copy.deepcopy(run)
+            run = wrapped_run
+            record("pass", {"contract_adoption_check": valid}, root)
+            self.assertEqual("worker_passed", run["review_workers"][-1]["phase"])
+            run = original
+
+            record("pass", valid, root)
+
+        self.assertEqual("worker_passed", run["review_workers"][-1]["phase"])
+        evidence = run["attempt_log"][-1]["evidence"]
+        self.assertIn(f"contract_adoption_digest:{'c' * 64}", evidence)
+        self.assertIn(
+            "contract_adoption_reading:reviewer read SKILL.md and the review packet",
+            evidence,
+        )
+        # The fixture predates other 0.55.1 PLAN rules; check the recorded
+        # attempt under its own pin.
+        run["runtime_capabilities"]["runtime_adapter"]["version_gate"][
+            "required_harness_version"
+        ] = fixture_version
+        self.assertEqual([], validate_run(plan, run))
 
     def test_subagent_review_reservation_records_exact_spawn_receipt(self) -> None:
         plan, run = current_preintegration_review_state()

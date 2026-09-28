@@ -26,7 +26,7 @@ There is no built-in model or effort default. Null PLAN options preserve the hos
 
 Discover the effective instruction chain from repository root to the assigned checkout and include its ordered paths in the bounded context packet. Keep automatic context discovery enabled. Do not inject another runtime's instruction file as this host's instructions. Observe the installed skill identity separately from the actually loaded identity; unknown loaded identity stays unknown.
 
-If a selector directive carries `contract_adoption`, that object is an owner-authorized fixed-contract re-read in the parent session—not proof of what the host loaded at startup. Before any worker or reviewer action, the fresh child independently recomputes the seven-skill digest, compares it with the receipt, reads the fixed contract, and reports that reading evidence. Stop on mismatch; never copy the parent receipt as child evidence.
+If a selector directive carries `contract_adoption`, that object is an owner-authorized fixed-contract re-read in the parent session—not proof of what the host loaded at startup. Before any worker or reviewer action, the fresh child independently recomputes the seven-skill digest, compares it with the receipt, reads the fixed contract, and reports that reading evidence as `contract_adoption_check` (`worker-result-contract.md`). Stop on mismatch; never copy the parent receipt as child evidence.
 
 ## Authorization And Dispatch
 
