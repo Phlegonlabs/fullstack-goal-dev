@@ -13,6 +13,27 @@ import check_ui_publication as publication
 from ui_approval_digest import canonical_ui_approval_sha256
 
 
+# Past, and still on or after the 0.55.0 cutover under the receipt-date UTC-12 shift.
+POST_CUTOVER_RECEIPT = "2026-09-27T20:00:00Z"
+PRE_CUTOVER_RECEIPT = "2020-01-01T00:00:00Z"
+DATED_CASES = (
+    # (Visual Approval Decided on, HiFi receipt executedAt, historical)
+    ("2026-09-26", PRE_CUTOVER_RECEIPT, True),
+    ("2026-09-27", PRE_CUTOVER_RECEIPT, False),
+    # A backdated approval cannot hide post-cutover HiFi evidence.
+    ("2026-09-26", POST_CUTOVER_RECEIPT, False),
+)
+
+
+def assert_current_hifi_findings(test, findings, backdated):
+    joined = "\n".join(findings)
+    test.assertIn("requires ui-evidence/3 machine observation", joined)
+    test.assertIn("reviewer shell version 3", joined)
+    test.assertIn("Frontend Design Usage", joined)
+    if backdated:
+        test.assertIn("Decided on predates the newest HiFi review evidence", joined)
+
+
 class PublicationTests(unittest.TestCase):
     def test_publication_and_drift(self):
         for required in (False, True):
@@ -105,13 +126,15 @@ class PublicationTests(unittest.TestCase):
                 self.assertIn("Frontend Design Usage", findings)
 
     def test_dated_legacy_approval_needs_current_hifi_even_when_committed(self):
-        # The approval is committed at HEAD unchanged; only its decision date
-        # decides whether ui-evidence/2 HiFi receipts may stay.
-        for decided_on, historical in (("2026-09-26", True), ("2026-09-27", False)):
-            with self.subTest(decided_on=decided_on), tempfile.TemporaryDirectory() as temp:
+        # The approval is committed at HEAD unchanged; only its decision and
+        # HiFi receipt dates decide whether ui-evidence/2 HiFi receipts may stay.
+        for decided_on, executed_at, historical in DATED_CASES:
+            with self.subTest(decided_on=decided_on, executed_at=executed_at), \
+                    tempfile.TemporaryDirectory() as temp:
                 source, candidate = Path(temp) / "source", Path(temp) / "candidate"
                 source.mkdir()
-                materialize_publication(source, required=False, visual_decided_on=decided_on)
+                materialize_publication(source, required=False, visual_decided_on=decided_on,
+                                        hifi_executed_at=executed_at)
                 def git(*args):
                     subprocess.run(["git", "-C", str(source), *args], check=True, capture_output=True)
                 git("init", "-q")
@@ -124,18 +147,16 @@ class PublicationTests(unittest.TestCase):
                 if historical:
                     self.assertEqual([], findings)
                 else:
-                    joined = "\n".join(findings)
-                    self.assertIn("requires ui-evidence/3 machine observation", joined)
-                    self.assertIn("reviewer shell version 3", joined)
-                    self.assertIn("Frontend Design Usage", joined)
+                    assert_current_hifi_findings(self, findings, executed_at == POST_CUTOVER_RECEIPT)
 
     def test_compiler_preflight_applies_the_dated_current_hifi_rule(self):
         import check_design_system_pair
-        for decided_on, historical in (("2026-09-26", True), ("2026-09-27", False)):
-            with self.subTest(decided_on=decided_on), tempfile.TemporaryDirectory() as temp:
+        for decided_on, executed_at, historical in DATED_CASES:
+            with self.subTest(decided_on=decided_on, executed_at=executed_at), \
+                    tempfile.TemporaryDirectory() as temp:
                 root = Path(temp)
                 _, _, _, _, _, pair = materialize_publication(
-                    root, required=True, visual_decided_on=decided_on)
+                    root, required=True, visual_decided_on=decided_on, hifi_executed_at=executed_at)
                 problems = check_design_system_pair.compare(
                     pair[0].read_text(encoding="utf-8"),
                     json.loads(pair[1].read_text(encoding="utf-8")),
@@ -143,22 +164,18 @@ class PublicationTests(unittest.TestCase):
                 if historical:
                     self.assertEqual([], problems)
                 else:
-                    joined = "\n".join(problems)
-                    self.assertIn("ui-design: ", joined)
-                    self.assertIn("requires ui-evidence/3 machine observation", joined)
-                    self.assertIn("Frontend Design Usage", joined)
+                    self.assertIn("ui-design: ", "\n".join(problems))
+                    assert_current_hifi_findings(self, problems, executed_at == POST_CUTOVER_RECEIPT)
 
-    def test_current_hifi_cutover_date_boundaries(self):
-        ui = publication.ui
-        def legacy(decided_on):
-            return "## Wireframe Approval\n\n## Visual Approval\n\nDecided on: " + decided_on + "\n"
-        self.assertFalse(ui.current_hifi_evidence_required(legacy("2026-09-26")))
-        self.assertTrue(ui.current_hifi_evidence_required(legacy("2026-09-27")))
-        self.assertTrue(ui.current_hifi_evidence_required(legacy("later")))
-        self.assertTrue(ui.current_hifi_evidence_required("## Wireframe Approval\n"))
-        self.assertTrue(ui.current_hifi_evidence_required(
-            "## Wireframe Validation\n\n## Visual Approval\n\nDecided on: 2026-09-01\n"))
-        self.assertIs(False, ui.parse_ui_contract_view(legacy("2026-09-26"))[0]["current_hifi_required"])
+    def test_current_hifi_cutover_boundaries(self):
+        from datetime import date
+        applies = publication.ui.current_hifi_cutover_applies
+        self.assertFalse(applies("2026-09-26", []))
+        self.assertFalse(applies("2026-09-26", [date(2026, 9, 26)]))
+        self.assertTrue(applies("2026-09-26", [date(2026, 9, 1), date(2026, 9, 27)]))
+        self.assertTrue(applies("2026-09-27", []))
+        self.assertTrue(applies("later", []))
+        self.assertTrue(applies(None, []))
 
     def test_digest_cli_is_stable_across_derived_linkage(self):
         text = "# UI\n\nApproved direction\nCompiled design system pair: pending\n"

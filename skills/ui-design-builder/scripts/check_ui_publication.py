@@ -84,11 +84,10 @@ def validate(source: Path, root: Path, *, hifi: Path, required: bool = False,
         ui_text = (root / "docs/design/ui-design.md").read_text(encoding="utf-8")
         modern = ui.is_structure_review(ui_text)
         # Legacy ui-evidence/2 HiFi receipts stay valid only for a pre-0.55.0
-        # approval whose target is already committed. A later-dated approval is
-        # never historical, so committing it first cannot skip current evidence.
+        # approval whose target is already committed. The dated cutover rule
+        # (approval or HiFi receipt on or after 0.55.0) is never historical.
         current_target = _approved_target(ui_text)
-        historical = (not ui.current_hifi_evidence_required(ui_text)
-                      and current_target is not None and current_target == _committed_target(source))
+        historical = current_target is not None and current_target == _committed_target(source)
         problems += ui.validate(root / "docs/design/ui-design.md", repo_root=root,
                                 prd_path=root / "docs/product/PRD.md",
                                 wireframes_path=root / "docs/design/wireframes.html",
@@ -98,7 +97,8 @@ def validate(source: Path, root: Path, *, hifi: Path, required: bool = False,
                                 require_filled=True, require_wireframe_approved=not modern,
                                 require_structure_validated=modern,
                                 require_visual_approved=True,
-                                require_current_hifi_evidence=not modern and not historical)
+                                require_current_hifi_evidence=not modern and not historical,
+                                apply_current_hifi_cutover=True)
         if required:
             # ui.validate above verifies the formal pair and its source bindings.
             # The view is derived; it must not drift or disappear during transfer.

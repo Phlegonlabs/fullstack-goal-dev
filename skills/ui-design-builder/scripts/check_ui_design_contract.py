@@ -297,26 +297,24 @@ def _date(value: str | None) -> bool:
     return True
 
 
-# 0.55.0 release date. A commit can make an Approved target look historical;
-# it cannot change the owner's recorded decision date without editing the approval.
+# 0.55.0 release date. A commit can make an Approved target look historical,
+# and the approval date is author-entered, so HiFi receipt dates count too.
 CURRENT_HIFI_CUTOVER = date(2026, 9, 27)
 
 
-def current_hifi_evidence_required(text: str) -> bool:
-    """Return whether the active Visual Approval always needs current HiFi evidence.
+def current_hifi_cutover_applies(decided_on: str | None, receipt_dates: list[date]) -> bool:
+    """Return whether a legacy Visual Approval falls under the current HiFi rule.
 
-    Structure-review contracts always do. A legacy-heading contract does when
-    its Visual Approval was decided on or after the 0.55.0 cutover, or when
-    that date is missing or invalid (validation reports the bad date).
+    It does when the approval was decided on or after the 0.55.0 cutover, when
+    that date is missing or invalid (validation reports the bad date), or when
+    any HiFi Review or motion-effect receipt ran on or after the cutover.
     """
 
-    active = active_text(text)
-    if is_structure_review(active):
-        return True
-    decided_on = _field(_section(active, "## Visual Approval") or "", "Decided on")
     if not _date(decided_on):
         return True
-    return date.fromisoformat(decided_on.strip()) >= CURRENT_HIFI_CUTOVER
+    if date.fromisoformat((decided_on or "").strip()) >= CURRENT_HIFI_CUTOVER:
+        return True
+    return any(item >= CURRENT_HIFI_CUTOVER for item in receipt_dates)
 
 
 def _pass_evidence(value: str | None, label: str, problems: list[str]) -> dict[str, str] | None:
@@ -468,7 +466,6 @@ def parse_ui_contract_view(text: str) -> tuple[dict[str, Any], list[str]]:
 
     view: dict[str, Any] = {
         "structure_review": is_structure_review(active),
-        "current_hifi_required": current_hifi_evidence_required(text),
         "source_identities": sources,
         # Short aliases keep the exported view ergonomic while the longer
         # names remain the canonical serialized shape.
@@ -2851,6 +2848,7 @@ def _validate_impl(
     require_structure_validated: bool = False,
     require_visual_approved: bool = False,
     require_current_hifi_evidence: bool = False,
+    apply_current_hifi_cutover: bool = False,
 ) -> list[str]:
     try:
         text = ui_design_path.read_text(encoding="utf-8")
@@ -2975,6 +2973,34 @@ def _validate_impl(
         if isinstance(data_for_matrix, dict):
             wireframe_capture_mode, wireframe_matrix = _wireframe_evidence_contract(
                 data_for_matrix, _release_classes(root, source_values.get("Architecture source")))
+    motion_intents_for_evidence: dict[str, dict[str, str]] = {}
+    motion_effect_evidence: dict[str, dict[str, str]] = {}
+    receipt_dates: list[date] = []
+    decided_on = _field(visual, "Decided on")
+    if require_visual_approved:
+        motion_intents_for_evidence = _validate_motion_table(
+            _section(active, "## Motion And Media Intent") or "",
+            require_filled=True,
+            problems=problems,
+        )
+        motion_effect_evidence = _motion_effect_evidence(
+            style,
+            motion_intents_for_evidence,
+            problems,
+        )
+        review_section = _section(active, "## HiFi Review") or ""
+        receipt_dates = [
+            receipt_date
+            for value in [
+                *(_field(review_section, name) for name in ("Impeccable critique", "Impeccable audit", "UI grading", "HiFi surface check")),
+                *(f"PASS — evidence={item['path']} @ sha256:{item['sha256']}" for item in motion_effect_evidence.values()),
+            ]
+            if (receipt_date := _receipt_date(value, root)) is not None
+        ]
+        # Dated rule: a legacy approval decided, or backed by HiFi evidence,
+        # on or after the 0.55.0 cutover is never historical.
+        if apply_current_hifi_cutover and current_hifi_cutover_applies(decided_on, receipt_dates):
+            current_hifi = True
     if modern and approved_gate:
         problems.extend(author_artifact_findings(root, active, require_hifi=require_visual_approved))
     elif current_hifi and require_visual_approved:
@@ -2997,30 +3023,10 @@ def _validate_impl(
                 label="Connected HiFi reference",
                 problems=problems,
             )
-        motion_intents_for_evidence = _validate_motion_table(
-            _section(active, "## Motion And Media Intent") or "",
-            require_filled=True,
-            problems=problems,
-        )
-        motion_effect_evidence = _motion_effect_evidence(
-            style,
-            motion_intents_for_evidence,
-            problems,
-        )
-        decided_on = _field(visual, "Decided on")
         # A retained historical approval keeps its original meaning, so only
         # current HiFi evidence is dated against the owner's decision.
         if current_hifi and _date(decided_on):
-            review_section = _section(active, "## HiFi Review") or ""
-            receipt_dates = [
-                receipt_date
-                for value in [
-                    *(_field(review_section, name) for name in ("Impeccable critique", "Impeccable audit", "UI grading", "HiFi surface check")),
-                    *(f"PASS — evidence={item['path']} @ sha256:{item['sha256']}" for item in motion_effect_evidence.values()),
-                ]
-                if (receipt_date := _receipt_date(value, root)) is not None
-            ]
-            if receipt_dates and date.fromisoformat(decided_on.strip()) < max(receipt_dates):
+            if receipt_dates and date.fromisoformat((decided_on or "").strip()) < max(receipt_dates):
                 _add(problems, "Visual Approval Decided on predates the newest HiFi review evidence; the owner must decide on the current candidate")
         for field_name in (
             "Impeccable critique",
@@ -3282,13 +3288,16 @@ def validate(
     require_structure_validated: bool = False,
     require_visual_approved: bool = False,
     require_current_hifi_evidence: bool = False,
+    apply_current_hifi_cutover: bool = False,
 ) -> list[str]:
     """Validate a UI contract for normal publication.
 
     ``require_current_hifi_evidence`` makes a legacy-heading contract meet the
-    current HiFi evidence rules. Publication sets it unless the approval was
-    decided before the 0.55.0 cutover and its Approved target equals the one
-    already recorded at HEAD.
+    current HiFi evidence rules. Publication sets it unless the Approved target
+    equals the one already recorded at HEAD. ``apply_current_hifi_cutover``
+    also requires them when the approval or any HiFi receipt is dated on or
+    after the 0.55.0 cutover; publication, the compiler preflight and Harness
+    0.55.0+ UI joins set it.
 
     Pair verification is deliberately not a caller-selectable boolean.  The
     only pair-less route is the exact compiler preflight below, which requires
@@ -3308,6 +3317,7 @@ def validate(
         require_structure_validated=require_structure_validated,
         require_visual_approved=require_visual_approved,
         require_current_hifi_evidence=require_current_hifi_evidence,
+        apply_current_hifi_cutover=apply_current_hifi_cutover,
     )
 
 
@@ -3323,8 +3333,7 @@ def _validate_for_design_system_preflight(
 
     This is intentionally the sole internal pair-less entry point.  It is not
     exposed as a CLI switch and refuses to run without every upstream source
-    and the final visual gate. A legacy approval dated on or after the 0.55.0
-    cutover must carry current HiFi evidence here too.
+    and the final visual gate. It applies the dated current-HiFi cutover rule.
     """
 
     text = ui_design_path.read_text(encoding="utf-8")
@@ -3338,7 +3347,7 @@ def _validate_for_design_system_preflight(
         require_wireframe_approved=not is_structure_review(text),
         require_structure_validated=is_structure_review(text),
         require_visual_approved=True,
-        require_current_hifi_evidence=current_hifi_evidence_required(text),
+        apply_current_hifi_cutover=True,
         _allow_pending_design_system_pair=True,
     )
 
