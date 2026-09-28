@@ -28,7 +28,7 @@ force or lease pushes, new release infrastructure. This record grants no actions
 | --- | --- | --- | --- |
 | Each fixed finding | Failure scenario from the review no longer reproduces | Focused test per finding, run by its writer | Writer worktree at the listed commit |
 | Changed safety checks | A negative test proves the unsafe input is still rejected | Focused tests in the owning skill | none |
-| Release surfaces | `VERSION`, `package.json`, RUNBOOK default, README badges and history agree on 0.55.0 | `test_skill_contract.py` | none |
+| Release surfaces | `VERSION`, `package.json`, RUNBOOK default, README badges and history agree on 0.55.0 (0.55.1 after round 4) | `test_skill_contract.py` | none |
 | Full regression | Required Verification in `AGENTS.md` passes on the integrated head | Full suite, run by the parent | Round-3 fixes integrated |
 
 ## Document Impact
@@ -61,6 +61,21 @@ committed; no working-tree changes are recorded.
 | Round-3 fixes | docs-consistency-macos-renameat2 and skills-correctness-1: RUN, DOCUMENTS and design-system commits keep the atomic exchange and add macOS `renameatx_np` `RENAME_SWAP`; security-03, harness-correctness-03: new receipt and cleanup rules apply only to runs that require 0.55.0; harness-correctness-01 subagent review deferred under a wildcard mission scope; skills-correctness-2 non-checkout repo root; security-01 CI extraheader allowed for local reads; security-02 live-head diff without rename detection; security-05 readback repo discovery; security-06 repo signing programs; harness-correctness-05/security-07 case-insensitive default branch; harness-correctness-02 nested token-block styles; skills-correctness-5 approval date only for current HiFi; acceptance register commit order; skills-correctness-3 documented; trusted-host key ACL in the Windows test; README preflight wording and lockfile 0.55.0 | `30560d51`, `43b8db06`, `96051fc4`, `2f8d037d`, `514f174e`, `4f0461e6`, `644c64df`, `89cb21de`, `84203955`, `e7c95443`, `08c96e35`, `b707e99e`, `31fb85d7`, `da617d3d`, `045e9bae`, `78fca572`, `27ea4979`; merges `7792eb40`, `2eaa412f`, `91437497`, `85c421a4`, `8e05d3e0` | Focused tests passed per writer; full suite below. POSIX exchange paths verified by reading and mocked-libc tests only |
 | README sync, version 0.55.0, index, this record | cross-readme-mermaid-provider-section, docs-consistency-readme-sync, docs-consistency-epic-and-version-sync, skills-correctness-6, cross-documents-index-stale-release-status | `99372247`, `9cc2617d`, `5a3cf8be`, and the commit that adds this file | README structure, skill contract and docs-weight tests passed |
 
+Round 4 was observed 2026-09-28 on `codex/review-followups` from base `2fa9b343` (v0.55.0).
+Five writers worked in separate worktrees; the parent merged them serially, then added the
+leftover fixes and this documentation sync. All entries are committed.
+
+| Change / request | Reason and affected scope | Commit / evidence | Verification and remaining work |
+| --- | --- | --- | --- |
+| Exchange races | RUN, DOCUMENTS and design-system exchange commits, POSIX and Windows: the restore check compares with the displaced bytes, not the expected ones; displaced bytes move to a named `.recovery` file before any other read (Windows keeps `.backup`/`.rollback`) and the error names that path; a second write moved out by the restore is kept unless it matches our payload | `603a7c16`, `732efe56`, `d7f6e255`, `1be57bcc`, `d9b037b9`; merge `2c84dbb0` | Exchange and concurrent-write tests passed on Windows. The three older native displaced-edit tests passed only because their regex also matched the buggy `restore` message; they now require `displaced bytes changed`. Real POSIX primitives still need Linux/macOS CI |
+| Authorization gating | Mission launches and `app_threads` reviewers under a `*` mission scope are deferred by the selector and refused by `lease-worker` at every RUN-v11 version (validation already rejected them); the 0.55.0 `coordination_paths` and protected `delete_branches` checks skip only pins that parse below 0.55.0 | `9ec65427`, `8bcbddd7`, `2883140c`, `c924894c`, `3fd33787`, `206a92ed`; merge `3daeeb9c` | Focused tests passed: `test_select_ready_nodes` 64, `test_harness_v11` 29, `test_lifecycle_cleanup_targets` 9, `test_harness_manifest` 117 and neighbors |
+| Acceptance slot and template rows | dh-docs-01 PLAN/RUNBOOK rows (`SRC-004`, `delivery-acceptance` gate, `N-ACCEPTANCE-GATE`, two edges); the register is committed at H2 and recorded with `record-integration`; `check_delivery_acceptance.py` needs `--candidate-sha` or `--candidate-from-head` and requires the candidate to be HEAD or an ancestor with only register, evidence and coordination changes after it | `5ea531b3`, `3dc114f6`, `62a89456`, `4fbac821`, `1f769049`, `3026b62a`, `887ca93a`, `df04a0e4`, `b921e87b`, `4b76728d`; merge `e02743a2` | Focused tests passed: `test_delivery_acceptance` 31, `test_close_wave` 40, `test_new_run` 10 and neighbors. The checker cannot see the RUN version, so the Git check also applies to in-flight 0.55.0 runs |
+| Contract adoption check | dh-docs-04: workers and reviewers return `contract_adoption_check`; recording transitions require it under an adopted contract for runs that require 0.55.1; the wrapped reviewer file is accepted, a blocked reviewer's mismatch digest is kept, and the check stays out of security results | `9b3339cf`, `69a88cb5`, `5fcea6d0`, `641df034`, `526ec426`, `ea469dbd`, `b91a7d2a`, `6ccd5a22`; merge `b0596941` | Focused tests passed: `test_validate_worker_result` 38, `test_harness_v11` 30, `test_write_path_transitions` 26 |
+| Current-HiFi cutover | skills-correctness-3: a legacy approval decided on or after 2026-09-27, or with a HiFi or motion receipt run from that date, needs current HiFi evidence; publication, the compiler preflight and UI joins for runs that require 0.55.0 enforce it | `d518d6a1`, `7dcd0307`, `89d0791c`, `a0400101`, `ab9caf5b`, `72538ec2`; merge `a0fd1245` | Focused UI, compiler and Harness tests passed. The compiler preflight has no RUN version gate |
+| Leftovers | DA-5: with an acceptance gate in PLAN, worker-result validation refuses a worker change outside every task `write_scope` in all workspace modes; `--contract-adoption-check` documented in the state model, RUNBOOK and security review skill | `8434dccc`, `6c3bb959` | `test_validate_worker_result` 41 OK, rerun during the doc sync |
+| Base UI / Radix Primitives | Product Definition names both as headless React component-foundation options, one per product; UI Design Builder draws the chosen layer's states and focus behavior | `6238c318` | Product Definition `test_skill_contract` 96 OK, rerun during the doc sync |
+| README sync, version 0.55.1, index, this record | 0.55.1 release surfaces and history; README descriptive sections for round 4 and Base UI; these rows and the DOCUMENTS status | `bfc0e782`, `c28c7d6a`, and the commit that adds these rows | README structure, skill contract and docs-weight checks passed |
+
 ### Skipped or partial, with reasons
 
 - dh-git-push-6: documented only. A lease or force push flag is forbidden here, so the residual
@@ -71,9 +86,10 @@ committed; no working-tree changes are recorded.
   refusing them was replaced by printing and recording the source commit and dirty state.
 - dh-docs-01: partial. The PLAN template names the delivery-acceptance entries in prose. The
   template rows were left for a follow-up because `MISSION_RUNBOOK.template.md`,
-  `test_new_run.py` and `test_render_tasks_view.py` fixtures must change together.
+  `test_new_run.py` and `test_render_tasks_view.py` fixtures must change together. Done in round 4.
 - skills-correctness-3: documented limitation. Only `check_ui_publication.py` enforces the udb-01
   HEAD comparison; Harness joins and the compiler preflight still accept legacy approvals.
+  Fixed in round 4.
 
 ## Results And Remaining Work
 
@@ -86,6 +102,16 @@ committed; no working-tree changes are recorded.
 - Cleanup lifecycle nodes need an exact target in runs that require 0.55.0.
 - Impeccable critique and audit are required before Visual Approval.
 - Enhancement UI rows name Wireframe Validation and Visual Approval.
+
+### Changes consumers may notice (0.55.1)
+
+- `check_delivery_acceptance.py` needs `--candidate-sha` or `--candidate-from-head`. An
+  in-flight 0.55.0 run fails the gate if its register commit holds unlisted or product files,
+  or if it passes a stale `--candidate-sha` after a repair.
+- Under an adopted contract, runs that require 0.55.1 need `contract_adoption_check` from
+  every worker and non-blocked reviewer.
+- A legacy approval dated on or after 2026-09-27 on `ui-evidence/2` fails the compiler
+  preflight at any run version.
 
 ### Verification
 
@@ -105,6 +131,7 @@ committed; no working-tree changes are recorded.
   regression `test_a_dependency_does_not_activate_an_untaken_repair_route`), and both installers
   could overwrite an existing `<backup>.source` receipt (fixed in `b125ba8f`, regressions
   `test_*_keeps_an_existing_source_receipt`; installer tests 21 OK on Windows).
+- Round 4 (2026-09-28): focused tests per writer passed; full suite: pending (parent fills in).
 
 ### Open follow-ups
 
@@ -112,19 +139,14 @@ committed; no working-tree changes are recorded.
   rejects Homebrew Git (symlinked, user-owned under `/opt/homebrew`), `/var` symlink temp roots
   hit the transition-path link check, `linked skill paths are not supported`, and `/dev/fd/3`
   permission errors. Remove `continue-on-error` from the macos job once these pass.
-- The POSIX commit paths (Linux and macOS) are verified only by reading and mocked-libc tests
-  until CI runs them.
-- The exchange verify/restore code (RUN, DOCUMENTS, design-system) has two older narrow races:
-  after a restore swap it compares with the expected bytes instead of the displaced bytes, and on
-  a double concurrent write the cleanup deletes displaced bytes it reports as preserved.
-- Mission subagent workers have the same wildcard mission-scope mismatch that
-  harness-correctness-01 fixed for reviewers (pre-existing, not gated).
-- The coordination_paths allowlist and protected-branch grant checks are not version-gated;
-  older in-flight RUNs that violate them will need a PLAN/RUN revision.
-- The acceptance register commit (H1 to H2) has no slot in the RUN state model.
-- dh-docs-01: add the delivery-acceptance rows to the PLAN and RUNBOOK templates together with
-  their test fixtures.
-- dh-docs-04: workers and reviewers still have no result field that carries contract-adoption
-  reading evidence.
-- skills-correctness-3: Harness joins and the compiler preflight do not enforce the current-HiFi
-  rule for legacy approvals.
+- The POSIX commit paths (Linux and macOS), including the round-4 race recovery arms, are
+  verified only by reading, mocked-libc and os-proxy tests until CI runs them.
+- Rerunning acceptance after H2 needs a formal PLAN revision; a transition that accepts a
+  register-only commit on top of a repair would remove that cost. Manifest validation does not
+  require the acceptance gate entries or reject unreplaced `<...>` argv placeholders. A product
+  commit that lands between the scenario run and the register commit, and that the register
+  names, passes the Git check; only review catches it.
+- The compiler preflight enforces the dated current-HiFi rule with no RUN version gate, so a
+  pre-0.55.0 run with a required pair and a legacy `ui-evidence/2` approval dated on or after
+  2026-09-27 fails that join. A receipt run before 12:00Z on 2026-09-27 reads as 2026-09-26.
+- Optional (CAC-4): the recording transitions could recompute the contract digest at record time.
