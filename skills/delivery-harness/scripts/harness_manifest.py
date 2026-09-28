@@ -1829,8 +1829,9 @@ def _security_required_check_errors(
 
 
 UI_IMPACT_SUMMARY_REQUIRED_VERSION = (0, 35, 0)
-# Exact-receipt rules added in 0.55.0 (reviewer spawn receipt, exact cleanup
-# PASS target, cleanup lifecycle node target). Older RUNs keep their shape.
+# Rules added in 0.55.0 (reviewer spawn receipt, exact cleanup PASS target,
+# cleanup lifecycle node target, coordination_paths allowlist, protected
+# delete_branches grant targets). Older RUNs keep their shape.
 EXACT_RECEIPT_REQUIRED_VERSION = (0, 55, 0)
 # From 0.55.1 the selector and lease-worker refuse a mission launch grant
 # whose mission_ids contain "*"; validate_run needs exact mission ids.
@@ -5901,7 +5902,14 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                             f"{path}.scope.targets",
                             "RUN-v11 push authorization cannot target retired development",
                         )
-                if action == "delete_branches" and entry["authorized"]:
+                if (
+                    action == "delete_branches"
+                    and entry["authorized"]
+                    and version_at_least(
+                        run_required_harness_version(run),
+                        EXACT_RECEIPT_REQUIRED_VERSION,
+                    )
+                ):
                     delete_scope = entry.get("scope")
                     delete_targets = (
                         delete_scope.get("targets")
@@ -6605,12 +6613,16 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                     )
             # Closeout accepts a newer branch head when only coordination
             # files changed, so a product path listed here would hide
-            # untested product commits.
+            # untested product commits. validate_run checks this from 0.55.0;
+            # the closeout live-head check applies the allowlist to every RUN.
+            allowlist_required = version_at_least(
+                run_required_harness_version(run), EXACT_RECEIPT_REQUIRED_VERSION
+            )
             frozen_paths = sorted(
                 path for path in coordination_paths
                 if frozen_coordination_path(path, plan)
             )
-            if frozen_paths:
+            if allowlist_required and frozen_paths:
                 _add(
                     errors,
                     "run.integration.coordination_paths",
@@ -6622,7 +6634,7 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                 if not frozen_coordination_path(path, plan)
                 and not supported_coordination_path(path)
             )
-            if unsupported_paths:
+            if allowlist_required and unsupported_paths:
                 _add(
                     errors,
                     "run.integration.coordination_paths",
