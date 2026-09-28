@@ -4645,10 +4645,10 @@ def _record_review_attempt(
             adoption_check = adoption_check["contract_adoption_check"]
         if adoption_check is None:
             raise ManifestError("--contract-adoption-check must contain an object")
-    # A reviewer that stopped on a digest mismatch reports `blocked` and has
-    # no matching check to give.
+    # A reviewer that stopped on a digest mismatch reports `blocked`; it may
+    # omit the check or report the digest it saw with matched false.
     adoption_errors = contract_adoption_check_errors(
-        run, adoption_check, required=args.result != "blocked"
+        run, adoption_check, blocked=args.result == "blocked"
     )
     if adoption_errors:
         raise ManifestError(

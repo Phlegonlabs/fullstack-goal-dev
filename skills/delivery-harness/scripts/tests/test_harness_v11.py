@@ -723,6 +723,24 @@ class HarnessV11Tests(unittest.TestCase):
             self.assertEqual("blocked", run["review_workers"][-1]["phase"])
             run = original
 
+            # A blocked reviewer may report the digest it saw; it is kept.
+            mismatch = {"digest": "d" * 64, "matched": False, "reading_evidence": []}
+            for check, message in (
+                ({**mismatch, "matched": True}, "matched must be true exactly when"),
+                ({**valid, "matched": False}, "matched must be true exactly when"),
+            ):
+                with self.subTest(blocked=message):
+                    run = copy.deepcopy(original)
+                    with self.assertRaisesRegex(harness_transition.ManifestError, message):
+                        record("blocked", check, root)
+            run = copy.deepcopy(original)
+            record("blocked", mismatch, root)
+            self.assertEqual("blocked", run["review_workers"][-1]["phase"])
+            self.assertIn(
+                f"contract_adoption_mismatch:{'d' * 64}", run["attempt_log"][-1]["evidence"]
+            )
+            run = original
+
             # The file may hold the bare object or the reviewer's wrapped reply.
             wrapped_run = copy.deepcopy(run)
             run = wrapped_run

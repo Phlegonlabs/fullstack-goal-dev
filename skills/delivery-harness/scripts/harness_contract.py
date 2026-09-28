@@ -124,15 +124,16 @@ CONTRACT_ADOPTION_CHECK_KEYS = {"digest", "matched", "reading_evidence"}
 
 
 def contract_adoption_check_errors(
-    run: dict[str, Any], check: Any, *, required: bool = True
+    run: dict[str, Any], check: Any, *, blocked: bool = False
 ) -> list[str]:
     """Check a worker's or reviewer's own contract-adoption report.
 
     The report is required when the RUN has an adopted contract (so the
     directive or review packet carried it) and the RUN requires Harness 0.55.1
     or later; older RUNs may omit it. A report must never appear without an
-    adopted contract. Pass ``required=False`` for a result that may stop on a
-    digest mismatch, such as a blocked review.
+    adopted contract. Pass ``blocked=True`` for a blocked review: it may omit
+    the report, or report a mismatch with ``matched`` false so the observed
+    digest is kept.
     """
 
     runtime = run.get("runtime_capabilities") if isinstance(run, dict) else None
@@ -145,7 +146,7 @@ def contract_adoption_check_errors(
     )
     if check is None:
         if (
-            required
+            not blocked
             and isinstance(adoption, dict)
             and version_at_least(run_required_harness_version(run), (0, 55, 1))
         ):
@@ -156,18 +157,28 @@ def contract_adoption_check_errors(
     if not isinstance(check, dict) or set(check) != CONTRACT_ADOPTION_CHECK_KEYS:
         return ["must be an object with exactly digest, matched, and reading_evidence"]
     errors = []
-    if check["digest"] != adoption.get("contract_digest_sha256"):
-        errors.append("digest does not match the adopted contract digest")
-    if check["matched"] is not True:
-        errors.append("matched must be true")
+    digest = check["digest"]
+    same = digest == adoption.get("contract_digest_sha256")
+    if not isinstance(digest, str) or not digest:
+        errors.append("digest must be a non-empty string")
+    elif blocked:
+        if check["matched"] is not same:
+            errors.append("matched must be true exactly when digest equals the adopted digest")
+    else:
+        if not same:
+            errors.append("digest does not match the adopted contract digest")
+        if check["matched"] is not True:
+            errors.append("matched must be true")
     reading = check["reading_evidence"]
+    # A child that stopped on a mismatch may not have read the contract.
+    may_be_empty = blocked and check["matched"] is False
     if (
         not isinstance(reading, list)
-        or not reading
+        or (not reading and not may_be_empty)
         or any(not isinstance(item, str) or not item.strip() for item in reading)
     ):
         errors.append("reading_evidence must be a non-empty list of non-empty strings")
-    elif reading == adoption.get("reading_evidence"):
+    elif reading and reading == adoption.get("reading_evidence"):
         errors.append("reading_evidence must be the child's own reading, not the parent receipt")
     return errors
 
@@ -177,7 +188,8 @@ def contract_adoption_check_evidence(check: Any) -> list[str]:
 
     if not isinstance(check, dict):
         return []
-    return [f"contract_adoption_digest:{check['digest']}"] + [
+    label = "digest" if check["matched"] is True else "mismatch"
+    return [f"contract_adoption_{label}:{check['digest']}"] + [
         f"contract_adoption_reading:{item}" for item in check["reading_evidence"]
     ]
 
