@@ -586,7 +586,7 @@ python -m unittest discover -s skills/seo-growth-review/scripts/tests -v
 git diff --check
 ```
 
-CI 也会运行端到端主干检查。POSIX shell 使用 `HARNESS_GOLDEN_PATH=1 python -m unittest discover -s skills/delivery-harness/scripts/tests -p "test_golden_path.py" -v`；PowerShell 使用 `$env:HARNESS_GOLDEN_PATH='1'; python -m unittest discover -s skills/delivery-harness/scripts/tests -p "test_golden_path.py" -v; Remove-Item Env:HARNESS_GOLDEN_PATH`。它会用合成产品套件走真实 CLI 主干。
+CI 也会运行端到端主干检查。POSIX shell 使用 `HARNESS_GOLDEN_PATH=1 python -m unittest discover -s skills/delivery-harness/scripts/tests -p "test_golden_path.py" -v`；PowerShell 使用 `$env:HARNESS_GOLDEN_PATH='1'; python -m unittest discover -s skills/delivery-harness/scripts/tests -p "test_golden_path.py" -v; Remove-Item Env:HARNESS_GOLDEN_PATH`。它会用合成产品套件走真实 CLI 主干。在 macOS 上，先运行 `export TMPDIR="$(cd "$TMPDIR" && pwd -P)/"`，让测试 repo 避开 `/var` symlink；并让 `PATH` 中的 `/usr/bin` 排在 Homebrew 前面，Harness 才会找到由 root 拥有的 Git。
 
 ## 验证与执行测量
 

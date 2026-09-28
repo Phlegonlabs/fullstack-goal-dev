@@ -166,6 +166,8 @@ class InstallScriptTests(unittest.TestCase):
         prefer_git = 'echo "/usr/bin" >> "$GITHUB_PATH"'
         self.assertIn(prefer_git, job)
         self.assertLess(job.index(prefer_git), job.index("actions/setup-python"))
+        # Test repositories must not sit under the /var -> /private/var link.
+        self.assertIn('echo "TMPDIR=$(cd "$TMPDIR" && pwd -P)/" >> "$GITHUB_ENV"', job)
         for skill in (
             "delivery-harness",
             "product-definition-builder",

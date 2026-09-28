@@ -116,6 +116,11 @@ jobs:
       - name: Prefer system Git
         run: echo "/usr/bin" >> "$GITHUB_PATH"
 
+      # macOS TMPDIR sits under the /var -> /private/var link, which the
+      # no-link path checks reject for test repositories. Use the real path.
+      - name: Resolve temp root
+        run: echo "TMPDIR=$(cd "$TMPDIR" && pwd -P)/" >> "$GITHUB_ENV"
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:

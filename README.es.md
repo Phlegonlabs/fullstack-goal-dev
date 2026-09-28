@@ -585,7 +585,7 @@ python -m unittest discover -s skills/seo-growth-review/scripts/tests -v
 git diff --check
 ```
 
-El CI también ejecuta el spine end-to-end. En POSIX usa `HARNESS_GOLDEN_PATH=1 python -m unittest discover -s skills/delivery-harness/scripts/tests -p "test_golden_path.py" -v`. En PowerShell usa `$env:HARNESS_GOLDEN_PATH='1'; python -m unittest discover -s skills/delivery-harness/scripts/tests -p "test_golden_path.py" -v; Remove-Item Env:HARNESS_GOLDEN_PATH`. Recorre el CLI real sobre un paquete sintético.
+El CI también ejecuta el spine end-to-end. En POSIX usa `HARNESS_GOLDEN_PATH=1 python -m unittest discover -s skills/delivery-harness/scripts/tests -p "test_golden_path.py" -v`. En PowerShell usa `$env:HARNESS_GOLDEN_PATH='1'; python -m unittest discover -s skills/delivery-harness/scripts/tests -p "test_golden_path.py" -v; Remove-Item Env:HARNESS_GOLDEN_PATH`. Recorre el CLI real sobre un paquete sintético. En macOS, ejecuta primero `export TMPDIR="$(cd "$TMPDIR" && pwd -P)/"` para que los repositorios de prueba eviten el enlace `/var`, y deja `/usr/bin` antes de Homebrew en `PATH` para que Harness encuentre un Git propiedad de root.
 
 ## Verificación y medición de ejecución
 
