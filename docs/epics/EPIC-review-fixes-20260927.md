@@ -132,7 +132,12 @@ leftover fixes and this documentation sync. All entries are committed.
   regression `test_a_dependency_does_not_activate_an_untaken_repair_route`), and both installers
   could overwrite an existing `<backup>.source` receipt (fixed in `b125ba8f`, regressions
   `test_*_keeps_an_existing_source_receipt`; installer tests 21 OK on Windows).
-- Round 4 (2026-09-28): focused tests per writer passed; full suite: pending (parent fills in).
+- Round 4 and final review fixes: full suite on `9e370909` (Windows 11, Python 3.14,
+  2026-09-28) from the repository root: `check_skill_spec.py`, `pyflakes`, `docs_weight.py` and
+  `git diff --check 2fa9b343 HEAD` passed. Unit suites: delivery-harness 1358 OK (16 skipped),
+  product-definition-builder 240 OK, ui-design-builder 296 OK, design-system-compiler 118 OK
+  (4 skipped), product-activation 56 OK, seo-growth-review 21 OK. Golden path 1 OK. Browser
+  tests and Linux/macOS runs are left to CI.
 
 ### Open follow-ups
 
