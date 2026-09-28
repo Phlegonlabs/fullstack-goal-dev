@@ -162,6 +162,10 @@ class InstallScriptTests(unittest.TestCase):
         self.assertIn("runs-on: macos-latest", job)
         # Non-blocking until Harness supports macOS.
         self.assertIn("continue-on-error: true", job)
+        # Apple's root-owned Git must win over Homebrew's before Python setup.
+        prefer_git = 'echo "/usr/bin" >> "$GITHUB_PATH"'
+        self.assertIn(prefer_git, job)
+        self.assertLess(job.index(prefer_git), job.index("actions/setup-python"))
         for skill in (
             "delivery-harness",
             "product-definition-builder",

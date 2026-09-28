@@ -111,6 +111,11 @@ jobs:
           fetch-depth: 0
           ref: ${{ env.VALIDATED_HEAD_SHA }}
 
+      # Harness trusts only a root-owned, non-link Git. Put Apple's /usr/bin/git
+      # ahead of Homebrew's; setup-python below still prepends its Python.
+      - name: Prefer system Git
+        run: echo "/usr/bin" >> "$GITHUB_PATH"
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
