@@ -77,10 +77,13 @@ def validate(source: Path, root: Path, *, hifi: Path, required: bool = False,
             raise ValueError("published bytes differ from the checked publication set")
         if hifi.is_absolute() or ".." in hifi.parts:
             raise ValueError("HiFi must name its final repository-relative path")
+        ui_text = (root / "docs/design/ui-design.md").read_text(encoding="utf-8")
+        current = ui.ui_contract_version(ui_text) == "ui-design/2"
         problems = product.validate(root / "docs/product/PRD.md",
                                     root / "docs/product/architecture.md",
                                     root / "docs/product/stack-decisions.md",
-                                    repo_root=root, require_filled=True, require_approved=True)
+                                    repo_root=root, require_filled=True, require_approved=True,
+                                    ui_contract="ui-design/2" if current else None)
         ui_text = (root / "docs/design/ui-design.md").read_text(encoding="utf-8")
         modern = ui.is_structure_review(ui_text)
         # Legacy ui-evidence/2 HiFi receipts stay valid only for a pre-0.55.0
@@ -90,12 +93,12 @@ def validate(source: Path, root: Path, *, hifi: Path, required: bool = False,
         historical = current_target is not None and current_target == _committed_target(source)
         problems += ui.validate(root / "docs/design/ui-design.md", repo_root=root,
                                 prd_path=root / "docs/product/PRD.md",
-                                wireframes_path=root / "docs/design/wireframes.html",
+                                wireframes_path=None if current else root / "docs/design/wireframes.html",
                                 hifi_path=root / hifi,
                                 design_system_markdown_path=root / "docs/design/design-system.md" if required else None,
                                 design_system_registry_path=root / "docs/design/design-system.json" if required else None,
-                                require_filled=True, require_wireframe_approved=not modern,
-                                require_structure_validated=modern,
+                                require_filled=True, require_wireframe_approved=not current and not modern,
+                                require_structure_validated=not current and modern,
                                 require_visual_approved=True,
                                 require_current_hifi_evidence=not modern and not historical,
                                 apply_current_hifi_cutover=True)

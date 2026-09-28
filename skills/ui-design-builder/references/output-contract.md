@@ -1,13 +1,20 @@
 # UI Design Output Contract
 
+## UI Contract Compatibility
+
+A current package starts `ui-design.md` with the exact top-level value `UI contract: ui-design/2`, immediately below `# UI Design Contract`. The marker identifies the new PRD-to-direction flow: no wireframe authoring gate, no mandatory `Wireframe Validation` section, and no wireframe binding in a new required design-system pair.
+
+The value is closed. A missing marker means an existing file keeps its legacy checks and historical wireframe meaning. More than one marker, an unknown value, or a mixed claim of current and legacy authority fails. Do not relabel an old package by adding the marker after the fact.
+
+`ui-hifi/2` remains the current closed HiFi package: entry, hashed sibling pages, and every non-HTML asset inline. It has no external asset-folder registry. A new required compiler output is `design-system/3`; legacy `design-system/2` remains readable under its original checks.
+
 ## Canonical Artifacts
 
 - `docs/design/ui-design.md`: UI decisions, sources, gates, scores, and handoff.
-- `docs/design/wireframes.html`: one internally validated structural projection of every PRD `UI-*` surface for new schema-5 work; older approvals retain their recorded meaning.
 - `docs/design/ui-references/<run-id>/index.html` and its manifest-listed sibling HTML pages: the approved connected HiFi design-reference package when retention is authorized.
 - `docs/design/design-system.md` and `docs/design/design-system.json`: present together only when the Design System Need Gate is `required`.
 
-New `wireframes/5` authoring has no reviewer-only Design System Draft view, hash, or navigation entry. A historical schema-4 wireframe may retain that view unchanged. These provisional values never replace the formal pair. After formal compilation, `docs/design/design-system-preview.html` is a derived view checked against that pair and its current sources, not a third editable authority. Preserve validated schema-5 wireframe or approved legacy wireframe when generating it; see the compiler's output contract.
+Historical `wireframes/2` through `wireframes/5` remain readable for inspection, legacy validation and approved-history checks. New `ui-design/2` authoring creates no wireframe artifact. A historical wireframe may retain its existing schema, review shell and receipts; those bytes never become a current PRD-to-direction approval. After formal compilation, `docs/design/design-system-preview.html` is a derived view checked against the current pair and its current sources, not a third editable authority.
 
 Legacy `docs/product/wireframes.html` and `docs/product/design-system.*` remain readable. New or revised artifacts publish under `docs/design/`; do not move an existing legacy artifact without exact owner authorization.
 
@@ -17,7 +24,7 @@ Keep the `design-translation.md` table and `design-freshness.md` observations in
 
 ## Reviewer Navigation And Design Specifications
 
-For an enhancement, record added, changed and preserved UI IDs against the existing baseline in the current Epic or direct task. Compare preserved Wireframe screen objects and flows, and HiFi product DOM, styles and behavior before approval. Explain every shared-component consumer that changes. Full package validation checks coverage; it does not authorize regenerating unaffected product pages. Reviewer-only shell or manifest updates must leave those product surfaces intact.
+For an enhancement, record added, changed and preserved UI IDs against the existing baseline in the current Epic or direct task. A current package compares HiFi product DOM, styles and behavior against the approved PRD joins and prior approved target. A package that still has an approved wireframe also compares its preserved screen objects and flows under the legacy rules. Explain every shared-component consumer that changes. Full package validation checks coverage; it does not authorize regenerating unaffected product pages. Reviewer-only shell or manifest updates must leave those product surfaces intact.
 
 New or renewed Visual Approval requires the reviewer shell on every `ui-hifi/2` page. Version 3 is the current shell. Historical version-2 schema-2 bundles remain inspection-readable; missing new review evidence cannot obtain a fresh approval. Keep the closed manifest unchanged: reviewer views are DOM panels, not product surfaces or extra manifest pages.
 
@@ -50,7 +57,7 @@ Record only observed results in `ui-output/3` and assemble `ui-evidence/3` as de
 
 ## Human Review Presentation
 
-Before the consolidated Visual Approval, proactively send one user-visible response with verified absolute Markdown links to the complete actual HiFi candidate, its entrypoint and every manifest-listed sibling page, validated `wireframes.html`, and affected `ui-design.md` scope. Use final logical paths in the authorized publication checkout; after publication, link canonical source paths. Do not collect approval on `.ui-staging` paths. State the scope and review focus, including copy, structure, menus, tabs, other interactions, visuals and tokens. Tool-only output, a hidden panel, a screenshot, or a plain path cannot replace the links. Opening a viewer is convenience only. Missing or stale files/evidence block readiness. Wait for the owner's explicit decision; a changed candidate reopens the affected decision.
+Before the consolidated Visual Approval, proactively send one user-visible response with verified absolute Markdown links to the complete actual HiFi candidate, its entrypoint, every manifest-listed sibling page, and affected `ui-design.md` scope. Use final logical paths in the authorized publication checkout; after publication, link canonical source paths. Do not collect approval on `.ui-staging` paths. State the scope and review focus, including copy, structure, menus, tabs, other interactions, visuals and tokens. Tool-only output, a hidden panel, a screenshot, or a plain path cannot replace the links. Opening a viewer is convenience only. Missing or stale files/evidence block readiness. Wait for the owner's explicit decision; a changed candidate reopens the affected decision.
 
 ## Token specimen completeness
 
@@ -62,10 +69,12 @@ Each HiFi token specimen adds `data-token-preview` naming the CSS property that 
 
 ## `ui-design.md`
 
-Use these exact headings:
+Use these exact headings and this marker for a current `ui-design.md`:
 
 ```markdown
 # UI Design Contract
+
+UI contract: ui-design/2
 
 ## Source Product Definition
 
@@ -91,18 +100,20 @@ Visual Preference Brief: [experience priority, guidance/control, density, layout
 
 Direction mode: [one recommended direction / three comparable directions]
 
+New packages record the effective choice explicitly. `three comparable directions` is the default. `one recommended direction` requires a separate explicit owner instruction; continuing intake uncertainty does not supply that instruction. Enhancement scope with an existing accepted direction records that retained direction instead of restarting selection.
+
 ### Design Brief
 
 Extend the Visual Preference Brief here for new or changed design scope. Keep existing historical artifacts valid; do not require a backfill or a separate approval.
 
 - Purpose and scope: [link the approved PRD page, audience, primary job and non-goals; do not duplicate product requirements]
-- Page-purpose mapping: [affected UI IDs by page purpose/profile, with typography/headline, density, motion intent, and justified exceptions; existing accepted decisions may be linked]
+- Page-purpose mapping: [affected UI IDs by page purpose/profile, with the constraints that bind them, typography/headline, density, motion intent, justified exceptions, and the choices left to the design author; existing accepted decisions may be linked. Point to the PRD UI Surface Contract instead of repeating its per-page requirements.]
 - Reference response: [owner answer and source/date; supplied / explicitly none / not supplied; name any unavailable material separately]
 - Reference lessons: [source URL/file/product and relevant page/region; useful composition/typography/motion role, what to learn, what to avoid and affected UI IDs; an avoid example needs a concrete reason; link inspected REF-* and proposed/confirmed RP-* records]
 - Visual constraints and avoid rules: [concrete layout/spacing, typography/language, color/theme, imagery/icon and motion constraints; distinguish owner decisions, agent proposals and unresolved items]
 - Detailed decisions: [link Style Integration/selected VD-* and applicable MM-* records as they become available; do not create another token table or motion specification]
 
-Populate this brief as decisions mature. It does not require a final palette before wireframing, turn a proposal into approval, or make an unavailable source visual evidence. Existing reference-principle confirmation, direction selection and Visual Approval still govern the work.
+Populate this brief as decisions mature. It does not require a final palette before direction studies, turn a proposal into approval, or make an unavailable source visual evidence. Existing reference-principle confirmation, direction selection and Visual Approval still govern the work.
 
 ## Motion And Media Intent
 
@@ -112,39 +123,16 @@ Motion direction: [not_required / functional_only / expressive] — [owner or ac
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | MM-001 | [UI-* / region] | [none / image / motion / image + motion] | [purpose] | [trigger] | [draft prompt] | [owner decision or source] | [fallback] | [none / existing asset / CSS-WAAPI / Motion / GSAP / Three.js / native-framework / authorized provider] | [approved / deferred] | deferred |
 
-## Wireframe Validation
-
-Wireframe: [repo-relative path @ sha256:<lowercase sha256>]
-
-Frozen PRD basis: [repo-relative path @ sha256:<lowercase sha256>]
-
-Copy locale: [primary BCP 47 locale]
-
-Structure validation: [draft / validated / blocked]
-
-Responsive surface check: PASS — evidence=[repo-relative evidence path] @ sha256:[lowercase sha256]
-
-Wireframe references consulted: [sources and structural pattern adopted/rejected, or skip reason]
-
-UI grading: PASS — evidence=[repo-relative evidence path] @ sha256:[lowercase sha256]
-
-Wireframe score: [0-100]
-
-W5 score: [80-100 for Wireframe Validation]
-
-Wireframe lowest dimension: [0-100]
-
-Wireframe blocks: [none / named blocks]
-
 ### Frontend Design Usage
 
 Frontend Design source: docs/design/<folder>/SKILL.md @ sha256:[observed source digest]
 
 | Stage | Skill | Artifact | Application |
 | --- | --- | --- | --- |
-| wireframe | frontend-design @ sha256:[observed source digest] | docs/design/wireframes.html @ sha256:[candidate digest] | [hierarchy, composition and interaction methods actually used] |
 | direction | frontend-design @ sha256:[observed source digest] | docs/design/directions/round/primary.png @ sha256:[capture digest] | [alternatives and concrete design choices] |
 | hifi | frontend-design @ sha256:[observed source digest] | docs/design/ui-references/round/index.html @ sha256:[candidate digest] | [typography, palette, layout and self-review applied] |
+
+Historical packages may retain a `wireframe` row and `## Wireframe Validation` under their legacy headings. A `ui-design/2` package does not add either.
 
 ## Style Integration
 
@@ -192,6 +180,12 @@ The CSP denies remote media, forms, frames, objects, base navigation, and connec
 
 The entry contains exactly one `<script id="ui-hifi-manifest" type="application/json">` with `schema: "ui-hifi/2"` and exactly `surfaces`, `pages`, and `interactions`. Child pages contain no manifest. `pages` lists `{ "path": "details.html", "sha256": "<64 lowercase hex>" }` rows for every child; the entry is implicitly `index.html` and is hashed by the existing Approved target field. Filenames are unique ignoring case and match `[A-Za-z0-9][A-Za-z0-9_-]*.html`; no directories, URL schemes, query strings, escapes, symlinks, or reparse points. Each page embeds all non-HTML resources. Changing any child invalidates the entry's approved package identity.
 
+The entry also contains exactly one `<script id="ui-hifi-copy" type="application/json">` for copy provenance. Its schema is `ui-hifi-copy/1` and its closed top-level shape is `{ "schema", "locale", "surfaces" }`. Each surface has exactly `{ "id", "copyStatus", "items" }`, and each item has exactly `{ "id", "copy" }`. `locale` is the primary BCP 47 locale. `copy` is the existing typed copy record, including static text or the dynamic display contract; never flatten it into display-only text. `id` values are stable and unique within the copy record. This inventory is provenance for PRD-owned wording and display contracts; it is not a second per-page requirements document and adds no product scope.
+
+Product DOM that carries inventoried copy declares both `data-copy-id` and `data-copy-locale`. The copy ID matches one copy-record item, and the locale matches the rendered BCP 47 language. For paired languages, the corresponding visible or assistive language variants carry the same copy ID with their distinct locale values. The exact index-only serialization, hash and completeness validation belongs to the UI checker; do not relabel a reviewer note as copy provenance.
+
+Every typed `copy` has `kind: static | dynamic`, a nonempty `role` and `source`, and `status: draft | approved`. Static copy supplies exact `text`. Dynamic copy supplies a representative `example` plus a `contract` with nonempty `source`, `order`, `format`, `count`, `length` and `fallback`. Optional `locale`, `direction: ltr | rtl | auto`, and one to three `parallel` copies preserve bilingual display; each parallel copy names a distinct locale and the same role/kind, with no nested parallel list. Approved surface copy requires approved items. PRD responsibility and source truth still require semantic review.
+
 Inside `## Style Integration`, every `motion` or `image + motion` intent also has exactly one row in:
 
 ### Required motion evidence
@@ -200,13 +194,15 @@ Inside `## Style Integration`, every `motion` or `image + motion` intent also ha
 | --- | --- | --- | --- | --- | --- | --- |
 | MM-001 | UI-001 / hero | Entry transition visible and interruptible | Data-flow overlay ends in the approved resting state | PASS — evidence=docs/evidence/motion-normal.json @ sha256:[hash] | PASS — evidence=docs/evidence/motion-reduced.json @ sha256:[hash] | PASS |
 
-The rows exactly cover motion intents, including a deferred intent that remains in scope. Both evidence cells use `ui-evidence/3` observation receipts for the current HiFi projection. Old contracts remain inspectable without approval flags; every new Visual Approval requires these records. The frozen wireframe generation status stays deferred; completed assets and their exact authorization/output/review are recorded here instead of rewriting that history. A missing required generated asset blocks approval. Native implementation evidence remains a later obligation.
+The rows exactly cover motion intents, including a deferred intent that remains in scope. Both evidence cells use `ui-evidence/3` observation receipts for the current HiFi projection. Old contracts remain inspectable without approval flags; every new Visual Approval requires these records. The MM record's intent-time `deferred` generation status is not edited to claim completion; completed assets and their exact authorization/output/review are recorded here instead of rewriting that history. A missing required generated asset blocks approval. Native implementation evidence remains a later obligation.
 
 Each surface has exactly `id`, `page`, `route`, `states`, `responsive`, `navigation`, and `controls`. `page` names the entry or a listed child; the other fields keep the schema-1 surface/DOM contract. Every page renders exactly its assigned product surfaces, with one container per surface across the package, and the complete surface set equals the approved scope. Navigation/control IDs bind actual interactive elements inside that surface using `data-navigation-id` or `data-control-id`; a reviewer sidebar outside product surfaces is not interaction evidence.
 
-Each interaction has exactly `id`, `source`, `control`, `kind`, and `destination`. Both endpoints are `{ "surface": "UI-001", "state": "ready" }` and must exist in the approved scope. IDs are unique. `kind: "navigate"` binds a real anchor whose `href` exactly equals the destination surface's page filename; `kind: "state"` changes to a different declared state on the same page, including feedback and overlays. Every page is reachable from index.html through product navigation. Every declared and rendered product control has an interaction. Derive these transitions from the approved PRD and wireframe actions; discrepancies return upstream, rather than inventing a new journey. Keep review-sidebar links to every page for capture setup, but verify product journeys through their own controls.
+Each interaction has exactly `id`, `source`, `control`, `kind`, and `destination`. Both endpoints are `{ "surface": "UI-001", "state": "ready" }` and must exist in the approved scope. IDs are unique. `kind: "navigate"` binds a real anchor whose `href` exactly equals the destination surface's page filename; `kind: "state"` changes to a different declared state on the same page, including feedback and overlays. Every page is reachable from index.html through product navigation. Every declared and rendered product control has an interaction. Derive these transitions from the approved PRD UI Surface Contract and its operations; discrepancies return upstream, rather than inventing a new journey. Keep review-sidebar links to every page for capture setup, but verify product journeys through their own controls.
 
-Current schema-2 HiFi surface checks require `ui-output/3`. Historical checks retain their original `ui-output/2` meaning. It retains all existing offline output fields and adds `interactions`. The sandbox field describes browser restrictions, not a Docker/Podman requirement. Its exact sandbox is `{ "network":"disabled", "topNavigation":"allowlisted-local-pages", "popups":"blocked", "forms":"blocked" }`. Each interaction runs at every source responsive target with both `trigger: "click"` and `trigger: "keyboard"`. Each output row contains exactly `id`, `target` (string), `trigger`, `source`, `destination`, `control`, `visible: true`, `focusCorrect: true`, and `result: "PASS"`; endpoints and control match the manifest. `navigation` records exactly one `{ "id", "target", "trigger", "from", "to" }` event per navigate case, with sibling page filenames. Missing, duplicate, or extra results/events fail. Retain blocked attempts too; never remove them to make the receipt pass. Non-document network requests, console errors, popups, and forms still fail. The browser setup and real click/key procedure are in `ui-design-pass.md`.
+For `ui-design/2`, each interaction ID equals its PRD operation ID. Match its source surface/state, control and destination exactly; `presentation: page` maps to `kind: navigate`, and other supported presentations map to `kind: state`. Legacy packages retain their original operation join.
+
+Current schema-2 HiFi surface checks require `ui-output/3`. Historical checks retain their original `ui-output/2` meaning. It retains all existing offline output fields and adds `interactions`. The sandbox field describes browser restrictions, not a Docker/Podman requirement. Its exact sandbox is `{ "network":"disabled", "topNavigation":"allowlisted-local-pages", "popups":"blocked", "forms":"blocked" }`. Each interaction runs at every source responsive target with both `trigger: "click"` and `trigger: "keyboard"`. Each output row contains exactly `id`, `target` (string), `trigger`, `source`, `destination`, `control`, `visible: true`, `focusCorrect: true`, and `result: "PASS"`; endpoints and control match the manifest. `navigation` records exactly one `{ "id", "target", "trigger", "from", "to" }` event per navigate case, with sibling page filenames. Missing, duplicate, or extra results/events fail. Retain blocked attempts too; never remove them to make the receipt pass. Non-document network requests, console errors, popups, and forms still fail. The browser setup and real click/key procedure are in `ui-design-pass.md`. The cheaper completeness preflight precedes these browser checks; it does not replace or shorten them.
 
 ## HiFi Review
 
@@ -250,7 +246,7 @@ The retained `ui-output/3` includes all applicable offline transcript fields plu
 
 Each sample is `{ "atMs": 0, "values": { "opacity": "0" } }`. Use strictly increasing finite nonnegative times and the same nonempty observed property keys. Normal motion needs before/during/after samples with an actual change; reduced motion needs at least two samples and `fallbackObserved: true`. Human inspection confirms the declared trigger, region, end state and fallback. These attestations cannot be manufactured by an agent.
 
-Use `asset: null` only for code-only motion. Every `image + motion` treatment requires an asset even when CSS or GSAP animates it. Generated or reused media requires `asset` with exactly `path`, `sha256`, structured `authorization`, and `review: approved`; the retained file must match that hash. Authorization has exactly `decision: approved`, human `owner`, observed `provider`, `action` (`generate` or `reuse`), and the same asset `path` and `sha256`. The `existing asset` route requires `action: reuse` and records the actual asset library or source as `provider`; the route label is not a provider. The template phrase `authorized provider` is unresolved and cannot pass publication; name the observed provider. For a media-provider generation route, `provider` must match that approved route (case-insensitive); code-only motion routes may accompany separately authorized reused/generated imagery. This is a record of the separately authorized provider action and reviewed output, not a grant to invoke a provider or mint an approval; pending or denied prose cannot substitute for it. A pending asset does not complete an effect. All required motion intents must have status `approved` before Visual Approval; the separate wireframe `generationStatus: deferred` remains immutable. Actual iOS/Android behavior still requires platform evidence in the implementation gates.
+Use `asset: null` only for code-only motion. Every `image + motion` treatment requires an asset even when CSS or GSAP animates it. Generated or reused media requires `asset` with exactly `path`, `sha256`, structured `authorization`, and `review: approved`; the retained file must match that hash. Authorization has exactly `decision: approved`, human `owner`, observed `provider`, `action` (`generate` or `reuse`), and the same asset `path` and `sha256`. The `existing asset` route requires `action: reuse` and records the actual asset library or source as `provider`; the route label is not a provider. The template phrase `authorized provider` is unresolved and cannot pass publication; name the observed provider. For a media-provider generation route, `provider` must match that approved route (case-insensitive); code-only motion routes may accompany separately authorized reused/generated imagery. This is a record of the separately authorized provider action and reviewed output, not a grant to invoke a provider or mint an approval; pending or denied prose cannot substitute for it. A pending asset does not complete an effect. All required motion intents must have status `approved` before Visual Approval; the MM record's intent-time `generationStatus: deferred` remains immutable. Actual iOS/Android behavior still requires platform evidence in the implementation gates.
 
 ## Visual Approval
 
@@ -276,11 +272,12 @@ Reason: [product-specific reason]
 
 Existing design-system pair disposition: [none|retain|retire — reason; owner=<human>; decided=<YYYY-MM-DD>]
 
-Replacement visual contract when not_required: target=[path @ sha256:hash]; ui-design=[path @ sha256:canonical-ui-approval-digest]; wireframe=[path @ sha256:hash]; prd=[path @ sha256:hash]
+Replacement visual contract when not_required: target=[path @ sha256:hash]; ui-design=[path @ sha256:canonical-ui-approval-digest]; prd=[path @ sha256:hash]
 
 Compiled design system pair: [markdown path @ sha256:<lowercase sha256> and json path @ sha256:<lowercase sha256>]
 
-Use `Compiled design system pair` only for `required` and the replacement field only for `not_required`. A new required pair may temporarily use the exact value `pending — design-system-compiler` only during the compiler preflight; normal publication rejects it. For `not_required`, the disposition is machine-bound: `none` forbids canonical pair files, `retain` requires both pair files, and `retire` requires the pair to be archived before publication. `blocked` cannot pass publication.
+
+Use `Compiled design system pair` only for `required` and the replacement field only for `not_required`. A new required pair is `design-system/3`, consumes only the approved `ui-design/2` and `ui-hifi/2` identities, and may temporarily use the exact value `pending — design-system-compiler` only during the compiler preflight; normal publication rejects it. Legacy `design-system/2` keeps its original inputs, semantics and checks and does not acquire the marker. For `not_required`, the disposition is machine-bound: `none` forbids canonical pair files, `retain` requires both pair files, and `retire` requires the pair to be archived before publication. `blocked` cannot pass publication.
 ```
 
-Impeccable's heuristic scores and audit scores are diagnostic. Only the `W1`–`W5` and `H1`–`H9` rows use the thresholds in `ui-grading-rubric.md` to decide readiness.
+Impeccable's heuristic scores and audit scores are diagnostic. A current `ui-design/2` package uses only the `H1`–`H9` thresholds in `ui-grading-rubric.md` to decide readiness. `W1`–`W5` and the wireframe evidence rows apply only to legacy inspection and validation.

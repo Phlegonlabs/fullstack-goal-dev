@@ -1839,12 +1839,14 @@ Security scope: executable
 | Release / operations | unchanged | none | none |
 """
 
-        def ui_problems(impact: str, refresh: str) -> list[str]:
+        def ui_problems(impact: str, refresh: str, current: bool = False) -> list[str]:
             prd = valid_prd(mode="enhancement").replace(
                 "## Problem Statement",
                 impacts.format(impact=impact, refresh=refresh) + "\n## Problem Statement",
             )
-            return [item for item in self.validate(prd=prd) if "UI structure / style" in item]
+            findings = (check_product_package.validate_texts(prd, valid_architecture(), valid_stack(),
+                        require_filled=True, ui_contract="ui-design/2") if current else self.validate(prd=prd))
+            return [item for item in findings if "UI structure / style" in item]
 
         structure_refresh = (
             "wireframes.html and ui-design.md with copy completeness, "
@@ -1860,6 +1862,11 @@ Security scope: executable
                 )
                 self.assertTrue(any("wireframe validation" in item for item in retired))
         self.assertEqual([], ui_problems("style", "ui-design.md and Visual Approval"))
+        for impact in ("structure", "both", "style"):
+            refresh = "ui-design.md and HiFi with HiFi review and Visual Approval"
+            self.assertEqual([], ui_problems(impact, refresh))
+            self.assertEqual([], ui_problems(impact, refresh, current=True))
+        self.assertTrue(ui_problems("structure", structure_refresh, current=True))
         missing = ui_problems("style", "ui-design.md with Style Integration and Impeccable H1-H9")
         self.assertTrue(any("visual approval" in item for item in missing))
 

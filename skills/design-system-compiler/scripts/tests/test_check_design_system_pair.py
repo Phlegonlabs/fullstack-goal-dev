@@ -202,10 +202,12 @@ Composes `Stack`.
 
 def prepare_source_bindings(data: dict, root: Path) -> dict:
     """Make a schema-2 fixture whose binding files match their hashes."""
-    if data.get("schema") != "design-system/2":
+    if data.get("schema") not in {"design-system/2", "design-system/3"}:
         return data
     bindings = {}
     for key, (path, content) in SOURCE_BINDINGS.items():
+        if key == "wireframe" and data.get("schema") == "design-system/3":
+            continue
         target = root / path
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(content)

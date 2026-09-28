@@ -627,7 +627,7 @@ def mission_has_ui_authoring_action(
         ):
             return True
         if not normalized.endswith("/**"):
-            if lowered.rsplit("/", 1)[-1] == "wireframes.html":
+            if lowered.rsplit("/", 1)[-1] in {"wireframes.html", "ui-design.md"}:
                 return True
             if lowered.endswith(".html") and (
                 path_in_scopes(lowered, [UI_REFERENCE_SCOPE])

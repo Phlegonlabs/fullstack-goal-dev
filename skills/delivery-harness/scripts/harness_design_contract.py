@@ -82,7 +82,7 @@ def _string_list(
 def validate_design_system_registry(registry: dict[str, Any]) -> list[str]:
     """Validate the machine contract with the compiler's executable rules."""
 
-    if registry.get("schema") == "design-system/2":
+    if registry.get("schema") in {"design-system/2", "design-system/3"}:
         scripts = Path(__file__).resolve().parents[2] / "design-system-compiler" / "scripts"
         if str(scripts) not in sys.path:
             sys.path.insert(0, str(scripts))
@@ -338,7 +338,7 @@ def compare_design_system_pair(
     contracts, and namespaces cannot drift between skills.
     """
 
-    if registry.get("schema") == "design-system/2":
+    if registry.get("schema") in {"design-system/2", "design-system/3"}:
         scripts = Path(__file__).resolve().parents[2] / "design-system-compiler" / "scripts"
         if str(scripts) not in sys.path:
             sys.path.insert(0, str(scripts))

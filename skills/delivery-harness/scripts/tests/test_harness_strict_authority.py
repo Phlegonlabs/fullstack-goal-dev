@@ -545,6 +545,9 @@ class StrictAuthorityJoinTests(unittest.TestCase):
             next(trace for trace in plan["traces"] if trace["id"] == "REQ-001")["source_ids"].append("SRC-TASK")
             self.assertEqual([], validate_frozen_contract_joins(plan, root, run=run))
 
+            run["runtime_capabilities"]["runtime_adapter"]["version_gate"]["required_harness_version"] = "0.56.0"
+            self.assertEqual([], validate_frozen_contract_joins(plan, root, run=run))
+
             plan["plan_id"] = "PLAN-UNRELATED"
             self.assertIn("current PLAN ID", "\n".join(validate_frozen_contract_joins(plan, root, run=run)))
             plan["plan_id"] = "PLAN-TEST"

@@ -49,8 +49,8 @@ The delivery flow binds stage slots, not fixed skill names. This table binds the
 
 | Slot | Stage | Bound skill | Pinned SHA-256 |
 | --- | --- | --- | --- |
-| ui_design | approved Product Definition → UI intake, wireframes, HiFi, approvals | `pending` | `pending` |
-| style_integration | approved wireframe → page theme and connected HiFi target | `pending` | `pending` |
+| ui_design | approved Product Definition → UI intake, directions, HiFi, approval | `pending` | `pending` |
+| style_integration | approved PRD and selected direction → page theme and connected HiFi target | `pending` | `pending` |
 | design_compilation | frozen design-system pair | `pending` | `pending` |
 | frontend_implementation | implementation missions | `pending` | `pending` |
 | ui_quality_verification | authorized HiFi/page-quality review | `pending` | `pending` |
@@ -113,7 +113,7 @@ These rows are intentionally unresolved in the seed. Before managed work, observ
 
 - When `docs/product/PRD.md` exists, every product change updates the affected PRD requirements, acceptance criteria, and trace IDs in the same change, including small post-delivery fixes that do not use Product Delivery Harness PLAN/RUN.
 - Before implementation, classify the change's UI impact as `none`, `structure`, `style`, or `both`. Adding a page, route, visible region, state, or responsive behavior is at least `structure`.
-- First classify the work as initial design, enhancement, routine maintenance or explicit full redesign under `ui-design-builder/references/review-workflow.md`. Routine maintenance with UI impact `none` or `style` updates the actual product, effective PRD and accepted change record while retaining historical Wireframe/HiFi/token artifacts; do not treat accepted visual differences as failure. A structural impact (`structure` or `both`) follows affected design gates. New product or stack decisions return to `product-definition-builder`; initial design and enhancements use `ui-design-builder`, required `frontend-design`, internal Wireframe Validation, independent HiFi review and consolidated Visual Approval. Compile a design-system pair only when the Need Gate requires it. Preserve unrelated pages and old approval semantics.
+- First classify the work as initial design, enhancement, routine maintenance or explicit full redesign under `ui-design-builder/references/review-workflow.md`. Routine maintenance with UI impact `none` or `style` updates the actual product, effective PRD and accepted change record while retaining historical Wireframe/HiFi/token artifacts; do not treat accepted visual differences as failure. A structural impact (`structure` or `both`) follows affected design gates. New product or stack decisions return to `product-definition-builder`; initial design and enhancements use `ui-design-builder`, required `frontend-design`, PRD-to-HiFi completeness checks, independent HiFi review and consolidated Visual Approval. Compile a design-system pair only when the Need Gate requires it. Preserve unrelated pages and old approval semantics.
 - Preserve unaffected requirements, IDs, pages, wireframes, and design decisions. A direct task may stay small, but it is not complete while implementation and the canonical product documents disagree.
 
 ## Monetization And Partner Channels

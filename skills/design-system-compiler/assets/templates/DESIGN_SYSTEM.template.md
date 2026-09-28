@@ -22,7 +22,6 @@ Calculate the UI approval digest with `python "<ui-design-builder-skill-root>/sc
 |---|---|---|
 | PRD | JSON `sourceBindings.prd`: current path and SHA-256 | product scope and requirements |
 | PRD UI Surface Contract | JSON `sourceBindings.prd` section | product-owned routes, content responsibilities, actions, states, flows, and responsive obligations |
-| Approved wireframe | JSON `sourceBindings.wireframe`: current path and SHA-256 | structural all-page region order, grouping, element inventory, section labels, states, viewport arrangements, and responsive rearrangement |
 | Approved UI design contract | JSON `sourceBindings.uiDesign`: current path and canonical UI approval SHA-256; `sourceBindings.hifi`: current path and SHA-256; direction ID, structured scope, tolerance, and Design System Need Gate | approved visual input and pair requirement |
 | Style Integration and HiFi evidence | <frontend-design direction, Impeccable critique/audit, H1-H9 result, target manifest and approval> | frozen UI treatment and direction-review evidence |
 
