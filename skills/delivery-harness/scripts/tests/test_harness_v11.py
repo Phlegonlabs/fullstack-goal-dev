@@ -477,6 +477,7 @@ class HarnessV11Tests(unittest.TestCase):
             self.assertIn('"contract_adoption"', packet)
             self.assertIn("independently recompute the seven-skill contract digest", packet)
             self.assertIn("`contract_adoption_check`", packet)
+            self.assertIn("never inside a security review result", packet)
             self.assertNotIn('"harness_plan"', packet)
 
             for node in plan["graph"]["nodes"]:

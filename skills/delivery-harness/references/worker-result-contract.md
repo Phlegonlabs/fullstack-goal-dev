@@ -144,7 +144,7 @@ When the directive or review packet carries `contract_adoption`, the worker or r
 }
 ```
 
-- A worker puts it at `worker_result.contract_adoption_check`. A graph review result carries it next to `reviewed_sha`, `findings`, and `evidence_summary`. For `record-review-attempt --contract-adoption-check <json file>`, the file holds this object, or `{"contract_adoption_check": <this object>}` as the reviewer returned it.
+- A worker puts it at `worker_result.contract_adoption_check`. A graph review result carries it next to `reviewed_sha`, `findings`, and `evidence_summary`. A security reviewer returns it beside the security result given to `--security-result`, never inside it. For `record-review-attempt --contract-adoption-check <json file>`, the file holds this object, or `{"contract_adoption_check": <this object>}` as the reviewer returned it.
 - `digest` must equal the RUN's `contract_adoption.contract_digest_sha256`, and `matched` must be `true`.
 - On a mismatch, stop and keep the digest you saw. A reviewer returns `blocked` with `matched: false` and that digest (`reading_evidence` may be empty); the attempt log keeps `contract_adoption_mismatch:<digest>`. A worker returns a `blocked` node result and lists `contract_adoption_mismatch:<digest>` in `evidence_paths`.
 - `reading_evidence` is the child's own reading. Copying the parent receipt's list is rejected.
