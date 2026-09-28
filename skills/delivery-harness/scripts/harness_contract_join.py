@@ -1992,6 +1992,22 @@ def _strict_ui_surface_errors(
     return sorted(set(errors))
 
 
+def _frozen_ui_contract_version(rows: list[dict[str, Any]], root: Path) -> str | None:
+    """Read the frozen ui-design contract version, or None when unreadable."""
+
+    if len(rows) != 1:
+        return None
+    contents, errors = _resolve_source_bytes(rows[0], root, label="ui-design", strict=True)
+    parser = _load_ui_contract_view(sibling_ui_design_scripts_dir())
+    if errors or contents is None or parser is None:
+        return None
+    try:
+        view, _parser_errors = parser(contents.decode("utf-8"))
+    except Exception:
+        return None
+    return view.get("contract_version") if isinstance(view, dict) else None
+
+
 def _validate_strict_frozen_contract_joins(
     plan: dict[str, Any], repo_root: str | Path, *, run: dict[str, Any] | None,
     current_ui: bool = False,
@@ -2002,9 +2018,13 @@ def _validate_strict_frozen_contract_joins(
     has_ui = bool(plan.get("ui_surfaces"))
     current = current_ui or wireframe_free_required(run)
     maintenance, maintenance_errors = _frozen_maintenance_record(plan, Path(repo_root).resolve())
-    if maintenance and not maintenance_errors and inventory["wireframes"]:
+    if maintenance and not maintenance_errors and (
+        inventory["wireframes"]
+        or has_ui and _frozen_ui_contract_version(inventory["ui-design"], Path(repo_root).resolve()) == "legacy"
+    ):
         # A recorded maintenance round preserves its frozen historical design.
-        # Only new design work must migrate the whole contract together.
+        # Only new design work must migrate the whole contract together. A
+        # legacy contract without its wireframe row then reports that row.
         current = False
     required_keys = {"prd", "architecture", "stack"}
     if has_ui:

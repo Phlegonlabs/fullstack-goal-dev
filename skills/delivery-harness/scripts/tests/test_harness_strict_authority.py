@@ -548,6 +548,21 @@ class StrictAuthorityJoinTests(unittest.TestCase):
             run["runtime_capabilities"]["runtime_adapter"]["version_gate"]["required_harness_version"] = "0.56.0"
             self.assertEqual([], validate_frozen_contract_joins(plan, root, run=run))
 
+            # A legacy contract that drops its wireframe row is told about
+            # that row, not asked to migrate to ui-design/2.
+            wireframe_row = next(row for row in plan["sources"] if row["id"] == "SRC-WIREFRAME")
+            plan["sources"].remove(wireframe_row)
+            for version in ("0.56.0", "0.55.1"):
+                with self.subTest(version=version):
+                    run["runtime_capabilities"]["runtime_adapter"]["version_gate"]["required_harness_version"] = version
+                    joined = "\n".join(validate_frozen_contract_joins(plan, root, run=run))
+                    self.assertIn("exactly one frozen wireframes source", joined)
+                    self.assertNotIn("ui-design/2", joined)
+                    self.assertNotIn("operations anchor", joined)
+            plan["sources"].append(wireframe_row)
+            run["runtime_capabilities"]["runtime_adapter"]["version_gate"]["required_harness_version"] = "0.56.0"
+            self.assertEqual([], validate_frozen_contract_joins(plan, root, run=run))
+
             plan["plan_id"] = "PLAN-UNRELATED"
             self.assertIn("current PLAN ID", "\n".join(validate_frozen_contract_joins(plan, root, run=run)))
             plan["plan_id"] = "PLAN-TEST"

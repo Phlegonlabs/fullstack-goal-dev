@@ -13,7 +13,7 @@ Classify every visual source before planning or implementation:
 - **Design inspiration** is non-canonical evidence. It can influence implementation only after `ui-design-builder` inspects it and the human owner approves the resulting scoped target or principles. When the Design System Need Gate is `required`, `design-system-compiler` compiles those approved consequences into the pair. A URL, screenshot, Figma frame, or market-research source is not implementation authority merely because it exists.
 - **Page-faithful target** is an explicit user requirement for visual conformance. Treat it as binding only after the user requests faithful matching and the readable source version, routes, states, responsive scope, and tolerance are frozen. Preserve it as version-bound evidence; do not broaden it beyond `ui-design.md`. UI Design Builder retains one connected all-screens HTML reference under `docs/design/ui-references/<run-id>/`; superseded versions archive under `docs/design/archived/`. Harness reads it only through the approved UI design contract, never by folder discovery.
 
-For an initial delivery or design enhancement, implementation uses the route's `UI-*` entry in `PRD.md`, current approved `ui-design.md`, its copy-complete validated schema-5 `wireframes.html` (or the approved legacy wireframe), and the active visual route. Static strings, action labels, feedback, and alternate-state messages are implementation-bound; dynamic examples are illustrative while their approved source/order/format/count/length/fallback contracts bind implementation. A `required` gate binds `design-system.md` and `design-system.json` together. A `not_required` gate binds the approved immutable page-faithful target instead. Routine maintenance uses the current product and effective requirements as stated above. See `ui-implementation-contract.md`.
+For an initial delivery or design enhancement, implementation uses the route's `UI-*` entry in `PRD.md`, current approved `ui-design.md`, the route's approved HiFi page with its embedded `ui-hifi-copy/1` copy (`ui-design/2`; a pinned legacy contract uses its validated schema-5 or approved legacy `wireframes.html` instead), and the active visual route. Static strings, action labels, feedback, and alternate-state messages are implementation-bound; dynamic examples are illustrative while their approved source/order/format/count/length/fallback contracts bind implementation. A `required` gate binds `design-system.md` and `design-system.json` together. A `not_required` gate binds the approved immutable page-faithful target instead. Routine maintenance uses the current product and effective requirements as stated above. See `ui-implementation-contract.md`.
 
 A `frontend-design` result produced or requested during implementation is a proposed design-input delta, not code-side authority. Do not apply a new visual direction, token, variant, component, motion pattern, or structure directly. Return target, direction or wireframe changes to `ui-design-builder`; return product behavior, copy/display contracts or stack changes to `product-definition-builder`; return formal pair changes to `design-system-compiler`. Resume only against the revised active source.
 
@@ -113,7 +113,7 @@ When the product has a required design system, `design-system.json`'s `stateMatr
 
 ## New Build Flow
 
-For a new build with an approved Product Definition, `ui-design.md`, wireframe, HiFi target, and optional required design system:
+For a new build with an approved Product Definition, `ui-design.md` (`ui-design/2`), the complete approved HiFi package, and an optional required `design-system/3` pair (a pinned legacy contract also has its wireframe):
 
 ```text
 M1 source intake and conflict resolution
@@ -121,7 +121,7 @@ M2 contract freeze and traceability
 M3 foundation/data/API if needed
 M4 required pair: tokens, primitives, and the UI contract check; not_required: target-conformance foundation
 M5 required pair: product components; not_required: shared style source only when the scoped UI needs it
-M6 route implementation from the active visual source + each route's PRD UI surface entry + validated schema-5 or approved legacy wireframe
+M6 route implementation from the active visual source + each route's PRD UI surface entry + its approved HiFi surface (pinned legacy: validated schema-5 or approved legacy wireframe)
 M7 E2E and visual evidence
 ```
 
@@ -163,7 +163,7 @@ Stop and ask when:
 - An updated required design system conflicts with the approved page-faithful target.
 - A page-faithful target omits required states, breakpoints, source version, or tolerance.
 - A design inspiration source is being treated as code-side authority without an accepted, frozen `ui-design.md` update.
-- In initial design or enhancement, an in-scope route has no PRD UI surface entry, validated schema-5 or approved legacy wireframe, or active visual source. In system-conformance mode, ask for an absent registry entry. In target-conformance mode, ask for missing target scope, state, responsive coverage, or tolerance. Routine maintenance still requires current PRD/PLAN route, state and target coverage. Do not improvise.
+- In initial design or enhancement, an in-scope route has no PRD UI surface entry, approved HiFi surface (pinned legacy: validated schema-5 or approved legacy wireframe), or active visual source. In system-conformance mode, ask for an absent registry entry. In target-conformance mode, ask for missing target scope, state, responsive coverage, or tolerance. Routine maintenance still requires current PRD/PLAN route, state and target coverage. Do not improvise.
 - A required design-system route can only be implemented by leaving the pair. The fix is a formal delta, not a page-local exception. A target-conformance route that needs a broader system returns to the Design System Need Gate instead of growing one silently.
 - A conformance-mode `frontend-design` pass proposes a value, variant, component, motion pattern, or page structure the frozen active source does not contain. Record it as a delta and stop; do not treat skill output as implicit approval.
 - Updated input would remove existing app behavior without explicit acceptance.
@@ -180,7 +180,7 @@ Design-input verification should include:
 - State coverage: required states and breakpoints are checked.
 - Behavior conformance: PRD workflow and data/API behavior still pass.
 - Design-system conformance: in system-conformance mode, tokens/components/variants follow the updated pair. In target-conformance mode, do not claim this gate.
-- Contract conformance: an active system-conformance design uses only entries `design-system.json` lists and runs the UI contract check; active target-conformance uses the smallest shared style source needed and runs page-to-target comparison at the recorded tolerance. Both follow the PRD and validated schema-5 or approved legacy wireframe across the active responsive set in normal and reduced motion. Routine maintenance checks current product behavior and affected regression consumers, preserving historical design bytes. Drift from an active source is a contract violation, not a stylistic difference.
+- Contract conformance: an active system-conformance design uses only entries `design-system.json` lists and runs the UI contract check; active target-conformance uses the smallest shared style source needed and runs page-to-target comparison at the recorded tolerance. Both follow the PRD and the approved HiFi surface with its `ui-hifi-copy/1` copy (pinned legacy: validated schema-5 or approved legacy wireframe) across the active responsive set in normal and reduced motion. Routine maintenance checks current product behavior and affected regression consumers, preserving historical design bytes. Drift from an active source is a contract violation, not a stylistic difference.
 - Builder direction conformance: selected choices are reflected and provisional/assumed choices remain explicit; this proves direction conformance, not usability.
 - Usability evidence: when required, representative users or an approved equivalent complete the named task against the specified prototype or implementation; agent preference, screenshots, and automated E2E do not substitute for that evidence.
 - Regression: preserved routes, permissions, data behavior, content, analytics, and E2E journeys still pass.

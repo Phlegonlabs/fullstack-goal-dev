@@ -1,5 +1,6 @@
 """Versioned frozen source joins cannot silently skip missing design authority."""
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -48,6 +49,28 @@ class WireframeFreeJoinTests(unittest.TestCase):
             self.assertIn('requires UI contract: ui-design/2','\n'.join(findings))
             plan['sources'].append(dict(plan['sources'][3], id='SRC-WF',kind='wireframe', location='docs/design/wireframes.html'))
             self.assertIn('must not freeze a wireframe', '\n'.join(validate_frozen_contract_joins(plan,root,run=run)))
+
+    def test_current_maintenance_needs_no_wireframe_row(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            plan, run, _ = self.fixture(root)
+            record = root/'docs/epics/EPIC-maintenance.md'
+            record.parent.mkdir(parents=True, exist_ok=True)
+            record.write_text('Design workflow: maintenance\nUI impact: style\n'
+                              f"Plan ID: {plan['plan_id']}\nPlan objective: {plan['objective']}\n"
+                              'Requirement refs: REQ-001\nUI scope: UI-001\n', encoding='utf-8')
+            for arguments in (('init', '-q'), ('config', 'core.autocrlf', 'false'),
+                              ('add', 'docs/epics/EPIC-maintenance.md'),
+                              ('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.test',
+                               'commit', '-qm', 'Freeze maintenance task')):
+                subprocess.run(['git', *arguments], cwd=root, check=True, capture_output=True, timeout=15)
+            revision = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=root, check=True,
+                                      capture_output=True, text=True, timeout=15).stdout.strip()
+            row = legacy.StrictAuthorityJoinTests._row('SRC-TASK', 'task record', record, root)
+            row['source_revision'] = revision
+            plan['sources'].append(row)
+            next(trace for trace in plan['traces'] if trace['id'] == 'REQ-001')['source_ids'].append('SRC-TASK')
+            self.assertEqual([], validate_frozen_contract_joins(plan, root, run=run))
 
     def test_legacy_pin_cannot_skip_wireframe_by_using_new_ui(self):
         with tempfile.TemporaryDirectory() as directory:
