@@ -704,6 +704,11 @@ class HarnessV11Tests(unittest.TestCase):
                     {**valid, "reading_evidence": ["parent re-read the fixed contract"]},
                     "not the parent receipt",
                 ),
+                (
+                    {"contract_adoption_check": valid, "extra": True},
+                    "exactly digest, matched, and reading_evidence",
+                ),
+                ({"contract_adoption_check": None}, "must contain an object"),
             ):
                 with self.subTest(message=message):
                     with self.assertRaisesRegex(harness_transition.ManifestError, message):
@@ -716,6 +721,13 @@ class HarnessV11Tests(unittest.TestCase):
             run = blocked_run
             record("blocked", None, root)
             self.assertEqual("blocked", run["review_workers"][-1]["phase"])
+            run = original
+
+            # The file may hold the bare object or the reviewer's wrapped reply.
+            wrapped_run = copy.deepcopy(run)
+            run = wrapped_run
+            record("pass", {"contract_adoption_check": valid}, root)
+            self.assertEqual("worker_passed", run["review_workers"][-1]["phase"])
             run = original
 
             record("pass", valid, root)

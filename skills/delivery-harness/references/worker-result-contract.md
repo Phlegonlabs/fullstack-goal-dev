@@ -134,19 +134,17 @@ Allowed status/outcome pairs:
 
 ## Contract Adoption Check
 
-When the directive or review packet carries `contract_adoption`, the worker or reviewer recomputes the seven-skill contract digest itself, reads the fixed contract, and returns:
+When the directive or review packet carries `contract_adoption`, the worker or reviewer recomputes the seven-skill contract digest itself, reads the fixed contract, and returns this object as `contract_adoption_check`:
 
 ```json
 {
-  "contract_adoption_check": {
-    "digest": "<the digest you recomputed>",
-    "matched": true,
-    "reading_evidence": ["<what you actually read>"]
-  }
+  "digest": "<the digest you recomputed>",
+  "matched": true,
+  "reading_evidence": ["<what you actually read>"]
 }
 ```
 
-- A worker adds it to `worker_result`. A reviewer's parent passes it to `record-review-attempt --contract-adoption-check <json file>`; a graph review result may also carry it next to `reviewed_sha`, `findings`, and `evidence_summary`.
+- A worker puts it at `worker_result.contract_adoption_check`. A graph review result carries it next to `reviewed_sha`, `findings`, and `evidence_summary`. For `record-review-attempt --contract-adoption-check <json file>`, the file holds this object, or `{"contract_adoption_check": <this object>}` as the reviewer returned it.
 - `digest` must equal the RUN's `contract_adoption.contract_digest_sha256`, and `matched` must be `true`. On a mismatch, stop: a worker returns a non-passing node result, a reviewer returns `blocked`.
 - `reading_evidence` is the child's own reading. Copying the parent receipt's list is rejected.
 - RUNs that require Harness 0.55.1 or later must include it for every passing worker result and every non-`blocked` review. Older RUNs may omit it. It is rejected when the RUN has no adopted contract.

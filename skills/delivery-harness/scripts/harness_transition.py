@@ -4638,6 +4638,11 @@ def _record_review_attempt(
             )
         except (OSError, ValueError) as exc:
             raise ManifestError(f"cannot read --contract-adoption-check: {exc}") from exc
+        # Accept the reviewer's returned object with or without its field name.
+        if isinstance(adoption_check, dict) and set(adoption_check) == {
+            "contract_adoption_check"
+        }:
+            adoption_check = adoption_check["contract_adoption_check"]
         if adoption_check is None:
             raise ManifestError("--contract-adoption-check must contain an object")
     # A reviewer that stopped on a digest mismatch reports `blocked` and has
