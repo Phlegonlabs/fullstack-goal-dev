@@ -524,6 +524,26 @@ def _report_exception(path: str, worker: dict[str, Any]) -> bool:
     return report_path == path and report_path.rsplit("/", 1)[-1] == "REPORT.md"
 
 
+def _acceptance_register_paths(plan: dict[str, Any]) -> list[str]:
+    """Return the ``--results`` paths of PLAN final gates that run the
+    delivery-acceptance checker. An empty list means the PLAN has no gate."""
+
+    paths: list[str] = []
+    gates = plan.get("final_gates")
+    for gate in gates if isinstance(gates, list) else []:
+        argv = gate.get("argv") if isinstance(gate, dict) else None
+        if not isinstance(argv, list) or not any(
+            isinstance(item, str)
+            and item.replace("\\", "/").rsplit("/", 1)[-1] == "check_delivery_acceptance.py"
+            for item in argv
+        ):
+            continue
+        for flag, value in zip(argv, argv[1:]):
+            if flag == "--results" and isinstance(value, str) and value:
+                paths.append(value)
+    return paths
+
+
 def _declared_verifiers(
     mission: dict[str, Any] | None,
 ) -> dict[str, tuple[dict[str, Any], str, str | None]]:
@@ -1402,6 +1422,16 @@ def validate_worker_result_data(
     if mission is not None:
         write_scope = mission.get("write_scope", [])
         deny_scope = mission.get("deny_scope", [])
+        # With a delivery-acceptance gate, the mission scope lists the
+        # register and evidence for the parent's commit only; no task scope
+        # does. Check that in every workspace mode, since a shared checkout
+        # has no per-task commit slices.
+        register_paths = _acceptance_register_paths(plan)
+        task_scopes = [
+            task.get("write_scope") if isinstance(task.get("write_scope"), list) else []
+            for task in mission.get("tasks", [])
+            if isinstance(task, dict) and not task.get("replaced_by")
+        ]
         for index, changed_path in enumerate(reported_paths):
             item_path = f"worker_result.changed_files[{index}]"
             if parent_owned_path(changed_path):
@@ -1415,6 +1445,16 @@ def validate_worker_result_data(
                 _issue(errors, "denied_path", item_path, "changed path is denied by the mission")
             elif not allowed:
                 _issue(errors, "scope_escape", item_path, "changed path is outside mission write scope")
+            elif register_paths and not any(
+                path_in_scopes(changed_path, scopes) for scopes in task_scopes
+            ):
+                _issue(
+                    errors,
+                    "acceptance_path_write",
+                    item_path,
+                    "no task write scope covers this path; only the parent writes the "
+                    f"delivery-acceptance register ({', '.join(register_paths)}) and its evidence",
+                )
 
     verifier_results_raw = result.get("verifiers")
     retained_results: dict[str, dict[str, Any]] = {}

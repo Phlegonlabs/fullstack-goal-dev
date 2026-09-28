@@ -687,6 +687,56 @@ class ValidateWorkerResultTests(unittest.TestCase):
         )
         self.assertIn("task_scope_escape", error_codes(errors))
 
+    def _shared_checkout_acceptance_fixture(self, *, gate: bool = True):
+        plan = copy.deepcopy(self.plan)
+        plan["missions"][0]["write_scope"].append("docs/verification/**")
+        if gate:
+            plan["final_gates"].append(
+                {
+                    **verifier("delivery-acceptance"),
+                    "argv": [
+                        "python",
+                        "/skills/delivery-harness/scripts/check_delivery_acceptance.py",
+                        "--results",
+                        "docs/verification/delivery-results.json",
+                        "--candidate-from-head",
+                    ],
+                }
+            )
+        run = make_run(plan)
+        run["runtime_capabilities"]["workspace_mode"] = "shared_checkout"
+        run["workers"][0]["workspace_mode"] = "shared_checkout"
+        return plan, run
+
+    def _validate_shared_checkout(self, changed: list[str], *, gate: bool = True):
+        plan, run = self._shared_checkout_acceptance_fixture(gate=gate)
+        result = make_result(plan)
+        result["changed_files"] = changed
+        for item in result["verifiers"]:
+            item["evidence"] = retained_verifier_result(item["id"], plan, changed)[
+                "execution_key"
+            ]
+        return validate(plan, run, result, observed_files=changed)
+
+    def test_shared_checkout_worker_cannot_write_acceptance_paths(self) -> None:
+        # A shared checkout has no per-task commit slices, so the mission-level
+        # check must keep the worker off the register and its evidence.
+        for path in (
+            "docs/verification/delivery-results.json",
+            "docs/verification/evidence/run.log",
+        ):
+            with self.subTest(path=path):
+                errors = self._validate_shared_checkout([CHANGED_FILE, path])
+                self.assertEqual({"acceptance_path_write"}, error_codes(errors))
+
+    def test_shared_checkout_acceptance_check_keeps_task_scoped_paths(self) -> None:
+        self.assertEqual([], self._validate_shared_checkout([CHANGED_FILE]))
+        # A PLAN without the acceptance gate keeps the mission-scope rule.
+        path = "docs/verification/delivery-results.json"
+        self.assertEqual(
+            [], self._validate_shared_checkout([CHANGED_FILE, path], gate=False)
+        )
+
     def test_worker_claim_does_not_control_verifier_selection(self) -> None:
         plan = copy.deepcopy(self.plan)
         selection = {
