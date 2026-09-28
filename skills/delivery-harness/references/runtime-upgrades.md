@@ -55,7 +55,7 @@ An upgrade does not resume the old orchestration. Once the fresh session records
 - A version at or above a documented minimum can still be `upgrade_required` when its observable capability or completion behavior is broken.
 - A lower version can be `compatible_old` only when every capability needed by the active wave is observed and the active result channel remains usable.
 - Record version checks once per host session and again only after an updater, restart, host handoff, or material capability change.
-- An adopted contract travels with every runtime-worker directive. Before acting, each fresh worker or reviewer independently recomputes the digest, compares it with the adoption receipt, reads the fixed contract, and reports fresh reading evidence. A parent receipt never substitutes for that child context.
+- An adopted contract travels with every runtime-worker directive. Before acting, each fresh worker or reviewer independently recomputes the digest, compares it with the adoption receipt, reads the fixed contract, and reports fresh reading evidence as `contract_adoption_check` (`worker-result-contract.md`). A parent receipt never substitutes for that child context. From Harness 0.55.1, the worker-result and review recording transitions reject a missing check, a digest that differs from the adoption receipt, or `matched` other than `true`.
 
 ## Host Update Boundaries
 
