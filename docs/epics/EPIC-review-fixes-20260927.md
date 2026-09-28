@@ -235,3 +235,53 @@ Repair verification: the 180 focused contract/command tests passed again on
 the working-tree correction. All nine operation-coverage tests passed, including
 a new regression that reads the documented JSON example and checks both matching
 designs and rejection of missing controls. No runtime validator behavior changed.
+
+### 2026-09-28 — 0.56.1 acceptance evidence binding
+
+At `main` `37d665f8`, all three exact-main CI jobs passed. A read-only Opus 5.5
+review found that `check_delivery_acceptance.py` could report PASS using ignored
+or edited register/evidence bytes absent from that HEAD. This violates the
+exact-head final-gate rule. The review also noted an older pre-0.38 UI path
+issue; it is outside this focused repair and remains unverified here.
+
+Initial repair committed as `79c2c6bb` on `codex/release-0.56.1-acceptance-binding`: require the
+register and every listed evidence file to be a regular blob at HEAD with bytes
+identical to those the checker read. Three regressions first reproduced the
+incorrect PASS, then passed after the change. A fourth check verifies that the
+HEAD comparison uses the validated bytes; all 37 acceptance tests passed.
+The direct task has UI impact `none`. Version, four README descriptions and
+release fields move together to 0.56.1. The full Harness suite passed 1,374
+tests (19 skipped) before the final same-bytes adjustment. The independent
+Opus 5.5 review found no fabricated PASS, but identified a Windows CRLF/filter
+compatibility risk, a repeated-path race and stale document wording. The
+checker intentionally requires byte-preserving Git storage; the contract and
+four READMEs now explain the required `-text -filter` attributes. New tests
+cover both CRLF failure and attribute-protected success, and repeated-path
+changes are rejected. All 40 focused acceptance tests passed on this follow-up
+working tree. Exact-candidate CI, PR promotion, tag and local install remain
+pending. The older pre-0.38 UI path issue remains a separate unverified gap.
+
+Second read-only Opus 5.5 review of `9c2ba405` found no code blocker. It found
+that README wording could place `.gitattributes` in the register-only H2 commit,
+which the gate rejects. The working-tree follow-up clarifies in all four READMEs
+that attributes are committed before H1, and the managed PLAN template now
+requires readiness review to check them or grant a pre-H1 task the attribute
+path. The contract also states that Git binding requires `--repo-root` to be
+the checkout root. Full exact-candidate checks and promotion remain pending.
+
+Automated PR review also found that separate reads of symbolic `HEAD` could
+combine different commits into one gate PASS. A new regression reproduced that
+PASS by moving the ref between blob checks and candidate checks. The checker
+now pins one commit SHA for the invocation and fails when HEAD moves before
+returning. All 41 focused acceptance tests passed on the follow-up working
+tree. The repeated-path comment from the same review was already addressed in
+`9c2ba405`. Full exact-candidate checks and promotion remain pending.
+
+Independent read-only review of `52b3968f` confirmed the immutable HEAD pin,
+then flagged Git diff settings that could hide submodule pointer changes after
+H1. A regression reproduced the false PASS with `diff.ignoreSubmodules=all`;
+the checker now forces `--ignore-submodules=none`. Another test asserts that
+the blob and candidate Git queries use one SHA, even if a final HEAD recheck
+would otherwise mask a symbolic-ref regression. The README wording now states
+the end-of-check HEAD condition precisely. Full exact-candidate checks and
+promotion remain pending.

@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.56.0-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.56.1-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -606,6 +606,10 @@ Document sync 只略过明确退役列表中的旧名称；实际引用和未知
 
 中文 review 检查除来源 hash 和 trace IDs 外，也会检测缺少的标题层级数量、表格形状／数据行及数字字面值。翻译标题可以不同；检查器不能证明含义或章节顺序一致，仍须完整人工语义比对。
 
+### Git checkout 中的验收证据
+
+当 `--repo-root` 是 Git checkout 根目录时，交付验收 gate 会以同一个固定 `HEAD` SHA 比对 register、所有 evidence 和候选树；检查结束时若 HEAD 不再指向该 SHA，就会失败。Git diff 设置不能隐藏 submodule 变更。上面的 H1/H2 检查也有相同的根目录要求。即使记录的 hash 符合工作目录内容，被忽略、未跟踪或已修改的证据仍会失败。先在候选 H1 之前为 register 和证据路径加入并提交 `-text -filter` 属性，避免 Windows 换行或 Git filter 改变字节。在 H1 执行测试后，只提交 register 和证据成为 H2，再运行最终 gate。
+
 ## 保持 README 与代码同步
 
 README 是记录文档：每个新增或改动 skill、规则、表格、图或文档化流程的变更，都要在同一份变更里更新 README 的对应描述部分，四种语言一起改。版本 badge 与版本历史条目属于发布时的工作，按下面《发布》的规则走。
@@ -639,6 +643,8 @@ HiFi 示例以固定 LF 换行维持跨平台字节哈希。Wireframe 的 Node �
 ## 版本历史
 
 每次发布都要更新本节，连同上面《发布》一节描述的版本号提升与 tag 一起完成。
+
+- **0.56.1** — 在 Git checkout 根目录，将交付验收结果与证据绑定到 `HEAD` 已提交的确切字节；被忽略、未跟踪或已修改的文件不能获得 gate PASS，并须设置保留字节的 Git 属性。
 
 - **0.56.0** — 移除新包的 Wireframe 阶段。明确的 ui-design/2 直接读 PRD、默认三方向，并在审查前验证 HiFi 文案与操作。Harness 0.56 冻结完整 HiFi 包；design-system/3 移除 Wireframe binding。旧契约保留原本检查。0.55.0 审查修正的后续项目。`check_delivery_acceptance.py` 现在需要 `--candidate-sha` 或 `--candidate-from-head`；在 Git checkout 中，register 的 candidate 必须是 HEAD 或其祖先，之后只能变更 register、它列出的 evidence 与 run 协调文件。检查器不知道 RUN 版本，所以进行中的 0.55.0 run 若 register commit 含其他文件，或 repair 后仍传入过时的 `--candidate-sha`，gate 会失败。在已采用的 runtime contract 下，要求 0.55.1 或更新版本的 run 需要每个 worker 与 reviewer 的 `contract_adoption_check`。PLAN 与 RUNBOOK template 纳入 delivery-acceptance 行与 register 提交顺序。`*` mission 范围下的 mission 启动与 `app_threads` reviewer 会被延后，不再卡住。0.55.0 的 `coordination_paths` 与受保护分支检查只跳过 pin 低于 0.55.0 的 run。Legacy current-HiFi 规则依批准与其 receipt 的日期判定，并在要求 0.55.1 或更新版本的 run 的 UI join 与 design-system pair join 中强制执行，receipt 以 2026-09-27T00:00:00Z 为界。验收 evidence 必须放在 register 旁的 `evidence/` 下，worker 不能写入 register 或其 evidence。崩溃或超时的 review 又可以记录为 `retryable_failure`。交换提交的竞态会把并发写入的 bytes 保留在具名的 recovery 文件。Product Definition 新增 Base UI 与 Radix Primitives 作为 headless component foundation 选项。 修正审计发现的 skill 指令、prompt 与命令示例，保留历史批准及兼容指针。明确说明产品 operations 审查与自动 approval 对应检查、仅限容器的 verifier 复用及可选动效 skill。包含 macOS CI 与 SIP 保护签名验证器修正。
 

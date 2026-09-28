@@ -497,6 +497,152 @@ class CandidateTreeTests(unittest.TestCase):
         self.assertEqual(self.h1, payload["candidate_sha"])
         self.assertEqual(0, self.check("--candidate-sha", self.h1)[0])
 
+    def test_head_comparison_uses_the_validated_evidence_bytes(self) -> None:
+        self.commit_register(self.h1)
+        with patch.object(checker, "_read_bytes", wraps=checker._read_bytes) as read:
+            status, payload = self.check("--candidate-from-head")
+        self.assertEqual((0, []), (status, payload["errors"]))
+        evidence_reads = [call for call in read.call_args_list if call.args[1] == "evidence"]
+        self.assertEqual(2, len(evidence_reads))
+
+    def test_git_queries_use_one_immutable_head_sha(self) -> None:
+        self.commit_register(self.h1)
+        head_sha = mf.git(self.root, "rev-parse", "HEAD")
+        with patch.object(checker, "run_git", wraps=checker.run_git) as git:
+            status, payload = self.check("--candidate-from-head")
+        self.assertEqual((0, []), (status, payload["errors"]))
+        checked = [
+            call.args for call in git.call_args_list
+            if len(call.args) > 1 and call.args[1] in {"ls-tree", "merge-base", "diff"}
+        ]
+        self.assertTrue(checked)
+        for arguments in checked:
+            self.assertIn(head_sha, arguments)
+            self.assertNotIn("HEAD", arguments)
+
+    def test_head_move_during_check_cannot_combine_two_commits(self) -> None:
+        register_head = self.commit_register(self.h1)
+        original_register = (self.root / "results.json").read_bytes()
+        changed = b"later evidence bytes\n"
+        (self.root / "evidence" / "web.txt").write_bytes(changed)
+        value = json.loads(original_register)
+        value["results"][0]["evidence"]["sha256"] = hashlib.sha256(changed).hexdigest()
+        self.write("results.json", json.dumps(value))
+        later_head = self.commit("later register and evidence")
+        mf.git(self.root, "update-ref", "HEAD", register_head, later_head)
+        mf.git(self.root, "read-tree", register_head)
+        (self.root / "results.json").write_bytes(original_register)
+        (self.root / "evidence" / "web.txt").write_bytes(EVIDENCE)
+        self.assertEqual("", mf.git(self.root, "status", "--porcelain"))
+        original_git = checker.run_git
+        moved = False
+
+        def moving_git(root: Path, *arguments: str, **options: Any) -> Any:
+            nonlocal moved
+            if arguments[:3] == ("cat-file", "-t", self.h1) and not moved:
+                mf.git(self.root, "update-ref", "HEAD", later_head, register_head)
+                moved = True
+            return original_git(root, *arguments, **options)
+
+        with patch.object(checker, "run_git", side_effect=moving_git):
+            status, payload = self.check("--candidate-from-head")
+        self.assertTrue(moved)
+        self.assertEqual(1, status)
+        self.assertIn("HEAD changed during acceptance check", " ".join(payload["errors"]))
+
+    def test_crlf_register_needs_byte_preserving_git_attributes(self) -> None:
+        mf.git(self.root, "config", "core.autocrlf", "true")
+        self.commit_register(self.h1)
+        value = json.loads((self.root / "results.json").read_text(encoding="utf-8"))
+        (self.root / "results.json").write_bytes(
+            json.dumps(value, indent=2).replace("\n", "\r\n").encode("utf-8")
+        )
+        self.commit("format register with CRLF")
+        self.assertEqual("", mf.git(self.root, "status", "--porcelain"))
+
+        status, payload = self.check("--candidate-from-head")
+        self.assertEqual(1, status)
+        self.assertIn("line-ending or Git filter conversion", " ".join(payload["errors"]))
+
+    def test_byte_preserving_git_attributes_allow_crlf_register(self) -> None:
+        self.write(".gitattributes", "results.json -text -filter\nevidence/** -text -filter\n")
+        candidate = self.commit("keep acceptance bytes unchanged")
+        mf.git(self.root, "config", "core.autocrlf", "true")
+        self.commit_register(candidate)
+        value = json.loads((self.root / "results.json").read_text(encoding="utf-8"))
+        (self.root / "results.json").write_bytes(
+            json.dumps(value, indent=2).replace("\n", "\r\n").encode("utf-8")
+        )
+        self.commit("format byte-preserved register with CRLF")
+
+        status, payload = self.check("--candidate-from-head")
+        self.assertEqual((0, []), (status, payload["errors"]))
+
+    def test_reused_evidence_path_must_not_change_between_rows(self) -> None:
+        candidate = self.commit_register(self.h1)
+        changed = b"alternate synthetic evidence\n"
+        value = results()
+        value["candidate_sha"] = candidate
+        value["results"][0]["evidence"] = {
+            "path": "evidence/web.txt", "sha256": hashlib.sha256(changed).hexdigest()
+        }
+        value["results"][1]["evidence"] = {
+            "path": "evidence/web.txt", "sha256": EVIDENCE_SHA
+        }
+        self.write("results.json", json.dumps(value))
+        self.commit("reuse evidence path")
+        original_read = checker._read_bytes
+        reads = 0
+
+        def changing_read(path: Path, label: str, root: Path) -> bytes:
+            nonlocal reads
+            if label == "evidence" and Path(path).as_posix() == "evidence/web.txt":
+                reads += 1
+                return changed if reads == 1 else EVIDENCE
+            return original_read(path, label, root)
+
+        with patch.object(checker, "_read_bytes", side_effect=changing_read):
+            status, payload = self.check("--candidate-from-head")
+        self.assertEqual(1, status)
+        self.assertIn("changed between result rows", " ".join(payload["errors"]))
+
+    def test_ignored_evidence_cannot_satisfy_committed_head(self) -> None:
+        self.write(".gitignore", "*.log\n")
+        candidate = self.commit("ignore logs")
+        (self.root / "evidence").mkdir(exist_ok=True)
+        (self.root / "evidence" / "run.log").write_bytes(EVIDENCE)
+        value = results()
+        value["candidate_sha"] = candidate
+        for row in value["results"]:
+            row["evidence"] = {"path": "evidence/run.log", "sha256": EVIDENCE_SHA}
+        self.write("results.json", json.dumps(value))
+        self.commit("ignored evidence register")
+
+        status, payload = self.check("--candidate-from-head")
+        self.assertEqual(1, status)
+        self.assertIn("evidence/run.log", " ".join(payload["errors"]))
+
+    def test_uncommitted_register_bytes_cannot_satisfy_head(self) -> None:
+        self.commit_register(self.h1)
+        with (self.root / "results.json").open("a", encoding="utf-8") as stream:
+            stream.write("\n")
+
+        status, payload = self.check("--candidate-from-head")
+        self.assertEqual(1, status)
+        self.assertIn("results.json", " ".join(payload["errors"]))
+
+    def test_uncommitted_evidence_bytes_cannot_satisfy_head(self) -> None:
+        self.commit_register(self.h1)
+        changed = b"different synthetic evidence\n"
+        (self.root / "evidence" / "web.txt").write_bytes(changed)
+        value = json.loads((self.root / "results.json").read_text(encoding="utf-8"))
+        value["results"][0]["evidence"]["sha256"] = hashlib.sha256(changed).hexdigest()
+        self.write("results.json", json.dumps(value))
+
+        status, payload = self.check("--candidate-from-head")
+        self.assertEqual(1, status)
+        self.assertIn("evidence/web.txt", " ".join(payload["errors"]))
+
     def test_run_coordination_commit_after_the_register_passes(self) -> None:
         self.commit_register(self.h1)
         self.write("docs/goal/RUN.md", "# RUN\n")
@@ -514,6 +660,19 @@ class CandidateTreeTests(unittest.TestCase):
                 status, payload = self.check(*candidate)
                 self.assertEqual(1, status)
                 self.assertIn("src/example/foo.py", " ".join(payload["errors"]))
+
+    def test_submodule_change_cannot_be_hidden_by_git_diff_config(self) -> None:
+        self.commit_register(self.h1)
+        mf.git(
+            self.root, "update-index", "--add", "--cacheinfo",
+            f"160000,{self.h1},vendor",
+        )
+        mf.git(self.root, "commit", "-qm", "add vendor gitlink")
+        mf.git(self.root, "config", "diff.ignoreSubmodules", "all")
+
+        status, payload = self.check("--candidate-from-head")
+        self.assertEqual(1, status)
+        self.assertIn("vendor", " ".join(payload["errors"]))
 
     def test_product_file_listed_as_evidence_cannot_exempt_itself(self) -> None:
         # The register must not exempt a product or test file that changed

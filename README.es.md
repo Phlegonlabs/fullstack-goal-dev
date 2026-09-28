@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.56.0-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.56.1-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -605,6 +605,10 @@ Document sync omite nombres antiguos solo dentro de catálogos explícitos de re
 
 Las copias chinas se comprueban también por cobertura de niveles de encabezados, formas/filas de tablas y literales numéricos, además del hash y los trace IDs. Los títulos traducidos pueden diferir. El checker no prueba el significado ni el orden de secciones: la comparación semántica completa sigue siendo necesaria.
 
+### Evidencia de aceptación en checkouts Git
+
+Cuando `--repo-root` es la raíz del checkout Git, el gate de aceptación compara el registro, toda la evidencia y el árbol candidato con un único SHA fijo de `HEAD`; falla si HEAD ya no señala ese SHA al terminar. La configuración de Git diff no puede ocultar cambios de submódulos. La comprobación H1/H2 anterior también requiere esa raíz. La evidencia ignorada, sin seguimiento o modificada falla aunque su hash coincida con la copia de trabajo. Añade y confirma los atributos `-text -filter` para el registro y la evidencia antes del candidato H1, para que los saltos de línea de Windows o los filtros Git no cambien los bytes. Después de ejecutar las pruebas en H1, confirma solo el registro y la evidencia como H2 y ejecuta el gate final.
+
 ## Mantener los READMEs al día
 
 Los READMEs son la documentación de registro: cada cambio que agregue o altere un skill, regla, tabla, diagrama o flujo documentado actualiza las secciones descriptivas del README en el mismo cambio, en los cuatro idiomas. El badge de versión y las entradas del historial de versiones son la parte del release y siguen Releasing abajo.
@@ -638,6 +642,8 @@ Este repositorio está bajo la Licencia MIT — ver [LICENSE](LICENSE).
 ## Historial de versiones
 
 Actualiza esta sección con cada release, como parte del bump de versión y el tag descritos en Releasing arriba.
+
+- **0.56.1** — En la raíz de un checkout Git, vincula los resultados y la evidencia de aceptación a los bytes confirmados en `HEAD`. Los archivos ignorados, sin seguimiento o modificados no pueden producir un PASS del gate; se requieren atributos Git que conserven los bytes.
 
 - **0.56.0** — Eliminar la etapa Wireframe de paquetes nuevos. ui-design/2 lee el PRD, propone tres direcciones por defecto y valida texto y operaciones HiFi antes de la revisión. Harness 0.56 congela el paquete HiFi completo; design-system/3 elimina el binding Wireframe. Los contratos históricos conservan sus comprobaciones. Seguimiento de las correcciones de la revisión 0.55.0. `check_delivery_acceptance.py` ahora necesita `--candidate-sha` o `--candidate-from-head`, y en un checkout Git exige que el candidato del registro sea HEAD o un ancestro, y que después solo cambien el registro, la evidencia que lista y los archivos de coordinación del run. El checker no conoce la versión del RUN, así que un run 0.55.0 en curso falla el gate si su commit del registro contiene otros archivos o si pasa un `--candidate-sha` obsoleto tras una reparación. Bajo un contrato de runtime adoptado, los runs que requieren 0.55.1 o posterior necesitan el `contract_adoption_check` de cada worker y reviewer. Las plantillas PLAN y RUNBOOK incluyen las filas de delivery-acceptance y el orden del commit del registro. Los lanzamientos de misión y los reviewers `app_threads` bajo un alcance de misión `*` se difieren en lugar de quedarse bloqueados. Las comprobaciones de `coordination_paths` y de ramas protegidas de 0.55.0 solo se omiten en runs fijados por debajo de 0.55.0. La regla legacy de HiFi actual se fecha por la aprobación y sus receipts, y los joins de UI y del par de design system la aplican en runs que requieren 0.55.1 o posterior, comparando los receipts con 2026-09-27T00:00:00Z. La evidencia de aceptación debe estar bajo `evidence/` junto al registro, y los workers nunca pueden escribir el registro ni su evidencia. Una revisión que se cae o agota el tiempo vuelve a poder registrarse como `retryable_failure`. Las carreras del commit por intercambio conservan los bytes concurrentes en un archivo de recuperación con nombre. Product Definition añade Base UI y Radix Primitives como opciones headless de component foundation. Corrige instrucciones, prompts y ejemplos de comandos auditados; conserva aprobaciones históricas y referencias de compatibilidad. Aclara la revisión de operaciones y sus correspondencias automáticas en la aprobación, la reutilización de verificadores solo en contenedores y los skills de movimiento opcionales. Incluye correcciones de CI en macOS y del verificador de firmas protegido por SIP.
 

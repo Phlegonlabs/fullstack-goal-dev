@@ -237,7 +237,8 @@ def _under_root(raw_path: str, root: str) -> bool:
 
 
 def _evidence(
-    root: Path, value: Any, path: str, errors: list[str], allowed_root: str
+    root: Path, value: Any, path: str, errors: list[str], allowed_root: str,
+    captured: dict[str, bytes] | None = None,
 ) -> bool:
     if not _exact_keys(value, EVIDENCE_KEYS, path, errors):
         return False
@@ -265,6 +266,13 @@ def _evidence(
     if _sha256(payload) != expected_hash:
         errors.append(f"{path}.sha256 does not match the evidence artifact")
         return False
+    if captured is not None:
+        normalized = Path(raw_path).as_posix()
+        prior = captured.get(normalized)
+        if prior is not None and prior != payload:
+            errors.append(f"{path}.path {normalized} changed between result rows")
+            return False
+        captured[normalized] = payload
     return True
 
 
@@ -275,6 +283,7 @@ def _results(
     candidate_sha: str,
     root: Path,
     allowed_root: str,
+    captured: dict[str, bytes],
 ) -> tuple[list[str], list[str]]:
     errors: list[str] = []
     if not _exact_keys(value, RESULT_KEYS, "results", errors):
@@ -309,7 +318,8 @@ def _results(
         status = _enum(row["status"], f"{row_path}.status", STATUSES, errors)
         build = _build(row["build"], f"{row_path}.build", platform, environment, errors)
         evidence_ok = _evidence(
-            root, row["evidence"], f"{row_path}.evidence", errors, allowed_root
+            root, row["evidence"], f"{row_path}.evidence", errors, allowed_root,
+            captured,
         )
         identity = (
             test_id,
@@ -365,7 +375,49 @@ def _evidence_paths(value: dict[str, Any], allowed_root: str) -> set[str]:
     return paths
 
 
-def _candidate_tree_errors(root: Path, candidate: str, allowed: set[str]) -> list[str]:
+def _head_sha(root: Path) -> str:
+    """Resolve the checked-out commit once for this gate invocation."""
+
+    try:
+        observed = run_git(root, "rev-parse", "--verify", "HEAD^{commit}")
+    except (GitMetadataError, OSError, subprocess.SubprocessError) as exc:
+        raise AcceptanceError(f"cannot resolve Git HEAD: {exc}") from exc
+    if observed.returncode != 0 or GIT_SHA_RE.fullmatch(observed.stdout.strip()) is None:
+        raise AcceptanceError("cannot resolve Git HEAD commit")
+    return observed.stdout.strip()
+
+
+def _committed_file_errors(root: Path, head_sha: str, path: str, payload: bytes) -> list[str]:
+    """Require the exact bytes checked here to be a regular file at one HEAD."""
+
+    try:
+        entry = run_git(root, "ls-tree", "-z", head_sha, "--", path, text=False)
+        if entry.returncode != 0:
+            return [f"cannot inspect {path} in HEAD"]
+        lines = [item for item in entry.stdout.split(b"\0") if item]
+        if len(lines) != 1:
+            return [f"{path} is not committed at HEAD"]
+        metadata, separator, listed_path = lines[0].partition(b"\t")
+        fields = metadata.split()
+        if (not separator or listed_path != path.encode("utf-8") or
+                len(fields) != 3 or fields[0] not in {b"100644", b"100755"} or
+                fields[1] != b"blob"):
+            return [f"{path} is not a regular file committed at HEAD"]
+        actual = run_git(root, "hash-object", "--stdin", input=payload, text=False)
+        if actual.returncode != 0:
+            return [f"cannot hash {path} against HEAD"]
+    except (GitMetadataError, OSError, subprocess.SubprocessError) as exc:
+        return [f"cannot verify {path} against HEAD: {exc}"]
+    if actual.stdout.strip() != fields[2]:
+        return [
+            f"{path} bytes differ from HEAD; check line-ending or Git filter conversion"
+        ]
+    return []
+
+
+def _candidate_tree_errors(
+    root: Path, candidate: str, head_sha: str, allowed: set[str]
+) -> list[str]:
     """Bind the register's candidate to the checked-out HEAD.
 
     The candidate must be HEAD or an ancestor of it, and the commits after it
@@ -379,11 +431,12 @@ def _candidate_tree_errors(root: Path, candidate: str, allowed: set[str]) -> lis
         kind = run_git(root, "cat-file", "-t", candidate)
         if kind.returncode != 0 or kind.stdout.strip() != "commit":
             return [f"results.candidate_sha {candidate} is not a commit in this checkout"]
-        ancestor = run_git(root, "merge-base", "--is-ancestor", candidate, "HEAD")
+        ancestor = run_git(root, "merge-base", "--is-ancestor", candidate, head_sha)
         if ancestor.returncode != 0:
             return [f"results.candidate_sha {candidate} is not an ancestor of HEAD"]
         diff = run_git(
-            root, "diff", "--name-only", "-z", "--no-renames", candidate, "HEAD",
+            root, "diff", "--name-only", "-z", "--no-renames",
+            "--ignore-submodules=none", candidate, head_sha,
             text=False,
         )
     except (GitMetadataError, OSError, subprocess.SubprocessError) as exc:
@@ -426,6 +479,7 @@ def _run(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
         git_checkout = (root / ".git").exists()
         if args.candidate_from_head and not git_checkout:
             raise AcceptanceError("--candidate-from-head needs --repo-root to be a Git checkout root")
+        head_sha = _head_sha(root) if git_checkout else None
         prd_bytes = _read_bytes(args.prd, "PRD", root)
         contract_bytes = _read_bytes(args.contract, "contract", root)
         result_bytes = _read_bytes(args.results, "results", root)
@@ -452,17 +506,28 @@ def _run(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
         recorded = results.get("candidate_sha")
         candidate_sha = recorded if isinstance(recorded, str) else ""
     allowed_root = evidence_root(results_path)
+    captured_evidence: dict[str, bytes] = {}
     matched, result_errors = _results(
-        results, scenarios, required_tests, candidate_sha, root, allowed_root
+        results, scenarios, required_tests, candidate_sha, root, allowed_root,
+        captured_evidence,
     )
     errors.extend(result_errors)
-    if git_checkout and GIT_SHA_RE.fullmatch(candidate_sha):
+    if head_sha is not None and GIT_SHA_RE.fullmatch(candidate_sha):
+        errors.extend(_committed_file_errors(root, head_sha, results_path, result_bytes))
+        for path, evidence_bytes in sorted(captured_evidence.items()):
+            errors.extend(_committed_file_errors(root, head_sha, path, evidence_bytes))
         errors.extend(
             _candidate_tree_errors(
-                root, candidate_sha,
+                root, candidate_sha, head_sha,
                 {results_path} | _evidence_paths(results, allowed_root),
             )
         )
+    if head_sha is not None:
+        try:
+            if _head_sha(root) != head_sha:
+                errors.append("HEAD changed during acceptance check")
+        except AcceptanceError as exc:
+            errors.append(str(exc))
     payload = _response(
         errors,
         required_tests=sorted(required_tests),
