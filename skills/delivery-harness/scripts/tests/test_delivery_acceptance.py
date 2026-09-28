@@ -212,14 +212,15 @@ class DeliveryAcceptanceTests(unittest.TestCase):
     def test_evidence_is_relative_but_cli_inputs_may_be_absolute(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory).resolve()
-            artifact = root / 'evidence.txt'
+            (root / 'evidence').mkdir()
+            artifact = root / 'evidence' / 'run.txt'
             artifact.write_bytes(EVIDENCE)
             errors = []
             self.assertFalse(checker._evidence(root, {
-                'path': str(artifact), 'sha256': EVIDENCE_SHA}, 'evidence', errors))
+                'path': str(artifact), 'sha256': EVIDENCE_SHA}, 'evidence', errors, 'evidence'))
             self.assertTrue(errors)
             self.assertTrue(checker._evidence(root, {
-                'path': 'evidence.txt', 'sha256': EVIDENCE_SHA}, 'evidence', []))
+                'path': 'evidence/run.txt', 'sha256': EVIDENCE_SHA}, 'evidence', [], 'evidence'))
         self.assertEqual(0, invoke()[0])
 
     def test_unauthenticated_scenario_does_not_require_invented_login(self):
@@ -418,7 +419,14 @@ class DeliveryAcceptanceTests(unittest.TestCase):
         stale_hash = results()
         stale_hash["results"][0]["evidence"]["sha256"] = "d" * 64
 
+        # A readable, hash-matching file outside the evidence root still fails.
+        outside = results()
+        outside["results"][0]["evidence"]["path"] = "PRD.md"
+        outside["results"][0]["evidence"]["sha256"] = hashlib.sha256(
+            PRD.encode("utf-8")).hexdigest()
+
         cases = (
+            ("outside-root", outside, "PRD.md must be under evidence/"),
             ("traversal", traversal, "cannot be read safely"),
             ("secret-name", secret, "cannot be read safely"),
             ("stale-hash", stale_hash, "does not match the evidence artifact"),
@@ -506,6 +514,67 @@ class CandidateTreeTests(unittest.TestCase):
                 status, payload = self.check(*candidate)
                 self.assertEqual(1, status)
                 self.assertIn("src/example/foo.py", " ".join(payload["errors"]))
+
+    def test_product_file_listed_as_evidence_cannot_exempt_itself(self) -> None:
+        # The register must not exempt a product or test file that changed
+        # after H1 by naming it as a row's evidence.
+        self.write("src/example/foo.py", "x = 2\n")
+        self.write("tests/test_foo.py", "assert True\n")
+        self.commit_register(self.h1)
+        value = json.loads((self.root / "results.json").read_text(encoding="utf-8"))
+        for index, path in enumerate(("src/example/foo.py", "tests/test_foo.py")):
+            value["results"][index]["evidence"] = {
+                "path": path,
+                "sha256": hashlib.sha256((self.root / path).read_bytes()).hexdigest(),
+            }
+        self.write("results.json", json.dumps(value))
+        self.commit("register names product files as evidence")
+
+        for candidate in (["--candidate-from-head"], ["--candidate-sha", self.h1]):
+            with self.subTest(candidate=candidate[0]):
+                status, payload = self.check(*candidate)
+                self.assertEqual(1, status)
+                text = " ".join(payload["errors"])
+                self.assertIn("must be under evidence/", text)
+                self.assertIn("src/example/foo.py, tests/test_foo.py", text)
+
+    def test_evidence_root_sits_next_to_the_register(self) -> None:
+        register = "docs/verification/delivery-results.json"
+        (self.root / "docs/verification/evidence").mkdir(parents=True)
+        (self.root / "docs/verification/evidence/web.txt").write_bytes(EVIDENCE)
+        value = results()
+        value["candidate_sha"] = self.h1
+        for row in value["results"]:
+            row["evidence"]["path"] = "docs/verification/evidence/web.txt"
+        self.write(register, json.dumps(value))
+        self.commit("acceptance register")
+        self.assertEqual((0, []), self.check_register(register))
+
+        # Root-level evidence/ is not this register's evidence root.
+        (self.root / "evidence").mkdir()
+        (self.root / "evidence" / "web.txt").write_bytes(EVIDENCE)
+        for row in value["results"]:
+            row["evidence"]["path"] = "evidence/web.txt"
+        self.write(register, json.dumps(value))
+        self.commit("evidence outside the register's root")
+        status, errors = self.check_register(register)
+        self.assertEqual(1, status)
+        self.assertIn("must be under docs/verification/evidence/", " ".join(errors))
+        self.assertIn("evidence: docs/verification/evidence/web.txt, evidence/web.txt",
+                      " ".join(errors))
+
+    def check_register(self, register: str) -> tuple[int, list[str]]:
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            status = checker.main([
+                "--repo-root", str(self.root),
+                "--prd", "PRD.md",
+                "--contract", "contract.json",
+                "--contract-sha256", hashlib.sha256(self.contract_bytes).hexdigest(),
+                "--results", register,
+                "--candidate-from-head",
+            ])
+        return status, json.loads(output.getvalue())["errors"]
 
     def test_unlisted_evidence_file_in_the_register_commit_fails(self) -> None:
         self.commit_register(self.h1, "evidence/unlisted.txt")

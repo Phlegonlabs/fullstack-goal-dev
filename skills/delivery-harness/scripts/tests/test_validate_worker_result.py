@@ -687,20 +687,26 @@ class ValidateWorkerResultTests(unittest.TestCase):
         )
         self.assertIn("task_scope_escape", error_codes(errors))
 
-    def _shared_checkout_acceptance_fixture(self, *, gate: bool = True):
+    GATE_ARGV = [
+        "python",
+        "/skills/delivery-harness/scripts/check_delivery_acceptance.py",
+        "--results",
+        "docs/verification/delivery-results.json",
+        "--candidate-from-head",
+    ]
+
+    def _shared_checkout_acceptance_fixture(
+        self, *, gate: bool = True, argv: list[str] | None = None,
+        task_scope: list[str] = (),
+    ):
         plan = copy.deepcopy(self.plan)
         plan["missions"][0]["write_scope"].append("docs/verification/**")
+        plan["missions"][0]["tasks"][0]["write_scope"].extend(task_scope)
         if gate:
             plan["final_gates"].append(
                 {
                     **verifier("delivery-acceptance"),
-                    "argv": [
-                        "python",
-                        "/skills/delivery-harness/scripts/check_delivery_acceptance.py",
-                        "--results",
-                        "docs/verification/delivery-results.json",
-                        "--candidate-from-head",
-                    ],
+                    "argv": argv or self.GATE_ARGV,
                 }
             )
         run = make_run(plan)
@@ -708,8 +714,13 @@ class ValidateWorkerResultTests(unittest.TestCase):
         run["workers"][0]["workspace_mode"] = "shared_checkout"
         return plan, run
 
-    def _validate_shared_checkout(self, changed: list[str], *, gate: bool = True):
-        plan, run = self._shared_checkout_acceptance_fixture(gate=gate)
+    def _validate_shared_checkout(
+        self, changed: list[str], *, gate: bool = True, argv: list[str] | None = None,
+        task_scope: list[str] = (),
+    ):
+        plan, run = self._shared_checkout_acceptance_fixture(
+            gate=gate, argv=argv, task_scope=task_scope
+        )
         result = make_result(plan)
         result["changed_files"] = changed
         for item in result["verifiers"]:
@@ -728,6 +739,72 @@ class ValidateWorkerResultTests(unittest.TestCase):
             with self.subTest(path=path):
                 errors = self._validate_shared_checkout([CHANGED_FILE, path])
                 self.assertEqual({"acceptance_path_write"}, error_codes(errors))
+
+    def test_task_scope_cannot_let_a_worker_write_acceptance_paths(self) -> None:
+        # A broad task scope such as docs/verification/** still leaves the
+        # register and its evidence/ directory to the parent.
+        broad = ["docs/verification/**"]
+        for path in (
+            "docs/verification/delivery-results.json",
+            "docs/verification/evidence/run.log",
+        ):
+            with self.subTest(path=path):
+                errors = self._validate_shared_checkout(
+                    [CHANGED_FILE, path], task_scope=broad
+                )
+                self.assertEqual({"acceptance_path_write"}, error_codes(errors))
+        # Other task-scoped files beside the register stay writable.
+        self.assertEqual([], self._validate_shared_checkout(
+            [CHANGED_FILE, "docs/verification/notes.md"], task_scope=broad
+        ))
+        # Without the gate, a task scope still covers the same paths.
+        self.assertEqual([], self._validate_shared_checkout(
+            [CHANGED_FILE, "docs/verification/delivery-results.json"],
+            gate=False, task_scope=broad,
+        ))
+
+    def test_acceptance_gate_in_other_argv_forms_still_guards(self) -> None:
+        register = "docs/verification/delivery-results.json"
+        equals = [*self.GATE_ARGV[:2], f"--results={register}", "--candidate-from-head"]
+        wrapper = [
+            "bash", "-c",
+            f"python /x/check_delivery_acceptance.py --results {register}",
+        ]
+        self.assertEqual(
+            (True, [register]),
+            subject._acceptance_register_paths({"final_gates": [{"argv": equals}]}),
+        )
+        # A wrapper hides the register path; the gate still counts as declared.
+        self.assertEqual(
+            (True, []),
+            subject._acceptance_register_paths({"final_gates": [{"argv": wrapper}]}),
+        )
+        # Register paths outside the repository are not trusted as paths.
+        for value in ("../x.json", "/tmp/x.json", "C:/x.json", "--results=../x.json"):
+            argv = ["python", "check_delivery_acceptance.py", value]
+            if not value.startswith("--"):
+                argv.insert(2, "--results")
+            with self.subTest(results=value):
+                self.assertEqual(
+                    (True, []),
+                    subject._acceptance_register_paths({"final_gates": [{"argv": argv}]}),
+                )
+        # With the path unknown, a broad task scope still passes the register;
+        # only the task-scope check applies. PLANs keep the template argv form.
+        self.assertEqual([], self._validate_shared_checkout(
+            [CHANGED_FILE, register], argv=wrapper, task_scope=["docs/verification/**"]
+        ))
+        for label, argv in (("equals", equals), ("wrapper", wrapper)):
+            for path in (register, "docs/verification/evidence/run.log"):
+                with self.subTest(form=label, path=path):
+                    errors = self._validate_shared_checkout(
+                        [CHANGED_FILE, path], argv=argv
+                    )
+                    self.assertEqual({"acceptance_path_write"}, error_codes(errors))
+            with self.subTest(form=label, path=CHANGED_FILE):
+                self.assertEqual(
+                    [], self._validate_shared_checkout([CHANGED_FILE], argv=argv)
+                )
 
     def test_shared_checkout_acceptance_check_keeps_task_scoped_paths(self) -> None:
         self.assertEqual([], self._validate_shared_checkout([CHANGED_FILE]))

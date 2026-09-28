@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import posixpath
 import re
 import subprocess
 import sys
@@ -224,7 +225,20 @@ def _contract(
     return scenarios, errors
 
 
-def _evidence(root: Path, value: Any, path: str, errors: list[str]) -> bool:
+def evidence_root(results_path: str) -> str:
+    """Evidence lives in ``evidence/`` next to the register."""
+
+    return posixpath.join(posixpath.dirname(results_path), "evidence")
+
+
+def _under_root(raw_path: str, root: str) -> bool:
+    posix = Path(raw_path).as_posix()
+    return ".." not in posix.split("/") and posix.startswith(root + "/")
+
+
+def _evidence(
+    root: Path, value: Any, path: str, errors: list[str], allowed_root: str
+) -> bool:
     if not _exact_keys(value, EVIDENCE_KEYS, path, errors):
         return False
     raw_path = _string(value.get("path"), f"{path}.path", errors)
@@ -242,6 +256,9 @@ def _evidence(root: Path, value: Any, path: str, errors: list[str]) -> bool:
     except AcceptanceError:
         errors.append(f"{path}.path cannot be read safely")
         return False
+    if not _under_root(raw_path, allowed_root):
+        errors.append(f"{path}.path {raw_path} must be under {allowed_root}/")
+        return False
     if not payload:
         errors.append(f"{path}.path is empty")
         return False
@@ -257,6 +274,7 @@ def _results(
     required_tests: set[str],
     candidate_sha: str,
     root: Path,
+    allowed_root: str,
 ) -> tuple[list[str], list[str]]:
     errors: list[str] = []
     if not _exact_keys(value, RESULT_KEYS, "results", errors):
@@ -290,7 +308,9 @@ def _results(
         )
         status = _enum(row["status"], f"{row_path}.status", STATUSES, errors)
         build = _build(row["build"], f"{row_path}.build", platform, environment, errors)
-        evidence_ok = _evidence(root, row["evidence"], f"{row_path}.evidence", errors)
+        evidence_ok = _evidence(
+            root, row["evidence"], f"{row_path}.evidence", errors, allowed_root
+        )
         identity = (
             test_id,
             scenario_id,
@@ -332,13 +352,15 @@ def _results(
     return sorted(f"{test_id}/{scenario_id}" for test_id, scenario_id in matched), errors
 
 
-def _evidence_paths(value: dict[str, Any]) -> set[str]:
+def _evidence_paths(value: dict[str, Any], allowed_root: str) -> set[str]:
+    """Listed evidence paths under the evidence root; no other path is exempt."""
+
     rows = value.get("results")
     paths: set[str] = set()
     for row in rows if isinstance(rows, list) else []:
         evidence = row.get("evidence") if isinstance(row, dict) else None
         raw = evidence.get("path") if isinstance(evidence, dict) else None
-        if isinstance(raw, str) and raw.strip():
+        if isinstance(raw, str) and _under_root(raw.strip(), allowed_root):
             paths.add(Path(raw.strip()).as_posix())
     return paths
 
@@ -347,8 +369,8 @@ def _candidate_tree_errors(root: Path, candidate: str, allowed: set[str]) -> lis
     """Bind the register's candidate to the checked-out HEAD.
 
     The candidate must be HEAD or an ancestor of it, and the commits after it
-    may change only the register, the evidence files it lists and run
-    coordination files. Any other change makes a new candidate whose
+    may change only the register, the evidence files it lists under the
+    evidence root and run coordination files. Any other change makes a new candidate whose
     scenarios have not run.
     """
 
@@ -429,14 +451,16 @@ def _run(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
     if candidate_sha is None:
         recorded = results.get("candidate_sha")
         candidate_sha = recorded if isinstance(recorded, str) else ""
+    allowed_root = evidence_root(results_path)
     matched, result_errors = _results(
-        results, scenarios, required_tests, candidate_sha, root
+        results, scenarios, required_tests, candidate_sha, root, allowed_root
     )
     errors.extend(result_errors)
     if git_checkout and GIT_SHA_RE.fullmatch(candidate_sha):
         errors.extend(
             _candidate_tree_errors(
-                root, candidate_sha, {results_path} | _evidence_paths(results)
+                root, candidate_sha,
+                {results_path} | _evidence_paths(results, allowed_root),
             )
         )
     payload = _response(
