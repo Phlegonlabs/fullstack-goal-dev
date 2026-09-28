@@ -53,4 +53,7 @@ Verification (from repository root, `PDH_REQUIRE_BROWSER_TESTS=1`):
 - Later edits (enhancement-recommendations route list, router markers in `test_skill_contract`, 0.55.0 history lines) were followed by a full UI rerun: 293 OK. CI runs the full set on the pushed SHA before main moves.
 - Handoff audit: repo `AGENTS.md` matches the source 0.55.0 `PROJECT_AGENTS.template.md`; installed copy is 0.54.5 (template sha256 `1677220a…`), so repo rules are ahead of installed, not stale. No AGENTS edit.
 
+- Branch pushed; PR #128 CI on `a3da039d` failed only in review-fixes work (see that Epic). Owner chose to fix Linux and keep macOS non-blocking; fixes in `7db24835` and `221bac00`.
+- Local skills installed from `a3da039d` with `install.ps1` after the first push (backup `~/.agents/skill-backups/product-delivery-harness/20260927-143326`); installed VERSION 0.55.0.
+
 Remaining: a resources-folder option for larger HiFi media is deferred.

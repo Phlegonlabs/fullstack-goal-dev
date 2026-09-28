@@ -96,9 +96,17 @@ committed; no working-tree changes are recorded.
   product-definition-builder 240 OK, ui-design-builder 292 OK, design-system-compiler 116 OK
   (4 skipped), product-activation 56 OK, seo-growth-review 21 OK. Golden path 1 OK.
 - Not run: the Playwright browser tests (`PDH_REQUIRE_BROWSER_TESTS=1`) and Linux/macOS CI.
+- 2026-09-27 first CI run on `a3da039d` (PR #128): windows-hardening passed; validate (Linux)
+  failed 1 test, macos failed 353 (209 failures, 144 errors). The Linux failure was the
+  tracked-symlink installer test reading pwsh's colored, "|"-wrapped error record; fixed in
+  `7db24835`. The macos job is set non-blocking in `221bac00` (owner decision, 2026-09-27).
 
 ### Open follow-ups
 
+- macOS support: Harness fails 353 tests on macos-latest. Causes seen: `_trusted_executable`
+  rejects Homebrew Git (symlinked, user-owned under `/opt/homebrew`), `/var` symlink temp roots
+  hit the transition-path link check, `linked skill paths are not supported`, and `/dev/fd/3`
+  permission errors. Remove `continue-on-error` from the macos job once these pass.
 - The POSIX commit paths (Linux and macOS) are verified only by reading and mocked-libc tests
   until CI runs them.
 - The exchange verify/restore code (RUN, DOCUMENTS, design-system) has two older narrow races:
