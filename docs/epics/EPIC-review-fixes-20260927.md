@@ -260,3 +260,11 @@ cover both CRLF failure and attribute-protected success, and repeated-path
 changes are rejected. All 40 focused acceptance tests passed on this follow-up
 working tree. Exact-candidate CI, PR promotion, tag and local install remain
 pending. The older pre-0.38 UI path issue remains a separate unverified gap.
+
+Second read-only Opus 5.5 review of `9c2ba405` found no code blocker. It found
+that README wording could place `.gitattributes` in the register-only H2 commit,
+which the gate rejects. The working-tree follow-up clarifies in all four READMEs
+that attributes are committed before H1, and the managed PLAN template now
+requires readiness review to check them or grant a pre-H1 task the attribute
+path. The contract also states that Git binding requires `--repo-root` to be
+the checkout root. Full exact-candidate checks and promotion remain pending.

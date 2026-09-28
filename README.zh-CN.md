@@ -608,7 +608,7 @@ Document sync 只略过明确退役列表中的旧名称；实际引用和未知
 
 ### Git checkout 中的验收证据
 
-在 Git checkout 根目录，交付验收 gate 会确认 register 及其列出的每个 evidence 文件，其字节都与 `HEAD` 中已提交的普通文件相同。即使记录的 hash 符合工作目录内容，被忽略、未跟踪或已修改的证据仍会失败。提交前，先为 register 和证据路径设置 `-text -filter` 属性，避免 Windows 换行或 Git filter 改变提交的字节，再运行最终 gate。
+当 `--repo-root` 是 Git checkout 根目录时，交付验收 gate 会确认 register 及其列出的每个 evidence 文件，其字节都与 `HEAD` 中已提交的普通文件相同；上面的 H1/H2 检查也有相同的根目录要求。即使记录的 hash 符合工作目录内容，被忽略、未跟踪或已修改的证据仍会失败。先在候选 H1 之前为 register 和证据路径加入并提交 `-text -filter` 属性，避免 Windows 换行或 Git filter 改变字节。在 H1 执行测试后，只提交 register 和证据成为 H2，再运行最终 gate。
 
 ## 保持 README 与代码同步
 

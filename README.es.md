@@ -607,7 +607,7 @@ Las copias chinas se comprueban también por cobertura de niveles de encabezados
 
 ### Evidencia de aceptación en checkouts Git
 
-En la raíz de un checkout Git, el gate de aceptación comprueba que el registro y cada archivo de evidencia tengan exactamente los mismos bytes que archivos normales confirmados en `HEAD`. La evidencia ignorada, sin seguimiento o modificada falla aunque su hash coincida con la copia de trabajo. Antes del commit, configura los atributos `-text -filter` para el registro y la evidencia, para que los saltos de línea de Windows o los filtros Git no cambien los bytes confirmados. Confírmalos antes del gate final.
+Cuando `--repo-root` es la raíz del checkout Git, el gate de aceptación comprueba que el registro y cada archivo de evidencia tengan exactamente los mismos bytes que archivos normales confirmados en `HEAD`; la comprobación H1/H2 anterior también requiere esa raíz. La evidencia ignorada, sin seguimiento o modificada falla aunque su hash coincida con la copia de trabajo. Añade y confirma los atributos `-text -filter` para el registro y la evidencia antes del candidato H1, para que los saltos de línea de Windows o los filtros Git no cambien los bytes. Después de ejecutar las pruebas en H1, confirma solo el registro y la evidencia como H2 y ejecuta el gate final.
 
 ## Mantener los READMEs al día
 

@@ -608,7 +608,7 @@ Document sync 只略過明確退役清單中的舊名稱；實際引用與未知
 
 ### Git checkout 中的驗收證據
 
-在 Git checkout 根目錄，交付驗收 gate 會確認 register 及其列出的每個 evidence 檔案，位元組都與 `HEAD` 中已提交的普通檔案相同。即使記錄的 hash 符合工作目錄內容，被忽略、未追蹤或已修改的證據仍會失敗。提交前，先為 register 與證據路徑設定 `-text -filter` 屬性，避免 Windows 換行或 Git filter 改變提交的位元組，再執行最終 gate。
+當 `--repo-root` 是 Git checkout 根目錄時，交付驗收 gate 會確認 register 及其列出的每個 evidence 檔案，位元組都與 `HEAD` 中已提交的普通檔案相同；上面的 H1/H2 檢查也有同一根目錄要求。即使記錄的 hash 符合工作目錄內容，被忽略、未追蹤或已修改的證據仍會失敗。先在候選 H1 之前為 register 與證據路徑加入並提交 `-text -filter` 屬性，避免 Windows 換行或 Git filter 改變位元組。在 H1 執行測試後，只提交 register 與證據成為 H2，再執行最終 gate。
 
 ## 維持 README 與時俱進
 
