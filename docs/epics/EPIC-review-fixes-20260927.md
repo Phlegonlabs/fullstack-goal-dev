@@ -139,7 +139,7 @@ leftover fixes and this documentation sync. All entries are committed.
   (4 skipped), product-activation 56 OK, seo-growth-review 21 OK. Golden path 1 OK. Browser
   tests and Linux/macOS runs are left to CI.
 
-- Release integration (2026-09-28): `codex/review-followups` (#130), `codex/macos-support` (#129) and `codex/remove-wireframe-stage` are combined on `codex/release-0.56.0` as one 0.56.0 release (merges `412db6b4`, `32bb7de1`); 0.55.1 was never tagged. Full suite and final review results follow in the PR.
+- Release integration (2026-09-28): `codex/review-followups` (#130), `codex/macos-support` (#129) and `codex/remove-wireframe-stage` are combined on `codex/release-0.56.0` as one 0.56.0 release (merges `412db6b4`, `32bb7de1`); 0.55.1 was never tagged. Full suite on `0d105c78` passed (delivery-harness 1368 OK/19 skipped, product-definition-builder 240, ui-design-builder 308, design-system-compiler 119/4 skipped, product-activation 56, seo-growth-review 21, golden path 1, static checks) and CI passed on Linux, Windows and macOS. The final correctness + security review found no blockers and 8 confirmed issues (stale wireframe wording in Harness references, templates and README prompts; PRD operations heading grammar; HiFi copy label fallback; legacy maintenance dispatch message); all were fixed on `fix0560/*` and merged.
 
 ### Open follow-ups
 
