@@ -177,8 +177,17 @@ class InstallScriptTests(unittest.TestCase):
             self.assertIn('echo "TMPDIR=$(cd "$TMPDIR" && pwd -P)/" >> "$GITHUB_ENV"', job)
         # The long Harness suite is measured and sharded; installer tests stay
         # in the discovered files and therefore retain macOS native coverage.
-        for shard in range(4):
-            self.assertIn(f"--platform macos --shard-count 4 --shard-index '{shard}'", harness)
+        # Workflow expands the index from the matrix, so assert the matrix and
+        # its templated use rather than four literal copies of one command.
+        matrix = re.search(r"^\s*shard:\s*\[([^]]+)\]", harness, re.MULTILINE)
+        self.assertIsNotNone(matrix)
+        self.assertEqual(
+            ["0", "1", "2", "3"],
+            [item.strip() for item in matrix.group(1).split(",")],
+        )
+        self.assertIn("--platform macos --shard-count 4", harness)
+        self.assertIn("--shard-index '${{ matrix.shard }}'", harness)
+        self.assertIn("name: macos-harness-${{ matrix.shard }}", harness)
         for skill in (
             "product-definition-builder",
             "ui-design-builder",
