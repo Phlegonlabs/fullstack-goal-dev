@@ -1426,9 +1426,15 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
             "not from habit, inherited patterns, or how another project solved it",
             project_agents,
         )
-        self.assertIn("### File Size Checkpoint", project_agents)
+        self.assertIn("### Module Size Limit", project_agents)
         self.assertNotIn("deleted and rewritten from scratch", project_agents)
-        self.assertIn("checkpoint, not a hard limit", project_agents)
+        self.assertIn(
+            "New code modules, including tests, are limited to 500 physical lines.",
+            project_agents,
+        )
+        self.assertIn("Record existing oversized modules for scoped follow-up", project_agents)
+        self.assertIn("not the Harness skill-source repository", project_agents)
+        self.assertNotIn("checkpoint, not a hard limit", project_agents)
         self.assertIn("## Managed Product Delivery Harness Runs", project_agents)
         self.assertIn("Small bounded work may proceed directly", project_agents)
         self.assertIn("## Keep Product Contracts Current", project_agents)
