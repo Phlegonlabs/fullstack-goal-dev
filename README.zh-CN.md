@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.58.0-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.59.0-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -659,6 +659,8 @@ HiFi 示例以固定 LF 换行维持跨平台字节哈希。Wireframe 的 Node �
 本仓库采用 MIT 许可证，全文见 [LICENSE](LICENSE)。
 
 ## 版本历史
+
+- **0.59.0** — 本地候选，尚未发布。更新 AGENTS 模板合并、受保护的 development／main 流程、跨 host 并行 writer、完整 Design System HTML、Activation 执行闭环及精确候选验证。保留历史 pins 与每项任务的 atomic commit。实现与验证状态见逐步流程及 modernization Epic。
 
 - **0.58.0** — Parent 角色派工、多实例研究／探索、身份绑定结果汇合和附带 maximum-creativity brief 的强制 frontend 委派。App-thread 角色绑定必须观察到 app capabilities，隔离、冲突与预算检查采用每个 binding 的 workspace，研究 complete 结果必须附带带来源的 findings，省略 effort 时接受 host 默认。供使用项目套用的 AGENTS 模板加入新代码／测试模块 500 行硬上限、KISS、第一性原理、模块拆分及避免推测性兼容代码；Harness 源码不受此上限限制。保留旧版 pinned RUN 和 owner 批准关卡。
 

@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.58.0-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.59.0-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -659,6 +659,8 @@ Then run the full verification above, review the entire diff, and land through `
 This repository is licensed under the MIT License — see [LICENSE](LICENSE).
 
 ## Version history
+
+- **0.59.0** — Local candidate, not released. Modernize AGENTS template merging, protected development/main flow, host-neutral parallel writers, full design-system HTML, Activation execution closeout and exact-candidate verification. Preserve historical pins and atomic task commits. See the numbered workflow and modernization Epic for implementation and validation status.
 
 - **0.58.0** — Parent-owned role routing and multi-instance research/exploration, identity-bound result joins and mandatory frontend delegation with a maximum-creativity brief. App-thread role bindings require observed app capabilities, per-binding workspaces drive isolation, conflict and budget checks, completed research requires sourced findings, and omitted effort accepts the host default. The consumer AGENTS template sets a 500-line hard cap for new code/test modules, KISS, first principles, module splitting and no speculative compatibility code; Harness source is outside this cap. Preserve legacy pinned runs and owner approval gates.
 

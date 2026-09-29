@@ -28,6 +28,8 @@ Generated logs, bridge packets and temporary profiling data stay in the task dir
 
 ## Change Log
 
+- 2026-09-29: prepared unreleased 0.59.0 metadata across package/lockfile, Harness VERSION, RUNBOOK default and four README badges/history. The current-version new-run suite passed all 11 tests and the release-surface consistency check passed. This is a candidate version, not a main promotion or tag. Bootstrap commits through `94d0e8c` were integrated as `1fb06ad`, `747ccd9f`, `f1a7297` and `b009c1a7`; parent context tests passed all 13 cases. Index-only conflicts retained all independent rows and the later factual release observations.
+
 - 2026-09-29: checkpoint at `4b84903` found the current index still described 0.57/0.58 work as unreleased candidates. Local tag peeling and bounded main history show `v0.57.0` at `b591a618` and `v0.58.0` at baseline `bdae1d82`. Updated only current index status and appended later observations to those Epics; preserved their historical verification and authorization records. No new remote release or installation claim is made.
 
 - 2026-09-29: integrated dual-branch parser, PLAN policy validation, strict join repairs and live templates as `bbdf4d55`, `fb441bab`, `7f035cea` and `3ba4b47c`. Parent branch-policy regression passed (6 tests). Clarified acceptance/security timing and permitted same-candidate overlap without weakening frozen expectations, H1/H2 proof, independent review or fresh-state checks. No scheduler bypass or generic cross-SHA result cache was added.
