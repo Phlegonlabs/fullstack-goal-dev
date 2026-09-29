@@ -58,6 +58,14 @@ diagrams must agree. The source repository has no consumer PRD or managed RUN.
 
 ## Results And Remaining Work
 
+Exact candidate `3ab0eb3ad91f2129737bf2c96a53d21355017ed1` received a security
+PASS from fresh Opus 5.5 review `20260928-195504-d19be99d`. Its non-blocking
+correctness finding showed the README regression accepted any route label.
+The bounded follow-up checks each language's maintenance/enhancement label and
+rejects deferred-UI edges into Harness or its route node, with negative examples
+for every language and destination. This new commit invalidates the earlier
+exact-SHA promotion authorization and requires fresh review/verification.
+
 Candidate prepared in the attached `self-review-gates` worktree on the
 owner-confirmed `codex/pre-delivery-self-review`, based on the freshly observed
 origin/main `d7083fb3f43481127fd25252f200e5aa1d37e977`. The primary checkout remains
