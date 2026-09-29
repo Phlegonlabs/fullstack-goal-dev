@@ -10,7 +10,7 @@ import sys
 import tempfile
 import unittest
 
-from test_structure_publication import checker, digest
+from test_structure_publication import build_receipt, checker, digest
 from test_ui_design_contract import capture_fixture
 from test_wireframe_free_publication import current_publication
 
@@ -25,6 +25,26 @@ def _study_html(title):
     return (f'<!doctype html><html lang="en"><head><meta http-equiv="Content-Security-Policy" content="{csp}">'
             f'<title>{title}</title><style>body{{margin:0;font:16px/1.5 serif}}</style></head>'
             f'<body><main><h1>{title}</h1><p>Synthetic rendered direction study for validator tests.</p></main></body></html>')
+
+
+def intermediate_receipt(root, text, targets, *, results=None):
+    """Synthetic ui-output/3 HiFi browser observation at in-between widths.
+
+    It copies the fixture's HiFi surface observation and changes only its case
+    matrix; it is validator input, not an actual browser run.
+    """
+    surface = re.search(r"^HiFi surface check: PASS — evidence=(\S+) @", text, re.M).group(1)
+    source = json.loads((root / surface).read_text(encoding="utf-8"))
+    output = json.loads((root / source["receipt"]["outputArtifact"]["path"]).read_text(encoding="utf-8"))
+    states = sorted({case["state"] for case in output["matrix"]["cases"]})
+    cases = [{"surface": "UI-001", "state": state, "target": target} for target in targets for state in states]
+    output["matrix"] = {"cases": cases}
+    output["results"] = results or [dict(case, result="PASS") for case in cases]
+    out_path = root / "docs/evidence/hifi-intermediate-widths-output.json"
+    out_path.write_text(json.dumps(output), encoding="utf-8")
+    receipt = root / "docs/evidence/hifi-intermediate-widths.json"
+    receipt.write_text(json.dumps(build_receipt(root, out_path.relative_to(root).as_posix())), encoding="utf-8")
+    return f"{receipt.relative_to(root).as_posix()} @ sha256:{digest(receipt)}"
 
 
 def v3_publication(root, *, action="compile", disposition="none"):
@@ -56,16 +76,8 @@ def v3_publication(root, *, action="compile", disposition="none"):
     start, end = text.index("### Direction comparison"), text.index("### Required motion evidence")
     text = (text[:start] + "### Direction comparison\n\n" + "\n".join(rows) + "\n\n"
             + "\n".join(studies) + "\n\n" + text[end:])
-    target = re.search(r"^Approved target: (\S+) @ sha256:([0-9a-f]{64});", text, re.M)
-    evidence = root / "docs/evidence/intermediate-widths.json"
-    evidence.write_text(json.dumps({
-        "schema": "ui-intermediate-widths/1",
-        "subject": {"path": target.group(1), "sha256": target.group(2)},
-        "cases": [{"surface": "UI-001", "width": width, "between": bounds, "horizontalOverflow": False,
-                   "clipping": False, "result": "PASS"} for width, bounds in ((560, [390, 768]), (980, [768, 1200]))],
-    }), encoding="utf-8")
-    text = text.replace("HiFi score:", f"Intermediate width check: PASS — evidence={evidence.relative_to(root).as_posix()} "
-                        f"@ sha256:{digest(evidence)}\nHiFi score:", 1)
+    evidence = intermediate_receipt(root, text, ("560", "980"))
+    text = text.replace("HiFi score:", f"Intermediate width check: PASS — evidence={evidence}\nHiFi score:", 1)
     gate = text.index("## Design System Need Gate")
     head, tail = text[:gate], text[gate:]
     tail = tail.replace("Decision: not_required", "Decision: required", 1)
@@ -153,25 +165,38 @@ class UiDesignV3Tests(unittest.TestCase):
             root = Path(directory)
             ui, prd, hifi = v3_publication(root)
             self.assertEqual([], preflight(ui, root, prd, hifi))
-            evidence = root / "docs/evidence/intermediate-widths.json"
-            data = json.loads(evidence.read_text(encoding="utf-8"))
-            old = digest(evidence)
-            for label, mutate, expected in (
-                ("gap", lambda d: d["cases"].pop(), "between 768px and 1200px"),
-                ("overflow", lambda d: d["cases"][0].update(horizontalOverflow=True), "did not pass"),
-                ("edge width", lambda d: d["cases"][0].update(width=390), "strictly between"),
-                ("other subject", lambda d: d["subject"].update(sha256="0" * 64), "Approved target path and sha256"),
+            base = ui.read_text(encoding="utf-8")
+            field = re.search(r"^Intermediate width check: PASS — evidence=(.+)$", base, re.M).group(1)
+
+            def check(evidence):
+                ui.write_text(base.replace(field, evidence), encoding="utf-8")
+                return "\n".join(preflight(ui, root, prd, hifi))
+
+            for label, targets, expected in (
+                ("gap", ("560",), "between 768px and 1200px"),
+                ("edge width", ("390", "980"), "strictly between two adjacent approved widths"),
             ):
                 with self.subTest(label):
-                    changed = json.loads(json.dumps(data))
-                    mutate(changed)
-                    evidence.write_text(json.dumps(changed), encoding="utf-8")
-                    text = ui.read_text(encoding="utf-8").replace(old, digest(evidence))
-                    ui.write_text(text, encoding="utf-8")
-                    old = digest(evidence)
-                    self.assertIn(expected, "\n".join(preflight(ui, root, prd, hifi)))
-            text = re.sub(r"^Intermediate width check:.*\n", "", ui.read_text(encoding="utf-8"), flags=re.M)
-            ui.write_text(text, encoding="utf-8")
+                    self.assertIn(expected, check(intermediate_receipt(root, base, targets)))
+            with self.subTest("failed observation"):
+                failed = [{"surface": "UI-001", "state": "ready", "target": "560", "result": "FAIL"}]
+                self.assertIn("Intermediate width check evidence must record", check(
+                    intermediate_receipt(root, base, ("560", "980"), results=failed)))
+            with self.subTest("stale subject"):
+                evidence = intermediate_receipt(root, base, ("560", "980"))
+                output = root / "docs/evidence/hifi-intermediate-widths-output.json"
+                data = json.loads(output.read_text(encoding="utf-8"))
+                data["subject"]["sha256"] = "0" * 64
+                output.write_text(json.dumps(data), encoding="utf-8")
+                self.assertIn("Intermediate width check", check(evidence))
+            with self.subTest("hand-written boolean record"):
+                legacy = root / "docs/evidence/intermediate-widths.json"
+                legacy.write_text(json.dumps({"schema": "ui-intermediate-widths/1", "subject": {}, "cases": [
+                    {"surface": "UI-001", "width": 560, "between": [390, 768], "horizontalOverflow": False,
+                     "clipping": False, "result": "PASS"}]}), encoding="utf-8")
+                self.assertIn("Intermediate width check evidence has an invalid", check(
+                    f"docs/evidence/intermediate-widths.json @ sha256:{digest(legacy)}"))
+            ui.write_text(re.sub(r"^Intermediate width check:.*\n", "", base, flags=re.M), encoding="utf-8")
             self.assertIn("Intermediate width check must use", "\n".join(preflight(ui, root, prd, hifi)))
 
     def test_version_family_and_schema_mapping_stay_closed(self):

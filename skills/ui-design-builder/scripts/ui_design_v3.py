@@ -2,12 +2,11 @@
 
 ui-design/2 keeps its original meaning. A ui-design/3 package always ships the
 design-system Markdown/JSON/HTML package, records three rendered direction
-studies by one author, and adds intermediate-width HiFi evidence.
+studies by one author, and adds an observed intermediate-width HiFi receipt.
 """
 
 from __future__ import annotations
 
-import json
 import re
 from typing import Any
 
@@ -16,7 +15,6 @@ PACKAGE_ACTIONS = ("compile", "update", "reuse")
 DISPOSITION_BY_ACTION = {"compile": {"none", "retire"}, "update": {"retain"}, "reuse": {"retain"}}
 DIRECTION_STUDY_COLUMNS = ["Direction", "Study", "Author", "Self-check by", "Self-check"]
 V3_DIRECTION_DECISIONS = {"modified-and-approved"}
-INTERMEDIATE_SCHEMA = "ui-intermediate-widths/1"
 STUDY_RE = re.compile(
     r"^(?P<path>docs/design/directions/(?P<round>[A-Za-z0-9][A-Za-z0-9_-]*)/"
     r"[A-Za-z0-9][A-Za-z0-9_-]*\.html) @ sha256:(?P<sha256>[0-9a-f]{64})$"
@@ -107,48 +105,45 @@ def study_html_findings(html: str, path: str) -> list[str]:
     return problems
 
 
-def intermediate_width_findings(payload: bytes, target: dict[str, str] | None, scope: dict[str, Any] | None) -> list[str]:
-    """Every adjacent pair of approved web widths has an observed in-between check."""
+def _viewports(surface: dict[str, Any], scope: dict[str, Any]) -> list[float] | None:
+    responsive = surface.get("responsive") or scope.get("responsive") or {}
+    if not isinstance(responsive, dict) or responsive.get("kind") != "viewports":
+        return None
+    return sorted(float(value) for value in responsive.get("targets", []))
 
-    try:
-        data = json.loads(payload.decode("utf-8"))
-    except (UnicodeError, json.JSONDecodeError) as exc:
-        return [f"Intermediate width check evidence is not JSON: {exc}"]
-    if not isinstance(data, dict) or set(data) != {"schema", "subject", "cases"} or data.get("schema") != INTERMEDIATE_SCHEMA:
-        return [f"Intermediate width check evidence must be {INTERMEDIATE_SCHEMA} with subject and cases"]
+
+def intermediate_width_findings(cases: list[dict[str, str]], scope: dict[str, Any] | None) -> list[str]:
+    """Coverage of a ui-evidence/3 HiFi browser receipt observed at in-between widths.
+
+    The caller has already validated the receipt, its ui-output/3 observation and
+    PASS results with the ordinary HiFi evidence rules; this checks only that its
+    case matrix covers every adjacent pair of approved web widths.
+    """
+
+    scope = scope or {}
+    surfaces = {str(item.get("id")): item for item in scope.get("surfaces", []) if isinstance(item, dict)}
     problems: list[str] = []
-    if target is None or data.get("subject") != {"path": target.get("path"), "sha256": target.get("sha256")}:
-        problems.append("Intermediate width check subject must equal the Approved target path and sha256")
-    cases = data.get("cases")
-    keys = {"surface", "width", "between", "horizontalOverflow", "clipping", "result"}
-    if not isinstance(cases, list) or not cases:
-        return problems + ["Intermediate width check requires observed cases"]
     covered: set[tuple[str, float, float]] = set()
-    for row in cases:
-        if not isinstance(row, dict) or set(row) != keys:
-            problems.append("Intermediate width check cases must contain exactly " + ", ".join(sorted(keys)))
+    for case in cases:
+        surface = surfaces.get(case.get("surface", ""))
+        targets = _viewports(surface, scope) if surface is not None else None
+        if surface is None or targets is None or case.get("state") not in surface.get("states", []):
+            problems.append(f"Intermediate width check case {case.get('surface')}/{case.get('state')} "
+                            "must name an approved web surface and state")
             continue
-        bounds, width = row.get("between"), row.get("width")
-        numbers = (bounds if isinstance(bounds, list) else []) + [width]
-        if (not isinstance(bounds, list) or len(bounds) != 2
-                or not all(isinstance(value, (int, float)) and not isinstance(value, bool) for value in numbers)
-                or not bounds[0] < width < bounds[1]):
-            problems.append("Intermediate width check width must lie strictly between two approved widths")
+        try:
+            width = float(case.get("target", ""))
+        except ValueError:
+            width = float("nan")
+        pair = next(((low, high) for low, high in zip(targets, targets[1:]) if low < width < high), None)
+        if pair is None:
+            problems.append(f"Intermediate width check target {case.get('target')} for {case.get('surface')} "
+                            "must lie strictly between two adjacent approved widths")
             continue
-        if row["horizontalOverflow"] is not False or row["clipping"] is not False or row["result"] != "PASS":
-            problems.append(f"Intermediate width check {row.get('surface')} at {width}px did not pass")
-            continue
-        covered.add((str(row["surface"]), float(bounds[0]), float(bounds[1])))
-    for surface in (scope or {}).get("surfaces", []):
-        if not isinstance(surface, dict):
-            continue
-        responsive = surface.get("responsive") or (scope or {}).get("responsive") or {}
-        if not isinstance(responsive, dict) or responsive.get("kind") != "viewports":
-            continue
-        targets = [float(value) for value in responsive.get("targets", [])]
+        covered.add((str(case["surface"]), *pair))
+    for surface_id, surface in surfaces.items():
+        targets = _viewports(surface, scope) or []
         for low, high in zip(targets, targets[1:]):
-            if (str(surface.get("id")), low, high) not in covered:
-                problems.append(
-                    f"Intermediate width check is missing {surface.get('id')} between {low:g}px and {high:g}px"
-                )
+            if (surface_id, low, high) not in covered:
+                problems.append(f"Intermediate width check is missing {surface_id} between {low:g}px and {high:g}px")
     return problems

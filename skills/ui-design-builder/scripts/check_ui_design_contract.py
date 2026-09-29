@@ -726,26 +726,17 @@ def _resolve_direction_studies(style: str, repo_root: Path, problems: list[str])
                 _add(problems, finding)
 
 
-def _intermediate_width_evidence(active: str, repo_root: Path, problems: list[str]) -> None:
-    """ui-design/3: resolve and check observed widths between approved targets."""
-    review = _section(active, "## HiFi Review") or ""
-    evidence = EVIDENCE_RE.fullmatch((_field(review, "Intermediate width check") or "").strip())
-    if evidence is None:
-        return  # validate_text reports the malformed field
-    identity = f"{evidence.group('path')} @ sha256:{evidence.group('sha256')}"
+def _intermediate_width_evidence(value: str | None, scope: dict[str, Any] | None, repo_root: Path,
+                                 problems: list[str], **evidence: Any) -> None:
+    """ui-design/3: an ordinary HiFi browser receipt observed at in-between widths."""
     before = len(problems)
-    _resolve_source(identity, repo_root=repo_root, label="Intermediate width check", problems=problems)
-    if len(problems) != before:
+    _resolve_evidence(value, repo_root=repo_root, label="Intermediate width check", problems=problems,
+                      require_machine=True, **evidence)
+    parsed = EVIDENCE_RE.fullmatch((value or "").strip())
+    if len(problems) != before or parsed is None:
         return
-    visual = _section(active, "## Visual Approval") or ""
-    target_raw = _field(visual, "Approved target")
-    target = TARGET_SOURCE_RE.fullmatch((target_raw or "").strip()) if target_raw else None
-    scope = _target_scope(target_raw, "Approved target", []) if target else None
-    for finding in ui_design_v3.intermediate_width_findings(
-        (repo_root / evidence.group("path")).read_bytes(),
-        {"path": target.group("path"), "sha256": target.group("sha256")} if target else None,
-        scope,
-    ):
+    receipt = json.loads((repo_root / parsed.group("path")).read_text(encoding="utf-8"))["receipt"]
+    for finding in ui_design_v3.intermediate_width_findings(receipt["matrix"]["cases"], scope):
         _add(problems, finding)
 
 
@@ -3112,7 +3103,6 @@ def _validate_impl(
         _direction_comparison(style, _section(active, "## UI Design Intake") or "", None, problems, repo_root=root)
         if version == UI_CONTRACT_V3:
             _resolve_direction_studies(style, root, problems)
-            _intermediate_width_evidence(active, root, problems)
 
     if approved_gate:
         product_matches = [
@@ -3201,6 +3191,7 @@ def _validate_impl(
         review_section = _section(active, "## HiFi Review") or ""
         receipt_values = [
             *(_field(review_section, name) for name in ("Impeccable critique", "Impeccable audit", "UI grading", "HiFi surface check")),
+            *([_field(review_section, "Intermediate width check")] if version == UI_CONTRACT_V3 else []),
             *(f"PASS — evidence={item['path']} @ sha256:{item['sha256']}" for item in motion_effect_evidence.values()),
         ]
         receipt_dates = [
@@ -3297,6 +3288,16 @@ def _validate_impl(
                 require_machine=current_hifi,
                 required_inputs=[identity for value in [*source_values.values(), recorded_wireframe] if (identity := _source_identity(value)) is not None],
                 recorded_scores={name: _score(_field(_section(active, "## HiFi Review") or "", name)) for name in ("HiFi score", "HiFi lowest dimension", "H2 score", "H4 score", "H5 score", "H7 score", "H8 score", "H9 score")} if field_name == "UI grading" else None,
+            )
+        if version == UI_CONTRACT_V3:
+            target_path = TARGET_SOURCE_RE.fullmatch((recorded_target or "").strip())
+            _intermediate_width_evidence(
+                _field(_section(active, "## HiFi Review") or "", "Intermediate width check"),
+                target_scope_for_evidence, root, problems,
+                expected_artifact=target_path.group("path") if target_path else None,
+                expected_check=_evidence_check("HiFi surface check", capture_mode),
+                required_inputs=[identity for value in [*source_values.values(), recorded_wireframe]
+                                 if (identity := _source_identity(value)) is not None],
             )
         _resolve_motion_effect_evidence(
             motion_effect_evidence,
