@@ -233,6 +233,97 @@ class ConfigureProjectContextTests(unittest.TestCase):
             self.assertIn(b"- owner added this during the race\n", merged)
             self.assertIn(b"## New Shared Rule\n", merged)
 
+    def test_second_template_upgrade_appends_under_the_existing_heading(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            agents_template, claude_template = self.make_merge_templates(root)
+            agents = root / "AGENTS.md"
+            original = "# Owner Rules\n\n## Owner Rule\n\n- Keep owner wording.\n"
+            agents.write_text(original, encoding="utf-8")
+
+            configure_context(
+                root, agents_template, claude_template, merge_agents=True
+            )
+            first_plan = self.write_merge_plan(
+                root,
+                hashlib.sha256(agents.read_bytes()).hexdigest(),
+                hashlib.sha256(agents_template.read_bytes()).hexdigest(),
+                additions=["New Shared Rule"],
+                acknowledgements=["Owner Rule"],
+            )
+            configure_context(
+                root,
+                agents_template,
+                claude_template,
+                merge_agents=True,
+                merge_plan=first_plan,
+            )
+
+            agents_template.write_bytes(
+                b"# Shared Rules\n\n"
+                b"## New Shared Rule\n\n- Add this guidance.\n\n"
+                b"## Second Shared Rule\n\n- Add later guidance.\n\n"
+                b"## Owner Rule\n\n- Template wording.\n"
+            )
+            upgrade_proposal = configure_context(
+                root, agents_template, claude_template, merge_agents=True
+            )
+            second_plan = self.write_merge_plan(
+                root,
+                hashlib.sha256(agents.read_bytes()).hexdigest(),
+                hashlib.sha256(agents_template.read_bytes()).hexdigest(),
+                additions=["Second Shared Rule"],
+                acknowledgements=[
+                    "Owner Rule",
+                    "# Project Delivery Harness Shared Guidance",
+                ],
+            )
+            upgrade = configure_context(
+                root,
+                agents_template,
+                claude_template,
+                merge_agents=True,
+                merge_plan=second_plan,
+            )
+            upgraded_text = agents.read_text(encoding="utf-8")
+
+            self.assertEqual("proposal_required", upgrade_proposal["agents_merge"]["status"])
+            self.assertEqual(
+                ["Second Shared Rule"],
+                upgrade_proposal["agents_merge"]["proposed_additions"],
+            )
+            self.assertEqual("applied", upgrade["agents_merge"]["status"])
+            self.assertEqual(
+                ["Second Shared Rule"], upgrade["agents_merge"]["applied_additions"]
+            )
+            self.assertTrue(upgraded_text.startswith(original))
+            self.assertEqual(1, upgraded_text.count("# Project Delivery Harness Shared Guidance"))
+            self.assertIn("## New Shared Rule\n\n- Add this guidance.\n", upgraded_text)
+            self.assertIn("## Second Shared Rule\n\n- Add later guidance.\n", upgraded_text)
+
+    def test_merge_plan_without_merge_agent_reports_usage_not_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    "--root",
+                    str(root),
+                    "--merge-plan",
+                    str(root / "unused-plan.json"),
+                ],
+                capture_output=True,
+                text=True,
+                cwd=SCRIPTS_DIR,
+                timeout=10,
+            )
+
+            self.assertEqual(2, result.returncode)
+            self.assertIn("--merge-plan requires --merge-agents", result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+            self.assertFalse((root / "AGENTS.md").exists())
+
     def test_duplicate_and_fenced_headings_do_not_drive_a_merge(self) -> None:
         text = (
             "# Owner Rules\n\n"

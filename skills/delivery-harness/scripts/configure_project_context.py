@@ -178,6 +178,31 @@ def _load_merge_plan(path: Path) -> dict[str, object]:
     return value
 
 
+def _validate_merge_plan(
+    plan: dict[str, object],
+    *,
+    agents_sha256: str,
+    template_sha256: str,
+    missing: list[str],
+    divergences: list[dict[str, object]],
+) -> list[str]:
+    if plan["agents_sha256"] != agents_sha256:
+        raise ValueError("context merge plan agents_sha256 does not match AGENTS.md")
+    if plan["template_sha256"] != template_sha256:
+        raise ValueError("context merge plan template_sha256 does not match the template")
+    selected = list(plan["add_sections"])
+    unknown = sorted(set(selected) - set(missing))
+    if unknown or len(selected) != len(set(selected)):
+        raise ValueError("context merge plan selects unknown or duplicate headings")
+    if plan["acknowledged_divergences"] != [
+        item["heading"] for item in divergences
+    ]:
+        raise ValueError(
+            "context merge plan acknowledged_divergences must exactly match the report"
+        )
+    return selected
+
+
 def inspect_context(root: Path) -> dict[str, object]:
     agents = root / "AGENTS.md"
     claude = root / "CLAUDE.md"
@@ -291,24 +316,19 @@ def configure_context(
 
         if merge_plan is not None and not dry_run and not parser_errors:
             plan = _load_merge_plan(merge_plan)
-            if plan["agents_sha256"] != merge["agents_sha256"]:
-                raise ValueError("context merge plan agents_sha256 does not match AGENTS.md")
-            if plan["template_sha256"] != merge["template_sha256"]:
-                raise ValueError("context merge plan template_sha256 does not match the template")
-            selected = list(plan["add_sections"])
-            unknown = sorted(set(selected) - set(missing))
-            if unknown or len(selected) != len(set(selected)):
-                raise ValueError("context merge plan selects unknown or duplicate headings")
-            expected_acknowledgements = [item["heading"] for item in divergences]
-            if plan["acknowledged_divergences"] != expected_acknowledgements:
-                raise ValueError(
-                    "context merge plan acknowledged_divergences must exactly match the report"
-                )
+            selected = _validate_merge_plan(
+                plan,
+                agents_sha256=str(merge["agents_sha256"]),
+                template_sha256=str(merge["template_sha256"]),
+                missing=missing,
+                divergences=divergences,
+            )
             merge["acknowledged_divergences"] = list(plan["acknowledged_divergences"])
 
-            if missing and not any(
+            shared_heading_exists = any(
                 line.strip() == MERGE_HEADING for line in existing_text.splitlines()
-            ):
+            )
+            if missing and not shared_heading_exists:
                 tail = "" if existing_bytes.endswith(b"\n") else "\n\n"
                 block = "\n".join(
                     (
@@ -328,6 +348,24 @@ def configure_context(
                 )
                 merge["applied_additions"] = selected
                 merge["status"] = "applied"
+            elif missing and shared_heading_exists:
+                separator = b""
+                if not existing_bytes.endswith(b"\n"):
+                    separator = b"\n\n"
+                elif not existing_bytes.endswith(b"\n\n"):
+                    separator = b"\n"
+                continuation = "".join(
+                    template_sections[heading] for heading in selected
+                )
+                if not continuation.endswith("\n"):
+                    continuation += "\n"
+                _append_merge(
+                    agents,
+                    existing_bytes,
+                    separator + continuation.encode("utf-8"),
+                )
+                merge["applied_additions"] = selected
+                merge["status"] = "applied"
             else:
                 merge["status"] = "unchanged"
         elif parser_errors:
@@ -342,14 +380,13 @@ def configure_context(
             # Validation is deliberately repeated on the same observed bytes so
             # check mode cannot accept a plan that would not be the apply input.
             plan = _load_merge_plan(merge_plan)
-            if plan["agents_sha256"] != merge["agents_sha256"] or plan["template_sha256"] != merge["template_sha256"]:
-                raise ValueError("context merge plan hashes do not match the observed files")
-            if set(plan["add_sections"]) - set(missing) or plan["acknowledged_divergences"] != [
-                item["heading"] for item in divergences
-            ]:
-                raise ValueError("context merge plan headings do not match the observed report")
-            if len(plan["add_sections"]) != len(set(plan["add_sections"])):
-                raise ValueError("context merge plan selects unknown or duplicate headings")
+            _validate_merge_plan(
+                plan,
+                agents_sha256=str(merge["agents_sha256"]),
+                template_sha256=str(merge["template_sha256"]),
+                missing=missing,
+                divergences=divergences,
+            )
             merge["status"] = "plan_valid"
 
     if not dry_run and not merge_blocked:
@@ -447,9 +484,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
-    args = build_parser().parse_args()
+    parser = build_parser()
+    args = parser.parse_args()
     if args.merge_plan is not None and not args.merge_agents:
-        args.parser.error("--merge-plan requires --merge-agents")
+        parser.error("--merge-plan requires --merge-agents")
     try:
         root = args.root.resolve(strict=True)
         result = configure_context(
