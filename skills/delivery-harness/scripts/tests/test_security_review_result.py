@@ -296,6 +296,11 @@ class SecurityReviewTransitionTests(unittest.TestCase):
             run_id="RUN-security-result",
             branch="refs/heads/security-result",
         )
+        # This fixture exercises the pre-role structured security-result
+        # protocol. Current role receipt admission has dedicated tests.
+        adapter = run["runtime_capabilities"]["runtime_adapter"]
+        adapter["version_gate"]["required_harness_version"] = "0.57.0"
+        adapter.pop("role_bindings", None)
         node = next(
             item
             for item in plan["graph"]["nodes"]

@@ -1,11 +1,13 @@
 ---
 name: delivery-harness
-description: "Route engineering work to the lightest safe delivery path, then plan, authorize, execute, verify, and integrate it. Use direct parent-owned delivery when one writer and one coherent verification pass are enough. Use PLAN-v6/RUN-v11 only for work that needs durable coordination, isolated mission integration, or a bounded correction graph. Apply the general runtime adapter contract only when that managed route needs native orchestration."
+description: "Route engineering work through planning, authorization, execution, verification and integration. Use direct delivery for one writer and one verification sequence; use PLAN-v6/RUN-v11 for durable coordination, isolated integration or a bounded correction graph. Resolve required delegates through observed native tools or explicitly bound external bridges."
 ---
 
 # Delivery Harness
 
 Commands: `references/installed-commands.md`.
+
+Before direct or managed routing, apply `references/delegation-contract.md`: distinct sibling assignments, required roles and actual execution identity. Delegation grants no actions and requires no managed run.
 
 Every invocation uses `references/document-sync-contract.md`. Accepted enhancements follow `references/bounded-enhancement.md`; acceptance follows `references/delivery-acceptance-contract.md`.
 
@@ -34,7 +36,7 @@ Use PLAN/RUN only when coordination requires it. Preserve upstream ownership:
 
 Before loading task-specific tooling, run one bounded parent-only scope scan.
 
-Classify work as `small` when one parent writer can own one bounded outcome in one checkout and verify it with one coherent local sequence. A high file count, language count, test duration, or reasoning difficulty does not make work `large` by itself.
+Classify work as `small` when one writer can own one bounded outcome in one checkout and verify it with one coherent local sequence. That writer may be the required delegated specialist. A high file count, language count, test duration, or reasoning difficulty does not make work `large` by itself.
 
 Classify work as `large` only when at least one condition is true:
 
@@ -52,7 +54,7 @@ System Review And Route (parent-only, read-only)
   large -> planner -> PLAN v6 + RUN v11 -> readiness -> managed execution
 ```
 
-Small work creates no PLAN/RUN files, scheduler state, worker-capability inventory, or delegated worker by default. Load no runtime adapter unless the direct task actually needs native delegation. If small work grows large, preserve the current diff and evidence, then plan only the remainder.
+Small work creates no PLAN/RUN files. Resolve required delegates. If scope grows, preserve evidence and plan the remainder. The Sequential Parent Route in `execution-state-model.md` handles eligible generic work one mission at a time, never mandatory roles.
 
 ### System Review And Route
 
@@ -99,7 +101,7 @@ These rules apply to both routes:
 For small work:
 
 1. Inspect the bounded component and relevant instructions.
-2. When work consumes a package produced by `product-definition-builder`, verify its Product Definition Approval and Stack Decision Checkpoint plus the applicable self-review and UI handoff under `references/pre-delivery-self-review.md`; then implement with one parent writer.
+2. When work consumes a package produced by `product-definition-builder`, verify its Product Definition Approval and Stack Decision Checkpoint plus the applicable self-review and UI handoff under `references/pre-delivery-self-review.md`; then implement with one writer resolved under `references/delegation-contract.md`. UI work requires the host frontend worker; the parent retains coordination and acceptance.
 3. Run the smallest focused checks, including security tests, that prove the change.
 4. Review the complete diff and run `git diff --check`.
 5. Create an authorized local commit when requested.
@@ -143,7 +145,7 @@ Read only what the current decision needs:
 
 ## Adapter Routing
 
-Load no adapter for direct work. For managed execution, apply `references/runtime-adapters.md`: one capability contract for every host. The agent maps current native tools to that contract automatically, records observed capabilities and the actual host identity (or `generic` when unknown), and never probes another runtime as a substitute.
+Direct delegation uses `references/delegation-contract.md`; managed execution also uses `references/runtime-adapters.md`. Record observed capabilities and host identity (`generic` when unknown). Bridges need explicit bindings and authorization.
 
 The adapter layer owns no shared state, authorization, review, integration, handoff or cleanup. Adding a host needs no provider section, fixed model defaults, launch script or schema change.
 
@@ -165,7 +167,7 @@ Apply this only to large plan-backed work:
 3. Do not cap `max_parallel_workers` at a small fixed number. The effective budget is the minimum of configured maximum, observed slots, isolation capacity, and the dependency-ready conflict-free frontier.
 4. Before selection, record `observed.captured_at`, live Git facts, and `integration.batch_base_sha`. A green validator with empty `dispatchable_nodes` and `deferred_nodes` reasons `parent_state_unreconciled` or `batch_base_missing` means the live snapshot is incomplete; these are dispatch-time reasons, not an empty graph.
 5. Enable scheduler fan-out only when at least two dependency-ready, nonconflicting write missions have isolated workspaces and exact authorization. Never run parallel writers in `shared_checkout`.
-6. If no delegated driver is usable, select real `sequential_parent` per `references/execution-state-model.md`'s Sequential Parent Route and execute one mission at a time. An independent runtime-review node stays blocked until a fresh eligible reviewer driver, a same-repository host handoff, or another allowed host is available.
+6. If no delegated driver is usable, only nodes without a mandatory delegate may use `sequential_parent` under `references/execution-state-model.md`. Required frontend and independent review nodes stay blocked until an eligible bound executor is available.
 
 ## Default Mission Topology
 
@@ -173,7 +175,7 @@ Apply this only to large plan-backed work:
 2. Pass the Mission Cohesion Gate in `references/execution-task-decomposition.md` before readiness. Split a mission when its objective joins independently valuable outcomes, spans separate product surfaces or domain capabilities, needs unrelated verifier families, or hides more than one commit-sized outcome inside a task. Shared files, likely merge conflicts, or serialized resources are not reasons to bundle independent outcomes: freeze a shared foundation first, then represent ordering and conflicts with dependency and resource edges. Combine work only when separating it would create an unverifiable or nonfunctional half-state.
 3. Plan tasks as ordered atomic commit boundaries. Complete one task's implementation and focused verifier, create its authorized task commit, and only then begin the next task. One commit cannot satisfy multiple tasks. A review repair is a separate atomic follow-up commit attributed to exactly one task; it does not make the original task broader.
 4. Size each mission so its fixed per-mission overhead stays small against its useful work. Every mission pays for a worktree, a rendered handoff, result validation, an exact-head review, a serial integration, and an integration verifier rerun, so slicing past that point makes a run slower, not safer. Roughly 10-20 minutes of implementation plus focused verification is the upper shape of a normal bounded slice, not a target to fill; prefer the smaller cohesive mission when two candidate splits both preserve independent verification. If the frozen scope cannot fit one bounded worker slice, split independently testable outcomes into additional missions before readiness instead of relying on a long-running child or a timeout-driven repair.
-5. The parent may fan out bounded read-only exploration. Explorers report to the parent and never delegate.
+5. For bounded read-only exploration, split independent substantive questions into distinct authorized sibling assignments under `references/delegation-contract.md`. Explorers report to the parent, never delegate; capacity limits waves, not assignment identity.
 6. Give every writer one explicit `write_scope` and one isolated exact-base worktree. No active writers share a branch, file ownership, or exclusive runtime resource.
 7. Freeze shared APIs, schemas, and types before dependent missions launch.
 8. Verify repository, branch, base HEAD, and empty `git status --porcelain` before dispatch.

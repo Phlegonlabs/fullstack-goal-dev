@@ -5,7 +5,8 @@ This file is ready-to-use shared repository guidance. Resolve the repository's c
 ## Runtime Boundary
 
 - This file contains shared repository governance. Preserve the current host's effective instruction discovery and precedence.
-- Use the general runtime adapter reference (`delivery-harness/references/runtime-adapters.md`) for observed native capabilities, authorization, isolation and result contracts. The agent maps actual tools automatically; no provider-specific launch or model rules apply.
+- Apply `delivery-harness/references/delegation-contract.md` before direct or managed routing. Split independent substantive research/exploration questions into distinct authorized sibling instances, resolve mandatory frontend/reviewer roles against effective host policy, and verify actual launch/result identity. One writer owns each checkout, including the parent. Required delegation never silently falls back to parent work.
+- Use the general runtime adapter reference (`delivery-harness/references/runtime-adapters.md`) for observed capabilities, authorization, isolation and result contracts. Host policy supplies role/model and explicit bridge bindings; shared skills supply no provider-specific model default. External execution retains its own authorization and capability checks.
 - Rules under **Managed Product Delivery Harness Runs** apply only after the Harness routes work into PLAN/RUN. Small direct work follows the shared principles, Git safety, and verification rules without creating Harness state, missions, workers, or worktrees unless the repository or user requires them.
 
 ## Project Entry And Current Work
@@ -81,13 +82,17 @@ For work consuming a Product Definition package, apply `delivery-harness/referen
 - Reason from the problem's actual constraints, not from habit, inherited patterns, or how another project solved it.
 - When a decision is non-obvious, derive it from what the product must do, then choose the simplest structure that satisfies it.
 
-### File Size Checkpoint
+### Module Size Limit
 
-- At 500 lines, review whether the module has more than one responsibility. Split when it improves ownership and verification; otherwise record why it stays together. This is a checkpoint, not a hard limit or permission to add tasks.
+- This rule governs the consuming project where this template is applied, not the Harness skill-source repository.
+- New code modules, including tests, are limited to 500 physical lines.
+- Split a module before it exceeds the limit. Give each module one clear responsibility and a small, explicit interface; do not compress lines or create arbitrary fragments to evade the cap.
+- Record existing oversized modules for scoped follow-up. Applying this template does not authorize a whole-project refactor.
 - Choose a bounded repair or replacement from the failing requirement and regression evidence. Preserve required compatibility, data and unrelated work; never delete and rewrite a module merely because it is problematic.
 
 ### Compatibility Changes
 
+- Do not write speculative compatibility code or retain duplicate old/new implementations. Use one implementation for the accepted contract.
 - Don't add hacks, shims, or dual-path logic unless a frozen product or repository contract requires compatibility.
 - Don't remove or break an existing interface as unrelated cleanup. When an authorized contract change intentionally removes one, update its consumers and tests in the same scoped change.
 - Remove code only when the requested change makes it dead and verification proves it is no longer used.

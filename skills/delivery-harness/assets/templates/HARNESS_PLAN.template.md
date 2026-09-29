@@ -133,6 +133,7 @@ Use this template as `docs/goal/PLAN.md` for managed work that needs durable coo
           "runtime": {
             "preferred_provider": null,
             "allowed_providers": ["generic"],
+            "worker_role": "implementer",
             "provider_options": {
               "generic": {"model": null, "reasoning_effort": null}
             }
@@ -360,6 +361,8 @@ Planned security requirements reuse upstream `PRD-*` traces and required `TEST-*
 The single-mission example deliberately leaves `batch_verifiers` empty: a one-mission managed route has no true cross-mission batch gate. It still proves the selected runtime driver, allocates an isolated writer, checks exact authorization and scope/head bindings, runs the direct singleton pre-integration review, integrates the candidate, dispatches a fresh `security` reviewer with the project's `code_security_verification` binding, and closes through final gates. The neutral example has no predeclared security-repair mission, so a validated finding returns `blocked` and requires an explicit PLAN refinement before any write; a project that declares `fix_required` must also declare the bounded repair and re-review route. If two or more safe write missions are selected, the selector reports `parallel_graph` and the plan may declare real cross-mission checks.
 
 For each `runtime_worker` node, record the actually allowed host identities in `allowed_providers`, with `preferred_provider` null unless explicitly chosen. The `generic` example is a placeholder for an unknown host, not a wildcard. Leave model and effort null to preserve installed defaults. Set explicit supported options only when selected; the agent observes native capability rather than applying provider-specific rules.
+
+Add logical `runtime.worker_role` when host policy binds a specialist or reviewer. UI authoring or implementation uses `frontend_worker`; independent review uses `reviewer`. Other portable or host-defined role IDs are allowed. The RUN maps the role to actual native or bridge execution and per-node axes; a missing mandatory binding defers the node instead of substituting the parent or another implementer.
 
 Harness 0.38+ always freezes the three exact rows shown above with current `content_sha256`; if `source_revision` is present, that full-SHA Git blob and current bytes must both match. Contract joins consume those immutable bytes. Harness 0.56+ UI work adds exact `ui design` (`ui-design/2`) and `approved ui target` rows; the target entry embeds the manifest and binds every sibling hash. Older pinned RUNs, and maintenance rounds on a legacy UI contract, retain their wireframe row. Current rows stay at their canonical `docs/design/` paths. A `required` Design System Need gate adds exact `design system` and `design system json` rows; `not_required` adds neither and permits no `DS-*` trace. Every UI surface records `capture_mode: hosted-browser | browser-extension | native | desktop`. URLs are never fetched or joined as authority. A `staged_revision` is not an executable publication. Publish the accepted revision to the canonical source location, clear staging, and increment PLAN revision/digest.
 

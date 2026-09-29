@@ -59,6 +59,11 @@ from harness_schema import (
     version_at_least,
     WORKER_PHASES,
 )
+from agent_launch_records import validate_launch_record, validate_launch_record_shape
+from agent_result_receipts import validate_result_receipt
+from agent_failure_receipts import read_failure_receipt
+from agent_role_bindings import validate_execution_binding, validate_role_bindings
+from agent_role_contract import ROLE_CONTRACT_VERSION, binding_is_role_bound, role_contract_enabled, role_contract_gate_enabled, mandatory_worker_role
 from security_review_result import validate_security_review_result
 
 
@@ -4004,11 +4009,20 @@ def _validate_current_runtime_binding(
     path: str,
     binding: dict[str, Any],
     runtime: dict[str, Any],
+    node: dict[str, Any] | None = None,
 ) -> None:
     """Bind a live RUN-v11 attempt to this session's selected host driver."""
 
     adapter = runtime.get("runtime_adapter")
     if not isinstance(adapter, dict):
+        return
+    if role_contract_gate_enabled(runtime) and mandatory_worker_role(node) is not None and not binding_is_role_bound(binding):
+        _add(errors, path, "mandatory role requires its resolved execution binding")
+        return
+    if role_contract_gate_enabled(runtime) and binding_is_role_bound(binding):
+        if node is not None:
+            for issue in validate_execution_binding(path, binding, node, runtime):
+                _add(errors, path, issue)
         return
     expected_provider = adapter.get("provider")
     expected_driver = route_runtime_driver(runtime)
@@ -5067,6 +5081,7 @@ def _validate_run_workers(
                     "nested_subagent_policy",
                     "nested_review_evidence",
                     "runtime_binding",
+                    *({"attempt_id", "result_receipt", "failure_receipt"} if role_contract_enabled(run) else set()),
                 },
             ):
                 continue
@@ -5116,6 +5131,17 @@ def _validate_run_workers(
             if worker["phase"] not in WORKER_PHASES:
                 _add(errors, f"{path}.phase", "has an unsupported value")
             runtime_binding = worker.get("runtime_binding")
+            if role_contract_enabled(run):
+                mission = next((m for m in plan.get("missions", []) if isinstance(m, dict)
+                                and m.get("id") == worker["mission_id"]), None)
+                impact = next((r.get("impact") for r in run.get("ui_impact_summary", [])
+                               if isinstance(r, dict) and r.get("mission_id") == worker["mission_id"]), None)
+                required_role = mandatory_worker_role(graph_nodes_by_mission.get(worker["mission_id"]), mission, impact)
+                if required_role is not None and (not isinstance(runtime_binding, dict)
+                                                   or runtime_binding.get("worker_role") != required_role):
+                    _add(errors, f"{path}.runtime_binding", "does not satisfy the mandatory mission role")
+                if required_role == "frontend_worker" and isinstance(mission, dict) and "frontend-design" not in mission.get("required_skills", []):
+                    _add(errors, f"{path}.runtime_binding", "frontend role requires frontend-design in required_skills")
             mission_state = (
                 mission_states.get(worker["mission_id"])
                 if isinstance(mission_states, dict)
@@ -5153,7 +5179,89 @@ def _validate_run_workers(
                     "reasoning_effort",
                     "option_source",
                 },
+                {
+                    "worker_role",
+                    "resolved_role",
+                    "model_provider",
+                    "native_agent_type",
+                    "fallback_from_role",
+                    "bridge_identity",
+                    "capability_probe",
+                    "probe_session_id",
+                    "worker_runtime",
+                    "workspace_mode",
+                    "completion_channel",
+                } if role_contract_enabled(run) else set(),
             ):
+                graph_node = graph_nodes_by_mission.get(worker["mission_id"])
+                if role_contract_gate_enabled(runtime) and binding_is_role_bound(runtime_binding):
+                    if "failure_receipt" in worker:
+                        if worker.get("phase") not in {"blocked", "worker_failed"}:
+                            _add(errors, path, "failure receipt requires a terminal non-passing worker")
+                        for issue in read_failure_receipt(run, worker, "mission", worker["failure_receipt"])[1]:
+                            _add(errors, f"{path}.failure_receipt", issue)
+                    if "result_receipt" in worker or worker.get("phase") == "worker_passed":
+                        for issue in validate_result_receipt(run, worker, "mission", worker.get("result_receipt")):
+                            _add(errors, f"{path}.result_receipt", issue)
+                    if graph_node is not None:
+                        for issue in validate_execution_binding(
+                            f"{path}.runtime_binding",
+                            runtime_binding,
+                            graph_node,
+                            runtime,
+                        ):
+                            _add(errors, f"{path}.runtime_binding", issue)
+                    if requires_current_host_binding:
+                        _validate_current_runtime_binding(
+                            errors,
+                            f"{path}.runtime_binding",
+                            runtime_binding,
+                            runtime,
+                            graph_node,
+                        )
+                    if runtime_binding.get("worker_runtime") != worker["worker_runtime"]:
+                        _add(
+                            errors,
+                            f"{path}.worker_runtime",
+                            "must match the reserved role binding",
+                        )
+                    if runtime_binding.get("workspace_mode") != worker["workspace_mode"]:
+                        _add(
+                            errors,
+                            f"{path}.workspace_mode",
+                            "must match the reserved role binding",
+                        )
+                    if runtime_binding.get("completion_channel") != worker["completion_channel"]:
+                        _add(
+                            errors,
+                            f"{path}.completion_channel",
+                            "must match the reserved role binding",
+                        )
+                    if worker["phase"] == "worker_passed":
+                        attempt_matches = [
+                            item
+                            for item in run.get("attempt_log", [])
+                            if isinstance(item, dict)
+                            and item.get("lease_id") == worker.get("lease_id")
+                            and item.get("kind") == "dispatch"
+                        ]
+                        if len(attempt_matches) != 1 or not _nonempty_string(
+                            attempt_matches[0].get("attempt_id")
+                        ):
+                            _add(errors, f"{path}.lease_id", "must map to exactly one dispatch attempt")
+                        else:
+                            for issue in validate_launch_record(
+                                run,
+                                assignment_kind="mission",
+                                assignment_id=worker["lease_id"],
+                                node_id=str(graph_node.get("id")),
+                                attempt_id=attempt_matches[0]["attempt_id"],
+                                worker_id=worker["worker_id"],
+                                worker_role_expected=runtime_binding.get("worker_role"),
+                                reserved=worker,
+                            ):
+                                _add(errors, "run.launch_records", issue)
+                    continue
                 if not is_valid_provider_id(runtime_binding["provider"]):
                     _add(errors, f"{path}.runtime_binding.provider", "has an unsupported value")
                 if not _nonempty_string(runtime_binding["driver"]):
@@ -5213,6 +5321,7 @@ def _validate_run_workers(
                         f"{path}.runtime_binding",
                         runtime_binding,
                         runtime,
+                        graph_node,
                     )
             if worker["completion_channel"] == "report_file" and not _nonempty_string(worker["report_path"]):
                 _add(errors, f"{path}.report_path", "is required for report_file")
@@ -5558,6 +5667,7 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
         _add(errors, "run.schema_version", "schema v10 requires a schema v5 graph PLAN")
     elif schema_version == 11 and plan.get("schema_version") != 6:
         _add(errors, "run.schema_version", "schema v11 requires a schema v6 graph PLAN")
+    required_harness_version = run_required_harness_version(run)
     optional_run_keys: set[str] = set()
     if schema_version in {10, 11}:
         optional_run_keys.add("runtime_metrics")
@@ -5565,9 +5675,10 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
         optional_run_keys.add("run_lock")
     if schema_version in {9, 10, 11}:
         optional_run_keys.update({"deviation_ledger", "ui_impact_summary"})
+    if schema_version == 11 and version_at_least(required_harness_version, ROLE_CONTRACT_VERSION):
+        optional_run_keys.add("launch_records")
     if not _keys(errors, "run", run, run_keys, optional_run_keys):
         return sorted(errors)
-    required_harness_version = run_required_harness_version(run)
     # The 0.55.0 shape checks skip only a pin that parses below 0.55.0; a
     # null or malformed pin gets the strict checks.
     parsed_pin = parse_harness_version(required_harness_version)
@@ -6105,6 +6216,11 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
             _add(errors, "run.runtime_capabilities.max_parallel_workers", "must be a positive integer")
         adapter = runtime.get("runtime_adapter")
         adapter_path = "run.runtime_capabilities.runtime_adapter"
+        adapter_optional_keys = (
+            {"capability_probe", "version_gate", "role_bindings"}
+            if schema_version == 11 and role_contract_enabled(run)
+            else {"capability_probe", "version_gate"}
+        )
         if schema_version in {6, 7, 8, 9, 10, 11} and adapter is None:
             _add(errors, adapter_path, "must be an object")
         elif adapter is not None and _keys(
@@ -6116,7 +6232,7 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                 "available_drivers",
                 "detection_source",
             },
-            {"capability_probe", "version_gate"} if schema_version in {10, 11} else set(),
+            adapter_optional_keys,
         ):
             provider = adapter["provider"]
             provider_valid = is_valid_provider_id(provider)
@@ -6148,7 +6264,38 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
             detection_source = adapter["detection_source"]
             if not isinstance(detection_source, str) or detection_source not in RUNTIME_DETECTION_SOURCES:
                 _add(errors, f"{adapter_path}.detection_source", "has an unsupported value")
-
+            if role_contract_enabled(run):
+                for issue in validate_role_bindings(run):
+                    _add(errors, adapter_path, issue)
+                if "launch_records" in run:
+                    raw_launch_records = run["launch_records"]
+                    if not isinstance(raw_launch_records, list):
+                        _add(errors, "run.launch_records", "must be a list")
+                    else:
+                        seen_launch_keys = set()
+                        seen_launch_sessions = set()
+                        for launch_index, launch_record in enumerate(raw_launch_records):
+                            launch_path = f"run.launch_records[{launch_index}]"
+                            for issue in validate_launch_record_shape(launch_record, launch_path):
+                                _add(errors, launch_path, issue)
+                            if isinstance(launch_record, dict) and all(isinstance(launch_record.get(k), str)
+                                    for k in ("assignment_kind", "assignment_id", "attempt_id", "worker_id")):
+                                launch_key = (
+                                    launch_record.get("assignment_kind"),
+                                    launch_record.get("assignment_id"),
+                                    launch_record.get("attempt_id"),
+                                    launch_record.get("worker_id"),
+                                )
+                                if launch_key in seen_launch_keys:
+                                    _add(errors, launch_path, "assignment/attempt/worker key is duplicated")
+                                else:
+                                    seen_launch_keys.add(launch_key)
+                                session_id = launch_record.get("session_id")
+                                if isinstance(session_id, str) and session_id:
+                                    if session_id in seen_launch_sessions:
+                                        _add(errors, launch_path, "session_id is reused across launch records")
+                                    else:
+                                        seen_launch_sessions.add(session_id)
             reviewer_tools = runtime.get("reviewer_tools")
             tools_path = "run.runtime_capabilities.reviewer_tools"
             if reviewer_tools is not None:
@@ -6189,7 +6336,10 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                             _add(errors, f"{capability_path}.status", "has an unsupported value")
                         if not is_valid_provider_id(capability_provider):
                             _add(errors, f"{capability_path}.provider", "has an unsupported value")
-                        if capability_driver not in RUNTIME_DRIVERS:
+                        allowed_capability_drivers = set(RUNTIME_DRIVERS)
+                        if role_contract_enabled(run):
+                            allowed_capability_drivers.add("external_bridge")
+                        if capability_driver not in allowed_capability_drivers:
                             _add(errors, f"{capability_path}.driver", "has an unsupported value")
                         if not is_valid_provider_id(surface):
                             _add(errors, f"{capability_path}.surface", "has an unsupported value")
@@ -6199,13 +6349,20 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                         if not _nonempty_string(capability["evidence"]):
                             _add(errors, f"{capability_path}.evidence", "must be a non-empty string")
                         if status == "available":
-                            if capability_provider != provider:
+                            role_bound_capability = role_contract_enabled(run) and any(
+                                isinstance(item, dict)
+                                and item.get("kind") == "external_bridge"
+                                and item.get("model_provider") == capability_provider
+                                and item.get("probe_session_id") == session_id
+                                for item in (adapter.get("role_bindings") if isinstance(adapter.get("role_bindings"), dict) else {}).values()
+                            )
+                            if capability_provider != provider and not role_bound_capability:
                                 _add(
                                     errors,
                                     f"{capability_path}.provider",
                                     "available capability must match the current runtime provider",
                                 )
-                            if capability_driver != route_runtime_driver(runtime):
+                            if capability_driver != route_runtime_driver(runtime) and not role_bound_capability:
                                 _add(
                                     errors,
                                     f"{capability_path}.driver",
@@ -6400,6 +6557,9 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                 or runtime["completion_channel"] != "agent_result"
             ):
                 _add(errors, adapter_path, "sequential_parent requires parent/parent_managed_worktree/agent_result")
+            if role_contract_enabled(run):
+                for issue in validate_role_bindings(run):
+                    _add(errors, adapter_path, issue)
         permission = runtime.get("permission_boundary")
         if permission is not None and _keys(
             errors,
@@ -6813,7 +6973,8 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                     path,
                     worker,
                     review_worker_keys,
-                    {"tree_sha", "base_sha", "security_result"},
+                    {"tree_sha", "base_sha", "security_result",
+                     *({"result_receipt", "failure_receipt", "workspace_mode"} if role_contract_enabled(run) else set())},
                 ):
                     continue
                 for key in (
@@ -6901,6 +7062,8 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                         worker.get("phase") in terminal_security_phases
                         and security_result is None
                         and not interrupted_without_result
+                        and not (role_contract_enabled(run) and worker.get("phase") in {"blocked", "worker_failed"}
+                                 and "failure_receipt" in worker)
                     ):
                         _add(
                             errors,
@@ -7203,6 +7366,29 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                             "run.authorizations.spawn_subagents",
                             f"must exactly authorize review target {target}",
                         )
+                if (
+                    schema_version == 11
+                    and role_contract_enabled(run)
+                    and isinstance(worker.get("runtime_binding"), dict)
+                    and worker["runtime_binding"].get("source") == "external_bridge"
+                ):
+                    bridge = worker["runtime_binding"].get("bridge_identity")
+                    target = f"runtime:{bridge}" if isinstance(bridge, str) and bridge else "runtime:"
+                    if any(
+                        not authorization_covers(
+                            run,
+                            "invoke_external_runtime",
+                            mission_id,
+                            target,
+                            require_exact_target=True,
+                        )
+                        for mission_id in reviewed_mission_ids
+                    ):
+                        _add(
+                            errors,
+                            "run.authorizations.invoke_external_runtime",
+                            f"must exactly authorize bridge target {target}",
+                        )
                 if worker["completion_channel"] == "report_file" and not _nonempty_string(
                     worker["report_path"]
                 ):
@@ -7227,7 +7413,59 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                         "reasoning_effort",
                         "option_source",
                     },
+                    {
+                        "worker_role",
+                        "resolved_role",
+                        "model_provider",
+                        "native_agent_type",
+                        "fallback_from_role",
+                        "bridge_identity",
+                        "capability_probe",
+                        "probe_session_id",
+                        "worker_runtime",
+                        "workspace_mode",
+                        "completion_channel",
+                    } if role_contract_enabled(run) else set(),
                 ):
+                    if role_contract_gate_enabled(runtime) and binding_is_role_bound(binding):
+                        if binding.get("worker_role") != "reviewer":
+                            _add(errors, f"{path}.runtime_binding", "independent review requires the reviewer logical role")
+                        if "failure_receipt" in worker:
+                            if worker.get("phase") not in {"blocked", "worker_failed"}:
+                                _add(errors, path, "failure receipt requires a terminal non-passing reviewer")
+                            for issue in read_failure_receipt(run, worker, "review", worker["failure_receipt"])[1]:
+                                _add(errors, f"{path}.failure_receipt", issue)
+                        if "result_receipt" in worker or worker.get("phase") == "worker_passed":
+                            for issue in validate_result_receipt(run, worker, "review", worker.get("result_receipt")):
+                                _add(errors, f"{path}.result_receipt", issue)
+                        for issue in validate_execution_binding(
+                            f"{path}.runtime_binding", binding, node, runtime
+                        ):
+                            _add(errors, f"{path}.runtime_binding", issue)
+                        if requires_current_host_binding:
+                            _validate_current_runtime_binding(
+                                errors,
+                                f"{path}.runtime_binding",
+                                binding,
+                                runtime,
+                                node,
+                            )
+                        for axis in ("worker_runtime", "workspace_mode", "completion_channel"):
+                            if binding.get(axis) != worker.get(axis):
+                                _add(errors, f"{path}.{axis}", "must match the reserved role binding")
+                        if worker["phase"] == "worker_passed":
+                            for issue in validate_launch_record(
+                                run,
+                                assignment_kind="review",
+                                assignment_id=node.get("id", ""),
+                                node_id=node.get("id", ""),
+                                attempt_id=worker.get("attempt_id"),
+                                worker_id=worker.get("worker_id"),
+                                worker_role_expected=binding.get("worker_role"),
+                                reserved=worker,
+                            ):
+                                _add(errors, "run.launch_records", issue)
+                        continue
                     review_provider = binding["provider"]
                     review_policy = node.get("runtime") if isinstance(node, dict) else None
                     if not is_valid_provider_id(review_provider):
@@ -7275,6 +7513,7 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                             f"{path}.runtime_binding",
                             binding,
                             runtime,
+                            node,
                         )
 
         # The graph node state and its current bound integration-stage review

@@ -3,6 +3,7 @@
 ## Runtime Boundary
 
 - This file contains shared repository governance. Preserve the current host's effective instruction discovery and precedence.
+- Apply `skills/delivery-harness/references/delegation-contract.md` before direct or managed routing. Split independent substantive research/exploration questions into distinct authorized sibling instances, resolve mandatory frontend/reviewer roles against effective host policy, and verify actual launch/result identity. One writer owns each checkout, including the parent. Required delegation never silently falls back to parent work.
 - Use `skills/delivery-harness/references/runtime-adapters.md` for observed native capabilities, authorization, isolation and result contracts. Map the actual tools available to the session; capability does not grant an action.
 - Managed rules apply only after work is routed into PLAN/RUN. Direct source maintenance follows the shared principles, Git safety and required verification below without creating managed state.
 - This source repository intentionally omits the template's Skill Bindings (it has no consumer stage slots), Deployment and Post-Delivery Activation (it deploys and activates no product), and the delivery-acceptance bullet (it has no product accounts or data). Its Git Flow replaces the template's Git Safety, and its Required Reading replaces the template's. Treat these as local choices, not drift, in the handoff audit.
@@ -69,7 +70,7 @@ For work consuming a Product Definition package, apply `skills/delivery-harness/
 - Follow `delivery-harness/references/bounded-enhancement.md`: reuse the accepted scope and valid action grants for repairs, document synchronization, module replacement and retesting. Do not repeat approvals for unchanged decisions. Never infer external, destructive, publication or installation authority.
 - A module that fails accepted requirements may be replaced inside its write scope; preserve required interfaces, unaffected requirements, data and recoverable history. Bound repair attempts and keep unresolved gaps for the next round; ending a round is not a PASS.
 - Reason from the problem's actual constraints, not from habit, inherited patterns, or how another project solved it.
-- At 500 lines, review whether a module has more than one responsibility. Split when it improves ownership and verification; otherwise record why it stays together. This is a checkpoint, not a hard limit.
+- At 500 lines, review whether a module has more than one responsibility. Split when it improves ownership and verification; otherwise record why it stays together. This is a checkpoint, not a hard limit. The consumer template's hard cap does not apply to this skill-source repository.
 - Don't add hacks, shims, or dual-path logic unless a frozen contract requires compatibility. Don't break an existing interface as unrelated cleanup; when an authorized change removes one, update its consumers and tests in the same change. Remove code only when verification proves it is dead.
 - For multi-step, high-risk, or ambiguous work, state a brief approach, acceptance criteria, and test plan before editing. Small bounded work may proceed directly.
 - Every change must be verifiable. For bug fixes, add or update a regression test when practical; otherwise explain the verification used.

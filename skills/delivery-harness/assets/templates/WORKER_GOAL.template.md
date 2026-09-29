@@ -1,6 +1,6 @@
 # Worker Goal: <mission ID> — <objective>
 
-Use this template only after System Review And Route, PLAN/RUN validation, exact authorization, lease allocation, and worktree verification. A `sequential_parent` route does not render it.
+Use only after routing, validation, exact authorization, lease and worktree verification. A `sequential_parent` route does not render this packet.
 
 ```text
 Complete <mission ID> (<objective>) only.
@@ -16,10 +16,12 @@ Identity:
 Runtime:
 - required_skills: <mission skill list verbatim or none>
 - Provider/driver: <provider> / <driver>
+- Logical/resolved role: <worker_role> / <resolved_role>
 - Worker/workspace/completion: <worker_runtime> / <workspace_mode> / <completion_channel>
 - Worktree and branch/ref: <exact values>
 - Host-specific repository context: <ordered paths>
 - Runtime-specific worker contract: <matching adapter contract>
+- Parent launch record: <assignment/attempt/worker/session receipt or none>
 - Runtime-contract adoption: <contract_adoption receipt or none>
 - Context handoff: <fresh bounded packet or host-native task context>
 - Context sources: <ordered paths>
@@ -59,13 +61,13 @@ Repair context (omit for an initial implementation):
 - Make the smallest coherent change inside the write scope.
 - Never edit PLAN/RUN, create another worker/task/branch/worktree/lease, or delegate.
 - Do not pull, rebase, merge, integrate, push, archive, remove a worktree, or delete a branch.
-- Create commits only when `create_local_commits` is authorized. For each executable task: implement only that outcome, run its focused verifier, create its atomic task commit, confirm the task is checkpointed, and only then begin the next task. Each commit names exactly one task; a repair is a separate atomic follow-up for that task. Report every SHA once in actual Git order, and make the last commit equal the reported head.
+- Create commits only when `create_local_commits` is authorized. For each executable task: implement only that outcome, run its focused verifier, create its atomic task commit, confirm the task is checkpointed, and only then begin the next task. Each commit names exactly one task; a repair is a separate atomic follow-up for that task. Report every SHA once in Git order; the last commit equals the reported head.
 - Before a task commit or `worker_passed`, implement each touched boundary's control and negative test proving denial and no unauthorized side effects. Keep a scaffolded protected route fail-closed until this is true.
 - For a repair handoff, fix the named root-cause family rather than applying the findings as independent patches. If another adjacent variant shows that the proposed mechanism is not closed, stop before adding another special case and return `REFINEMENT_REQUEST` or `contract_gap` with the structural strategy and missing acceptance classes.
 - If the remaining work no longer fits this bounded slice, stop before the next independent mutation and return `REFINEMENT_REQUEST`.
 - Stop on a requirement conflict, scope escape, destructive action, unexpected parent-head movement, unavailable verifier, or three consecutive no-progress iterations. Do not retry one failed approach more than twice.
 
-For direction/HiFi authoring or repair (or explicitly pinned legacy Wireframe work), `required_skills` must name both `ui-design-builder` and the exact owner-bound `frontend-design`. Before authoring, run `python "<delivery-harness-skill-root>/scripts/check_skill_bindings.py" --agents-md <target-AGENTS.md> --stage ui-design` through installed-command resolution. The actual writer loads the full pinned skills in this context; a parent read, snapshot or role title is no substitute. Do not backfill evidence or replace a binding. Missing or conflicting dependencies block this authoring stage only and preserve prior approvals and closed history. This grants no delegation; a direct parent may author. Assemblers and reviewers provide shell construction and validation, not product-design decisions.
+For direction/HiFi authoring or repair (or explicitly pinned legacy Wireframe work), `required_skills` must name both `ui-design-builder` and the exact owner-bound `frontend-design`. Before authoring, run `python "<delivery-harness-skill-root>/scripts/check_skill_bindings.py" --agents-md <target-AGENTS.md> --stage ui-design` through installed-command resolution. The actual writer loads the full pinned skills in this context; a parent read, snapshot or role title is no substitute. Do not backfill evidence or replace a binding. Missing or conflicting dependencies block only this authoring stage; preserve prior approvals and closed history. This grants no delegation; a direct parent may author. Assemblers and reviewers provide shell construction and validation, not product-design decisions. Carry the delegation contract's maximum-creativity brief.
 
 For design-system compilation, load `design-system-compiler`. Read approved `PRD.md`, `ui-design.md`, and the HiFi target; read `wireframes.html` only for a legacy bound pair; proceed only when the Design System Need Gate is `required`, and do not reopen direction or claim another skill defines a compilation mode.
 

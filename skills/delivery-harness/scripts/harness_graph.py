@@ -35,6 +35,7 @@ from harness_schema import (
     action_target_kind_allowed,
     action_target_kind_description,
 )
+from agent_role_contract import is_worker_role_id
 
 
 def validate_cleanup_lifecycle_targets(errors: list[str], graph: Any) -> None:
@@ -376,7 +377,7 @@ def _validate_graph(
                     runtime_path,
                     runtime,
                     {"preferred_provider", "allowed_providers"},
-                    {"provider_options"},
+                    {"provider_options", "worker_role"},
                 ):
                     # Host eligibility is explicit; capability and option support are observed at launch.
                     providers = _strings(
@@ -401,6 +402,13 @@ def _validate_graph(
                             errors,
                             f"{runtime_path}.preferred_provider",
                             "must be null or one of allowed_providers",
+                        )
+                    worker_role = runtime.get("worker_role")
+                    if worker_role is not None and not is_worker_role_id(worker_role):
+                        _add(
+                            errors,
+                            f"{runtime_path}.worker_role",
+                            "must be a lowercase host-safe logical role id",
                         )
                     provider_options = runtime.get("provider_options", {})
                     if not isinstance(provider_options, dict):
