@@ -61,8 +61,8 @@ An absent product package is a `contract_gap`. An absent release identity or amb
 11. Bind ordinary reversible actions to an exact displayed batch approval. Ask at action time for DNS, persistent credentials, permissions, billing, production traffic, public submission, data sharing, destructive actions, or another high-impact change. Hand password, MFA, OTP, CAPTCHA, banking, tax, legal attestation, and secret-value entry to the user.
 12. Before each mutation, re-read the exact target and precondition. Drift invalidates the digest and authorization. If the desired state already exists, perform read-only verification rather than spending the write grant.
 13. Execute external writes serially per target. Mark the grant consumed on the first mutation attempt, including an ambiguous timeout. After an unknown result, read back before any retry; never create a duplicate resource or submission by switching routes blindly.
-14. Refresh the provider state after each action. Record a distinct read-back and the behavior-level signal in non-secret evidence. A success toast, HTTP 2xx mutation response, upload completion, submission, or owner statement proves configuration at most; it does not prove behavior.
-15. Run `python "<product-activation-skill-root>/scripts/check_activation.py" --activation <staged ACTIVATION.md> --prd docs/product/PRD.md --architecture docs/product/architecture.md --deployment docs/DEPLOYMENT.md --stack-decisions docs/product/stack-decisions.md --repo-root <repository-root> --require-filled` throughout reconciliation. Before outcome handoff add `--require-verified-sources` to that complete command. To claim a target ready, add `--require-ready <release-target-id>` to the same complete command for each active target. The architecture parser is the only release-target authority; each target needs readiness or a concrete `n/a` disposition. Preparation may perform separately authorized deployment prerequisites at a fixed implementation SHA, but cannot pass readiness or verified measurement handoff until the exact release is available.
+14. Refresh the provider state after each action. Record a distinct read-back and the behavior-level signal in non-secret evidence. A success toast, HTTP 2xx mutation response, upload completion, submission, or owner statement proves configuration at most; it does not prove behavior. After an owner completes a manual step, read back that exact target immediately before resuming other work.
+15. Run `python "<product-activation-skill-root>/scripts/check_activation.py" --activation <staged ACTIVATION.md> --prd docs/product/PRD.md --architecture docs/product/architecture.md --deployment docs/DEPLOYMENT.md --stack-decisions docs/product/stack-decisions.md --repo-root <repository-root> --require-filled` throughout reconciliation. Before outcome handoff add `--require-verified-sources` to that complete command. To claim a target ready, add `--require-ready <release-target-id>` to the same complete command for each active target. To claim execution closed, add `--require-closeout`: required actions must be verified, or explicitly blocked or owner-deferred while the record remains blocked. The architecture parser is the only release-target authority; each target needs readiness or a concrete `n/a` disposition. Preparation may perform separately authorized deployment prerequisites at a fixed implementation SHA, but cannot pass readiness or verified measurement handoff until the exact release is available.
 16. Before publishing, recompute the live baseline SHA-256. If the live file changed, stop and reconcile. Show the exact create or overwrite path and obtain approval unless the user's current instruction already authorizes it. Publish only the validated staged file; leave failed or paused staging intact.
 17. Report readiness separately for each release target, every remaining blocker or manual step, and the verified `MS-*` sources. End the activation run. The later, owner-requested outcome review starts only after its real measurement window closes.
 
@@ -98,7 +98,7 @@ When an outcome review is requested and `docs/ACTIVATION.md` exists, validate it
 - Always read `references/activation-contract.md` for the document schema, action digest, status, staging, authorization, and evidence rules.
 - Read `references/profile-catalog.md` after the contract, then apply only the profiles justified by the current product surfaces and features.
 - Use `assets/templates/ACTIVATION.template.md` for a new seed or legacy bootstrap.
-- Run `scripts/check_activation.py` for structural, PRD-coverage, digest, evidence, and readiness checks. The checker is read-only.
+- Run `scripts/check_activation.py` for structural, PRD-coverage, digest, evidence, readiness, and terminal-closeout checks. The checker is read-only.
 
 ## Output
 
@@ -108,6 +108,7 @@ Report:
 - release target and SHA bindings;
 - selected profiles and execution routes;
 - completed, verified, blocked, stale, and manual `ACT-*` actions;
+- accepted owner deferrals and the exact work left in them;
 - verified `MS-*` measurement sources;
 - target-by-target activation readiness;
 - exact code or contract gaps routed back upstream;

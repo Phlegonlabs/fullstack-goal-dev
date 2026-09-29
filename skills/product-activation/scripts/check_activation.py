@@ -209,6 +209,10 @@ EVIDENCE_KINDS = {"write", "readback", "behavior", "capability", "manual"}
 EVIDENCE_RESULTS = {"PASS", "FAIL", "BLOCKED", "UNCERTAIN"}
 AUTHORIZATIONS = {"not_required", "pending", "approved", "consumed", "denied", "expired", "handoff_complete", "prohibited"}
 OPERATIONS = {"read", "create", "update", "upload", "publish", "transmit", "delete", "rotate", "revoke", "execute"}
+OWNER_DEFER_RE = re.compile(
+    r"^owner-deferred by\s+(.+?):\s*(\S.*)$",
+    re.IGNORECASE,
+)
 RISK_CONFIRMATION = {
     "read_only": "read_only",
     "standard": "exact_preapproval",
@@ -1328,6 +1332,58 @@ def _cycle_findings(tasks: dict[str, dict[str, str]]) -> list[str]:
     return findings
 
 
+def _closeout_findings(
+    record: dict[str, str],
+    tasks: dict[str, dict[str, str]],
+) -> list[str]:
+    """Check that required execution work is closed without provider access."""
+
+    findings: list[str] = []
+    required = {
+        task_id: task
+        for task_id, task in tasks.items()
+        if task.get("Required", "").lower() == "yes"
+    }
+    if not required:
+        findings.append("Activation closeout: at least one required ACT task is needed")
+        return findings
+
+    has_blocked_action = False
+    for task_id, task in sorted(required.items()):
+        status = task.get("Status", "")
+        if status == "verified":
+            continue
+        if status == "blocked":
+            reason = task.get("Blocker / N/A reason", "")
+            if reason.strip().casefold() in ABSENT or _placeholder(reason):
+                findings.append(
+                    f"Activation closeout: {task_id} needs a concrete blocker reason"
+                )
+                continue
+            deferred = OWNER_DEFER_RE.fullmatch(reason.strip())
+            if deferred:
+                has_blocked_action = True
+                if not _human(deferred.group(1)):
+                    findings.append(
+                        f"Activation closeout: {task_id} owner deferral must name a human owner"
+                    )
+            else:
+                has_blocked_action = True
+            continue
+        label = "unattempted" if status in {"pending", "ready"} else "not execution-verified"
+        findings.append(
+            f"Activation closeout: {task_id} is {label} with status {status!r}"
+        )
+
+    expected_status = "blocked" if has_blocked_action else "handoff_ready"
+    if record.get("Status") != expected_status:
+        findings.append(
+            "Activation closeout: Record status must be "
+            f"{expected_status!r}; a structural pass is not activation completion"
+        )
+    return findings
+
+
 def _prd_signals(prd_text: str) -> tuple[set[str], list[str]]:
     findings: list[str] = []
     signals: set[str] = set()
@@ -1520,9 +1576,10 @@ def check_activation_text(
     require_filled: bool = False,
     require_verified_sources: bool = False,
     require_ready: tuple[str, ...] = (),
+    require_closeout: bool = False,
     package_validated: bool = False,
 ) -> list[str]:
-    authority_required = require_verified_sources or bool(require_ready)
+    authority_required = require_verified_sources or bool(require_ready) or require_closeout
     require_filled = require_filled or authority_required
     findings: list[str] = []
     # A caller that already validated the package and Deployment skips a rerun.
@@ -2142,6 +2199,8 @@ def check_activation_text(
         findings.append("Record: handoff_ready requires at least one active release target")
     if record.get("Status") == "handoff_ready" and open_blockers:
         findings.append("Record: handoff_ready cannot have open blockers")
+    if require_closeout:
+        findings.extend(_closeout_findings(record, tasks))
     if authority_required and record.get("Measurement window starts"):
         window_start = _timestamp(record.get("Measurement window starts", ""))
         availability_times = [
@@ -2168,10 +2227,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--require-filled", action="store_true")
     parser.add_argument("--require-verified-sources", action="store_true")
     parser.add_argument("--require-ready", action="append", default=[])
+    parser.add_argument("--require-closeout", action="store_true")
     parser.add_argument("--show-action-digests", action="store_true")
     args = parser.parse_args(argv)
-    authority_required = args.require_verified_sources or bool(args.require_ready)
-    authority_flag = "--require-verified-sources/--require-ready"
+    authority_required = (
+        args.require_verified_sources or bool(args.require_ready) or args.require_closeout
+    )
+    authority_flag = "--require-verified-sources/--require-ready/--require-closeout"
     if authority_required and args.prd is None:
         print(f"{authority_flag} requires --prd", file=sys.stderr)
         return 2
@@ -2246,6 +2308,7 @@ def main(argv: list[str] | None = None) -> int:
         require_filled=args.require_filled,
         require_verified_sources=args.require_verified_sources,
         require_ready=tuple(args.require_ready),
+        require_closeout=args.require_closeout,
     )
     for finding in findings:
         print(f"{args.activation}: {finding}")

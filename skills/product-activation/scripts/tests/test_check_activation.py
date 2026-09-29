@@ -1015,6 +1015,123 @@ class ActivationCheckerTests(unittest.TestCase):
             "\n".join(check_activation.check_activation_text(record)),
         )
 
+    def test_closeout_rejects_ready_and_configured_required_actions(self) -> None:
+        for status, label in (
+            ("ready", "unattempted with status 'ready'"),
+            ("configured", "not execution-verified with status 'configured'"),
+        ):
+            with self.subTest(status=status):
+                fields = task_fields(status=status)
+                record = valid_record(task_blocks=[task_block("ACT-001", fields)])
+                with patch(
+                    "check_product_package.validate_texts", return_value=[]
+                ), patch("check_deployment.check_deployment_text", return_value=[]):
+                    findings = check_activation.check_activation_text(
+                        record,
+                        prd_text=VALID_PRD,
+                        architecture_text=ARCHITECTURE,
+                        deployment_text=DEPLOYMENT,
+                        stack_text="# Stack Decisions: Example",
+                        repo_root=Path.cwd(),
+                        require_closeout=True,
+                    )
+                self.assertIn(f"Activation closeout: ACT-001 is {label}", "\n".join(findings))
+
+    def test_closeout_does_not_infer_authorization_from_readiness(self) -> None:
+        fields = task_fields(status="ready")
+        fields["Authorization"] = "pending"
+        fields["Authorization source"] = "none"
+        record = valid_record_v2(task_blocks=[task_block("ACT-001", fields)])
+        with patch("check_product_package.validate_texts", return_value=[]), patch(
+            "check_deployment.check_deployment_text", return_value=[]
+        ):
+            findings = check_activation.check_activation_text(
+                record,
+                prd_text=APPROVED_PRD,
+                architecture_text=ARCHITECTURE,
+                deployment_text=DEPLOYMENT,
+                stack_text="# Stack Decisions: Example",
+                repo_root=Path.cwd(),
+                require_closeout=True,
+            )
+        joined = "\n".join(findings)
+        self.assertIn("ready write requires approved authorization", joined)
+        self.assertIn("Activation closeout: ACT-001 is unattempted", joined)
+
+    def test_closeout_accepts_explicit_owner_deferral_only_as_blocked(self) -> None:
+        fields = task_fields(status="blocked", evidence_ids="none")
+        fields["Authorization"] = "pending"
+        fields["Authorization source"] = "none"
+        fields["Blocker / N/A reason"] = (
+            "owner-deferred by product owner: connect the production measurement event next week"
+        )
+        record = valid_record_v2(task_blocks=[task_block("ACT-001", fields)])
+        record = "\n".join(
+            line
+            for line in record.splitlines()
+            if not line.startswith("| EVID-001 |")
+            and not line.startswith("| EVID-002 |")
+            and not line.startswith("| EVID-003 |")
+        )
+        record = record.replace("- Status: handoff_ready", "- Status: blocked", 1)
+        record = record.replace(
+            f"| web-prod | production | Cloudflare;fixture-production-route | {SHA} | {ARTIFACT} | deployed | ready |",
+            f"| web-prod | production | Cloudflare;fixture-production-route | {SHA} | {ARTIFACT} | pending | blocked |",
+            1,
+        )
+        with patch("check_product_package.validate_texts", return_value=[]), patch(
+            "check_deployment.check_deployment_text", return_value=[]
+        ):
+            findings = check_activation.check_activation_text(
+                record,
+                prd_text=APPROVED_PRD,
+                architecture_text=ARCHITECTURE,
+                deployment_text=DEPLOYMENT,
+                stack_text="# Stack Decisions: Example",
+                repo_root=Path.cwd(),
+                require_closeout=True,
+            )
+        self.assertEqual([], findings)
+
+    def test_closeout_owner_deferral_requires_a_human_and_blocked_record(self) -> None:
+        fields = task_fields(status="blocked", evidence_ids="none")
+        fields["Authorization"] = "pending"
+        fields["Authorization source"] = "none"
+        fields["Blocker / N/A reason"] = (
+            "owner-deferred by automation bot: production event setup remains"
+        )
+        record = valid_record_v2(task_blocks=[task_block("ACT-001", fields)]).replace(
+            "- Status: handoff_ready",
+            "- Status: blocked",
+            1,
+        )
+        with patch("check_product_package.validate_texts", return_value=[]), patch(
+            "check_deployment.check_deployment_text", return_value=[]
+        ):
+            findings = check_activation.check_activation_text(
+                record,
+                prd_text=APPROVED_PRD,
+                architecture_text=ARCHITECTURE,
+                deployment_text=DEPLOYMENT,
+                stack_text="# Stack Decisions: Example",
+                repo_root=Path.cwd(),
+                require_closeout=True,
+            )
+        joined = "\n".join(findings)
+        self.assertIn("owner deferral must name a human owner", joined)
+        self.assertNotIn("Record status must be", joined)
+
+    def test_closeout_treats_a_concrete_blocker_as_blocked_not_complete(self) -> None:
+        fields = task_fields(status="blocked", evidence_ids="none")
+        fields["Authorization"] = "pending"
+        fields["Authorization source"] = "none"
+        fields["Blocker / N/A reason"] = "production account login is unavailable"
+        findings = check_activation._closeout_findings(
+            {"Status": "blocked"},
+            {"ACT-001": fields},
+        )
+        self.assertEqual([], findings)
+
     def test_cli_exit_codes_and_digest_output(self) -> None:
         script = SCRIPTS_DIR / "check_activation.py"
         with tempfile.TemporaryDirectory() as temp:
@@ -1049,6 +1166,20 @@ class ActivationCheckerTests(unittest.TestCase):
             )
             self.assertEqual(2, strict_without_prd.returncode)
             self.assertIn("requires --prd", strict_without_prd.stderr)
+            closeout_without_prd = subprocess.run(
+                [
+                    sys.executable,
+                    str(script),
+                    "--activation",
+                    str(path),
+                    "--require-closeout",
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(2, closeout_without_prd.returncode)
+            self.assertIn("requires --prd", closeout_without_prd.stderr)
 
 
 if __name__ == "__main__":

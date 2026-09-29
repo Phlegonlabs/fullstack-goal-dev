@@ -328,6 +328,8 @@ Product Definition Approval、UI Visual Approval 与合并到 `main` 是分开�
 
 Production deployment 之后，`product-activation` 从 typed release targets 派生 profiles，只通过最安全可用路线执行精确授权的动作。Capability、read-back、behavior evidence、measurement sources 与 readiness 都绑定 target、environment、SHA、artifact、provider/channel 和 action digest。后续 strict Outcome Review 会逐字重复 PRD metric 或 TEST definition、baseline、target、window、production release 与相符 verified `MS-*` evidence。
 
+Activation closeout 是 fail-closed 的：`--require-closeout` 会拒绝停留在 ready、configured、pending、uncertain 或 stale 的 required action。只有 verified 工作或明确 concrete blocker 能关闭动作；blocked 状态让 record 保持 blocked，verified handoff 仍要求 verified sources 与 target readiness。
+
 Activation 之后，`seo-growth-review` 可对 typed public hosted-web production target 做独立只读 review。Dated report 必须对齐 Review date、deployment hostname、exact release、Activation hash、verified source roles、data cutoff 与 PASS integrity checks；它不修改网站或外部账户。
 
 保存的 lifecycle SEO review 只要求所审查的 production target 在 Activation 中为 `ready`；其他 target（例如仍在商店审核的 app）可保持 pending。`check_seo_review.py` 只验证一次 Product Definition package 与 Deployment，把这些 findings 与其他 review findings 一起输出到 stdout；只有日期的 Data cutoff 会报告为 finding，不再崩溃。`code-security-review` 的 review packet 在 Contract JSON 中列出每个 PLAN `security_review.required_checks` ID，以及它在受审 head 上 PASS 执行的 execution key；结果会把这份清单复制到 `checks`。Reviewer 不返回 reason code：blocked 结果在 `coverage.gaps` 或 `evidence` 写明原因，派发阻挡由 parent 的 selector 记录。
