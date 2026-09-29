@@ -624,6 +624,8 @@ README 是紀錄文件：每個新增或改動 skill、規則、表格、圖或�
 
 ## 發佈
 
+技能原始碼維護在每個 atomic task 跑 focused checks，固定 release candidate 才跑完整必要 matrix。相容的測試依賴可沿用；同 SHA、同輸入的 deterministic 結果保留來源後引用，不快取 PASS，也不沿用失效的 security、browser、live 或 migration 證據。Consumer 產品訪談、UI 核准與真實 Activation 不屬於本來源庫發布步驟。正式 release 驗證成功且 bundle digest 改變後，才在安全載入邊界用正式 installer 更新一次本機技能，保留備份與驗證。Feature／development push 不取代使用中的正式版本；安裝成功且有載入需要才重啟相關 host。
+
 Windows CI 會在任一 Python 測試組失敗後立即停止。測試資料在綁定執行檔或儲存庫身分前先解析暫存路徑，包括 Windows 8.3 別名。macOS job 執行與 Linux job 相同的 Python 測試組；瀏覽器測試只在 Linux 執行。macOS 無法執行綁定的檔案描述符，所以在 macOS 上 sandbox container verifier 和瀏覽器 parity capture 會直接報錯（fail closed）；trusted-host 簽章驗證只在使用受 SIP 保護的 `/usr/bin/ssh-keygen` 時可用。
 
 HiFi 範例以固定 LF 換行維持跨平台位元組雜湊。Wireframe 的 Node 測試透過 stdin 讀取多行程式，避免 Windows 啟動器默默截斷斷言。

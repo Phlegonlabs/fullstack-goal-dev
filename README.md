@@ -624,6 +624,8 @@ The READMEs are documentation-of-record: every change that adds or alters a skil
 
 ## Releasing
 
+Source maintenance uses focused checks per atomic task, followed by the full required matrix on a fixed release candidate. Reuse compatible installed test dependencies and cite unchanged exact-SHA deterministic results with their origin; never cache PASS or reuse stale security, browser, live-state or migration evidence. Consumer product interviews, UI approvals and Activation execution are not source-repository release steps. After a verified formal release, update local skills once only when the bundle digest changed, using the official installer at a quiescent boundary with backup and verification. Feature/development pushes do not replace the installed release; restart the relevant host only after successful installation when needed.
+
 Windows CI stops after any failed Python suite. Test fixtures resolve temporary paths before binding executable or repository identities, including Windows 8.3 aliases. A macOS job runs the same Python suites as the Linux job; browser tests run only on Linux. On macOS, sandboxed container verifiers and browser parity capture fail closed, because macOS cannot execute a bound file descriptor. Trusted-host signature verification runs there only with the SIP-protected `/usr/bin/ssh-keygen`.
 
 Byte-bound HiFi examples retain LF line endings across checkouts. Wireframe Node tests read multiline scripts from stdin so Windows launchers cannot silently truncate assertions.

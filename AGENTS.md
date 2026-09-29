@@ -108,14 +108,14 @@ When a product has pricing, paid access, purchase-gated features or outside sell
 
 ## Update Local Skills
 
-- Every push that changes `skills/` is followed by the local skills update in the same turn. Quiesce active skill-using sessions, then run `install.sh` or `install.ps1` against `~/.agents/skills/`. It installs `delivery-harness`, `product-definition-builder`, `ui-design-builder`, `design-system-compiler`, `code-security-review`, `product-activation`, and `seo-growth-review`; retires `full-harness`, `prd-builder`, and `product-design-builder`; and writes the prior copies under `~/.agents/skill-backups/product-delivery-harness/`. Never replace the installer with manual move/copy commands, and never overwrite or delete prior copies. A failed install rolls itself back. If the installed skills fail verification after the installer succeeded, restore by re-running the installer from a checkout of the previous release tag; it backs up the bad copy first. Restart the host only after success. This step is mandatory after a push, never deferred.
+- After a verified formal release, compare its seven-skill bundle digest with the observed installed digest. When different, complete one local update at a quiescent boundary in the release handoff; a feature or development push does not replace the installed release. An explicitly requested development installation is a separate channel and never becomes the official release by implication. Quiesce only relevant active skill-using sessions, then run `install.sh` or `install.ps1` against `~/.agents/skills/`. It installs `delivery-harness`, `product-definition-builder`, `ui-design-builder`, `design-system-compiler`, `code-security-review`, `product-activation`, and `seo-growth-review`; retires `full-harness`, `prd-builder`, and `product-design-builder`; and writes prior copies under `~/.agents/skill-backups/product-delivery-harness/`. Never replace the installer with manual move/copy commands, or overwrite/delete backups. A failed install rolls itself back. If post-install verification fails, rerun the installer from the previous release tag so it backs up the bad copy first. Restart the relevant host only after successful verification and when needed to load changed skills. If installation cannot finish, report it pending; do not claim the release handoff fully complete.
 - Per-runtime copies (Codex plugin, Claude plugin, Pi extension) stay retired. Do not install, update, or reinstall them.
 
 ## Required Verification
 
-Edit only the canonical sources in `skills/`, then run all of this from the repository root:
+Edit the canonical skill sources in `skills/`. For each atomic task, run focused checks for its changed behavior and negative cases; unknown impact requires the full applicable suite. Source maintenance does not create a consumer Product Definition, UI approval, Activation pass or managed archive merely to edit a skill. Before a formal release, run the complete required matrix below on the fixed candidate from the repository root. Preserve all suites; this separates the development loop from release verification.
 
-For the required UI browser check, run `npm ci` and `npx playwright install chromium`, then set `PDH_REQUIRE_BROWSER_TESTS=1` and `PLAYWRIGHT_MODULE` to this checkout's `node_modules/playwright`. Linux CI installs Chromium with `--with-deps`. Missing prerequisites must fail required browser verification.
+For required UI browser checks, prepare dependencies with `npm ci` and `npx playwright install chromium` when missing or changed, then set `PDH_REQUIRE_BROWSER_TESTS=1` and `PLAYWRIGHT_MODULE` to this checkout's `node_modules/playwright`. Reuse only an observed installation matching the current lockfile and Playwright browser revision; do not reinstall it for every task. Linux CI installs Chromium with `--with-deps`. Missing prerequisites must fail required browser verification. Python test dependencies follow the current requirements file.
 
 ```text
 python -m pip install -r skills/delivery-harness/requirements-test.txt
@@ -135,7 +135,7 @@ python -m unittest discover -s skills/seo-growth-review/scripts/tests -v
 git diff --check
 ```
 
-CI runs the same set.
+CI retains the same required coverage with exact-candidate jobs and a required aggregate. A successful deterministic suite may be cited from that same exact SHA and unchanged configuration, dependencies and toolchain; retain its origin, do not relabel it as a fresh execution. New SHA or relevant input changes require new evidence. Security freshness, browser/live state and migration checks retain their own contracts. Never cache PASS or waive a missing platform result.
 
 Every flow that promotes to `main` bumps the release version in the same change: `package.json`, `skills/delivery-harness/VERSION`, the README badges and version-history entries in all four languages, and the RUNBOOK `required_harness_version` default. `test_skill_contract.py` reads `VERSION` and fails when any of these surfaces differ from it. A breaking skill-bundle change bumps the minor version. After the release promotion reaches `main`, tag that commit with the matching `v<version>` tag — the READMEs' Releasing section is the full checklist.
 

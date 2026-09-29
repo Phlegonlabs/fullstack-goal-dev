@@ -623,6 +623,8 @@ Los READMEs son la documentación de registro: cada cambio que agregue o altere 
 
 ## Releasing
 
+El mantenimiento de skills ejecuta checks enfocados por tarea atómica y la matriz completa sobre un candidato de release fijo. Reutiliza dependencias compatibles y cita resultados deterministas del mismo SHA e inputs con su origen; no almacenes PASS ni reutilices evidencia caducada de seguridad, navegador, estado externo o migraciones. Las entrevistas, aprobaciones UI y ejecución de Activation de productos consumidores no son pasos del release de este repositorio. Tras verificar el release formal, actualiza los skills locales una sola vez si cambió el digest del bundle, con el instalador oficial, sesiones pertinentes en reposo, backup y verificación. Los pushes de feature/development no sustituyen la versión instalada; reinicia el host pertinente solo después de una instalación correcta cuando necesite cargar los cambios.
+
 La CI de Windows se detiene si falla cualquier suite de Python. Los fixtures resuelven las rutas temporales antes de vincular identidades del ejecutable o repositorio, incluidos alias 8.3. Un job de macOS ejecuta las mismas suites de Python que el job de Linux; las pruebas de navegador solo corren en Linux. En macOS, los verificadores de contenedor en sandbox y la captura de paridad del navegador fallan de forma cerrada, porque macOS no puede ejecutar un descriptor de archivo vinculado. La verificación de firmas del host de confianza solo funciona allí con `/usr/bin/ssh-keygen` protegido por SIP.
 
 Los ejemplos HiFi conservan finales de línea LF para mantener sus hashes entre plataformas. Las pruebas Node del wireframe leen scripts multilínea por stdin para evitar que los lanzadores de Windows omitan aserciones.
