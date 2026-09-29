@@ -16,6 +16,9 @@ PROTOCOL = "dual-branch/1"
 DUAL_BRANCH_VERSION = (0, 59, 0)
 DUAL_BRANCH_MARKER = f"Release source policy: {PROTOCOL}"
 DUAL_BRANCH_MARKER_RE = re.compile(rf"^{re.escape(DUAL_BRANCH_MARKER)}\s*$", re.MULTILINE)
+RELEASE_MARKER_LINE_RE = re.compile(
+    r"^Release source policy:(?! dual-branch/1\s*$).*$", re.MULTILINE
+)
 REMOTE_RE = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
 
 
@@ -40,11 +43,11 @@ def validate_branch_policy_shape(plan: dict[str, Any]) -> list[str]:
         return [
             f"{path}: must contain exactly protocol, kind, base_ref, and base_sha"
         ]
-    if policy["protocol"] != PROTOCOL:
+    if not isinstance(policy["protocol"], str) or policy["protocol"] != PROTOCOL:
         errors.append(f"{path}.protocol: must be {PROTOCOL!r}")
     kind = policy["kind"]
     base_ref = policy["base_ref"]
-    if kind not in {"ordinary", "hotfix"}:
+    if not isinstance(kind, str) or kind not in {"ordinary", "hotfix"}:
         errors.append(f"{path}.kind: must be ordinary or hotfix")
         return errors
     if isinstance(base_ref, str):
@@ -114,29 +117,6 @@ def validate_branch_policy_ancestry(
     ]
 
 
-def has_prior_archive_candidate_source(plan: dict[str, Any]) -> bool:
-    """Recognize the retained exact-A correction-source exception."""
-
-    rows = [
-        source
-        for source in (plan.get("sources") or [])
-        if isinstance(source, dict)
-        and " ".join(str(source.get("kind", "")).replace("_", " ").replace("-", " ").split()).casefold()
-        == "prior archive candidate"
-    ]
-    if len(rows) != 1:
-        return False
-    source = rows[0]
-    filename = str(source.get("location", "")).replace("\\", "/").rsplit("/", 1)[-1]
-    return (
-        source.get("status") == "frozen"
-        and filename.casefold() == "archive_receipt.json"
-        and is_full_sha(source.get("source_revision"))
-        and isinstance(source.get("content_sha256"), str)
-        and re.fullmatch(r"[0-9a-f]{64}", source["content_sha256"]) is not None
-    )
-
-
 def validate_branch_policy_join(
     plan: dict[str, Any],
     architecture_text: str,
@@ -145,21 +125,35 @@ def validate_branch_policy_join(
     run: dict[str, Any] | None = None,
     active_text: Callable[[str], str] | None = None,
 ) -> list[str]:
-    """Apply the current join only for a valid 0.59+ version pin."""
-
-    if not branch_policy_required(run):
-        return []
-    if has_prior_archive_candidate_source(plan):
-        return []
+    """Validate marker compatibility and the exact policy for any valid pin."""
     active = architecture_text if active_text is None else active_text(architecture_text)
     errors: list[str] = []
-    if DUAL_BRANCH_MARKER_RE.search(active) is None:
+    dual_count = len(DUAL_BRANCH_MARKER_RE.findall(active))
+    unknown_count = len(RELEASE_MARKER_LINE_RE.findall(active))
+    if unknown_count:
+        errors.append(
+            "architecture: the only supported Release source policy marker is "
+            "dual-branch/1; omit the line for the legacy candidate protocol"
+        )
+    if dual_count > 1:
+        errors.append(
+            "architecture: Release Targets must contain at most one active "
+            "Release source policy marker"
+        )
+    has_marker = dual_count == 1 and unknown_count == 0
+    if branch_policy_required(run) and not has_marker:
         errors.append(
             "architecture: Harness 0.59+ current joins require an active "
             f"{DUAL_BRANCH_MARKER!r} marker"
         )
-    errors.extend(validate_branch_policy_shape(plan))
-    errors.extend(
-        validate_branch_policy_ancestry(plan, repo_root, run=run)
-    )
+    if not branch_policy_required(run) and has_marker:
+        errors.append(
+            "architecture: a pinned pre-0.59 RUN cannot silently adopt the "
+            "dual-branch/1 release source policy"
+        )
+    if branch_policy_required(run):
+        errors.extend(validate_branch_policy_shape(plan))
+        errors.extend(
+            validate_branch_policy_ancestry(plan, repo_root, run=run)
+        )
     return errors

@@ -17,12 +17,12 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 from branch_policy import (  # noqa: E402
     DUAL_BRANCH_MARKER,
-    has_prior_archive_candidate_source,
     validate_branch_policy_ancestry,
     validate_branch_policy_join,
     validate_branch_policy_shape,
 )
 from manifest_fixtures import valid_plan, valid_run  # noqa: E402
+from harness_manifest import validate_run  # noqa: E402
 
 
 ARCHITECTURE = "# Architecture\n\n## Release Targets\n\n" + DUAL_BRANCH_MARKER + "\n"
@@ -86,6 +86,9 @@ class BranchPolicyTests(unittest.TestCase):
             {"protocol": "dual-branch/1", "kind": "ordinary", "base_ref": "refs/heads/development", "base_sha": "a" * 40},
             {"protocol": "dual-branch/1", "kind": "ordinary", "base_ref": "refs/remotes/origin/main", "base_sha": "a" * 40},
             {"protocol": "dual-branch/1", "kind": "ordinary", "base_ref": "refs/remotes/origin/development", "base_sha": "abc"},
+            {"protocol": "dual-branch/1", "kind": ["ordinary"], "base_ref": "refs/remotes/origin/development", "base_sha": "a" * 40},
+            {"protocol": "dual-branch/1", "kind": None, "base_ref": "refs/remotes/origin/development", "base_sha": "a" * 40},
+            {"protocol": ["dual-branch/1"], "kind": "ordinary", "base_ref": "refs/remotes/origin/development", "base_sha": "a" * 40},
         ):
             with self.subTest(policy=invalid):
                 errors = validate_branch_policy_shape({"branch_policy": invalid})
@@ -129,7 +132,7 @@ class BranchPolicyTests(unittest.TestCase):
                 [], validate_branch_policy_ancestry(plan, root, run=run)
             )
 
-    def test_exact_prior_archive_correction_is_exempt(self) -> None:
+    def test_prior_archive_correction_still_binds_policy_and_marker(self) -> None:
         plan = valid_plan()
         source = {
             "id": "SRC-PRIOR-A",
@@ -142,17 +145,53 @@ class BranchPolicyTests(unittest.TestCase):
             "staged_revision": None,
             "notes": "exact failed archive candidate",
         }
-        self.assertFalse(has_prior_archive_candidate_source(plan))
         plan["sources"].append(source)
-        self.assertTrue(has_prior_archive_candidate_source(plan))
-        self.assertEqual(
-            [], validate_branch_policy_join(plan, "# Architecture\n", ".", run=run_at("0.59.0"))
-        )
+        errors = validate_branch_policy_join(plan, "# Architecture\n", ".", run=run_at("0.59.0"))
+        self.assertTrue(any("require an active" in item for item in errors), errors)
+        self.assertTrue(any("requires a branch policy object" in item for item in errors), errors)
 
         source["source_revision"] = "not-a-sha"
-        self.assertFalse(has_prior_archive_candidate_source(plan))
         errors = validate_branch_policy_join(plan, "# Architecture\n", ".", run=run_at("0.59.0"))
         self.assertTrue(any("active 'Release source policy" in item for item in errors), errors)
+
+    def test_marker_counts_and_version_compatibility_fail_closed(self) -> None:
+        current = run_at("0.59.0")
+        duplicate = ARCHITECTURE + DUAL_BRANCH_MARKER + "\n"
+        errors = validate_branch_policy_join(
+            valid_plan(), duplicate, ".", run=current
+        )
+        self.assertTrue(any("at most one active" in item for item in errors), errors)
+
+        unknown = ARCHITECTURE.replace(
+            DUAL_BRANCH_MARKER, "Release source policy: dual-branch/2"
+        )
+        errors = validate_branch_policy_join(
+            valid_plan(), unknown, ".", run=current
+        )
+        self.assertTrue(any("only supported" in item for item in errors), errors)
+
+        old = valid_run(valid_plan())
+        gate = old["runtime_capabilities"]["runtime_adapter"]["version_gate"]
+        gate["required_harness_version"] = "0.58.0"
+        errors = validate_branch_policy_join(
+            valid_plan(), ARCHITECTURE, ".", run=old
+        )
+        self.assertTrue(
+            any("cannot silently adopt" in item for item in errors), errors
+        )
+
+    def test_current_run_validation_requires_policy_without_repo_root(self) -> None:
+        plan = valid_plan()
+        run = run_at("0.59.0")
+        errors = validate_run(plan, run)
+        self.assertTrue(
+            any("requires a branch policy object" in item for item in errors),
+            errors,
+        )
+        plan["branch_policy"] = branch_policy()
+        self.assertFalse(
+            any("branch_policy" in item for item in validate_run(plan, run))
+        )
 
 
 if __name__ == "__main__":

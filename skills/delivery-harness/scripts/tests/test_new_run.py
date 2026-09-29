@@ -6,6 +6,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import re
 import sys
 import tempfile
 import unittest
@@ -43,6 +44,30 @@ while str(PDB_TESTS_DIR) in sys.path:
 PLAN_TEMPLATE = SCRIPTS_DIR.parent / "assets" / "templates" / "HARNESS_PLAN.template.md"
 
 
+def dual_branch_release_architecture() -> str:
+    if not installed_version_requires_dual_branch():
+        return release_architecture()
+    architecture = release_architecture().replace(
+        "## Release Targets",
+        "## Release Targets\n\nRelease source policy: dual-branch/1",
+        1,
+    )
+    return re.sub(
+        r"^- Source policy: stage=development; .*$",
+        "- Source policy: stage=development; ref=refs/heads/development; "
+        "sha=promotion.verified_development_sha",
+        architecture,
+        count=1,
+        flags=re.MULTILINE,
+    )
+
+
+def installed_version_requires_dual_branch() -> bool:
+    version_text = (SCRIPTS_DIR.parent / "VERSION").read_text(encoding="utf-8").strip()
+    version = tuple(int(part) for part in version_text.split(".", 2))
+    return version >= (0, 59, 0)
+
+
 class NewRunTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
@@ -51,7 +76,7 @@ class NewRunTests(unittest.TestCase):
         self.plan = load_plan(PLAN_TEMPLATE)
         self.plan_path = self.dir / "PLAN.md"
         approved_prd, approved_architecture, approved_stack = strictize_approved_package(
-            valid_prd(), release_architecture(), valid_stack()
+            valid_prd(), dual_branch_release_architecture(), valid_stack()
         )
         product_sources = {
             "docs/product/PRD.md": approved_prd.encode("utf-8"),
@@ -224,6 +249,30 @@ class NewRunTests(unittest.TestCase):
             with self.subTest(action=key):
                 self.assertFalse(entry["authorized"])
                 self.assertIsNone(entry["source"])
+
+    def test_template_freezes_dual_branch_policy_without_advancing_base(self) -> None:
+        run = load_run(self.generate())
+
+        self.assertEqual(
+            {
+                "protocol": "dual-branch/1",
+                "kind": "ordinary",
+                "base_ref": "refs/remotes/origin/development",
+                "base_sha": "0" * 40,
+            },
+            self.plan["branch_policy"],
+        )
+        self.assertNotIn("branch_policy", run)
+        self.assertEqual("refs/heads/test-run", run["integration"]["branch"])
+        self.assertIsNone(run["integration"]["batch_base_sha"])
+
+        gate = run["runtime_capabilities"]["runtime_adapter"]["version_gate"]
+        gate["required_harness_version"] = "0.59.0"
+        errors = validate_current_plan_run(self.plan, run, repo_root=self.dir)
+        if installed_version_requires_dual_branch():
+            self.assertEqual([], errors)
+        else:
+            self.assertTrue(any("require an active" in error for error in errors), errors)
 
     def test_refuses_to_overwrite_live_run_state(self) -> None:
         out = self.generate()

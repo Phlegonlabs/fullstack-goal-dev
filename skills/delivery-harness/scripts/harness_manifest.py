@@ -112,7 +112,7 @@ from harness_authorization import (
     is_protected_branch_target,
     wave_scope_matches_current,
 )
-from branch_policy import validate_branch_policy_shape
+from branch_policy import branch_policy_required, validate_branch_policy_shape
 from harness_graph import (
     _cycle_nodes,
     _validate_graph,
@@ -5687,6 +5687,12 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
         optional_run_keys.add("launch_records")
     if not _keys(errors, "run", run, run_keys, optional_run_keys):
         return sorted(errors)
+    if (
+        schema_version == 11
+        and plan.get("schema_version") == 6
+        and branch_policy_required(run)
+    ):
+        errors.extend(validate_branch_policy_shape(plan))
     # The 0.55.0 shape checks skip only a pin that parses below 0.55.0; a
     # null or malformed pin gets the strict checks.
     parsed_pin = parse_harness_version(required_harness_version)

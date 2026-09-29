@@ -2622,6 +2622,17 @@ Security scope: executable
             legacy_for_marker.targets[0].source_policy.split("ref=")[1].split(";")[0],
         )
 
+        duplicated = dual.replace(
+            "## Release Targets\n",
+            "## Release Targets\n\nRelease source policy: dual-branch/1\n",
+            1,
+        )
+        duplicated_contract, findings = parse_release_targets(duplicated)
+        self.assertEqual("candidate/1", duplicated_contract.source_policy_protocol)
+        self.assertTrue(
+            any("at most one active Release source policy marker" in item for item in findings)
+        )
+
     def test_selected_stack_requires_repository_evidence_and_unique_sections(self) -> None:
         selected = valid_stack(status="Selected")
         self.assertTrue(

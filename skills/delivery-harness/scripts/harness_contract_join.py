@@ -1393,7 +1393,7 @@ def _load_release_source_contract(sibling_scripts: Path) -> Any:
             sys.modules[markdown_name] = markdown_module
             sys.modules["markdown_contract"] = markdown_module
             markdown_spec.loader.exec_module(markdown_module)
-            parser_module.active_text = markdown_module.active_text
+            sys.modules[parser_name] = parser_module
             parser_spec.loader.exec_module(parser_module)
             if Path(str(getattr(parser_module, "__file__", ""))).resolve() != parser_path.resolve():
                 raise ImportError("canonical release parser path does not match sibling source")

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -855,6 +856,86 @@ class ValidateHarnessPlanCliTests(unittest.TestCase):
             errors = validate_frozen_contract_joins(plan, root)
             self.assertTrue(
                 any("requires exactly one frozen stack-decisions.md" in error for error in errors)
+            )
+
+    def test_current_dual_branch_join_uses_canonical_release_parser(self) -> None:
+        architecture = release_architecture().replace(
+            "## Release Targets",
+            "## Release Targets\n\nRelease source policy: dual-branch/1",
+            1,
+        )
+        architecture = re.sub(
+            r"^- Source policy: stage=development; .*$",
+            "- Source policy: stage=development; ref=refs/heads/development; "
+            "sha=promotion.verified_development_sha",
+            architecture,
+            count=1,
+            flags=re.MULTILINE,
+        )
+        approved_prd, approved_architecture, approved_stack = strictize_approved_package(
+            valid_prd(), architecture, valid_stack()
+        )
+        self.assertEqual(
+            [], full_product_package_checker_errors(
+                approved_prd.encode("utf-8"),
+                approved_architecture.encode("utf-8"),
+                approved_stack.encode("utf-8"),
+            )
+        )
+
+        plan = valid_plan()
+        carry_security_requirement(plan)
+        plan["ui_surfaces"] = []
+        next(source for source in plan["sources"] if source["kind"] == "prd")[
+            "location"
+        ] = "docs/product/PRD.md"
+        plan["branch_policy"] = {
+            "protocol": "dual-branch/1",
+            "kind": "ordinary",
+            "base_ref": "refs/remotes/origin/development",
+            "base_sha": "a" * 40,
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.bind_prd(plan, root, approved_prd)
+            architecture_source = next(
+                source for source in plan["sources"] if source["kind"] == "architecture"
+            )
+            architecture_path = root / architecture_source["location"]
+            architecture_path.parent.mkdir(parents=True, exist_ok=True)
+            architecture_path.write_text(approved_architecture, encoding="utf-8")
+            architecture_source["content_sha256"] = hashlib.sha256(
+                architecture_path.read_bytes()
+            ).hexdigest()
+            stack_path = root / "docs/product/stack-decisions.md"
+            stack_path.write_text(approved_stack, encoding="utf-8")
+            plan["sources"].append(
+                {
+                    "id": "SRC-STACK",
+                    "kind": "stack decisions",
+                    "location": "docs/product/stack-decisions.md",
+                    "owner": "product",
+                    "status": "frozen",
+                    "content_sha256": hashlib.sha256(stack_path.read_bytes()).hexdigest(),
+                    "source_revision": None,
+                    "staged_revision": None,
+                    "notes": "approved stack",
+                }
+            )
+            run = valid_run(plan)
+            gate = run["runtime_capabilities"]["runtime_adapter"]["version_gate"]
+            gate["required_harness_version"] = "0.59.0"
+            run["integration"]["batch_base_sha"] = None
+            run["integration"]["integration_head_sha"] = None
+            self.assertEqual(
+                [], validate_frozen_contract_joins(plan, root, run=run)
+            )
+
+            plan.pop("branch_policy")
+            errors = validate_frozen_contract_joins(plan, root, run=run)
+            self.assertTrue(
+                any("requires a branch policy object" in error for error in errors),
+                errors,
             )
 
     @staticmethod

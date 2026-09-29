@@ -15,6 +15,9 @@ EXPECTED_PREFIX = "Expected deployable surfaces:"
 DUAL_BRANCH_MARKER_RE = re.compile(
     r"^Release source policy: dual-branch/1\s*$", re.MULTILINE
 )
+RELEASE_MARKER_LINE_RE = re.compile(
+    r"^Release source policy:(?! dual-branch/1\s*$).*$", re.MULTILINE
+)
 TARGET_HEADING_RE = re.compile(r"^### Release Target:\s*(.*?)\s*$", re.MULTILINE)
 KEBAB_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 SOURCE_POLICY_RE = re.compile(
@@ -143,6 +146,26 @@ def _field_rows(block: str) -> tuple[dict[str, str], list[str]]:
     return dict(pairs), sorted(key for key, count in counts.items() if count > 1)
 
 
+def _release_marker_protocol(section: str) -> tuple[str, list[str]]:
+    """Read one active policy marker; ambiguous or unknown markers fail."""
+
+    dual_count = len(DUAL_BRANCH_MARKER_RE.findall(section))
+    unknown_count = len(RELEASE_MARKER_LINE_RE.findall(section))
+    findings: list[str] = []
+    if dual_count > 1:
+        findings.append(
+            "architecture: Release Targets must contain at most one "
+            "active Release source policy marker"
+        )
+    if unknown_count:
+        findings.append(
+            "architecture: the only supported Release source policy marker "
+            "is dual-branch/1; omit the line for the legacy candidate protocol"
+        )
+    protocol = "dual-branch/1" if dual_count == 1 and unknown_count == 0 else "candidate/1"
+    return protocol, findings
+
+
 def parse_release_targets(
     architecture_text: str,
 ) -> tuple[ReleaseTargetContract, list[str]]:
@@ -153,6 +176,8 @@ def parse_release_targets(
     findings.extend(section_findings)
     if section is None:
         return ReleaseTargetContract((), (), None), findings
+    marker_protocol, marker_findings = _release_marker_protocol(section)
+    findings.extend(marker_findings)
 
     inventory_matches = list(
         re.finditer(
@@ -162,20 +187,13 @@ def parse_release_targets(
         )
     )
     if len(inventory_matches) != 1:
-        dual_branch = DUAL_BRANCH_MARKER_RE.search(section) is not None
         findings.append(
             "architecture: Release Targets must contain exactly one expected "
             "deployable-surface inventory"
         )
-        return (
-            ReleaseTargetContract(
-                (), (), None, "dual-branch/1" if dual_branch else "candidate/1"
-            ),
-            findings,
-        )
+        return ReleaseTargetContract((), (), None, marker_protocol), findings
 
     inventory = inventory_matches[0].group(1).strip()
-    dual_branch = DUAL_BRANCH_MARKER_RE.search(section) is not None
     none_match = re.fullmatch(r"none\s*(?:—|-)\s*(.+)", inventory, re.I)
     explicit_none_reason: str | None = None
     expected_values: list[str] = []
@@ -325,7 +343,7 @@ def parse_release_targets(
             ),
             "production": ("refs/heads/main", "promotion.verified_main_sha"),
         }
-        if dual_branch:
+        if marker_protocol == "dual-branch/1":
             expected_policy["development"] = (
                 "refs/heads/development",
                 "promotion.verified_development_sha",
@@ -447,7 +465,7 @@ def parse_release_targets(
             tuple(expected_values),
             tuple(targets),
             explicit_none_reason,
-            "dual-branch/1" if dual_branch else "candidate/1",
+            marker_protocol,
         ),
         sorted(set(findings)),
     )
