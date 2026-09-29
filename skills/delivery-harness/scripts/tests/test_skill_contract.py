@@ -56,6 +56,14 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("--platform windows --shard-count 4", step)
         self.assertIn("--shard-index '${{ matrix.shard }}'", step)
         self.assertIn("shard: [0, 1, 2, 3]", job)
+        self.assertIn("$plannerStatus = $LASTEXITCODE", step)
+        self.assertIn("if ($plannerStatus -ne 0) {", step)
+        self.assertIn("exit $plannerStatus", step)
+        self.assertIn("$plan = $planJson | ConvertFrom-Json", step)
+        self.assertLess(
+            step.index("$plannerStatus = $LASTEXITCODE"),
+            step.index("$plan = $planJson | ConvertFrom-Json"),
+        )
         self.assertIn("foreach ($testFile in $plan.files) {", step)
         self.assertIn("$suiteStatus = $LASTEXITCODE", step)
         self.assertIn("if ($suiteStatus -ne 0) {", step)

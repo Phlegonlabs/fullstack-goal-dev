@@ -373,6 +373,10 @@ jobs:
         shell: pwsh
         run: |
           $planJson = python skills/delivery-harness/scripts/ci_test_shards.py plan --suite harness --platform windows --shard-count 4 --shard-index '${{ matrix.shard }}' --timings skills/delivery-harness/ci-test-timings.json --allow-unmeasured --format json
+          $plannerStatus = $LASTEXITCODE
+          if ($plannerStatus -ne 0) {
+            exit $plannerStatus
+          }
           $plan = $planJson | ConvertFrom-Json
           if (-not $plan.files -or @($plan.files).Count -eq 0) { throw "measured shard is empty" }
           foreach ($testFile in $plan.files) {

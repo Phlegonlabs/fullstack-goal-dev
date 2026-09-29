@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
-import io
 import json
 import math
 import sys
@@ -171,8 +170,7 @@ def profile_suite(root: Path, args: argparse.Namespace) -> dict[str, object]:
         file_started = time.perf_counter()
         module = import_test_module(path, index)
         suite = unittest.defaultTestLoader.loadTestsFromModule(module)
-        stream = io.StringIO()
-        result = unittest.TextTestRunner(stream=stream, verbosity=0).run(suite)
+        result = unittest.TextTestRunner(stream=sys.stderr, verbosity=0).run(suite)
         timings[relative_name] = round(time.perf_counter() - file_started, 6)
         file_results[relative_name] = {
             "duration_seconds": timings[relative_name],

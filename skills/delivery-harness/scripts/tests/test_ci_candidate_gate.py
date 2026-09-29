@@ -211,6 +211,18 @@ class CICandidateGateTests(unittest.TestCase):
         windows_step = self.workflow.split("Run measured native Harness shard", 1)[1].split(
             "  windows-installer:", 1
         )[0]
+        self.assertIn("$planJson = python", windows_step)
+        self.assertIn("$plannerStatus = $LASTEXITCODE", windows_step)
+        self.assertIn("if ($plannerStatus -ne 0) {", windows_step)
+        self.assertIn("$plan = $planJson | ConvertFrom-Json", windows_step)
+        self.assertLess(
+            windows_step.index("$plannerStatus = $LASTEXITCODE"),
+            windows_step.index("$plan = $planJson | ConvertFrom-Json"),
+        )
+        self.assertLess(
+            windows_step.index("if ($plannerStatus -ne 0) {"),
+            windows_step.index("$plan = $planJson | ConvertFrom-Json"),
+        )
         self.assertIn("& python -m unittest discover", windows_step)
         self.assertIn("*> $suiteLog", windows_step)
         self.assertIn(
