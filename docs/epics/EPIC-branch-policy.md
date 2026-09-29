@@ -32,6 +32,8 @@ The accepted interface is:
 | HARNESS-BRANCH-005 | New RUN/template and current docs describe the same flow | `test_new_run.py`, `test_skill_contract.py` | parent integration |
 | HARNESS-JOIN-001 | `design-system/4` uses the canonical compiler checker for registry and pair validation | `test_contract_source_binding.py` | frontend digest repair integration |
 | HARNESS-JOIN-002 | A fresh enhancement label cannot retain `ui-design/2`; a frozen validated maintenance record can | `test_contract_source_binding.py` | frontend digest repair integration |
+| HARNESS-GOLDEN-001 | The enabled golden flow consumes genuine UI3/DS4 evidence, a frozen dual-branch base, and current approval hashes | `test_golden_path.py` with `HARNESS_GOLDEN_PATH=1` | frontend digest repair integration |
+| HARNESS-GOLDEN-002 | The lifecycle golden flow uses the same current package and verifies DS4 pair staleness recovery | `test_lifecycle_golden_path.py` | frontend digest repair integration |
 
 ## Document Impact
 
@@ -55,9 +57,10 @@ The accepted interface is:
 | Define hotfix forward integration | Require separately authorized no-force integration A→current development, retain unrelated work, prove A ancestry, and verify new SHA T with its own gates | `ddd618de6591558515b1b90351c6814bd95542ea` | 60 Harness and 97 Product Definition contract tests plus docs weight passed |
 | Dispatch DS4 through the canonical adapter | Add schema 4 to both Harness design-contract entry points; build a real branch-policy/UI3/DS4 fixture with base ancestry and exact empty findings | `6b2ad6139ea3e220df5d45720ada623370156073` | Focused module 6 PASS in 5.04 seconds; pyflakes passed |
 | Restrict retained legacy UI | Remove the enhancement-label shortcut; require validated frozen maintenance evidence and reject fresh 0.59 enhancement UI2 | `c9da55de4e684a9f21d2de5810118f420e44335e` | Focused module 7 PASS in 6.44 seconds; pyflakes and whitespace checks passed |
+| Upgrade golden packages to the current release contract | Replace legacy UI2/schema-3 golden construction with the shared genuine UI3/DS4 branch-policy fixture; bind traces to the real DS rule and retain plan-only fail-closed behavior | This atomic golden repair commit | Enabled golden and lifecycle golden each 1 PASS under a 300-second deadline; contract-source 7 PASS |
 
 ## Results And Remaining Work
 
-The earlier branch-policy commits are integrated. Two MOD-JOIN commits are ready for sequential integration: `6b2ad613` and `c9da55de`, followed by this documentation commit. The current checkout is clean before the documentation commit.
+Earlier branch-policy and MOD-JOIN commits are integrated. The current golden repair is contained in the atomic commit that adds the HARNESS-GOLDEN rows.
 
-The bounded archive suite passed 48 tests. A 300-second bounded run of the publisher suite timed out and was stopped; it needs the parent's longer final-suite budget. Remaining: parent integration, frontend overlap reconciliation, independent exact-head review, 0.59 final suite, release documentation/version-history ownership, and any final security review. No push, install, branch deletion, worktree removal, or protected-branch mutation was performed. Root AGENTS remains owner-owned for the parent's final main-only migration; this checkout observed VERSION 0.58.0 and did not edit it.
+The bounded archive suite passed 48 tests. A 300-second bounded run of the publisher suite timed out and was stopped; it needs the parent's longer final-suite budget. Remaining: parent integration, frontend overlap reconciliation, independent exact-head review, 0.59 final suite, release documentation/version-history ownership, and any final security review. No push, install, branch deletion, worktree removal, or protected-branch mutation was performed. Root AGENTS remains owner-owned for the parent's final main-only migration; this checkout observed VERSION 0.59.0 and did not edit it.
