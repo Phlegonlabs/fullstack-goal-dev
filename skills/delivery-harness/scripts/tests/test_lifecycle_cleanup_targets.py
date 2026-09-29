@@ -145,6 +145,8 @@ class CleanupLifecycleTargetTests(unittest.TestCase):
             "branch:main",
             "branch:refs/heads/main",
             "branch:development",
+            "branch:refs/remotes/upstream/development",
+            "branch:refs/remotes/origin/main",
             "branch:trunk",
             "branch:refs/heads/trunk",
         ):
@@ -159,7 +161,13 @@ class CleanupLifecycleTargetTests(unittest.TestCase):
         # authorization_covers still refuses the protected target for every
         # RUN.
         message = "delete_branches cannot target main"
-        for protected in ("branch:main", "branch:development", "branch:refs/heads/trunk"):
+        for protected in (
+            "branch:main",
+            "branch:development",
+            "branch:refs/remotes/upstream/development",
+            "branch:refs/remotes/origin/main",
+            "branch:refs/heads/trunk",
+        ):
             with self.subTest(target=protected):
                 plan, run = lifecycle_pair("branch:codex/done", [protected])
                 for strict_pin in ("0.55.0", None, "0.54"):
