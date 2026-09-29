@@ -5,10 +5,12 @@ bytes are synthetic validator inputs, not product approvals.
 """
 from contextlib import contextmanager
 import hashlib
+import json
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import re
 import unittest
 
 SCRIPTS_DIR = Path(__file__).resolve().parents[1]
@@ -16,6 +18,7 @@ if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
 import harness_contract_join as join  # noqa: E402
+import harness_design_contract as design_contract  # noqa: E402
 
 SKILLS = Path(__file__).resolve().parents[3]
 
@@ -29,7 +32,7 @@ def _sibling_paths():
     """
     saved = list(sys.path)
     try:
-        for folder in ("ui-design-builder/scripts/tests", "ui-design-builder/scripts",
+        for folder in ("delivery-harness/scripts/tests", "ui-design-builder/scripts/tests", "ui-design-builder/scripts",
                        "design-system-compiler/scripts/tests", "design-system-compiler/scripts",
                        "product-definition-builder/scripts/tests"):
             sys.path.insert(0, str(SKILLS / folder))
@@ -50,6 +53,128 @@ def _fixtures():
 
 def _run_version(run, version):
     run["runtime_capabilities"]["runtime_adapter"]["version_gate"]["required_harness_version"] = version
+
+
+def _mark_dual_branch(root):
+    architecture = root / "docs/product/architecture.md"
+    text = architecture.read_text(encoding="utf-8")
+    marker = "## Release Targets\n\nRelease source policy: dual-branch/1\n"
+    if "Release source policy: dual-branch/1" not in text:
+        text = text.replace("## Release Targets\n", marker, 1)
+        text = re.sub(
+            r"^- Source policy: stage=development; .*$",
+            "- Source policy: stage=development; ref=refs/heads/development; "
+            "sha=promotion.verified_development_sha",
+            text,
+            count=1,
+            flags=re.MULTILINE,
+        )
+    architecture.write_text(text, encoding="utf-8")
+
+
+def _marked_release_architecture(original, *arguments, **keyword_arguments):
+    text = original(*arguments, **keyword_arguments)
+    if "Release source policy: dual-branch/1" not in text:
+        text = text.replace(
+            "## Release Targets\n",
+            "## Release Targets\n\nRelease source policy: dual-branch/1\n", 1)
+        text = re.sub(
+            r"^- Source policy: stage=development; .*$",
+            "- Source policy: stage=development; ref=refs/heads/development; "
+            "sha=promotion.verified_development_sha",
+            text, count=1, flags=re.MULTILINE)
+    return text
+
+
+@contextmanager
+def _marked_publications():
+    """Build every test publication with the active dual-branch marker."""
+
+    import test_ui_design_contract as ui_contract_tests
+    import test_structure_publication as structure_tests
+    import test_product_package_checker as product_tests
+    original = ui_contract_tests.materialize_publication
+    original_release = product_tests.release_architecture
+
+    def marked_materialization(root, *arguments, **keyword_arguments):
+        result = original(root, *arguments, **keyword_arguments)
+        _mark_dual_branch(root)
+        return result
+
+    import test_harness_strict_authority as harness_tests
+    for owner in (harness_tests, product_tests):
+        owner.release_architecture = lambda *arguments, **keyword_arguments: (
+            _marked_release_architecture(original_release, *arguments, **keyword_arguments))
+    for owner in (harness_tests, ui_contract_tests, structure_tests):
+        owner.materialize_publication = marked_materialization
+    try:
+        yield
+    finally:
+        for owner in (harness_tests, ui_contract_tests, structure_tests):
+            owner.materialize_publication = original
+        for owner in (harness_tests, product_tests):
+            owner.release_architecture = original_release
+
+
+def _refresh_pair_for_marker(root, design):
+    """Rebuild derived fixture bytes after adding the release marker."""
+
+    markdown = design / "design-system.md"
+    registry_path = design / "design-system.json"
+    data = json.loads(registry_path.read_text(encoding="utf-8"))
+    architecture = root / "docs/product/architecture.md"
+    data["sourceBindings"]["architecture"]["sha256"] = hashlib.sha256(
+        architecture.read_bytes()).hexdigest()
+    registry_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    with _sibling_paths():
+        from check_design_system_pair import replace_generated_contract
+        from render_design_system_preview import render_view
+    markdown.write_text(replace_generated_contract("# Pair\n", data), encoding="utf-8")
+    digests = {path: hashlib.sha256(path.read_bytes()).hexdigest()
+               for path in (markdown, registry_path)}
+    ui = design / "ui-design.md"
+    ui.write_text(re.sub(
+        r"^Compiled design system pair: .*$",
+        "Compiled design system pair: docs/design/design-system.md "
+        f"@ sha256:{digests[markdown]} and docs/design/design-system.json "
+        f"@ sha256:{digests[registry_path]}",
+        ui.read_text(encoding="utf-8"), flags=re.MULTILINE), encoding="utf-8")
+    view = design / "design-system-preview.html"
+    view.write_bytes(render_view(registry_path.read_bytes(), markdown.read_bytes(), root).encode("utf-8"))
+
+
+def _start_dual_branch(root):
+    """Create a real ordinary-flow base before any package bytes exist."""
+
+    subprocess.run(["git", "init", "-q"], cwd=root, check=True, capture_output=True, timeout=30)
+    subprocess.run(["git", "config", "core.autocrlf", "false"], cwd=root, check=True, capture_output=True, timeout=30)
+    (root / ".fixture-base").write_text("observed development base\n", encoding="utf-8")
+    subprocess.run(["git", "add", ".fixture-base"], cwd=root, check=True, capture_output=True, timeout=30)
+    subprocess.run(["git", "-c", "user.name=Fixture", "-c", "user.email=fixture@example.test",
+                    "commit", "-qm", "base"], cwd=root, check=True, capture_output=True, timeout=30)
+    base = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, check=True,
+                          capture_output=True, text=True, timeout=30).stdout.strip()
+    subprocess.run(["git", "update-ref", "refs/remotes/origin/development", base], cwd=root,
+                   check=True, capture_output=True, timeout=30)
+    return base
+
+
+def _freeze_dual_branch(plan, run, root, base):
+    """Commit the real candidate and bind its ancestry to the frozen base."""
+
+    subprocess.run(["git", "add", "-A"], cwd=root, check=True, capture_output=True, timeout=30)
+    subprocess.run(["git", "-c", "user.name=Fixture", "-c", "user.email=fixture@example.test",
+                    "commit", "-qm", "fixture"], cwd=root, check=True, capture_output=True, timeout=30)
+    head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, check=True,
+                          capture_output=True, text=True, timeout=30).stdout.strip()
+    plan["branch_policy"] = {
+        "protocol": "dual-branch/1",
+        "kind": "ordinary",
+        "base_ref": "refs/remotes/origin/development",
+        "base_sha": base,
+    }
+    run["integration"]["batch_base_sha"] = base
+    run["integration"]["integration_head_sha"] = head
 
 
 class VersionSelectionTests(unittest.TestCase):
@@ -76,11 +201,12 @@ class VersionSelectionTests(unittest.TestCase):
 class FrozenPackageJoinTests(unittest.TestCase):
     def fixture(self, root, *, pin="0.59.0", preview=True):
         legacy, showcase_tests, _ = _fixtures()
-        plan, run, _ = legacy.StrictAuthorityJoinTests._ui_fixture(root, required=False)
+        base = _start_dual_branch(root)
         # Rebuild the UI package as ui-design/3 with a real design-system/4 pair.
-        with _sibling_paths():
+        with _marked_publications(), _sibling_paths():
+            plan, run, _ = legacy.StrictAuthorityJoinTests._ui_fixture(root, required=False)
             _, design, hifi = showcase_tests.PairIntegrationTests.build(None, root)
-            from render_design_system_preview import render_view
+        _refresh_pair_for_marker(root, design)
         markdown, registry = design / "design-system.md", design / "design-system.json"
         ui = design / "ui-design.md"
         digest = {path: hashlib.sha256(path.read_bytes()).hexdigest() for path in (markdown, registry)}
@@ -89,7 +215,7 @@ class FrozenPackageJoinTests(unittest.TestCase):
             f"Compiled design system pair: docs/design/design-system.md @ sha256:{digest[markdown]} "
             f"and docs/design/design-system.json @ sha256:{digest[registry]}"), encoding="utf-8")
         view = design / "design-system-preview.html"
-        view.write_bytes(render_view(registry.read_bytes(), markdown.read_bytes(), root).encode("utf-8"))
+        _freeze_dual_branch(plan, run, root, base)
         paths = {"prd": root / "docs/product/PRD.md", "architecture": root / "docs/product/architecture.md",
                  "stack decisions": root / "docs/product/stack-decisions.md", "ui design": ui,
                  "approved ui target": hifi, "design system": markdown, "design system json": registry}
@@ -107,10 +233,13 @@ class FrozenPackageJoinTests(unittest.TestCase):
             root = Path(directory)
             plan, run, view, _ = self.fixture(root)
             findings = join.validate_frozen_contract_joins(plan, root, run=run)
-            # harness_design_contract.py (outside this change's scope) still routes
-            # design-system/4 through its schema-1 registry check; the parent owns
-            # that two-line fix. Nothing else may fail for a complete package.
-            self.assertLessEqual(set(findings), {"design-system.json schema must be 'design-system/1'"})
+            self.assertEqual([], findings)
+            design_dir = root / "docs/design"
+            markdown = design_dir / "design-system.md"
+            data = json.loads((design_dir / "design-system.json").read_text(encoding="utf-8"))
+            self.assertEqual([], design_contract.validate_design_system_registry(data))
+            self.assertEqual([], design_contract.compare_design_system_pair(
+                markdown.read_text(encoding="utf-8"), data, repo_root=root))
             view.write_bytes(view.read_bytes() + b"<!-- hand edit -->")
             plan["sources"][-1]["content_sha256"] = hashlib.sha256(view.read_bytes()).hexdigest()
             self.assertIn("frozen design-system-preview.html is stale or modified",
