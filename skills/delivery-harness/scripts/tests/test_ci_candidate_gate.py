@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import sys
+import subprocess
+import json
 import unittest
 from pathlib import Path
 
@@ -9,6 +11,9 @@ if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
 from ci_test_shards import balance_files, candidate_files, discover_files
+
+
+SCRIPT = SCRIPTS_DIR / "ci_test_shards.py"
 
 
 def find_repo_root() -> Path:
@@ -77,6 +82,24 @@ class CICandidateGateTests(unittest.TestCase):
         self.assertIn("if: always()", validate)
         self.assertIn("ci_test_shards.py gate", validate)
 
+    def test_browser_and_macos_suite_coverage_matches_original_matrix(self) -> None:
+        linux_browser = self.workflow.split("\n  linux-browser:\n", 1)[1].split(
+            "\n  golden-path:\n", 1
+        )[0]
+        linux_other = self.workflow.split("\n  linux-other:\n", 1)[1].split(
+            "\n  linux-browser:\n", 1
+        )[0]
+        macos_other = self.workflow.split("\n  macos-other:\n", 1)[1].split(
+            "\n  windows-native:\n", 1
+        )[0]
+        for env in ("PDH_REQUIRE_BROWSER_TESTS: \"1\"", "PLAYWRIGHT_MODULE:"):
+            self.assertIn(env, linux_browser)
+        self.assertIn("skills/ui-design-builder/scripts/tests -v", linux_browser)
+        self.assertIn("skills/design-system-compiler/scripts/tests -v", linux_browser)
+        self.assertNotIn("skills/design-system-compiler/scripts/tests -v", linux_other)
+        self.assertIn("skills/ui-design-builder/scripts/tests -v", macos_other)
+        self.assertNotIn("PDH_REQUIRE_BROWSER_TESTS", macos_other)
+
     def test_posix_shards_discover_harness_files_exactly_once(self) -> None:
         discovered = discover_files(self.repo_root, "harness")
         timings = {
@@ -89,6 +112,159 @@ class CICandidateGateTests(unittest.TestCase):
         self.assertEqual(len(discovered), len(set(planned)))
         self.assertEqual(4, len(shards))
         self.assertTrue(all(shards))
+
+    def test_actual_repository_plans_cover_discovered_files(self) -> None:
+        discovered = {Path(name).name for name in discover_files(self.repo_root, "harness")}
+        planned: set[str] = set()
+        for platform in ("linux", "macos"):
+            for shard_index in range(4):
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        str(SCRIPT),
+                        "--repo-root",
+                        str(self.repo_root),
+                        "plan",
+                        "--suite",
+                        "harness",
+                        "--platform",
+                        platform,
+                        "--shard-count",
+                        "4",
+                        "--shard-index",
+                        str(shard_index),
+                        "--timings",
+                        str(self.repo_root / "skills/delivery-harness/ci-test-timings.json"),
+                        "--allow-unmeasured",
+                        "--format",
+                        "names",
+                    ],
+                    cwd=self.repo_root,
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                    check=False,
+                )
+                self.assertEqual(0, result.returncode, result.stderr)
+                names = [name for name in result.stdout.splitlines() if name]
+                self.assertTrue(names)
+                self.assertEqual(len(names), len(set(names)))
+                planned.update(names)
+        self.assertEqual(discovered, planned)
+
+    def test_actual_windows_plan_selects_the_explicit_native_set(self) -> None:
+        planned: set[str] = set()
+        for shard_index in range(4):
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    "--repo-root",
+                    str(self.repo_root),
+                    "plan",
+                    "--suite",
+                    "harness",
+                    "--platform",
+                    "windows",
+                    "--shard-count",
+                    "4",
+                    "--shard-index",
+                    str(shard_index),
+                    "--timings",
+                    str(self.repo_root / "skills/delivery-harness/ci-test-timings.json"),
+                    "--allow-unmeasured",
+                    "--format",
+                    "names",
+                ],
+                cwd=self.repo_root,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=False,
+            )
+            self.assertEqual(0, result.returncode, result.stderr)
+            names = [name for name in result.stdout.splitlines() if name]
+            self.assertTrue(names)
+            self.assertEqual(len(names), len(set(names)))
+            planned.update(names)
+        selected = {Path(name).name for name in candidate_files(
+            self.repo_root, "harness", "windows", discover_files(self.repo_root, "harness")
+        )}
+        self.assertEqual(12, len(selected))
+        self.assertEqual(selected, planned)
+
+    def test_workflow_launches_a_positive_count_for_every_shard_file(self) -> None:
+        self.assertEqual(2, self.workflow.count("grep -Eq '^Ran [1-9][0-9]* tests?'"))
+        self.assertIn("throw \"discovered test file ran zero tests: $testFile\"", self.workflow)
+        self.assertIn("^Ran [1-9][0-9]* tests?", self.workflow)
+
+    def test_planned_failing_file_executes_and_fails_the_pipeline(self) -> None:
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            test_dir = root / "skills/delivery-harness/scripts/tests"
+            test_dir.mkdir(parents=True)
+            (root / "timings.json").write_text(
+                json.dumps({"version": 1, "timings": {}}), encoding="utf-8"
+            )
+            (test_dir / "test_boom.py").write_text(
+                "import unittest\n"
+                "class Boom(unittest.TestCase):\n"
+                "    def test_fails(self) -> None:\n"
+                "        self.fail('coverage proof')\n",
+                encoding="utf-8",
+            )
+            plan = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    "--repo-root",
+                    str(root),
+                    "plan",
+                    "--suite",
+                    "harness",
+                    "--platform",
+                    "linux",
+                    "--shard-count",
+                    "1",
+                    "--shard-index",
+                    "0",
+                    "--timings",
+                    str(root / "timings.json"),
+                    "--allow-unmeasured",
+                    "--format",
+                    "names",
+                ],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=False,
+            )
+            self.assertEqual(0, plan.returncode, plan.stderr)
+            self.assertEqual(["test_boom.py"], plan.stdout.splitlines())
+            run = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "unittest",
+                    "discover",
+                    "-s",
+                    str(test_dir),
+                    "-p",
+                    "test_boom.py",
+                    "-v",
+                ],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=False,
+            )
+            self.assertNotEqual(0, run.returncode)
+            self.assertIn("Ran 1 test", run.stderr)
+            self.assertIn("FAILED", run.stderr)
 
     def test_windows_native_shard_set_is_explicit_and_complete(self) -> None:
         discovered = discover_files(self.repo_root, "harness")

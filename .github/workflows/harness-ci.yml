@@ -119,7 +119,13 @@ jobs:
           test -n "$shard_files"
           while IFS= read -r test_file; do
             [ -n "$test_file" ] || continue
-            python -m unittest discover -s skills/delivery-harness/scripts/tests -p "$test_file" -v || exit $?
+            if suite_output="$(python -m unittest discover -s skills/delivery-harness/scripts/tests -p "$test_file" -v 2>&1)"; then
+              printf '%s\n' "$suite_output"
+            else
+              printf '%s\n' "$suite_output"
+              exit 1
+            fi
+            printf '%s\n' "$suite_output" | grep -Eq '^Ran [1-9][0-9]* tests?'
           done <<< "$shard_files"
 
   linux-other:
@@ -146,9 +152,6 @@ jobs:
 
       - name: Run Product Definition suite
         run: python -m unittest discover -s skills/product-definition-builder/scripts/tests -v
-
-      - name: Run Design System suite
-        run: python -m unittest discover -s skills/design-system-compiler/scripts/tests -v
 
       - name: Run Activation suite
         run: python -m unittest discover -s skills/product-activation/scripts/tests -v
@@ -195,6 +198,12 @@ jobs:
           PDH_REQUIRE_BROWSER_TESTS: "1"
           PLAYWRIGHT_MODULE: ${{ github.workspace }}/node_modules/playwright
         run: python -m unittest discover -s skills/ui-design-builder/scripts/tests -v
+
+      - name: Run browser-capable Design System suite
+        env:
+          PDH_REQUIRE_BROWSER_TESTS: "1"
+          PLAYWRIGHT_MODULE: ${{ github.workspace }}/node_modules/playwright
+        run: python -m unittest discover -s skills/design-system-compiler/scripts/tests -v
 
   golden-path:
     name: golden-path-${{ matrix.platform }}
@@ -274,7 +283,13 @@ jobs:
           test -n "$shard_files"
           while IFS= read -r test_file; do
             [ -n "$test_file" ] || continue
-            python -m unittest discover -s skills/delivery-harness/scripts/tests -p "$test_file" -v || exit $?
+            if suite_output="$(python -m unittest discover -s skills/delivery-harness/scripts/tests -p "$test_file" -v 2>&1)"; then
+              printf '%s\n' "$suite_output"
+            else
+              printf '%s\n' "$suite_output"
+              exit 1
+            fi
+            printf '%s\n' "$suite_output" | grep -Eq '^Ran [1-9][0-9]* tests?'
           done <<< "$shard_files"
 
   macos-other:
@@ -308,6 +323,9 @@ jobs:
 
       - name: Run Product Definition suite
         run: python -m unittest discover -s skills/product-definition-builder/scripts/tests -v
+
+      - name: Run UI design builder contract tests
+        run: python -m unittest discover -s skills/ui-design-builder/scripts/tests -v
 
       - name: Run Design System suite
         run: python -m unittest discover -s skills/design-system-compiler/scripts/tests -v
@@ -353,8 +371,12 @@ jobs:
           $plan = $planJson | ConvertFrom-Json
           if (-not $plan.files -or @($plan.files).Count -eq 0) { throw "measured shard is empty" }
           foreach ($testFile in $plan.files) {
-            python -m unittest discover -s skills/delivery-harness/scripts/tests -p $testFile -v
+            $suiteOutput = & python -m unittest discover -s skills/delivery-harness/scripts/tests -p $testFile -v 2>&1
+            $suiteOutput | ForEach-Object { "$_" }
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            if (-not ($suiteOutput | Where-Object { "$_" -match '^Ran [1-9][0-9]* tests?' })) {
+              throw "discovered test file ran zero tests: $testFile"
+            }
           }
 
   windows-installer:

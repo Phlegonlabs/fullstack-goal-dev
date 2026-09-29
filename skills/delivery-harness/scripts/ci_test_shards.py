@@ -242,10 +242,19 @@ def plan_shard(root: Path, args: argparse.Namespace) -> None:
     if not 0 <= args.shard_index < args.shard_count:
         raise CommandError("shard index is outside the requested shard count")
     shard = shards[args.shard_index]
+    runnable_files = [Path(name).name for name in shard]
     if args.format == "json":
-        print(json.dumps({"files": shard, "timings": {name: timings[name] for name in shard}}, indent=2))
+        print(
+            json.dumps(
+                {
+                    "files": runnable_files,
+                    "timings": {Path(name).name: timings[name] for name in shard},
+                },
+                indent=2,
+            )
+        )
     else:
-        for name in shard:
+        for name in runnable_files:
             print(name)
 
 
