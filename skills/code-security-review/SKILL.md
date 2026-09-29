@@ -19,9 +19,9 @@ This skill owns repository code-security review. It does not own product require
 
 ## When To Run
 
-Run after all implementation missions are integrated and the candidate SHA is fixed, but before broad final regression and delivery closeout. If a security finding changes code, the new SHA invalidates the earlier result and requires a fresh review.
+Run after all implementation missions are integrated and the candidate SHA is fixed, before delivery closeout. If a security finding changes code, the new SHA invalidates the earlier result and requires a fresh review.
 
-Dispatch once per fixed candidate with the full declared scope and existing focused-test evidence. Resource-safe final regression may run alongside the read-only review while the candidate stays unchanged. Retain a complete exact-SHA verdict instead of launching duplicate reviews for repeated handoffs. Task-level negative tests support this review; they do not replace it. Any repair needs a fresh candidate review, and no cache substitutes for required tools, current source inspection or live deployment evidence.
+Dispatch once per fixed candidate with the full declared scope and existing focused-test evidence. Resource-safe final regression may run alongside the read-only review while the candidate stays unchanged and declared graph dependencies permit it. Managed selector and verifier prerequisites still govern; this guidance never bypasses them. Retain a complete exact-SHA verdict instead of launching duplicate reviews for repeated handoffs. Task-level negative tests support this review; they do not replace it. Any repair needs a fresh candidate review, and no cache substitutes for required tools, current source inspection or live deployment evidence.
 
 For a Delivery Harness managed run, the parent dispatches this skill as a fresh sibling reviewer on an integration-stage security node. The reviewer never delegates. For direct work, an independent reviewer is preferred when available; inline review is allowed only when independence was not required.
 

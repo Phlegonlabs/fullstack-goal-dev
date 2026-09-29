@@ -13,7 +13,7 @@
 
 # Product Delivery Harness
 
-La aceptación ejecuta pruebas específicas por tarea atómica, comprueba la integración afectada por misión y completa la matriz requerida y una revisión de seguridad independiente por candidato fijo. La regresión y la revisión pueden coincidir si sus recursos no entran en conflicto. La reutilización conserva el SHA original de la evidencia; cada reparación exige otra revisión. Las pruebas locales no demuestran el estado externo.
+La aceptación ejecuta pruebas específicas por tarea atómica, comprueba la integración afectada por misión y completa la matriz requerida y una revisión de seguridad independiente por candidato fijo. La regresión y la revisión pueden coincidir si sus recursos no entran en conflicto y las dependencias declaradas lo permiten; el selector gestionado y los requisitos previos siguen siendo obligatorios. La reutilización conserva el SHA original de la evidencia; cada reparación exige otra revisión. Las pruebas locales no demuestran el estado externo.
 
 La tabla de plantillas del flujo indica cuándo usar cada plantilla existente, incluidas vistas opcionales y Wireframes históricos; no exige crear artefactos que no correspondan.
 

@@ -2,6 +2,8 @@
 
 Use this reference to define task, mission, integration, and UI acceptance.
 
+The managed ladder below follows the declared graph and selector. Direct source maintenance may overlap resource-safe read-only review and final regression on one unchanged candidate, but must collect both results before closeout. That scheduling choice never bypasses a managed dependency or reuses evidence after a repair.
+
 For new delivery work, also apply `delivery-acceptance-contract.md` and `bounded-enhancement.md`. Freeze required TEST/scenario/platform/auth expectations before running tests, prepare only authorized isolated synthetic fixtures, and validate the evidence register before final acceptance. Managed plans declare this check as an always-run final verifier with its graph node; direct work runs it without manufacturing PLAN/RUN. Legacy frozen runs retain their original schema and evidence, never retroactive PASS.
 
 ## Verification Ladder

@@ -13,7 +13,7 @@
 
 # Product Delivery Harness
 
-Acceptance runs focused checks per atomic task, affected integration checks per mission, then the complete required matrix and one independent security review per fixed candidate. Resource-safe regression and review may overlap. Reuse retains the original exact-SHA evidence; repairs require fresh review, and local tests never prove external state.
+Acceptance runs focused checks per atomic task, affected integration checks per mission, then the complete required matrix and one independent security review per fixed candidate. Resource-safe regression and review may overlap only when declared dependencies permit it; managed selection and required-check prerequisites remain binding. Reuse retains the original exact-SHA evidence; repairs require fresh review, and local tests never prove external state.
 
 The workflow's template map names where every existing template is used, including optional views and historical Wireframe templates; it does not create unnecessary artifacts to use them all.
 
