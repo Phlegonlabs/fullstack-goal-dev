@@ -736,7 +736,11 @@ def _intermediate_width_evidence(value: str | None, scope: dict[str, Any] | None
     if len(problems) != before or parsed is None:
         return
     receipt = json.loads((repo_root / parsed.group("path")).read_text(encoding="utf-8"))["receipt"]
-    for finding in ui_design_v3.intermediate_width_findings(receipt["matrix"]["cases"], scope):
+    # Coverage comes from observed results; a declared but unobserved case counts for nothing.
+    observed = [{key: row[key] for key in ("surface", "state", "target")} for row in receipt["results"]]
+    if sorted(map(json.dumps, observed)) != sorted(map(json.dumps, receipt["matrix"]["cases"])):
+        _add(problems, "Intermediate width check results must observe exactly its matrix cases")
+    for finding in ui_design_v3.intermediate_width_findings(observed, scope):
         _add(problems, finding)
 
 

@@ -182,6 +182,17 @@ class UiDesignV3Tests(unittest.TestCase):
                 failed = [{"surface": "UI-001", "state": "ready", "target": "560", "result": "FAIL"}]
                 self.assertIn("Intermediate width check evidence must record", check(
                     intermediate_receipt(root, base, ("560", "980"), results=failed)))
+            with self.subTest("declared but unobserved width"):
+                evidence = intermediate_receipt(root, base, ("560", "980"), results=[
+                    {"surface": "UI-001", "state": "ready", "target": "560", "result": "PASS"}])
+                receipt = root / "docs/evidence/hifi-intermediate-widths.json"
+                data = json.loads(receipt.read_text(encoding="utf-8"))
+                self.assertEqual("MISSING", data["result"])
+                data["result"] = "PASS"  # a hand-edited summary must not supply coverage
+                receipt.write_text(json.dumps(data), encoding="utf-8")
+                self.assertIn("must observe exactly its matrix cases",
+                              check(f"docs/evidence/hifi-intermediate-widths.json @ sha256:{digest(receipt)}"))
+                self.assertTrue(evidence)
             with self.subTest("stale subject"):
                 evidence = intermediate_receipt(root, base, ("560", "980"))
                 output = root / "docs/evidence/hifi-intermediate-widths-output.json"
