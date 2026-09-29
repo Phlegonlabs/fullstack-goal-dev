@@ -119,13 +119,15 @@ jobs:
           test -n "$shard_files"
           while IFS= read -r test_file; do
             [ -n "$test_file" ] || continue
-            if suite_output="$(python -m unittest discover -s skills/delivery-harness/scripts/tests -p "$test_file" -v 2>&1)"; then
-              printf '%s\n' "$suite_output"
-            else
-              printf '%s\n' "$suite_output"
-              exit 1
+            suite_log="$RUNNER_TEMP/pdh-linux-${{ matrix.shard }}-$test_file.log"
+            set +e
+            python -m unittest discover -s skills/delivery-harness/scripts/tests -p "$test_file" -v 2>&1 | tee "$suite_log"
+            suite_status="${PIPESTATUS[0]}"
+            set -e
+            if [ "$suite_status" -ne 0 ]; then
+              exit "$suite_status"
             fi
-            printf '%s\n' "$suite_output" | grep -Eq '^Ran [1-9][0-9]* tests?'
+            grep -Eq '^Ran [1-9][0-9]* tests?' "$suite_log"
           done <<< "$shard_files"
 
   linux-other:
@@ -283,13 +285,15 @@ jobs:
           test -n "$shard_files"
           while IFS= read -r test_file; do
             [ -n "$test_file" ] || continue
-            if suite_output="$(python -m unittest discover -s skills/delivery-harness/scripts/tests -p "$test_file" -v 2>&1)"; then
-              printf '%s\n' "$suite_output"
-            else
-              printf '%s\n' "$suite_output"
-              exit 1
+            suite_log="$RUNNER_TEMP/pdh-macos-${{ matrix.shard }}-$test_file.log"
+            set +e
+            python -m unittest discover -s skills/delivery-harness/scripts/tests -p "$test_file" -v 2>&1 | tee "$suite_log"
+            suite_status="${PIPESTATUS[0]}"
+            set -e
+            if [ "$suite_status" -ne 0 ]; then
+              exit "$suite_status"
             fi
-            printf '%s\n' "$suite_output" | grep -Eq '^Ran [1-9][0-9]* tests?'
+            grep -Eq '^Ran [1-9][0-9]* tests?' "$suite_log"
           done <<< "$shard_files"
 
   macos-other:
@@ -371,10 +375,16 @@ jobs:
           $plan = $planJson | ConvertFrom-Json
           if (-not $plan.files -or @($plan.files).Count -eq 0) { throw "measured shard is empty" }
           foreach ($testFile in $plan.files) {
-            $suiteOutput = & python -m unittest discover -s skills/delivery-harness/scripts/tests -p $testFile -v 2>&1
-            $suiteOutput | ForEach-Object { "$_" }
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            if (-not ($suiteOutput | Where-Object { "$_" -match '^Ran [1-9][0-9]* tests?' })) {
+            $suiteLog = Join-Path $env:RUNNER_TEMP "pdh-windows-${{ matrix.shard }}-$testFile.log"
+            & python -m unittest discover -s skills/delivery-harness/scripts/tests -p $testFile -v *> $suiteLog
+            $suiteStatus = $LASTEXITCODE
+            if ($suiteStatus -ne 0) {
+              Get-Content -LiteralPath $suiteLog
+              exit $suiteStatus
+            }
+            $suiteSummary = Get-Content -LiteralPath $suiteLog -Tail 10
+            $suiteSummary | ForEach-Object { "$_" }
+            if (-not ($suiteSummary | Where-Object { "$_" -match '^Ran [1-9][0-9]* tests?' })) {
               throw "discovered test file ran zero tests: $testFile"
             }
           }

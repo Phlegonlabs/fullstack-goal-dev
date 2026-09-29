@@ -195,6 +195,18 @@ class CICandidateGateTests(unittest.TestCase):
 
     def test_workflow_launches_a_positive_count_for_every_shard_file(self) -> None:
         self.assertEqual(2, self.workflow.count("grep -Eq '^Ran [1-9][0-9]* tests?'"))
+        self.assertEqual(2, self.workflow.count("suite_status=\"${PIPESTATUS[0]}\""))
+        self.assertNotIn('suite_output="$(', self.workflow)
+        self.assertNotIn("$suiteOutput = & python", self.workflow)
+        windows_step = self.workflow.split("Run measured native Harness shard", 1)[1].split(
+            "  windows-installer:", 1
+        )[0]
+        self.assertIn("& python -m unittest discover", windows_step)
+        self.assertIn("*> $suiteLog", windows_step)
+        self.assertLess(
+            windows_step.index("$suiteStatus = $LASTEXITCODE"),
+            windows_step.index("if ($suiteStatus -ne 0) {"),
+        )
         self.assertIn("throw \"discovered test file ran zero tests: $testFile\"", self.workflow)
         self.assertIn("^Ran [1-9][0-9]* tests?", self.workflow)
 
