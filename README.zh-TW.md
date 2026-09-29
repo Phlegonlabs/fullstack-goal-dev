@@ -13,6 +13,8 @@
 
 # Product Delivery Harness
 
+逐步流程的模板對照表列出每個既有模板的使用時點，包含可選檢視與歷史 Wireframe 模板；不為了用完模板而建立不適用的文件。
+
 0.59 流程以 `development` 與 `main` 為永久保護分支，兩者均不得刪除。實作在隔離工作分支，保留各 task commits，固定已驗證的 development SHA 作 release，另行授權 main promotion。舊 pinned RUN 保留原執行語意。本來源庫正在 `codex/harness-flow-modernization` 準備遷移；本地規則變更不代表已完成遠端保護或發布。
 
 [逐步流程](docs/WORKFLOW.zh-TW.md) 列出每個適用階段的角色、既有模板及驗證邊界。同一 section 可在共享接口凍結後分給多位隔離的 frontend／backend writer；每個 executable task 保留自己的 atomic commit。依實際 host 容量派工，使用有界 packet、完成事件、streaming review 與序列整合。不把修改前／後驗證當作重複工作刪除，也不宣稱已有未實作的 rolling writer scheduler。

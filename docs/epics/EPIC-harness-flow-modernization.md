@@ -28,6 +28,8 @@ Generated logs, bridge packets and temporary profiling data stay in the task dir
 
 ## Change Log
 
+- 2026-09-29: added the full existing-template use map to the workflow and four README pointers, distinguishing active, optional and historical Wireframe artifacts. Template inventory inspection also found live main-only text in GOAL and duplicate CI triggers in PROJECT_CI; MOD-C and MOD-B respectively own their fixes. No historical Wireframe stage is reintroduced.
+
 - 2026-09-29: baseline `7a0fa8f`; updated this repository's Git Flow and review rules to the owner's permanent development/main policy, preserving isolated authoring, explicit protected-ref authorization, task ancestry and historical RUN semantics. Both branches are never deletion targets. This bootstrap work began from v0.58.0 main because remote development was absent at the prior read-back. Remote creation/protection and changing the existing squash-only rule remain unperformed actions, not implied by these document changes.
 
 - 2026-09-29: integrated MOD-E as `e505de93` and its no-op/blocked-reason repair as `ec770dcc`; original worker commits were `83614686` and `04a80417`. Only the document-index insertion conflicted; retained both parent rows and the Activation row. The parent reran all 65 Activation tests at `ec770dcc` (PASS, 0.861 seconds), with a 120-second process deadline; the worktree was clean. This verifies the source checker, not any real external product setup. Root Playwright 1.62.1 matches the lockfile and Chromium 151.0.7922.34 launched/closed successfully. No test server remains active. The 182-step workflow and release-cadence documentation commits are `136da8d5` and `c203ab4d`.

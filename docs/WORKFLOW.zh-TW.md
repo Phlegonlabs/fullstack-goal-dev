@@ -237,6 +237,33 @@
 
 上述步驟按適用性執行。沒有產品的技能原始碼維護不跑 consumer 訪談、Visual Approval 或真實 Activation；仍要跑會驗證這些能力的 source tests。所有 skipped／不適用／blocked 都要有實際理由。
 
+## 現有模板怎樣進入流程
+
+使用目前 installed skill 的適用模板；已有文件先合併／更新，不為使用模板而重建。下列路徑皆在對應 skill 的 `assets/templates/`。
+
+| 模板／共用資產 | 使用時點與產物 |
+| --- | --- |
+| `PROJECT_AGENTS.template.md` | 步驟 2–3：建立缺少的 AGENTS 或審閱後合併共用規則 |
+| `PROJECT_CLAUDE.template.md` | 步驟 4：適用 host 的獨立 overlay，保留現有 precedence |
+| `EPIC.template.md` | 步驟 8：記錄新成果與每次有意義變更，不取代 PRD／RUN |
+| `DOCUMENTS.template.md` | 步驟 35、167：適用文件索引和現況 |
+| `DEPLOYMENT.template.md` | 步驟 33、136：部署 seed 到真實版本／設定讀回 |
+| `ACTIVATION.template.md` | 步驟 34、142：seed 到 staging，再記實際執行和 verified evidence |
+| `HIFI_REVIEWER.template.html`、`REVIEWER_SHARED.css` | 步驟 58：由正式 assembler 建立 reviewer shell，不手抄第二份 shell |
+| `composition-patterns.json` | 方向／HiFi 的可選構圖參考；不是固定頁面 recipe，不超越 PRD 或 owner 選擇 |
+| `DESIGN_SYSTEM.template.md`、`DESIGN_SYSTEM.template.json` | 步驟 72：同一編譯契約；HTML 由 renderer 產生，不能手寫平行真相 |
+| `GOAL.template.md` | Direct 小任務或明確需要 copy-ready prompt 時選用；通常目標直接存在 PLAN／RUN，模板不自授權 |
+| `HARNESS_PLAN.template.md` | 步驟 84：Managed 靜態範圍／任務圖；RUN 由正式 generator 建立 |
+| `MISSION_RUNBOOK.template.md`、`WORKER_GOAL.template.md` | 步驟 85：目前 runtime pin、任務執行手冊及有界 worker 派工 |
+| `TASKS.template.md` | 步驟 109：可選人類檢視；正式 renderer 從 PLAN／RUN 產生，不手編狀態 |
+| `DELIVERY_ACCEPTANCE.template.json`、`DELIVERY_RESULTS.template.json` | 步驟 90–91、115：預期與結果分離，綁真實 scenario 和 candidate |
+| `E2E_VERIFICATION.template.md` | 步驟 91、115：適用端到端案例／證據，不代替實際執行 |
+| `PROJECT_CI.template.yml` | 有 GitHub CI 且需建立／更新 workflow 時填入產品的真實 commands；其他 host 使用自身等效 CI，不能照抄本來源庫 suites |
+| `REFINEMENT_BACKLOG.template.md` | 只有 RUN 內 backlog 太難閱讀才展開；保留 TEST／failure／next action，不因此產生新授權 |
+| `OUTCOME_REVIEW.template.md` | 步驟 159：窗口結束後的新 dated outcome，保留既有 verdict history |
+| `SEO_REVIEW.template.md` | 步驟 165：owner 要求保存的 lifecycle SEO review；inline 唯讀 review 不強制建檔 |
+| `WIREFRAMES.template.html`、`WIREFRAMES_V4.template.html` | 僅維護原本採用該契約的歷史 package；新版完整 UI 沿 PRD → 三方向 → HiFi，不重啟已退役的 Wireframe stage |
+
 ## 契約索引
 
 - [Delegation](../skills/delivery-harness/references/delegation-contract.md)、[Runtime](../skills/delivery-harness/references/runtime-performance.md)、[atomic commits](../skills/delivery-harness/references/commit-convention.md)
