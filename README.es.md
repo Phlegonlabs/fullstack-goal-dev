@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.57.0-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.58.0-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -126,7 +126,8 @@ La exención de seguridad requiere una descripción y un Product Archetype de do
 
 El núcleo de entrega toma una decisión de tamaño antes de invocar la orquestación gestionada:
 
-- El trabajo pequeño sigue siendo directo, sin planner, scheduler, PLAN/RUN, subagent ni preflight de runtime externo por defecto.
+- El trabajo pequeño sigue directo sin PLAN/RUN, pero resuelve los roles obligatorios antes de elegir ejecutor. La autoría UI usa el frontend worker configurado por el host, no el padre. Delegar análisis de solo lectura no exige un RUN gestionado.
+- El [contrato de delegación del padre](skills/delivery-harness/references/delegation-contract.md) se aplica a Product Definition, UI Design y entrega. Dos preguntas sustanciales independientes requieren instancias distintas de investigador/explorador cuando hay autorización y capacidad; los límites de capacidad se resuelven por lotes. La API pura `readonly-assignments/1` une resultados por identidad de asignación, intento e inputs congelados, admite distinto orden y rechaza resultados ausentes, duplicados, obsoletos o con workers reutilizados. La observación de lanzamiento del padre se verifica por separado de las declaraciones del hijo. Los roles obligatorios y permisos externos se comprueban antes del lanzamiento; un delegado obligatorio ausente nunca se sustituye silenciosamente por el padre. El fallback sigue la política del host para indisponibilidad explícita, comprobando terminación y trabajo parcial. Cada checkout tiene un solo escritor, incluido el padre; las revisiones independientes requieren sus herramientas reales.
 - El trabajo grande entra en planificación gestionada. Puede usar `PLAN.md` y `RUN.md` para una entrega gestionada-secuencial o para múltiples missions y handoff durable; `new_run.py` escribe el `docs/tasks.md` inicial con `--out` y `--repo-root`, y las transiciones gestionadas `accept-wave`, `record-worker-result`, `reject-worker-result`, `record-integration`, `reconcile-candidate-head`, `reconcile-coordination-head`, `reconcile-interrupted`, `reconcile-interrupted-reviews` y `close-wave` con `--repo-root` lo refrescan conservando el Update Log. Un fallo de proyección nunca revierte el RUN; el `render_tasks_view.py` independiente repara o verifica esa vista no canónica. Este repositorio fuente no mantiene un log de flujo `Tasks.md` raíz separado.
 
 Cada checkpoint requerido de integración o cierre de wave puede comprometer sus archivos exactos de coordinación como un hijo directo ordinario y luego observar y ligar ese head con `reconcile-coordination-head`. El guardia acepta solo rutas exactas compatibles de coordinación/generated-view, excluye producto y fuentes de diseño congeladas, verifica identidad live/observed y bytes limpios de producto, conserva evidencia previa y reabre reviews/gates del head exacto actual; los missions aislados pueden continuar mientras los reviewers y comprobaciones del parent están quietos.
@@ -349,7 +350,7 @@ Las mejoras completas usan un Epic indexado en `docs/epics/` que referencia el P
 
 Elige el registro antes de implementar: un resultado nuevo aceptado necesita un Epic; las correcciones del mismo objetivo se añaden a su Change Log; una corrección aislada recibe una entrada breve en un Epic con evidencia directa enlazada. Anota motivo, alcance, commit, pruebas y pendientes sin reescribir el historial cerrado. Las mejoras UI son incrementales: añade o modifica solo las páginas HiFi nombradas y sus controles de entrada y retorno. Conserva diseño, contenido, estilo e IDs ajenos al cambio y reutiliza la dirección aprobada. Enumera los consumidores antes de modificar un componente compartido. La cobertura completa y la regresión no autorizan redibujar todas las pantallas.
 
-AGENTS conserva entrada, lectura, responsabilidades, sincronización, autorización y cierre. Comercio, activación y ejecución gestionada pasan a una referencia obligatoria según el caso. Las 500 líneas son un punto de revisión para dividir, no un límite ni una orden de reescritura.
+AGENTS conserva entrada, lectura, responsabilidades, sincronización, autorización y cierre. Comercio, activación y ejecución gestionada pasan a una referencia obligatoria según el caso. La plantilla AGENTS para proyectos consumidores exige KISS, primeros principios, módulos separados por responsabilidad y ninguna compatibilidad especulativa. Sus módulos nuevos, incluidos tests, tienen un límite estricto de 500 líneas físicas; esto no impone un límite ni una refactorización al código de Harness.
 
 La revisión HiFi abre la página principal; la barra lateral ofrece Overview, páginas y especificaciones. Interacciones, navegación del visor y tokens necesitan evidencias separadas. Los paquetes históricos siguen legibles.
 
@@ -423,7 +424,9 @@ El proveedor solo determina la elegibilidad explícita del PLAN. El orden de dri
 
 El padre conserva autorizaciones, PLAN/RUN, leases, escritura aislada, validación del SHA exacto e integración secuencial. Cada revisor empieza con contexto nuevo y demuestra sus herramientas en su propia sesión. La finalización nativa, los reintentos y la caché no reemplazan estas comprobaciones. Las tareas independientes solicitadas no se sustituyen silenciosamente por subagentes.
 
-Product Definition ejecuta su grafo de análisis de solo lectura únicamente con autorización. `product_agent_graph.cjs` valida entradas congeladas y genera paquetes; no lanza agentes. El padre asigna herramientas nativas y conserva síntesis, decisiones humanas y publicación. Si no puede imponerse el límite de solo lectura, realiza los mismos roles secuencialmente.
+Product Definition ejecuta su grafo de análisis de solo lectura únicamente con autorización. `product_agent_graph.cjs` valida entradas congeladas y genera paquetes; no lanza agentes. El padre despacha los roles y conserva las puertas de decisión y publicación. Si no puede imponerse el límite de solo lectura, se bloquea la asignación afectada. Una capacidad de uno ejecuta delegados distintos en serie, sin sustituirlos por el padre.
+
+Los resultados de roles gestionados usan [recibos retenidos por el padre](skills/delivery-harness/references/agent-execution-receipts.md): deben coincidir la sesión real, los bytes retenidos y el payload aceptado. Un recibo de fallo al iniciar permite la recuperación de disponibilidad configurada sin inventar un lanzamiento exitoso. Los hashes vinculan evidencia; no autentican un adaptador padre no confiable.
 
 Se eliminan el driver nativo de workflow, sus plantillas y la compatibilidad con `workflow_runs`. Los archivos históricos del usuario quedan intactos. El trabajo pendiente con esos bindings necesita replanificación explícita y nuevas pruebas de capacidad y autorización; no se migra silenciosamente.
 
@@ -643,6 +646,8 @@ Luego ejecuta la verificación completa de arriba, revisa el diff entero y aterr
 Este repositorio está bajo la Licencia MIT — ver [LICENSE](LICENSE).
 
 ## Historial de versiones
+
+- **0.58.0** — Asignación de roles por el padre, investigación/exploración con múltiples instancias, resultados ligados a identidad y delegación frontend obligatoria. La plantilla AGENTS para consumidores añade el límite estricto de 500 líneas para módulos nuevos y tests, KISS, primeros principios, separación de módulos y ninguna compatibilidad especulativa; el código de Harness queda fuera del límite. Conserva RUN históricos fijados y decisiones del propietario.
 
 Actualiza esta sección con cada release, como parte del bump de versión y el tag descritos en Releasing arriba.
 

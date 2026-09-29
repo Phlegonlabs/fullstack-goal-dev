@@ -59,11 +59,12 @@ A managed-sequential route is selected when fewer than two safe write missions a
         "provider": "generic",
         "available_drivers": ["sequential_parent"],
         "detection_source": "fallback",
+        "role_bindings": {},
         "version_gate": {
           "host_version": null,
           "minimum_host_version": null,
           "harness_version": null,
-          "required_harness_version": "0.57.0",
+          "required_harness_version": "0.58.0",
           "session_id": null,
           "loaded_contract_digest": null,
           "installed_contract_digest": null,

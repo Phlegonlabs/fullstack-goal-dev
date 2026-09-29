@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.57.0-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.58.0-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -126,7 +126,8 @@ Skills 更新後及實作前，執行[設計有效性檢查](skills/ui-design-bu
 
 交付核心在啟動受管編排之前，會先做一個規模決策：
 
-- 小型工作維持直接動手，預設不啟用 planner、scheduler、PLAN/RUN、subagent，也不做外部執行環境的預檢。
+- 小型工作維持直接執行，不建立 PLAN/RUN，但先解析必要角色。UI 作者使用 host 綁定的 frontend worker，不由 parent 代寫；唯讀委派本身不要求受管 RUN。
+- [Parent 派工契約](skills/delivery-harness/references/delegation-contract.md) 適用於 Product Definition、UI Design 與交付。有兩個獨立實質研究／探索問題且具備授權與能力時，必須派出不同的 researcher／explorer 實例；容量不足就分批。純資料 API `readonly-assignments/1` 依 assignment、attempt 與凍結輸入身分匯合，允許結果重排，拒絕缺漏、重複、過期或重用 worker 的結果。Parent 的啟動觀察與子代理宣稱分開驗證。啟動前檢查必要角色及外部執行授權，缺少必要 delegate 不得默默交回 parent。Fallback 僅依 host 的可用性錯誤規則，確認終止並保留部分成果。每個 checkout 同時只有一個 writer，包含 parent；獨立審查仍須具備實際所需工具。
 - 大型工作進入受管規劃。它可以用 `PLAN.md` 加 `RUN.md` 走受管循序交付，或處理多任務與可持久的交棒；`new_run.py` 在帶 `--out` 與 `--repo-root` 時寫出初始 `docs/tasks.md`，帶 `--repo-root` 的受管 `accept-wave`、`record-worker-result`、`reject-worker-result`、`record-integration`、`reconcile-candidate-head`、`reconcile-coordination-head`、`reconcile-interrupted`、`reconcile-interrupted-reviews`、`close-wave` 轉換會刷新它並保留 Update Log。Projection 失敗不會回滾 RUN；獨立的 `render_tasks_view.py` 負責修復或檢查這份非權威視圖。本原始碼儲存庫不再另外維護根目錄 `Tasks.md` 流程記錄。
 
 每個必要的整合或 wave 收尾 checkpoint，可先以一個普通直接子提交提交精確 coordination 檔，再新觀察並用 `reconcile-coordination-head` 綁定該 head。守衛只接受支援的精確 coordination/generated-view 路徑，排除產品與凍結設計來源，檢查 live/observed 身分與乾淨產品位元組，保留舊證據並重開目前精確 head 的 review/gate；隔離 mission worker 可繼續，但 parent 端 reviewer 與檢查必須靜止。
@@ -349,7 +350,7 @@ Gitignore 衛生同時適用於 direct 與 managed 工作。scope scan 會記錄
 
 實作前先選紀錄方式：新的已接受目標建立 Epic；同一目標的小修追加到原 Epic 的 Change Log；獨立小修建立精簡 Epic 條目，可連結直接任務紀錄。記下原因、影響範圍、commit、測試和未完成事項，不改寫已結束的歷史。UI enhancement 預設增量修改：只新增或修改指定的 HiFi 頁面及必要入口／返回控制項，保留其餘版面、內容、樣式與 ID，沿用已批准方向。改共用元件前先列出受影響頁面。完整畫面覆蓋和全套回歸，不代表全部重新設計。
 
-專案 AGENTS 保留入口、必讀、文件分工、分流、同步、授權與完成條件。商業、啟用與 managed RUN 細節移到按情境必讀的參考文件。500 行改為拆分檢查點，不再硬性限制或要求出問題就刪掉重寫。
+專案 AGENTS 保留入口、必讀、文件分工、分流、同步、授權與完成條件。商業、啟用與 managed RUN 細節移到按情境必讀的參考文件。供使用專案套用的 AGENTS 模板要求 KISS、第一性原理、依職責拆分模組，以及不寫推測性的相容程式碼。使用專案的新程式碼／測試模組採 500 實體行硬上限；此限制不套用至 Harness 原始碼，也不要求重構 Harness。
 
 HiFi 審閱從主要產品頁開始，側欄可前往 Overview、各頁與設計規格。產品互動、審閱導航及來源綁定 tokens 分別保留證據。歷史包件保持可讀。
 
@@ -424,7 +425,9 @@ Provider 身分只控制 PLAN 明確允許的 host。Driver 順序由觀察到�
 
 授權、PLAN/RUN、lease、隔離寫入、精確 SHA 驗證與循序整合仍由 parent 掌握。Reviewer 使用新 context，所需工具必須在它自己的 session 內驗證。原生完成、重試與快取不取代這些關卡。明確要求的獨立 app task 不能默默換成直接子代理。
 
-Product Definition 只在獲授權時執行有界的唯讀分析圖。`product_agent_graph.cjs` 驗證凍結輸入並產生交接資料，不啟動 agent。Parent 對應原生工具，保留綜合分析、人類決策與發布關卡；無法強制唯讀邊界時，由 parent 循序完成相同角色工作。
+Product Definition 只在獲授權時執行有界的唯讀分析圖。`product_agent_graph.cjs` 驗證凍結輸入並產生交接資料，不啟動 agent。Parent 派發指定角色並保留既有決策與發布關卡。無法強制唯讀邊界時，阻擋受影響的 assignment；容量只有一個時循序派出不同 delegate，不改由 parent 代做。
+
+Managed 角色結果使用 [parent 保留的執行收據](skills/delivery-harness/references/agent-execution-receipts.md)，核對實際 host session、原始保留內容與接收的 payload。啟動失敗有獨立收據，可按設定處理明確的模型／provider 不可用錯誤，不捏造成功啟動。Hash 綁定證據內容，不是對不可信 parent adapter 的身分認證。
 
 舊原生 workflow driver、啟動模板與 `workflow_runs` 相容路徑已移除。歷史使用者檔案保持不動；使用舊 binding 的未完成工作，需要明確重新規劃並重驗能力與授權，不會自動遷移。
 
@@ -644,6 +647,8 @@ HiFi 範例以固定 LF 換行維持跨平台位元組雜湊。Wireframe 的 Nod
 本儲存庫採用 MIT 授權，全文見 [LICENSE](LICENSE)。
 
 ## 版本紀錄
+
+- **0.58.0** — Parent 角色派工、多實例研究／探索、身分綁定結果匯合與強制 frontend 委派。供使用專案套用的 AGENTS 模板加入新程式碼／測試模組 500 行硬上限、KISS、第一性原理、模組拆分及避免推測性相容程式碼；Harness 原始碼不受此上限限制。保留舊版 pinned RUN 與 owner 核准關卡。
 
 每次發佈都要更新這一節，連同上面《發佈》一節描述的版本號提升與 tag 一起完成。
 

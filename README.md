@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.57.0-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.58.0-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -126,7 +126,8 @@ Security exemptions also require a documentation-only product description and Pr
 
 The delivery core makes one size decision before it invokes managed orchestration:
 
-- Small work stays direct with no planner, scheduler, PLAN/RUN, subagent, or external-runtime preflight by default.
+- Small work stays direct without PLAN/RUN, but resolves required roles before choosing its executor. UI authoring uses the host-bound frontend worker, not the parent. Read-only delegation alone does not require a managed run.
+- The [parent-owned delegation contract](skills/delivery-harness/references/delegation-contract.md) applies across Product Definition, UI Design and delivery. Two independent substantive research/exploration questions require distinct researcher/explorer instances when authorized and capable. Capacity limits use bounded waves. The pure `readonly-assignments/1` API joins by assignment, attempt and frozen input identity, accepts reordered results, and rejects missing, duplicate, stale or reused-worker results. Parent launch evidence remains separate from child claims. Required role bindings and external-runtime grants must be checked before launch; a missing mandatory delegate never silently becomes parent work. Availability-only fallback preserves host policy, termination checks and partial work. One writer owns each checkout, including the parent; independent review still requires its actual tools.
 - Large work enters managed planning. It may use `PLAN.md` and `RUN.md` for a managed-sequential delivery or for multiple missions and durable handoff; `new_run.py` writes the initial `docs/tasks.md` with `--out` and `--repo-root`, and guarded `accept-wave`, `record-worker-result`, `reject-worker-result`, `record-integration`, `reconcile-candidate-head`, `reconcile-coordination-head`, `reconcile-interrupted`, `reconcile-interrupted-reviews`, and `close-wave` transitions with `--repo-root` refresh it while preserving the Update Log. Projection failure never rolls back RUN; the standalone `render_tasks_view.py` repairs or checks that non-canonical view. This source repository does not keep a separate root `Tasks.md` flow log.
 
 Each required integration or wave-close checkpoint can commit its exact coordination files as one ordinary direct child, then freshly observe and bind that head with `reconcile-coordination-head`. The guard accepts only supported exact coordination/generated-view paths, keeps product and frozen design sources out, checks live/observed identity and clean product bytes, preserves old evidence, and re-arms current exact-head reviews and gates; isolated mission workers may continue while parent-side reviewers and checks are quiescent.
@@ -349,7 +350,7 @@ Complete enhancements use one indexed Epic in `docs/epics/`, referencing the cur
 
 Choose the record before implementation: a new accepted outcome gets an Epic; same-outcome fixes append to its Change Log; an isolated small fix gets a bounded Epic entry with linked direct-task evidence. Log the reason, affected scope, commit, tests and remaining work without rewriting closed history. UI enhancements are incremental: add or patch only named HiFi pages and necessary entry/return controls. Preserve unrelated product layout, content, style and IDs, and reuse the approved direction. List shared-component consumers before changing them. Complete package coverage and full regression are not instructions to redraw every screen.
 
-Project AGENTS keeps entry, reading, ownership, routing, synchronization, authorization and completion rules. Conditional commerce, activation and managed-run details live in a required reference. The 500-line rule is a split checkpoint, not a hard limit; repairs preserve interfaces and data.
+Project AGENTS keeps entry, reading, ownership, routing, synchronization, authorization and completion rules. Conditional commerce, activation and managed-run details live in a required reference. The consumer AGENTS template requires KISS, first-principles reasoning, responsibility-based module splitting and no speculative compatibility code. New consumer code/test modules have a 500-physical-line hard cap; this does not impose a cap or a refactor on Harness source.
 
 HiFi review starts on the primary product page. The sidebar opens Overview, every page and design specifications. Product interactions, reviewer navigation and source-derived tokens need separate evidence. Historical bundles remain readable.
 
@@ -424,7 +425,9 @@ Provider identity controls only explicit PLAN eligibility. Available drivers are
 
 The parent keeps all authorization, PLAN/RUN, leases, isolated writes, exact-SHA result checks and serial integration. Reviewers start fresh and prove required tools inside their own session. Native completion, retries and caches never replace those gates. Explicitly requested independent app tasks cannot silently become direct subagents.
 
-Product Definition uses a bounded read-only analysis graph only when authorized. `product_agent_graph.cjs` validates frozen inputs and produces packets; it launches no agents. The parent maps those packets to native tools and keeps synthesis, human decisions and publication under the existing gates. If the required read-only boundary cannot be enforced, perform the same roles sequentially.
+Product Definition uses a bounded read-only analysis graph only when authorized. `product_agent_graph.cjs` validates frozen inputs and produces packets; it launches no agents. The parent dispatches the assigned roles and retains the existing decision and publication gates. If the required read-only boundary cannot be enforced, block the affected assignment. Capacity of one serializes distinct delegates; it does not substitute parent work.
+
+Managed role-bound results use [parent-retained execution receipts](skills/delivery-harness/references/agent-execution-receipts.md): exact host session, retained source bytes and accepted payload must agree. Explicit failed-start receipts allow configured availability recovery without inventing a successful launch. These hashes bind evidence; they do not authenticate an untrusted parent adapter.
 
 The former native workflow driver, launch templates and `workflow_runs` compatibility path are removed. Historical user files remain unchanged. Unfinished work with those bindings needs explicit replanning and fresh capability/authorization evidence; do not silently migrate it.
 
@@ -644,6 +647,8 @@ Then run the full verification above, review the entire diff, and land through `
 This repository is licensed under the MIT License — see [LICENSE](LICENSE).
 
 ## Version history
+
+- **0.58.0** — Parent-owned role routing and multi-instance research/exploration, identity-bound result joins and mandatory frontend delegation. The consumer AGENTS template sets a 500-line hard cap for new code/test modules, KISS, first principles, module splitting and no speculative compatibility code; Harness source is outside this cap. Preserve legacy pinned runs and owner approval gates.
 
 Update this section with each release, as part of the version bump and tag described in Releasing above.
 
