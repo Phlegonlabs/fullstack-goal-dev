@@ -59,8 +59,18 @@ class CICandidateGateTests(unittest.TestCase):
     def test_diff_uses_actual_event_base(self) -> None:
         self.assertIn("github.event.pull_request.base.sha", self.workflow)
         self.assertIn("github.event.merge_group.base_sha", self.workflow)
-        self.assertIn("origin/$GITHUB_REF_NAME...HEAD", self.workflow)
+        self.assertIn("base_sha:", self.workflow)
+        self.assertIn("Full 40-character ancestor commit", self.workflow)
+        self.assertIn("required: true", self.workflow)
+        self.assertIn(
+            "github.event_name == 'workflow_dispatch' && inputs.base_sha ||",
+            self.workflow,
+        )
+        self.assertIn("ci_diff_base.py resolve", self.workflow)
+        self.assertIn('git diff --check "$diff_base" "$actual_sha"', self.workflow)
+        self.assertNotIn("origin/$GITHUB_REF_NAME...HEAD", self.workflow)
         self.assertNotIn('base="origin/main"', self.workflow)
+        self.assertNotIn("        git diff --check\n", self.workflow)
 
     def test_validate_requires_every_matrix_result(self) -> None:
         validate = self.workflow.split("\n  validate:\n", 1)[1]

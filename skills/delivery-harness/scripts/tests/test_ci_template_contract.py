@@ -44,8 +44,18 @@ class ProjectCITemplateContractTests(unittest.TestCase):
     def test_diff_base_comes_from_the_event(self) -> None:
         self.assertIn("github.event.pull_request.base.sha", self.template)
         self.assertIn("github.event.merge_group.base_sha", self.template)
-        self.assertIn("origin/$GITHUB_REF_NAME...HEAD", self.template)
+        self.assertIn("base_sha:", self.template)
+        self.assertIn("Full 40-character ancestor commit", self.template)
+        self.assertIn("required: true", self.template)
+        self.assertIn(
+            "github.event_name == 'workflow_dispatch' && inputs.base_sha ||",
+            self.template,
+        )
+        self.assertIn("ci_diff_base.py resolve", self.template)
+        self.assertIn('git diff --check "$diff_base" "$actual_sha"', self.template)
+        self.assertNotIn("origin/$GITHUB_REF_NAME...HEAD", self.template)
         self.assertNotIn('base="origin/main"', self.template)
+        self.assertNotIn("          git diff --check\n", self.template)
 
     def test_verify_is_a_stable_strict_aggregate(self) -> None:
         verify = self.template.split("\n  verify:\n", 1)[1]

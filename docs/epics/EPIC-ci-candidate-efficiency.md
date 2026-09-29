@@ -65,6 +65,7 @@ child workers were authorized. The parent owns integration and any later
 | Align consumer CI template | Apply the same candidate/dedup/aggregate principles without source-suite or provider assumptions | `09a83e0` | Template tests 6/6, skill contract 60/60 and scoped pyflakes passed. Stable consumer gate name remains `verify`. |
 | Scan full native log for positive coverage | Buffered stdout can flush after the unittest summary | `0f16f17` | Candidate tests 12/12 passed. Windows prints a 10-line summary but checks the full log with `Select-String -Quiet`. |
 | Describe CI candidate and scheduling behavior | Keep the documentation of record aligned in all four languages | `3f49d19` | Docs weight exit 0 and README structure tests 5/5 passed. |
+| Fail closed on a missing or meaningless CI diff base | Manual runs could check an empty clean tree; an unavailable push base could self-diff against the new remote ref. Added required manual `base_sha`, verified ancestry, strict event-base resolution, and an explicit Git empty-tree comparison for an initial push | CI-DIFF task commit (this row is in the same record) | Focused helper 5/5, source workflow 12/12, template 6/6, skill contract 60/60, README structure 5/5, docs weight, scoped pyflakes and `git diff --check` passed with finite subprocess deadlines. No full suite or profile is in scope. |
 
 ## Results And Remaining Work
 

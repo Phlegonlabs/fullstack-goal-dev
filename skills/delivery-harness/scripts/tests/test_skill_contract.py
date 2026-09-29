@@ -57,7 +57,9 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("--shard-index '${{ matrix.shard }}'", step)
         self.assertIn("shard: [0, 1, 2, 3]", job)
         self.assertIn("foreach ($testFile in $plan.files) {", step)
-        self.assertIn("if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }", step)
+        self.assertIn("$suiteStatus = $LASTEXITCODE", step)
+        self.assertIn("if ($suiteStatus -ne 0) {", step)
+        self.assertIn("exit $suiteStatus", step)
 
     @unittest.skipIf(REPO_ROOT is None, "brand contract requires a source checkout")
     def test_product_delivery_harness_brand_and_skill_ids_are_canonical(self) -> None:

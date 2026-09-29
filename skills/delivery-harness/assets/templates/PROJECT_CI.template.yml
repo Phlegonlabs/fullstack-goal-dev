@@ -15,6 +15,10 @@ on:
         description: Full 40-character commit SHA to verify for release
         required: true
         type: string
+      base_sha:
+        description: Full 40-character ancestor commit from which the release changed
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -36,6 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DIFF_BASE_SHA: ${{
+        github.event_name == 'workflow_dispatch' && inputs.base_sha ||
         github.event_name == 'pull_request' && github.event.pull_request.base.sha ||
         github.event_name == 'merge_group' && github.event.merge_group.base_sha ||
         github.event.before
@@ -61,15 +66,11 @@ jobs:
       - name: Run required verification
         run: <verification-command>
 
-      - name: Check candidate diff whitespace
+      - name: Check candidate diff against a meaningful base
         run: |
-          if [ -n "$DIFF_BASE_SHA" ] && git rev-parse --verify --quiet "$DIFF_BASE_SHA^{commit}" >/dev/null; then
-            git diff --check "$DIFF_BASE_SHA...HEAD"
-          elif [ "$GITHUB_EVENT_NAME" = "push" ]; then
-            git diff --check "origin/$GITHUB_REF_NAME...HEAD"
-          else
-            git diff --check
-          fi
+          actual_sha="$(git rev-parse HEAD)"
+          diff_base="$(python skills/delivery-harness/scripts/ci_diff_base.py resolve --event "$GITHUB_EVENT_NAME" --candidate "$CANDIDATE_SHA" --base "${DIFF_BASE_SHA:-}")"
+          git diff --check "$diff_base" "$actual_sha"
 
   e2e:
     name: e2e
