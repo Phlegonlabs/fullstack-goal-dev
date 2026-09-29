@@ -4,7 +4,7 @@ Use this reference for the `market-research` role: a bounded, read-only research
 
 This role does not draft the product. Requirements, architecture, UX, and stack decisions are already written when it starts. Its job is to check those drafts against what actually exists in the market and hand back two things: the `market-research.md` artifact and gap findings and optimization proposals for the parent to present before applying accepted changes.
 
-The current graph emits one `market_researcher` assignment per parent-inventored question under `readonly_assignments_v1` with `post_draft_market_research` scope. The business role remains `market-research`; the workers may repeat `market_researcher`. The parent joins each result by assignment, attempt, question, and phase-scoped input identity, checks the observed launch identity separately from requested identity, rejects reused worker/session identities, and blocks on missing required results. A permitted skip and an evidence-backed `no_sources` result remain explicit and distinct.
+The current graph emits one `market_researcher` assignment per parent-inventored question under `readonly_assignments_v1` with `post_draft_market_research` scope. The business role remains `market-research`; the workers may repeat `market_researcher`. The parent joins each result by assignment, attempt, question, and phase-scoped input identity, checks the observed launch identity separately from requested identity, rejects reused worker/session identities, and blocks on missing required results. A `complete` result must carry non-empty `findings` and `sources`; an empty complete payload is rejected. A permitted skip and an evidence-backed `no_sources` result remain explicit and distinct.
 
 ## When It Runs
 

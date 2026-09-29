@@ -16,6 +16,11 @@ const ASSIGNMENT_PHASES = new Set([
 ]);
 const RESULT_STATUSES = new Set(["complete", "no_sources", "skipped", "blocked"]);
 
+function hasResearchEvidence(result) {
+  return Array.isArray(result.findings) && result.findings.length > 0
+    && Array.isArray(result.sources) && result.sources.length > 0;
+}
+
 function isPlainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
@@ -242,6 +247,9 @@ function readonlyResult(instance, payload) {
   if (!isPlainObject(payload.result)) {
     reject("result must be an object");
   }
+  if (payload.status === "complete" && !hasResearchEvidence(payload.result)) {
+    reject("a complete result requires non-empty findings and sources");
+  }
   if (payload.status === "no_sources") {
     for (const field of ["searched", "unresolved"]) {
       if (!nonEmptyString(payload.result[field])) {
@@ -329,6 +337,9 @@ function joinReadonlyResults(plan, rawResults, parentLaunchRecords) {
     }
     if (!isPlainObject(rawResult.result)) {
       reject(`results[${index}].result must be an object`);
+    }
+    if (rawResult.status === "complete" && !hasResearchEvidence(rawResult.result)) {
+      reject(`results[${index}] complete requires non-empty findings and sources`);
     }
     if (rawResult.status === "skipped" && !plan.skip_allowed) {
       reject(`results[${index}] skips an assignment that has no authorized skip`);

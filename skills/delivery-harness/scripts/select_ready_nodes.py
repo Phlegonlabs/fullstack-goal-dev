@@ -1150,7 +1150,11 @@ def _dispatch_reasons(
         # read-only with respect to that state and do not need this gate.
         reasons.update(_write_launch_reasons(plan, run))
     if node["kind"] == "mission":
-        workspace_mode = runtime["workspace_mode"]
+        workspace_mode = (
+            binding.get("workspace_mode", runtime["workspace_mode"])
+            if binding is not None
+            else runtime["workspace_mode"]
+        )
         if workspace_mode == "shared_checkout":
             reasons.add("workspace_not_isolated")
         if node.get("executor") == "harness_parent":
@@ -1337,6 +1341,16 @@ def _directive(
     return directive
 
 
+def _resolved_write_workspace(
+    item: dict[str, Any],
+    runtime: dict[str, Any],
+) -> str:
+    binding = item.get("binding")
+    if isinstance(binding, dict):
+        return binding.get("workspace_mode", runtime["workspace_mode"])
+    return runtime["workspace_mode"]
+
+
 def select_ready_nodes(
     plan: dict[str, Any],
     run: dict[str, Any],
@@ -1455,7 +1469,11 @@ def select_ready_nodes(
                 missions[left["node"]["ref"]], missions[right["node"]["ref"]]
             )
         )
-        if run["runtime_capabilities"]["workspace_mode"] == "shared_checkout":
+        if any(
+            _resolved_write_workspace(item, run["runtime_capabilities"])
+            == "shared_checkout"
+            for item in (left, right)
+        ):
             reasons.add("workspace_not_isolated")
         if reasons:
             conflict_edges.append(
@@ -1515,7 +1533,7 @@ def select_ready_nodes(
         if len(selected_write) >= configured_write_budget:
             deferred.append({"node_id": node_id, "reason_codes": budget_reasons()})
             continue
-        if run["runtime_capabilities"]["workspace_mode"] != "shared_checkout":
+        if _resolved_write_workspace(item, run["runtime_capabilities"]) != "shared_checkout":
             if isolated_write_count >= isolated_write_budget:
                 deferred.append({"node_id": node_id, "reason_codes": budget_reasons()})
                 continue

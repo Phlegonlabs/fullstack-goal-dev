@@ -12,7 +12,13 @@ from agent_launch_records import validate_launch_record_shape
 from harness_manifest import validate_run
 from harness_transition import ManifestError, _lease_worker, _record_launch_observation
 from manifest_fixtures import valid_plan, valid_run
-from role_contract_fixtures import authorize_selection, configure_role_run, refresh_plan_binding
+from role_contract_fixtures import (
+    authorize_selection,
+    capability,
+    configure_role_run,
+    native_writer_binding,
+    refresh_plan_binding,
+)
 from select_ready_nodes import select_ready_nodes
 
 
@@ -106,6 +112,75 @@ class RoleDispatchIntegrationTests(unittest.TestCase):
         ready = [item["node_id"] for item in result["dispatchable_nodes"]]
         self.assertNotIn("N-M1", ready)
         self.assertIn("N-M2", ready)
+
+    def test_isolated_role_binding_overrides_global_shared_checkout(self):
+        plan = valid_plan()
+        run = configure_role_run(plan, valid_run(plan))
+        run["runtime_capabilities"]["workspace_mode"] = "shared_checkout"
+        authorize_selection(run)
+        self.assertEqual([], validate_run(plan, run))
+        result = select_ready_nodes(plan, run, manifest_already_validated=True)
+        ready = [item["node_id"] for item in result["dispatchable_nodes"]]
+        deferred = {
+            item["node_id"]: item["reason_codes"] for item in result["deferred_nodes"]
+        }
+        self.assertIn("N-M1", ready)
+        self.assertNotIn("workspace_not_isolated", deferred.get("N-M1", []))
+
+    def test_shared_role_binding_defers_under_globally_isolated_run(self):
+        plan = valid_plan()
+        run = configure_role_run(plan, valid_run(plan))
+        run["runtime_capabilities"]["runtime_adapter"]["role_bindings"][
+            "contract_writer"
+        ]["workspace_mode"] = "shared_checkout"
+        authorize_selection(run)
+        self.assertEqual([], validate_run(plan, run))
+        result = select_ready_nodes(plan, run, manifest_already_validated=True)
+        ready = [item["node_id"] for item in result["dispatchable_nodes"]]
+        deferred = {
+            item["node_id"]: item["reason_codes"] for item in result["deferred_nodes"]
+        }
+        self.assertIn("workspace_not_isolated", deferred["N-M1"])
+        self.assertIn("N-M2", ready)
+
+    def test_app_task_role_binding_requires_observed_app_capabilities(self):
+        plan = valid_plan()
+        run = configure_role_run(plan, valid_run(plan))
+        binding = native_writer_binding()
+        binding.update(
+            {
+                "worker_runtime": "app_task",
+                "workspace_mode": "app_managed_worktree",
+                "completion_channel": "thread_poll",
+            }
+        )
+        run["runtime_capabilities"]["runtime_adapter"]["role_bindings"][
+            "backend_worker"
+        ] = binding
+
+        errors = validate_role_bindings(run)
+
+        self.assertTrue(
+            any(
+                "missing required capabilities:" in error
+                and "app_project_list" in error
+                for error in errors
+            )
+        )
+        binding["capability_probe"].update(
+            {
+                name: capability(name)
+                for name in (
+                    "app_project_list",
+                    "app_thread_create",
+                    "app_thread_read",
+                    "app_thread_message",
+                    "app_thread_wait",
+                    "app_managed_worktree",
+                )
+            }
+        )
+        self.assertEqual([], validate_role_bindings(run))
 
     def test_fallback_binding_cannot_change_logical_node_role(self):
         plan, run, _ = mission_reservation()

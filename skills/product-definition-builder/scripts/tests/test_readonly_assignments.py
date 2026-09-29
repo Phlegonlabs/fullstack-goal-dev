@@ -175,7 +175,7 @@ const observed = {
 };
 const first = readonlyResult(plan.instances[0], {
   status: "complete",
-  result: {findings: ["MR-001"]},
+  result: {findings: ["MR-001"], sources: ["https://example.com/pricing"]},
   observed_identity: observed,
 });
 const second = readonlyResult(plan.instances[1], {
@@ -190,6 +190,51 @@ process.stdout.write(JSON.stringify(joinReadonlyResults(plan, [second, first])))
         self.assertEqual("ready", joined["status"])
         self.assertEqual([], joined["blockers"])
         self.assertEqual(["Q-PRICING", "Q-CATEGORY"], [item["question_id"] for item in joined["results"]])
+
+    def test_unrequested_effort_allows_host_default_launch_identity(self) -> None:
+        request = canonical_request()
+        request["requested_identity"].pop("effort")
+        request["binding_required"] = True
+        request["binding_requirements"] = {"authority": "parent-owned", "runtime": "readonly-sandbox"}
+        script = r"""
+const fs = require("fs");
+const api = require(process.argv[2]);
+const request = JSON.parse(fs.readFileSync(process.argv[3], "utf8"));
+const plan = api.createReadonlyAssignments(request);
+const observed = (worker, session) => ({
+  execution_role: "market_researcher",
+  model: "fixture-model",
+  effort: "high",
+  worker_id: worker,
+  session_id: session,
+});
+const launch = (instance, identity) => ({
+  assignment_id: instance.assignment_id,
+  attempt_id: instance.attempt_id,
+  input_id: instance.input_id,
+  authority: "parent-owned",
+  runtime: "readonly-sandbox",
+  reservation_id: `R-${identity.worker_id}`,
+  execution_role: identity.execution_role,
+  model: identity.model,
+  effort: identity.effort,
+  worker_id: identity.worker_id,
+  session_id: identity.session_id,
+});
+const result = (instance, identity) => api.readonlyResult(instance, {
+  status: "complete",
+  result: {findings: ["MR-001"], sources: ["https://example.com/category"]},
+  observed_identity: identity,
+});
+const identities = [observed("W1", "S1"), observed("W2", "S2")];
+const records = plan.instances.map((instance, index) => launch(instance, identities[index]));
+const results = plan.instances.map((instance, index) => result(instance, identities[index]));
+process.stdout.write(JSON.stringify(api.joinReadonlyResults(plan, results, records)));
+"""
+        joined = self.run_node(script, request)
+
+        self.assertEqual("ready", joined["status"])
+        self.assertEqual({"high"}, {item["observed_identity"]["effort"] for item in joined["results"]})
 
     def test_host_required_launch_binding_is_separate_from_child_result_echo(self) -> None:
         request = canonical_request()
@@ -227,14 +272,18 @@ function launch(observeValue, reservation, instance) {
 }
 const firstObserved = observe(0, "W1", "S1");
 const secondObserved = observe(1, "W2", "S2");
+const completePayload = {
+  findings: [{id: "MR-Q1", change: "pricing baseline"}],
+  sources: [{publisher: "Example", url: "https://example.com/source", retrieved_at: "2026-09-29"}],
+};
 const first = api.readonlyResult(plan.instances[0], {
   status: "complete",
-  result: {},
+  result: clone(completePayload),
   observed_identity: firstObserved,
 });
 const second = api.readonlyResult(plan.instances[1], {
   status: "complete",
-  result: {},
+  result: clone(completePayload),
   observed_identity: secondObserved,
 });
 const records = [launch(firstObserved, "R1", plan.instances[0]), launch(secondObserved, "R2", plan.instances[1])];
@@ -274,13 +323,23 @@ expectError(
 const wrongLaunchEffort = clone(records);
 wrongLaunchEffort[0].effort = "other-effort";
 expectError(() => api.joinReadonlyResults(plan, [first, second], wrongLaunchEffort), "wrong launch effort");
+expectError(
+  () => api.readonlyResult(plan.instances[0], {status: "complete", result: {}, observed_identity: firstObserved}),
+  "complete result requires non-empty findings and sources",
+);
+const emptyFindings = clone(first);
+emptyFindings.result.findings = [];
+expectError(
+  () => api.joinReadonlyResults(plan, [emptyFindings, second], records),
+  "complete requires non-empty findings and sources",
+);
 process.stdout.write(JSON.stringify(output));
 """
         result = self.run_node(script, request)
 
         self.assertEqual("ready", result["joined"]["status"])
         self.assertEqual({"W1", "W2"}, {item["observed_identity"]["worker_id"] for item in result["joined"]["results"]})
-        self.assertEqual(6, len(result["errors"]))
+        self.assertEqual(8, len(result["errors"]))
 
     def test_missing_authorization_capability_and_required_results_block_without_fallback(self) -> None:
         script = r"""
@@ -314,7 +373,7 @@ const observed = {
 };
 const result = api.readonlyResult(plan.instances[0], {
   status: "complete",
-  result: {},
+  result: {findings: ["MR-001"], sources: ["https://example.com/category"]},
   observed_identity: observed,
 });
 expectError(() => api.joinReadonlyResults(plan, [result]), "required results are missing");
@@ -322,7 +381,7 @@ expectError(() => api.joinReadonlyResults(plan, [result, clone(result)]), "dupli
 const otherObserved = {...observed, worker_id: "W2", session_id: "S2"};
 const otherResult = api.readonlyResult(plan.instances[1], {
   status: "complete",
-  result: {},
+  result: {findings: ["MR-002"], sources: ["https://example.com/pricing"]},
   observed_identity: otherObserved,
 });
 const stale = clone(result);
@@ -360,7 +419,7 @@ const observed = {
 };
 const complete = api.readonlyResult(plan.instances[0], {
   status: "complete",
-  result: {findings: ["MR-001"]},
+  result: {findings: ["MR-001"], sources: ["https://example.com/category"]},
   observed_identity: observed,
 });
 const blocked = api.readonlyResult(plan.instances[1], {
@@ -443,7 +502,7 @@ const observed = {
 };
 const first = api.readonlyResult(prePlan.instances[0], {
   status: "complete",
-  result: {},
+  result: {findings: ["MR-001"], sources: ["https://example.com/category"]},
   observed_identity: observed,
 });
 const reused = clone(first);

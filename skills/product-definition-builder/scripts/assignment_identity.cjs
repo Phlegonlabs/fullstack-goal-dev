@@ -36,8 +36,11 @@ function launchIndex(instances, records) {
     for (const field of ["authority", "runtime"]) {
       if (record[field] !== a.binding_requirements[field]) throw new Error(`wrong launch ${field}`);
     }
-    for (const field of ["execution_role", "model", "effort"]) {
+    for (const field of ["execution_role", "model"]) {
       if (record[field] !== a.requested_identity[field]) throw new Error(`wrong launch ${field}`);
+    }
+    if (a.requested_identity.effort !== undefined && record.effort !== a.requested_identity.effort) {
+      throw new Error("wrong launch effort");
     }
     for (const [field, seen] of [["reservation_id", reservations], ["worker_id", workers], ["session_id", sessions]]) {
       if (seen.has(record[field])) throw new Error(`reused parent launch ${field}`);
@@ -48,8 +51,11 @@ function launchIndex(instances, records) {
   return index;
 }
 function matchObserved(instance, result, launch) {
-  for (const field of ["execution_role", "model", "effort", "worker_id", "session_id"]) {
+  for (const field of ["execution_role", "model", "worker_id", "session_id"]) {
     if (result.observed_identity?.[field] !== launch[field]) throw new Error(`launch observation conflicts with the child observed ${field}`);
+  }
+  if (instance.requested_identity.effort !== undefined && result.observed_identity?.effort !== launch.effort) {
+    throw new Error("launch observation conflicts with the child observed effort");
   }
 }
 module.exports = {digest, frozenCopy, requireText, launchIndex, matchObserved};

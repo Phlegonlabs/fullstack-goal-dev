@@ -22,6 +22,7 @@ from harness_core import (
     is_safe_model_token,
 )
 from harness_schema import (
+    DRIVER_CAPABILITY_REQUIREMENTS,
     RUNTIME_REASONING_EFFORTS,
     is_valid_provider_id,
 )
@@ -102,14 +103,11 @@ def validate_role_bindings(
         if not isinstance(capability_probe, dict):
             errors.append(f"{role_path}.capability_probe: must be an object")
         else:
+            driver = _native_driver(binding)
             required = (
                 {"external_runtime_invoke", "external_terminal_result"}
                 if kind == "external_bridge"
-                else (
-                    {"direct_subagent_spawn", "direct_agent_result"}
-                    if _native_driver(binding) == "subagents"
-                    else set()
-                )
+                else set(DRIVER_CAPABILITY_REQUIREMENTS.get(driver, ()))
             )
             unknown_caps = sorted(set(capability_probe) - KNOWN_CAPABILITIES)
             if unknown_caps:
