@@ -4,15 +4,15 @@ The four READMEs remain the documentation of record for the skill bundle.
 
 | Document | Purpose | Status |
 | --- | --- | --- |
-| `docs/epics/EPIC-design-showcase.md` | `ui-design/3` full packages, `design-system/4` source-derived HTML showcase and Harness 0.59 joins | Integrated locally; cross-skill repairs and final verification pending |
-| `docs/epics/EPIC-branch-policy.md` | Dual-branch managed release policy, frozen bases, protected-branch landing and cleanup guards | Integrated locally; combined UI/branch contract repair and final verification pending |
+| `docs/epics/EPIC-design-showcase.md` | `ui-design/3` full packages, `design-system/4` source-derived HTML showcase and Harness 0.59 joins | Main implementation and cross-skill joins integrated; owner single-direction correction remains in the stopped frontend checkout; final review pending |
+| `docs/epics/EPIC-branch-policy.md` | Dual-branch managed release policy, frozen bases, protected-branch landing and cleanup guards | Combined contract, golden and tasks-view fixture repairs integrated; final candidate verification and remote protection pending |
 | `docs/epics/EPIC-context-template-merge.md` | Safe authorized AGENTS bootstrap merge, explicit conflict reporting and host-neutral role/dependency guidance | Integrated locally through MOD-A idempotency repair; final verification pending |
 | `docs/WORKFLOW.zh-TW.md` | Numbered cross-host product delivery workflow and role/template handoffs | 0.59 working-version guide; reconcile against final implementation before release |
-| `docs/epics/EPIC-harness-flow-modernization.md` | Template merge, dual protected branches, design showcase, Activation execution and validation efficiency | Implementation on `codex/harness-flow-modernization`; not released |
-| `docs/epics/EPIC-activation-execution-closure.md` | Read-only fail-closed Activation closeout with explicit owner deferrals and blocked-vs-complete records | Integrated locally; parent 65-test suite passed; final candidate checks pending |
+| `docs/epics/EPIC-harness-flow-modernization.md` | Template merge, dual protected branches, design showcase, Activation execution and validation efficiency | Local 0.59 candidate; frontend completion and independent review blocked on Claude quota / owner routing decision; not released |
+| `docs/epics/EPIC-activation-execution-closure.md` | Read-only fail-closed Activation closeout with explicit owner deferrals and blocked-vs-complete records | Execution-by-default and mandatory closeout integrated; parent 65-test suite passed at 97f2fae3; final candidate checks pending |
 | `docs/epics/EPIC-agent-delegation-contract.md` | Parent-owned role routing, multi-instance research/exploration and verified dispatch | Present in baseline main history at `bdae1d82`, matching local `v0.58.0`; later observation appended to Epic |
 | `docs/epics/EPIC-pre-delivery-self-review.md` | PRD/market, UI direction and HiFi author self-review before Harness execution | Present in baseline main history at `b591a618`, matching local `v0.57.0`; later observation appended to Epic |
-| `docs/epics/EPIC-ci-candidate-efficiency.md` | Exact-candidate CI, no duplicate feature runs, strict aggregate and measured shard scheduling | Integrated locally; manual diff-base repair, full and hosted verification pending |
+| `docs/epics/EPIC-ci-candidate-efficiency.md` | Exact-candidate CI, no duplicate feature runs, strict aggregate and measured shard scheduling | Manual diff-base, streaming and macOS/installer contract repairs integrated; final full and hosted verification pending |
 | `docs/audits/2026-09-28-contract-audit.md` | Dispositions for all 47 pasted audit items, including truncated and retained items | Integrated on `main` in the 0.56 release line |
 | `docs/epics/EPIC-macos-support.md` | Run the skill bundle and CI suites on macOS | Integrated on `main` in the 0.56 release line |
 | `docs/epics/EPIC-remove-wireframe-stage.md` | Remove the new-package Wireframe stage; move completeness and frozen-source checks to PRD and HiFi | Integrated on `main` in the 0.56 release line |

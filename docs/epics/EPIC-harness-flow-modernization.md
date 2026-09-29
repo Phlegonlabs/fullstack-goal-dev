@@ -1,6 +1,6 @@
 # Harness Flow Modernization
 
-Status: implementation in progress; not released.
+Status: local candidate in progress; frontend completion and independent review blocked on Claude quota / owner routing decision; not released.
 
 ## Accepted Outcome
 
@@ -27,6 +27,14 @@ Each task runs focused positive and negative checks before its own commit. The f
 Generated logs, bridge packets and temporary profiling data stay in the task directory outside the repository. Existing ignore entries cover local Python caches and node_modules; required source fixtures, templates and generated design handoff examples remain tracked.
 
 ## Change Log
+
+- 2026-09-29 17:20 UTC: checkpoint at `16408518`, clean `codex/harness-flow-modernization`. The exact `97f2fae3` broad Harness run finished 1,471 tests in 1,300.464 seconds: 12 failures, one error and 19 platform skips. Current-version golden/tasks-view fixture drift and stale packet/CI/installer assertions account for those failures. Integrated their focused verified repairs as `d8ed3258`, `95ee2832`, `0d804055`, `855ce35e` and `16408518`; parent follow-up regression is recorded separately against its actual later SHA, not relabeled as a full-suite PASS. Integrated Activation execution-default follow-up as `21aca90d`. The broad run and its task-owned process exited.
+
+- At exact `97f2fae3`, Product Definition (256), required-browser UI (318), Activation (65), SEO (21), skill spec, Pyflakes, docs weight and full diff checks passed. Design System ran 134 tests with one old-wording failure and four platform skips; enabled golden path failed on the old package fixture, subsequently repaired as above. These results do not establish a final candidate PASS. The next release candidate still needs the required complete matrix and fresh independent review after frontend completion.
+
+- The stopped Claude frontend attempt used `claude-opus-5-5` and ended with API 429 quota exhaustion; its process exited. Six uncommitted UI files remain preserved in `C:/Users/mps19/.codex/worktrees/harness-design-showcase/product-delivery-harness`, on `ce97d38a`. They begin the explicit-owner single-direction correction and restore the Design System test's required wording, but lack completed skill/README/Epic synchronization and final frontend verification. Normal three-direction behavior is implemented; do not claim the accepted exception is finished. The host policy forbids automatic fallback for quota exhaustion. The parent has requested a one-time Astra/high exception for frontend completion and independent read-only review; no answer or fallback is assumed. The earlier proposal review is not a code/security review of this candidate.
+
+- Handoff audit: installed Harness remains observed 0.58.0 with template SHA-256 `6EDA76A52BB61C38FB00564824E6C5A1EA30E92AAF6926BE0F15BE24CF510927`; loaded identity is unknown. New source governance intentionally follows the owner's 0.59 decisions rather than the older installed main-only rules. The current index now distinguishes integrated work from remaining frontend, review and release checks. Required templates, workflow and showcase demo are tracked; existing ignore rules cover dependencies/caches/local values. No remote branch creation, protection update, push, promotion, tag, live-skill installation or host restart occurred. Preserve both protected branch names and every retained worker checkout.
 
 - 2026-09-29: reconciled review scheduling at baseline `95ee2832`. Direct source review and regression may overlap only on an unchanged candidate with compatible resources. Managed selector dependencies and required checks still govern; no runtime scheduler bypass was added. Updated the security skill, review contract, verification reference and all four README descriptions. Verification: source spec, docs weight and whitespace checks recorded with this change.
 
