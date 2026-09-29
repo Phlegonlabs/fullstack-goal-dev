@@ -13,7 +13,7 @@ Classify every visual source before planning or implementation:
 - **Design inspiration** is non-canonical evidence. It can influence implementation only after `ui-design-builder` inspects it and the human owner approves the resulting scoped target or principles. When the Design System Need Gate is `required`, `design-system-compiler` compiles those approved consequences into the pair. A URL, screenshot, Figma frame, or market-research source is not implementation authority merely because it exists.
 - **Page-faithful target** is an explicit user requirement for visual conformance. Treat it as binding only after the user requests faithful matching and the readable source version, routes, states, responsive scope, and tolerance are frozen. Preserve it as version-bound evidence; do not broaden it beyond `ui-design.md`. UI Design Builder retains one connected all-screens HTML reference under `docs/design/ui-references/<run-id>/`; superseded versions archive under `docs/design/archived/`. Harness reads it only through the approved UI design contract, never by folder discovery.
 
-For an initial delivery or design enhancement, implementation uses the route's `UI-*` entry in `PRD.md`, current approved `ui-design.md`, the route's approved HiFi page with its embedded `ui-hifi-copy/1` copy (`ui-design/2`; a pinned legacy contract uses its validated schema-5 or approved legacy `wireframes.html` instead), and the active visual route. Static strings, action labels, feedback, and alternate-state messages are implementation-bound; dynamic examples are illustrative while their approved source/order/format/count/length/fallback contracts bind implementation. A `required` gate binds `design-system.md` and `design-system.json` together. A `not_required` gate binds the approved immutable page-faithful target instead. Routine maintenance uses the current product and effective requirements as stated above. See `ui-implementation-contract.md`.
+For a new initial delivery or design enhancement, implementation uses the route's `UI-*` entry in `PRD.md`, current approved `ui-design.md`, the route's approved HiFi page with its embedded `ui-hifi-copy/1` copy (`ui-design/3`; a retained `ui-design/2` contract uses `ui-design/2`; a pinned legacy contract uses its validated schema-5 or approved legacy `wireframes.html` instead), and the active visual route. Static strings, action labels, feedback, and alternate-state messages are implementation-bound; dynamic examples are illustrative while their approved source/order/format/count/length/fallback contracts bind implementation. A `required` gate binds `design-system.md` and `design-system.json` together; `design-system/4` also binds its frozen derived HTML. A `not_required` gate binds the approved immutable page-faithful target instead. Routine maintenance uses the current product and effective requirements as stated above. See `ui-implementation-contract.md`.
 
 A `frontend-design` result produced or requested during implementation is a proposed design-input delta, not code-side authority. Do not apply a new visual direction, token, variant, component, motion pattern, or structure directly. Return target, direction or wireframe changes to `ui-design-builder`; return product behavior, copy/display contracts or stack changes to `product-definition-builder`; return formal pair changes to `design-system-compiler`. Resume only against the revised active source.
 
@@ -78,10 +78,10 @@ Rules:
 - Page-faithful targets must map to routes/screens, states, responsive breakpoints, source version, and acceptance tolerance.
 - Design-system deltas must map to affected components and variants.
 - A design-system delta must name every route that uses the changed entry. A delta that removes an entry must state what replaces it at each call site; an entry that disappears from `design-system.json` while a route still uses it is a break, not a cleanup.
-- When the gate is `required`, `design-system.md` and `design-system.json` are binding sources, so a design-system delta must be frozen before implementation. When it is `not_required`, a target change returns to `ui-design-builder` and Human Visual Approval. A code-side "we already built it this way" is not an accepted delta.
+- When the gate is `required`, `design-system.md` and `design-system.json` are binding sources, so a design-system delta must be frozen before implementation. For `design-system/4`, regenerate and freeze the derived HTML from the accepted pair and bound sources. When it is `not_required`, a target change returns to `ui-design-builder` and Human Visual Approval. A code-side "we already built it this way" is not an accepted delta.
 - PRD deltas that change data/API/auth/permissions must trigger architecture and E2E updates.
 - In active initial design or enhancement, new product behavior, wording, and dynamic display-contract decisions return to `product-definition-builder`; copy completeness, wireframe, style, motion/media, and HiFi-target deltas return to `ui-design-builder`. Renew the applicable decisions and checks on the affected scope. Routine maintenance follows the accepted current product and effective requirements without rewriting historical visual approvals.
-- A legacy two-target web responsive set is a mandatory delta before its package is next edited or re-validated: raise the set to at least three ascending viewports and carry the new target through `PRD.md`, `wireframes.html`, the design-system pair when present, and every PLAN `ui_surfaces` breakpoint list together. Historical `wireframes/2` stays readable at two targets and `wireframes/3` remains readable with its earlier media-intent shape; new design work uses `wireframes/5`.
+- A legacy two-target web responsive set is a mandatory delta before its package is next edited or re-validated: raise the set to at least three ascending viewports and carry the new target through `PRD.md`, the retained design source, the design-system package when present, and every PLAN `ui_surfaces` breakpoint list together. Historical `wireframes/2` stays readable at two targets and `wireframes/3` remains readable with its earlier media-intent shape; current wireframe-free packages create no wireframe.
 - UI Design Intake deltas preserve their human owner, map to affected `UX-*`, `UI-*`, `MM-*`, and `DS-*` traces, and name any required prototype or usability revalidation.
 
 ## Page-Faithful Target Matrix
@@ -113,15 +113,15 @@ When the product has a required design system, `design-system.json`'s `stateMatr
 
 ## New Build Flow
 
-For a new build with an approved Product Definition, `ui-design.md` (`ui-design/2`), the complete approved HiFi package, and an optional required `design-system/3` pair (a pinned legacy contract also has its wireframe):
+For a new initial or full-redesign build with an approved Product Definition, `ui-design.md` (`ui-design/3`), the complete approved HiFi package, and the required `design-system/4` package with frozen derived HTML. A retained `ui-design/2` build uses its original conditional `design-system/3` contract; a pinned legacy contract also has its wireframe:
 
 ```text
 M1 source intake and conflict resolution
 M2 contract freeze and traceability
 M3 foundation/data/API if needed
-M4 required pair: tokens, primitives, and the UI contract check; not_required: target-conformance foundation
-M5 required pair: product components; not_required: shared style source only when the scoped UI needs it
-M6 route implementation from the active visual source + each route's PRD UI surface entry + its approved HiFi surface (pinned legacy: validated schema-5 or approved legacy wireframe)
+M4 required pair: tokens, primitives, and the UI contract check; retained UI2 not_required: target-conformance foundation
+M5 required pair: product components; for `design-system/4`, source-bound showcase and frozen derived HTML; retained UI2 not_required: shared style source only when the scoped UI needs it
+M6 route implementation from the active visual source + each route's PRD UI surface entry + its approved HiFi surface (retained UI2: original rules; pinned legacy: validated schema-5 or approved legacy wireframe)
 M7 E2E and visual evidence
 ```
 
@@ -179,7 +179,7 @@ Design-input verification should include:
 - Visual conformance: when a page-faithful target exists, the page/component matches its frozen source, scope, and tolerance; inspiration alone creates no pixel-faithful claim.
 - State coverage: required states and breakpoints are checked.
 - Behavior conformance: PRD workflow and data/API behavior still pass.
-- Design-system conformance: in system-conformance mode, tokens/components/variants follow the updated pair. In target-conformance mode, do not claim this gate.
+- Design-system conformance: in system-conformance mode, tokens/components/variants follow the updated pair; for `design-system/4`, the frozen derived HTML also matches the pair and bound sources. In target-conformance mode, do not claim this gate.
 - Contract conformance: an active system-conformance design uses only entries `design-system.json` lists and runs the UI contract check; active target-conformance uses the smallest shared style source needed and runs page-to-target comparison at the recorded tolerance. Both follow the PRD and the approved HiFi surface with its `ui-hifi-copy/1` copy (pinned legacy: validated schema-5 or approved legacy wireframe) across the active responsive set in normal and reduced motion. Routine maintenance checks current product behavior and affected regression consumers, preserving historical design bytes. Drift from an active source is a contract violation, not a stylistic difference.
 - Builder direction conformance: selected choices are reflected and provisional/assumed choices remain explicit; this proves direction conformance, not usability.
 - Usability evidence: when required, representative users or an approved equivalent complete the named task against the specified prototype or implementation; agent preference, screenshots, and automated E2E do not substitute for that evidence.

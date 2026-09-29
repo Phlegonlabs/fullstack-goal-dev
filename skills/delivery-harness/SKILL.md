@@ -208,7 +208,7 @@ If the user pauses or cancels a managed run, apply the durable control transitio
 
 ### 2. Plan Large Work
 
-Freeze only approved inputs needed by the graph: Product Definition revision, Stack Decision Checkpoint, source paths and digests, scope, architecture and design boundaries, acceptance criteria, trace IDs, write/deny scopes, dependencies, resources, stop conditions, and exact verifiers. Harness 0.38+ requires one canonical frozen PRD, architecture, and stack source for every plan and always runs the full sibling Product package checker with `--repo-root`; 0.56+ UI plans freeze `ui-design/2`, complete HiFi and conditional `design-system/3`, without wireframes. Older pins retain historical joins. Use the bounded review-repair graph and owner-attempt rules. A generic instruction to continue grants no new attempt.
+Freeze only approved inputs needed by the graph: Product Definition revision, Stack Decision Checkpoint, source paths and digests, scope, architecture and design boundaries, acceptance criteria, trace IDs, write/deny scopes, dependencies, resources, stop conditions, and exact verifiers. Harness 0.38+ requires one canonical frozen PRD, architecture, and stack source for every plan and always runs the full sibling Product package checker with `--repo-root`. Harness 0.59+ new full-UI plans freeze `ui-design/3`, complete HiFi, `design-system/4` and one frozen derived HTML source, without wireframes. A retained `ui-design/2` package freezes its original conditional `design-system/3` contract; pins 0.56–0.58 use `ui-design/2`; older pins retain historical joins. Use the bounded review-repair graph and owner-attempt rules. A generic instruction to continue grants no new attempt.
 
 ### 3. Pass Plan Readiness
 

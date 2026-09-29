@@ -48,7 +48,7 @@ Stop on requirements conflict, unsupported scope/resource claims, stale plan dig
 
 - [ ] One objective and stopping condition are explicit.
 - [ ] Canonical sources are linked, not duplicated.
-- [ ] UI-bearing work freezes the human-owned `ui-design.md` (`ui-design/2`), complete approved HiFi package, Style Integration, Impeccable HiFi review, H1-H9 result, Visual Approval, and required validation depth (a pinned legacy contract also freezes its approved wireframe); owner approval is not representative-user usability proof.
+- [ ] UI-bearing work freezes the human-owned `ui-design.md` (`ui-design/3` for new initial/full redesign; retained `ui-design/2` keeps its original rules), complete approved HiFi package, Style Integration, Impeccable HiFi review, H1-H9 result, Visual Approval, required validation depth, and the applicable design-system package (including frozen derived HTML for `design-system/4`); a pinned legacy contract also freezes its approved wireframe. Owner approval is not representative-user usability proof.
 - [ ] PLAN contains the complete static trace, mission/task DAG, scopes, resources, and verifiers.
 - [ ] RUN contains the matching plan revision/digest and current observed facts.
 - [ ] Provider, observed drivers, selected route, runtime, workspace, and completion channel are recorded consistently.

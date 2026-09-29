@@ -9,8 +9,9 @@ The manifest of every document this delivery flow produces or governs. Keep it a
 | `PRD.md` | `docs/product/` | PRD | product-definition-builder + owner approval | product definition | |
 | `ui-design.md` | `docs/design/` | Approved Product Definition (UI-bearing) | ui-design-builder + UI Design Intake / Visual Approval | UI decisions and evidence | |
 | `ui-references/<run-id>/index.html` + manifest pages | `docs/design/` | Visual Approval | ui-design-builder | approved connected HiFi package | |
-| `wireframes.html` | `docs/design/` | legacy contracts only; `ui-design/2` has none | ui-design-builder + Wireframe Validation | retained legacy structural projection | |
+| `wireframes.html` | `docs/design/` | retained UI2 and legacy contracts only; `ui-design/3` has none | ui-design-builder + Wireframe Validation | retained legacy structural projection | |
 | `design-system.md` + `design-system.json` | `docs/design/` | Approved UI design when required | design-system-compiler | frozen visual contract | |
+| `design-system-preview.html` | `docs/design/` | `ui-design/3` with `design-system/4` | design-system-compiler | required derived view of the frozen pair | |
 | `architecture.md` | `docs/product/` | PRD | product-definition-builder | technical definition | |
 | `PRD.zh-TW.md`, `architecture.zh-TW.md` | `docs/product/` | PRD drafting and owner review | product-definition-builder | no; Chinese review copies of English sources | |
 | `stack-decisions.md` | `docs/product/` | PRD | product-definition-builder | stack choices + rationale | |
