@@ -1,6 +1,4 @@
 import re
-import shutil
-import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -47,29 +45,19 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
             self.assertIn("Incremental UI Scope", content)
 
     @unittest.skipUnless(sys.platform == "win32" and REPO_ROOT is not None,
-                         "Windows CI command exit propagation")
-    def test_windows_ci_stops_at_each_failed_suite(self) -> None:
-        shell = shutil.which("pwsh") or shutil.which("powershell")
-        if shell is None:
-            self.skipTest("PowerShell unavailable")
+                         "Windows CI candidate identity")
+    def test_windows_ci_uses_exact_candidate_and_stops_at_each_failed_shard(self) -> None:
         workflow = (REPO_ROOT / ".github/workflows/harness-ci.yml").read_text(encoding="utf-8")
-        step = workflow.split("      - name: Run native runtime, Git, parity, transition and context tests\n", 1)[1]
+        job = workflow.split("\n  windows-native:\n", 1)[1].split("\n  windows-installer:\n", 1)[0]
+        self.assertIn("ref: ${{ env.CANDIDATE_SHA }}", job)
+        self.assertIn('-ne $env:CANDIDATE_SHA', job)
+        step = job.split("      - name: Run measured native Harness shard\n", 1)[1]
         step = step.split("      - name:", 1)[0].split("        run: |\n", 1)[1]
-        script = "\n".join(line[10:] for line in step.splitlines() if line.strip())
-        count = sum(line.startswith("python -m unittest ") for line in script.splitlines())
-        self.assertGreater(count, 1)
-        for failed_suite in range(1, count + 1):
-            with self.subTest(failed_suite=failed_suite):
-                stub = (
-                    "$global:Calls = 0\nfunction python {\n"
-                    "  $global:Calls++\n  Write-Output ('suite:' + $global:Calls)\n"
-                    f"  if ($global:Calls -eq {failed_suite}) {{ $global:LASTEXITCODE = 7 }}\n"
-                    "  else { $global:LASTEXITCODE = 0 }\n}\n"
-                )
-                result = subprocess.run([shell, "-NoProfile", "-NonInteractive", "-Command", stub + script],
-                                        capture_output=True, text=True, timeout=30)
-                self.assertEqual(7, result.returncode, result.stdout + result.stderr)
-                self.assertEqual(failed_suite, result.stdout.count("suite:"))
+        self.assertIn("--platform windows --shard-count 4", step)
+        self.assertIn("--shard-index '${{ matrix.shard }}'", step)
+        self.assertIn("shard: [0, 1, 2, 3]", job)
+        self.assertIn("foreach ($testFile in $plan.files) {", step)
+        self.assertIn("if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }", step)
 
     @unittest.skipIf(REPO_ROOT is None, "brand contract requires a source checkout")
     def test_product_delivery_harness_brand_and_skill_ids_are_canonical(self) -> None:
@@ -1561,19 +1549,32 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertNotIn("codex/**", ci)
 
     def test_repo_ci_workflow_verifies_every_pushed_branch(self) -> None:
-        # The template promises `'**'`; this pins the repository's own workflow
-        # to the same filter so a governance-legal branch push can never skip
-        # CI. Standalone installs (no repo checkout) have no workflow to read.
+        # Feature branches verify once through pull_request. Protected branch
+        # pushes and merge queue candidates still get dedicated CI runs.
         if REPO_ROOT is None:
             self.skipTest("no repository checkout around the skill")
         workflow = REPO_ROOT / ".github" / "workflows" / "harness-ci.yml"
         if not workflow.is_file():
             self.skipTest("repository has no harness-ci workflow")
         content = workflow.read_text(encoding="utf-8")
-        self.assertIn("- '**'", content)
+        self.assertIn("- main", content)
+        self.assertIn("- development", content)
         self.assertNotIn("codex/**", content)
+        self.assertNotIn("- '**'", content)
+        self.assertIn("merge_group:", content)
+        self.assertIn("workflow_dispatch:", content)
+        self.assertIn("github.event.pull_request.base.sha", content)
+        self.assertIn("github.event.merge_group.base_sha", content)
+        self.assertIn("ci_test_shards.py gate", content)
         self.assertIn('HARNESS_GOLDEN_PATH: "1"', content)
         self.assertIn('-p "test_golden_path.py" -v', content)
+        self.assertIn("PDH_REQUIRE_BROWSER_TESTS: \"1\"", content)
+        self.assertIn("npx playwright install --with-deps chromium", content)
+        for suite in ("product-definition-builder", "design-system-compiler", "product-activation", "seo-growth-review"):
+            self.assertIn(
+                f"unittest discover -s skills/{suite}/scripts/tests -v",
+                content,
+            )
         self.assertIn("skills/product-activation/scripts", content)
         self.assertIn(
             "unittest discover -s skills/product-activation/scripts/tests -v",

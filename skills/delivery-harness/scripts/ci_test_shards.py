@@ -121,10 +121,15 @@ def candidate_files(root: Path, suite: str, platform: str, discovered: list[str]
     if suite != "harness" or platform != "windows":
         return discovered
     selected = set(WINDOWS_NATIVE_FILES)
-    missing = selected - set(discovered)
+    selected_paths = {
+        relative_name
+        for relative_name in discovered
+        if Path(relative_name).name in selected
+    }
+    missing = selected - {Path(name).name for name in selected_paths}
     if missing:
         raise CommandError(f"Windows-native files no longer discovered: {', '.join(sorted(missing))}")
-    return [name for name in discovered if name in selected]
+    return sorted(selected_paths)
 
 
 def balance_files(files: list[str], timings: dict[str, float], shard_count: int) -> list[list[str]]:

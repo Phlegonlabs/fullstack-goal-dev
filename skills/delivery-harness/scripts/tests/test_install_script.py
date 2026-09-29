@@ -163,26 +163,31 @@ class InstallScriptTests(unittest.TestCase):
         workflow = (REPO_ROOT / ".github/workflows/harness-ci.yml").read_text(
             encoding="utf-8"
         )
-        job = workflow.split("\n  macos:\n", 1)[1].split("\n  windows-hardening:\n", 1)[0]
-        self.assertIn("runs-on: macos-latest", job)
-        # macOS is supported, so its job blocks like the others.
-        self.assertNotIn("continue-on-error", job)
-        # Apple's root-owned Git must win over Homebrew's before Python setup.
-        prefer_git = 'echo "/usr/bin" >> "$GITHUB_PATH"'
-        self.assertIn(prefer_git, job)
-        self.assertLess(job.index(prefer_git), job.index("actions/setup-python"))
-        # Test repositories must not sit under the /var -> /private/var link.
-        self.assertIn('echo "TMPDIR=$(cd "$TMPDIR" && pwd -P)/" >> "$GITHUB_ENV"', job)
+        harness = workflow.split("\n  macos-harness:\n", 1)[1].split("\n  macos-other:\n", 1)[0]
+        other = workflow.split("\n  macos-other:\n", 1)[1].split("\n  windows-native:\n", 1)[0]
+        for job in (harness, other):
+            self.assertIn("runs-on: macos-latest", job)
+            # macOS is supported, so its jobs block like the others.
+            self.assertNotIn("continue-on-error", job)
+            # Apple's root-owned Git must win over Homebrew's before Python setup.
+            prefer_git = 'echo "/usr/bin" >> "$GITHUB_PATH"'
+            self.assertIn(prefer_git, job)
+            self.assertLess(job.index(prefer_git), job.index("actions/setup-python"))
+            # Test repositories must not sit under the /var -> /private/var link.
+            self.assertIn('echo "TMPDIR=$(cd "$TMPDIR" && pwd -P)/" >> "$GITHUB_ENV"', job)
+        # The long Harness suite is measured and sharded; installer tests stay
+        # in the discovered files and therefore retain macOS native coverage.
+        for shard in range(4):
+            self.assertIn(f"--platform macos --shard-count 4 --shard-index '{shard}'", harness)
         for skill in (
-            "delivery-harness",
             "product-definition-builder",
             "ui-design-builder",
             "design-system-compiler",
             "product-activation",
             "seo-growth-review",
         ):
-            self.assertIn(f"unittest discover -s skills/{skill}/scripts/tests -v", job)
-        self.assertNotIn("PDH_REQUIRE_BROWSER_TESTS", job)
+            self.assertIn(f"unittest discover -s skills/{skill}/scripts/tests -v", other)
+        self.assertNotIn("PDH_REQUIRE_BROWSER_TESTS", other)
 
     SKILLS = (
         "delivery-harness",
