@@ -46,11 +46,13 @@ Once A is archived or published, its history and evidence are immutable. A faile
 
 Run-branch publication of A, protected-development landing, and `main` promotion use different controls on purpose. Publication goes through the trusted host because its signed evidence and v3 receipt are the durable publication state that archive and correction lineage read later (A2 checks the remote pre-state against it). A protected-branch update writes no archive receipt; it is a plain no-force push under its own action-time authorization naming the protected ref, remote, and exact SHA, with fetch and read-back. Promotion does not require prior run-branch publication. Publish A first only when a candidate environment must build from the remote run branch. A publication request, receipt or trusted-host grant never authorizes either protected branch.
 
-For ordinary flow, land the candidate-gated exact A on protected `development` first. If a required PR server creates landing SHA S, fetch S immediately, require its tree to equal A's tree, and rerun the complete required suite and fresh security review on S; otherwise S is exact A. Freeze S as the full release evidence, then separately authorize promotion of that exact verified SHA to `main`. A hotfix instead promotes candidate-gated exact A to `main`, verifies production, and separately authorizes the same exact SHA as a no-force forward landing on `development`.
+For ordinary flow, land the candidate-gated exact A on protected `development` first. If a required PR server creates landing SHA S, fetch S immediately, require its tree to equal A's tree, and rerun the complete required suite and fresh security review on S; otherwise S is exact A. Freeze S as the full release evidence, then separately authorize promotion of that exact verified SHA to `main`.
+
+A hotfix promotes candidate-gated exact A to `main` and verifies production against A. It then forward-integrates A into protected `development` under a separate action-time authorization. This is a no-force merge, not a demand that `development` equal `main`: preserve every unrelated current `development` commit, prove A is ancestry, resolve conflicts on a reviewed candidate, and read back the new development SHA T. A merge commit changes the tree, so rerun the required development gates and fresh security review on exact T before claiming internal-release readiness. Production remains reviewed at A and `main`; development remains T.
 
 Promotion to `main` is allowed only when all of these are true:
 
-1. In ordinary flow, protected `development` already records the fully verified release SHA S; in hotfix flow, that SHA is candidate A.
+1. In ordinary flow, protected `development` already records the fully verified release SHA S. A hotfix requires candidate A at `main`, with forward integration to development complete or separately scheduled as an explicit unresolved owner action.
 2. A fresh fetch proves the remote `main` head still equals its recorded pre-promotion head and the intended release SHA descends from the frozen original base.
 3. Every required local, candidate-environment, and protected-development gate passes on the exact release SHA.
 4. The `main` update is a fast-forward to that exact SHA. A merge, rebase, squash, conflict repair, generated-file change, or server-created commit changes the candidate and invalidates earlier exact-SHA evidence.
@@ -66,11 +68,11 @@ If branch protection requires a pull request, merge queue, or server-created com
 
 ## Outcome And Required Evidence
 
-A completed ordinary release leaves the exact verified candidate at protected `development` and then protected `main`; a completed hotfix leaves it at `main` and then forward-lands the same SHA on `development`. For a managed RUN, the implementation candidate is archive-only commit A. Any candidate-preview evidence names the candidate branch/SHA rather than a protected branch. Report:
+A completed ordinary release leaves the exact verified candidate at protected `development` and then protected `main`. A completed hotfix leaves exact A at `main`; its separately authorized forward integration records a distinct development SHA T containing A plus retained development work. For a managed RUN, the implementation candidate is archive-only commit A. Any candidate-preview evidence names the candidate branch/SHA rather than a protected branch. Report:
 
 - delivery kind, run branch, candidate SHA, and candidate-gate results;
 - frozen PLAN base and observed protected-branch heads before and after each landing;
-- protected-development landing SHA and read-back when applicable;
+- protected-development landing SHA S or forward-integration SHA T and read-back when applicable;
 - candidate-environment deployment SHA and smoke results when applicable;
 - `main` authorization source, fast-forward/ancestry proof, push, and read-back;
 - production deployment SHA and smoke result when applicable;

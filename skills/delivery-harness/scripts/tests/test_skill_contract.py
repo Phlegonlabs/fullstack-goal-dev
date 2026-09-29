@@ -808,7 +808,7 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
             "Every fetch, branch creation, ref update, merge, push, external test, and branch deletion",
             "The archived RUN grants nothing",
             "request, pre-side-effect attempt, and receipt outside the checkout",
-            "protected-development landing SHA and read-back",
+            "forward-integration SHA T and read-back",
         ):
             self.assertIn(phrase, promotion)
         self.assertIn("initial-delivery and enhancement run branches", orchestration)
@@ -889,7 +889,7 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         for phrase in (
             "create the non-production resource",
             "deploy the exact candidate branch/SHA",
-            "promote that exact verified SHA to `main`",
+            "land that exact verified SHA on protected `development`",
             "Development secrets stay fake or dedicated",
             "D1 migrations run against the non-production database first",
         ):

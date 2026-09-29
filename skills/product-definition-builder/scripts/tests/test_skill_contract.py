@@ -972,7 +972,7 @@ async function agent(_prompt, options) {
         self.assertIn("separately named development and production Workers", frontend)
         self.assertIn("Candidate branch/ref", contract)
         self.assertIn("Exact protected-development release SHA", contract)
-        self.assertIn("same verified SHA", contract)
+        self.assertIn("exact hotfix A at remote `main`", contract)
         self.assertIn("Ordinary managed work freezes remote `development`", skill)
         self.assertIn("candidate run branch/SHA", architecture)
         self.assertIn(
