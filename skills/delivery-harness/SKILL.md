@@ -9,13 +9,13 @@ Commands: `references/installed-commands.md`.
 
 Every invocation uses `references/document-sync-contract.md`. Accepted enhancements follow `references/bounded-enhancement.md`; acceptance follows `references/delivery-acceptance-contract.md`.
 
-At implementation, integration and acceptance checkpoints, apply `../product-definition-builder/references/prd-refinement.md`. Route evidenced PRD gaps through existing records; repair code that violates approved requirements. Preserve frozen inputs.
+At implementation/integration/acceptance checkpoints, apply `../product-definition-builder/references/prd-refinement.md`: record evidenced PRD gaps, repair requirement violations and preserve frozen inputs.
 
-Project `AGENTS.md` also requires Repository Change Checkpoints at task start, significant change boundaries and completion/handoff, even outside Harness. Record meaningful local Git and working-tree changes in the relevant Epic without creating PLAN/RUN or a background watcher. Read-only tasks report proposed records without writing. Implement from canonical English PRD/architecture; Chinese review copies are not implementation sources.
+Follow `AGENTS.md` Repository Change Checkpoints at entry, significant changes and handoff, even outside Harness. Record meaningful Git/working-tree changes in the Epic, without PLAN/RUN or watchers. Read-only tasks propose records. English PRD/architecture remain implementation authority, not Chinese review copies.
 
 ## Design And Maintenance Routing
 
-Before execution of work consuming a Product Definition package, apply `references/pre-delivery-self-review.md#harness-entry`. Check that the current Product Definition passed author self-review after market reconciliation and that applicable UI direction and HiFi author reviews, independent reviews and owner decisions are complete. New tasks consuming previously approved stages use that reference's present-day catch-up rule without backdating reviews or reopening unchanged owner decisions; earlier pinned RUNs retain their contracts. UI-bearing initial delivery cannot use a deferred UI phase to bypass that handoff. Missing or stale review evidence blocks dependent execution; read-only inspection and planning can continue. Enhancements and maintenance retain their scoped routes. This parent semantic check is separate from the existing machine validators.
+Before Product-package execution, apply `references/pre-delivery-self-review.md#harness-entry`: author reviews, catch-up rules, scoped routes and evidence. Missing/stale evidence blocks execution, not inspection/planning.
 
 Classify UI work with `ui-design-builder/references/review-workflow.md`. Initial design, enhancements and `structure`/`both` changes use the affected design gates. Routine maintenance (UI impact `none` or `style`) updates current product and requirements and keeps historical design artifacts. Product or stack decisions return upstream. Frozen RUNs keep pinned contracts until a task boundary.
 
@@ -23,11 +23,9 @@ Optional context: `references/reference-selection.md` (`references/option-librar
 
 ## Purpose
 
-Keep direct work simple; add PLAN/RUN orchestration only when coordination requires it.
+Use PLAN/RUN only when coordination requires it. Preserve upstream ownership:
 
-Keep upstream ownership separate:
-
-- `product-definition-builder` owns the approved Product Definition revision across `PRD.md`, `architecture.md`, and `stack-decisions.md`, including complete frontend and backend architecture and technology decisions.
+- `product-definition-builder` owns approved `PRD.md`, `architecture.md`, and `stack-decisions.md`, including complete frontend/backend architecture and technology decisions.
 - `ui-design-builder` owns UI Design Intake, PRD-led direction studies, HiFi checks, Visual Approval and the HiFi target. `design-system-compiler` owns a required design-system pair.
 - Implement current approved product/stack and applicable UI sources. Every must-have `UX-*` trace still needs objective evidence. `Recommended` and `Provisional` stack rows are proposals. Do not invent product, copy, stack or design decisions.
 - `code-security-review` owns read-only review of the fixed integrated SHA; it neither remediates nor probes live targets.
@@ -212,7 +210,7 @@ Freeze only approved inputs needed by the graph: Product Definition revision, St
 
 ### 3. Pass Plan Readiness
 
-Complete the same applicable pre-delivery self-review handoff used by the direct route. Carry current evidence in existing task/PLAN sources; a plan validator PASS does not prove that an author inspected the PRD, UI directions or HiFi. Keep execution blocked when a required review or decision is missing.
+Apply the direct route's self-review handoff before managed readiness.
 
 Require frozen or explicitly `UNVALIDATED` inputs, concrete scope, a passed Mission Cohesion Gate, one bounded worker slice per mission whose fixed overhead stays small against its useful work, one atomic commit boundary per executable task, a verifier for every mission, known conflicts, exact action authorization, and an executable provider for every runtime-worker node. Reject readiness when independent outcomes are bundled only because they share files or resources, or when one task would need a catch-all commit. Executability covers the whole graph, not just the next node; each node's `allowed_providers` must include a host this delivery will actually use. An unavailable provider is a blocking readiness gap unless the user explicitly accepts deferral to another host. See `references/graph-orchestration.md`.
 
