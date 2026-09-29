@@ -272,6 +272,31 @@ class PairIntegrationTests(unittest.TestCase):
             self.assertIn("does not resolve", "\n".join(checker.compare(
                 checker.replace_generated_contract("# Pair\n", bad), bad, require_filled=True, repo_root=root)))
 
+    def test_reuse_keeps_unchanged_package_valid_but_approval_edits_go_stale(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            data, design, _ = self.build(root)
+            ui = root / "docs/design/ui-design.md"
+            compiled = ui.read_text(encoding="utf-8")
+            package = {name: (design / name).read_bytes() for name in ("design-system.json", "design-system.md")}
+            # A later round switches compile/none to reuse/retain without touching the package.
+            reused = re.sub(r"^Existing design-system pair disposition: none", "Existing design-system pair disposition: retain",
+                            compiled.replace("Package action: compile", "Package action: reuse"), flags=re.M)
+            self.assertNotEqual(compiled, reused)
+            ui.write_text(reused, encoding="utf-8")
+            self.assertEqual(checker.canonical_ui_approval_sha256(compiled), checker.canonical_ui_approval_sha256(reused))
+            markdown = package["design-system.md"].decode("utf-8")
+            self.assertEqual([], checker.compare(markdown, data, require_filled=True, repo_root=root))
+            self.assertEqual(package, {name: (design / name).read_bytes() for name in package})
+            # A substantive approval change still invalidates the reused package.
+            ui.write_text(reused.replace("Reason:", "Reason: Revised.", 1), encoding="utf-8")
+            self.assertIn("sourceBindings.uiDesign sha256 does not match", "\n".join(
+                checker.compare(markdown, data, require_filled=True, repo_root=root)))
+            # ui-design/2 keeps hashing the same lines it always did.
+            legacy = compiled.replace("UI contract: ui-design/3", "UI contract: ui-design/2")
+            self.assertNotEqual(checker.canonical_ui_approval_sha256(legacy), checker.canonical_ui_approval_sha256(
+                legacy.replace("Existing design-system pair disposition: none", "Existing design-system pair disposition: retain")))
+
     def test_schema_and_ui_contract_versions_pair_exactly(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

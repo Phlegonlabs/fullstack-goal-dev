@@ -3,7 +3,7 @@ name: design-system-compiler
 description: "Compile an owner-approved UI design into the frozen `docs/design/design-system.md` and `docs/design/design-system.json` pair plus its derived `design-system-preview.html`. A ui-design/3 package compiles design-system/4, whose HTML specimen book shows every token and registered component, state, responsive size and motion copied from the approved HiFi; a ui-design/2 package keeps design-system/3. Both run after Product Definition, Stack Decision, approved complete ui-hifi/2, Style Integration, Impeccable HiFi review, PRD-bound scoring, Visual Approval and Design System Need Gate: required. It freezes tokens, primitives, product components, motion variants, responsive rules, and states; it does not choose product, stack, layout, or visual direction."
 ---
 
-`sourceBindings.uiDesign.sha256` uses the canonical UI approval digest, not the raw file hash. Run `python "<ui-design-builder-skill-root>/scripts/ui_approval_digest.py" <ui-design.md>`; it excludes active derived pair/replacement linkage lines so linking the compiled pair does not invalidate its own input. All other source bindings use raw-file SHA-256.
+`sourceBindings.uiDesign.sha256` uses the canonical UI approval digest, not the raw file hash. Run `python "<ui-design-builder-skill-root>/scripts/ui_approval_digest.py" <ui-design.md>`; it excludes active derived pair/replacement linkage lines so linking the compiled pair does not invalidate its own input. For `ui-design/3` it also excludes the `Package action` and `Existing design-system pair disposition` lines, so switching to `reuse` keeps an unchanged package valid while any other approval edit makes it stale. All other source bindings use raw-file SHA-256.
 
 # Design System Compiler
 

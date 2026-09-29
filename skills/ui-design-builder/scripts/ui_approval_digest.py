@@ -13,16 +13,25 @@ if str(PRODUCT_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(PRODUCT_SCRIPTS))
 
 from markdown_contract import active_text
+from ui_design_v3 import UI_CONTRACT_V3
 
 
 DERIVED_LINKAGE_RE = re.compile(
     r"^\s*(?:Compiled design system pair|Replacement visual contract when(?:_| )not_required):",
     re.IGNORECASE,
 )
+# ui-design/3 only: the package action and pair disposition describe how the
+# design-system package is produced, so switching compile to reuse keeps the
+# approval digest. ui-design/2 digests keep their original bytes.
+V3_WORKFLOW_RE = re.compile(r"^\s*(?:Package action|Existing design-system pair disposition):", re.IGNORECASE)
+V3_MARKER_RE = re.compile(rf"^UI contract: {re.escape(UI_CONTRACT_V3)}\s*$", re.MULTILINE)
 
 
 def canonical_ui_approval_bytes(text: str) -> bytes:
-    lines = [line for line in active_text(text).splitlines() if not DERIVED_LINKAGE_RE.match(line)]
+    active = active_text(text)
+    v3 = V3_MARKER_RE.search(active) is not None
+    lines = [line for line in active.splitlines()
+             if not DERIVED_LINKAGE_RE.match(line) and not (v3 and V3_WORKFLOW_RE.match(line))]
     return ("\n".join(lines).rstrip() + "\n").encode("utf-8")
 
 

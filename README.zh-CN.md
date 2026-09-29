@@ -505,7 +505,7 @@ Managed 本地 build／test 默认使用项目工具链，不需要 Docker 或 P
 
 Skill Bindings 默认检查全部 slot。Product Definition 使用 `--stage product-definition`，尚未进入的阶段可以保留 `pending`/`pending`；UI 与编译分别使用 `ui-design`、`design-compilation`，`backend` 仅适用于已确认无 UI 的产品或纯后端范围。每个阶段重新验证必要技能的完整 tree pin，前阶段结果不代表后阶段通过。
 
-UI 批准使用另行授权的 publication checkout，保留源 HEAD、完整 Git 历史与最终逻辑路径。`check_ui_publication.py` 比对上游 bytes 并执行完整 Product 与最终 UI gates；授权发布后用 `--published` 确认转移的 bytes 完全相同。`.ui-staging` 只放未批准草稿。Compiler 的 `sourceBindings.uiDesign.sha256` 使用 `ui_approval_digest.py` 排除派生 pair/replacement linkage，其余来源使用原始文件 hash。单一平台使用全局 responsive set，hybrid 使用每个 surface 的 `surfaceContracts` 与已批准 stack。
+UI 批准使用另行授权的 publication checkout，保留源 HEAD、完整 Git 历史与最终逻辑路径。`check_ui_publication.py` 比对上游 bytes 并执行完整 Product 与最终 UI gates；授权发布后用 `--published` 确认转移的 bytes 完全相同。`.ui-staging` 只放未批准草稿。Compiler 的 `sourceBindings.uiDesign.sha256` 使用 `ui_approval_digest.py` 排除派生 pair/replacement linkage；`ui-design/3` 还排除 Package action 与 pair disposition 行，使未改动的 package 可切换为 `reuse`。其余来源使用原始文件 hash。单一平台使用全局 responsive set，hybrid 使用每个 surface 的 `surfaceContracts` 与已批准 stack。
 
 0.55.0 的 Design System Compiler 变更：`stylingMechanism` 仍是封闭 enum，但只需对应 `stackSemantics.stylingMechanism` 中逐字保存的 Stack styling approach（例如 `modern vanilla CSS` 对应 `plain CSS`，原生样式对应 `platform theme`）。无 pair 的 preflight 没有独立命令，而是在 `check_design_system_pair.py --repo-root` 内运行。`tokenSources` 与 `primitiveSources` 必须是精确的仓库相对路径。`check_color_contrast.py` 接受叠在不透明背景上的 `#RGBA` 与 `#RRGGBBAA` 前景色，`check_type_scale.py` 以 `--root-font-size`（默认 16px）接受 rem 与 em 尺寸；其正文 1.5 与标题 1.1 的行高下限是内部可读性标准，不是 WCAG AA 规则。Legacy Harness join 现在会以 repository root 检查 design-system/2 pair。
 
