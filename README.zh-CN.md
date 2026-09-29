@@ -25,7 +25,7 @@ Product Definition 撰写英文正式来源 `PRD.md`、`architecture.md` 时，�
 
 `AGENTS.md` 要求在任务开始、重要变更后及结束时检查本地 repository，即使不使用 Harness 或 PLAN/RUN。将有意义的已提交与未提交变更记录到对应 Epic，外部修改标为已观察但未验证，并更新 `docs/DOCUMENTS.md`。缺少基线就明确记录；没有新变化不重复写入。只读任务只提出记录内容，不建立后台监控，也不增加动作授权。
 
-每次交接前都要重做 repository checkpoint，核对受影响的有效文档、对应 Epic 与索引，以及任务记录。Managed run 使用 renderer 的 `--check` 比对 PLAN/RUN 与生成的 `docs/tasks.md` 视图；RUN 才是权威来源，不能手动编辑生成区段。按语义将共用 `AGENTS.md` 规则与已观察到的安装版 project template 和版本比对；在现有文档写入授权内，只就地更新过期的共用规则并保留 repository 自定义规则。授权 bootstrap 会提出缺少的共用区段和同名规则差异；必须先用 reviewed merge plan 绑定观察哈希和标题选择才能追加。 Proposed additions 不代表已证明没有矛盾。如果 template 未观察到或语义合并不明，在交接时说明缺口。这是交接检查点，不是定时扫描，也不增加动作授权。
+每次交接前都要重做 repository checkpoint，核对受影响的有效文档、对应 Epic 与索引，以及任务记录。Managed run 使用 renderer 的 `--check` 比对 PLAN/RUN 与生成的 `docs/tasks.md` 视图；RUN 才是权威来源，不能手动编辑生成区段。按语义将共用 `AGENTS.md` 规则与已观察到的安装版 project template 和版本比对；在现有文档写入授权内，只就地更新过期的共用规则并保留 repository 自定义规则。授权 bootstrap 会提出缺少的共用区段和同名规则差异；必须先用 reviewed merge plan 绑定观察哈希和标题选择才能追加。 Proposed additions 不代表已证明没有矛盾。按语义 reconciling 时不可覆盖刻意更严格的本地规则；后续 `--check --require-resolved` gate 检查 placeholder，不要求 template byte equality。如果 template 未观察到或语义合并不明，在交接时说明缺口。这是交接检查点，不是定时扫描，也不增加动作授权。
 
 技能仓库，用于借助 Codex、Claude Code、Pi 或任何会发现用户 skills 目录的宿主，把产品想法或变更需求变成一条经过验证的交付流程。
 

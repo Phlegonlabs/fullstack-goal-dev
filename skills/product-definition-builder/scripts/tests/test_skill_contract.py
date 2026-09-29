@@ -296,7 +296,17 @@ async function agent(_prompt, options) {
         self.assertIn("semantically review its proposal", skill)
         self.assertIn("reviewed merge plan with the observed original/template hashes", skill)
         self.assertIn("additions remain proposals until semantic review", skill)
-        self.assertIn("reconcile same-heading conflicts in place", skill)
+        self.assertIn("reconcile same-heading conflicts by meaning in place", skill)
+        self.assertIn("without overwriting intentional stricter local rules", skill)
+        self.assertIn(
+            "finish with `--check --require-resolved --stage product-definition`",
+            skill,
+        )
+        self.assertIn("not template byte equality", skill)
+        self.assertNotIn(
+            "`--check --merge-agents --require-resolved --stage product-definition`",
+            skill,
+        )
         self.assertIn("entry bootstrap is the first source task for a new or existing target", skill)
         self.assertIn("run only the context bootstrap moves", skill)
         self.assertIn(

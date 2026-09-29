@@ -509,7 +509,9 @@ def main() -> int:
     if args.check and (result["missing"] or unresolved):
         return 1
     if not args.check and args.merge_agents and not args.merge_plan:
-        return 1
+        merge = result["agents_merge"]
+        if merge["status"] not in {"not_requested", "unchanged"}:
+            return 1
     if args.check and args.merge_agents and args.merge_plan is None:
         merge = result["agents_merge"]
         if (

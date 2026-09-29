@@ -324,6 +324,57 @@ class ConfigureProjectContextTests(unittest.TestCase):
             self.assertNotIn("Traceback", result.stderr)
             self.assertFalse((root / "AGENTS.md").exists())
 
+    def test_merge_agents_without_plan_is_idempotent_for_created_or_unchanged_files(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            agents_template = root / "idempotent-agents-template.md"
+            claude_template = root / "idempotent-claude-template.md"
+            agents_template.write_bytes(b"# Shared Rules\n\n- Verify changes.\n")
+            claude_template.write_bytes(b"# Claude Rules\n\n@AGENTS.md\n")
+            base_arguments = [
+                sys.executable,
+                str(SCRIPT),
+                "--root",
+                str(root),
+                "--merge-agents",
+                "--agents-template",
+                str(agents_template),
+                "--claude-template",
+                str(claude_template),
+            ]
+
+            first = subprocess.run(
+                base_arguments,
+                capture_output=True,
+                text=True,
+                cwd=SCRIPTS_DIR,
+                timeout=10,
+            )
+            first_result = json.loads(first.stdout)
+            first_agents = agents_template.read_bytes()
+            first_claude = claude_template.read_bytes()
+            second = subprocess.run(
+                base_arguments,
+                capture_output=True,
+                text=True,
+                cwd=SCRIPTS_DIR,
+                timeout=10,
+            )
+            second_result = json.loads(second.stdout)
+
+            self.assertEqual(0, first.returncode, first.stdout + first.stderr)
+            self.assertEqual(["AGENTS.md", "CLAUDE.md"], first_result["created"])
+            self.assertEqual("not_requested", first_result["agents_merge"]["status"])
+            self.assertEqual(first_agents, (root / "AGENTS.md").read_bytes())
+            self.assertEqual(first_claude, (root / "CLAUDE.md").read_bytes())
+            self.assertEqual(0, second.returncode, second.stdout + second.stderr)
+            self.assertEqual([], second_result["created"])
+            self.assertEqual("unchanged", second_result["agents_merge"]["status"])
+            self.assertEqual(first_agents, (root / "AGENTS.md").read_bytes())
+            self.assertEqual(first_claude, (root / "CLAUDE.md").read_bytes())
+
     def test_duplicate_and_fenced_headings_do_not_drive_a_merge(self) -> None:
         text = (
             "# Owner Rules\n\n"
