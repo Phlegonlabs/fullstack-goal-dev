@@ -187,7 +187,7 @@ An ambiguous mutation result stays `uncertain` and records matching `UNCERTAIN` 
 
 Evidence is not transferable between release identities. Read-back that proves an unchanged external object does not prove the behavior of a new build, configuration, or release binding; those need fresh applicable read-back and behavior evidence bound to the new identity.
 
-When required execution work is blocked or deferred, keep the task `blocked`. An owner deferral uses this reason form: `owner-deferred by <human owner>: <specific work remaining>`. A concrete non-human blocker may use the task's ordinary concrete reason. Either case leaves the record `blocked`; it does not become activation-complete.
+When required execution work is blocked or deferred, keep the task `blocked`. An owner deferral uses this reason form: `owner-deferred by <human owner>: <specific work remaining>`. The owner and remaining work must be concrete, not blank or placeholder prose. A concrete non-human blocker may use the task's ordinary concrete reason. Either case leaves the record `blocked`; it does not become activation-complete.
 
 ## Target Readiness
 
@@ -204,7 +204,7 @@ Readiness is per release target. A target is `ready` only when:
 
 The complete authority set is every target in the current architecture `## Release Targets` section. Each one needs exactly one Target Readiness row, either active or a concrete `n/a` disposition. The active set is the union of non-placeholder targets in ACT release bindings, measurement-source release bindings, Outcome Coverage, and non-`n/a` readiness rows. Every active target needs exactly one Target Readiness row. **Open Blockers** uses structured `BLOCK-*` rows; an `open` global blocker or blocker naming a target prevents that target and the overall record from becoming ready.
 
-`--require-closeout` is the fail-closed terminal check. It requires every required ACT task to be `verified`, or `blocked` with a concrete blocker reason or the exact owner-deferral form above. `ready` is authorization to act, not completion; `configured` is not behavior proof. Any accepted blocked or owner-deferred required action forces the Record status to `blocked`; only a record with no such required actions may be `handoff_ready`. Combining closeout with `--require-verified-sources` therefore keeps an owner deferral out of the verified handoff. The checker still performs no provider call.
+`--require-closeout` is the fail-closed terminal check. It requires every required ACT task to be `verified`, or `blocked` with a concrete blocker reason or the exact owner-deferral form above. `ready` is authorization to act, not completion; `configured` is not behavior proof. Any accepted blocked or owner-deferred required action forces the Record status to `blocked`; only a record with no such required actions may be `handoff_ready`. A genuine no-op may have no required ACT, even an empty task boundary, only when every architecture target has an explicit `n/a` readiness disposition; an active target still requires verified action evidence. Combining closeout with `--require-verified-sources` therefore keeps an owner deferral out of the verified handoff. The checker still performs no provider call.
 
 ## Gap Routing
 
