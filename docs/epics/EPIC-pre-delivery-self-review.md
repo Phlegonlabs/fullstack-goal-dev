@@ -103,3 +103,7 @@ backup-preserving installation results in the release handoff and PR evidence;
 this source record does not claim those later actions. Source is a 0.57.0
 candidate; observed installed skills are 0.56.1 and loaded identity is unknown.
 No branch deletion or reboot belongs to this release task.
+
+## Later Repository Observation — 2026-09-29
+
+The workflow-modernization task observed this work at `b591a618ba8454da8b9ec22b6ea633def2203c24` in its main baseline history (PR #133 in the commit subject). The local annotated `v0.57.0` tag peels to that commit. This corrects the current document index; the earlier candidate and verification history above remains intact. This local observation does not reverify remote CI, publication or the earlier installation.

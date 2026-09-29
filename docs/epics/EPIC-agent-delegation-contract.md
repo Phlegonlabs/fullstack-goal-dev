@@ -86,3 +86,7 @@ Fixed all four in the selector, the role-binding validator and the read-only ass
 ### Creative Frontend Dispatch Brief — 2026-09-29
 
 The owner added one more dispatch requirement: frontend work must be briefed for maximum creativity, not a mechanical page build. Added a canonical `maximum-creativity brief` to the delegation contract, the UI authoring orchestration packet rule, the seeded worker goal template and the ui-design-builder direction/HiFi prompt rule. The brief directs the writer toward the most distinctive, high-craft visual concept the frozen PRD allows while keeping pages, operations, states and copy bounded by the PRD. A cross-skill contract test now pins the brief across all four documents, and the four README release notes describe it.
+
+### Later Repository Observation — 2026-09-29
+
+The workflow-modernization task observed this work in its clean main baseline `bdae1d82acfd24cdeb2866f5480ff4d4d73b0b61` (PR #134 in the commit subject). The local annotated `v0.58.0` tag peels to that commit. This corrects the current document index; the earlier candidate and verification history above remains intact. This local observation does not reverify remote CI, publication or the earlier installation.

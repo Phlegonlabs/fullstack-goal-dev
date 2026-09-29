@@ -28,6 +28,8 @@ Generated logs, bridge packets and temporary profiling data stay in the task dir
 
 ## Change Log
 
+- 2026-09-29: checkpoint at `4b84903` found the current index still described 0.57/0.58 work as unreleased candidates. Local tag peeling and bounded main history show `v0.57.0` at `b591a618` and `v0.58.0` at baseline `bdae1d82`. Updated only current index status and appended later observations to those Epics; preserved their historical verification and authorization records. No new remote release or installation claim is made.
+
 - 2026-09-29: integrated dual-branch parser, PLAN policy validation, strict join repairs and live templates as `bbdf4d55`, `fb441bab`, `7f035cea` and `3ba4b47c`. Parent branch-policy regression passed (6 tests). Clarified acceptance/security timing and permitted same-candidate overlap without weakening frozen expectations, H1/H2 proof, independent review or fresh-state checks. No scheduler bypass or generic cross-SHA result cache was added.
 
 - 2026-09-29: added the full existing-template use map to the workflow and four README pointers, distinguishing active, optional and historical Wireframe artifacts. Template inventory inspection also found live main-only text in GOAL and duplicate CI triggers in PROJECT_CI; MOD-C and MOD-B respectively own their fixes. No historical Wireframe stage is reintroduced.
