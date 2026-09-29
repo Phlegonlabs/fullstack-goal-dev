@@ -370,22 +370,39 @@ def serialize_start(tag: str, attrs: list[tuple[str, str | None]], *, drop: set[
     return "<" + " ".join(parts) + ">"
 
 
+def specimen_target(tree: SourceTree, node: dict[str, Any]) -> str | None:
+    """The canvas target a specimen renders at: its state view's, else the default."""
+    chain = tree.ancestors(node) + [node]
+    canvas = next((item for item in chain if "data-hifi-canvas" in item["map"]), None)
+    if canvas is None:
+        return None
+    targets = (canvas["map"].get("data-hifi-targets") or "").split()
+    for item in reversed(chain):
+        target = item["map"].get("data-responsive-target") if "data-hifi-state-view" in item["map"] else None
+        if target in targets:
+            return target
+    return canvas["map"].get("data-hifi-target")
+
+
 def fragment(tree: SourceTree, node: dict[str, Any], *, marker: str) -> tuple[str, str, str]:
     """Return (html start tag, body start tag, body content) copied from source.
 
     Ancestors keep their source attributes so descendant selectors, custom
     properties and container queries apply. Only ``hidden`` on a reviewer
-    state view is dropped, exactly as the reviewer runtime shows a state.
+    state view is dropped and the canvas selects that view's target, exactly
+    as the reviewer runtime shows a state at a size.
     """
     chain = tree.ancestors(node)
     html_node = next((item for item in chain if item["tag"] == "html"), None)
     body_node = next((item for item in chain if item["tag"] == "body"), None)
+    target = specimen_target(tree, node)
     opening, closing = [], []
     for item in chain:
         if item["tag"] in {"html", "body"}:
             continue
         drop = {"hidden"} if "data-hifi-state-view" in item["map"] else set()
-        opening.append(serialize_start(item["tag"], item["attrs"], drop=drop))
+        extra = {"data-hifi-target": target} if target and "data-hifi-canvas" in item["map"] else None
+        opening.append(serialize_start(item["tag"], item["attrs"], drop=drop, extra=extra))
         closing.insert(0, f"</{item['tag']}>")
     drop = {"hidden"} if "data-hifi-state-view" in node["map"] else set()
     element = serialize_start(node["tag"], node["attrs"], drop=drop, extra={"data-ds-subject": marker})

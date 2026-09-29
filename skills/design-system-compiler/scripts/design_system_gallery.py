@@ -95,9 +95,7 @@ class Gallery:
                     + body_start + content + "".join(f"<script>{item}</script>" for item in scripts)
                     + f"<script>{FRAME_RUNTIME}</script></body></html>")
         widths = source.canvas_widths(tree)
-        canvas = tree.first(lambda item: "data-hifi-canvas" in item["map"])
-        default = canvas["map"].get("data-hifi-target") if canvas else None
-        width = widths.get(default or "", 0.0) or 360.0
+        width = widths.get(source.specimen_target(tree, node) or "", 0.0) or 360.0
         iframe = (f'<iframe data-ds-frame="{frame_id}" title="{escape(title, quote=True)}" sandbox="allow-scripts" '
                   f'referrerpolicy="no-referrer" style="width:{width:g}px" srcdoc="{escape(document, quote=True)}"></iframe>')
         return frame_id, iframe, width

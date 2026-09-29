@@ -93,6 +93,20 @@ class ShowcaseCoverageTests(unittest.TestCase):
         data["showcase"]["motion"][0]["trigger"]["from"] = "closed"
         self.assertIn("not backed by the approved source", "\n".join(findings(data)))
 
+    def test_state_view_specimen_renders_at_its_view_target(self):
+        page = ('<html lang="en"><body><div data-hifi-canvas data-hifi-targets="390 768" data-hifi-target="390">'
+                '<main data-ui-surface="UI-001"><div data-hifi-state-view="loading" data-responsive-target="768" hidden>'
+                '<p class="note" data-specimen-variant="default" data-specimen-state="loading">Loading</p></div></main>'
+                '</div></body></html>')
+        tree = showcase.SourceTree(page)
+        node = tree.first(lambda item: item["map"].get("data-specimen-state") == "loading")
+        self.assertEqual("768", showcase.specimen_target(tree, node))
+        _, _, content = showcase.fragment(tree, node, marker="plate-001")
+        self.assertIn('data-hifi-target="768"', content)
+        self.assertIn('<div data-hifi-state-view="loading" data-responsive-target="768">', content)
+        self.assertIn('<p class="note" data-specimen-variant="default" data-specimen-state="loading" '
+                      'data-ds-subject="plate-001">Loading</p>', content)
+
     def test_package_loader_rejects_stale_or_missing_children(self):
         pages = demo_pages()
         entry = pages["index.html"].encode("utf-8")
