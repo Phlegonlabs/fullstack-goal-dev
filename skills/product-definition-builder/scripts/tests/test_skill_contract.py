@@ -11,6 +11,10 @@ SKILL_ROOT = Path(__file__).resolve().parents[2]
 UI_SKILL_ROOT = SKILL_ROOT.parent / "ui-design-builder"
 DEV_SOURCE_POLICY = "stage=development; ref=run.integration.branch; sha=run.integration.integration_head_sha"
 PROD_SOURCE_POLICY = "stage=production; ref=refs/heads/main; sha=promotion.verified_main_sha"
+DUAL_DEV_SOURCE_POLICY = (
+    "stage=development; ref=refs/heads/development; "
+    "sha=promotion.verified_development_sha"
+)
 
 
 class ProductDefinitionBuilderSkillContractTests(unittest.TestCase):
@@ -966,16 +970,16 @@ async function agent(_prompt, options) {
         self.assertIn("AskUserQuestion", agent)
         self.assertIn("one repository and one codebase", architecture)
         self.assertIn("separately named development and production Workers", frontend)
-        self.assertIn("Exact candidate run branch/ref", contract)
-        self.assertIn("Exact remote `main` head", contract)
-        self.assertIn("same verified candidate SHA", contract)
-        self.assertIn("both initial delivery and enhancements start from observed remote `main`", skill)
+        self.assertIn("Candidate branch/ref", contract)
+        self.assertIn("Exact protected-development release SHA", contract)
+        self.assertIn("same verified SHA", contract)
+        self.assertIn("Ordinary managed work freezes remote `development`", skill)
         self.assertIn("candidate run branch/SHA", architecture)
         self.assertIn(
             "Source policy: [`stage=development; ref=run.integration.branch; ",
             contract,
         )
-        self.assertIn("main-only branch model", agent)
+        self.assertIn("dual-branch governance", agent)
         for content in (skill, architecture, frontend, contract, agent):
             self.assertIn("development", content.lower())
             self.assertIn("production", content.lower())
@@ -1687,6 +1691,7 @@ async function agent(_prompt, options) {
         graph_doc = self.read("references/agent-work-graph.md")
         self.assertIn(PROD_SOURCE_POLICY, graph_doc)
         self.assertIn(DEV_SOURCE_POLICY, graph_doc)
+        self.assertIn(DUAL_DEV_SOURCE_POLICY, graph_doc)
         self.assertIn("Tags and alternative production refs are rejected", graph_doc)
         self.assertNotIn("other source rules remain explicit", graph_doc)
 
@@ -1707,6 +1712,25 @@ async function agent(_prompt, options) {
                 result = self.run_workflow(args)
                 self.assertFalse(result["ok"])
                 self.assertIn("source_policy must be", result["error"])
+
+    def test_graph_accepts_explicit_dual_branch_protocol_only(self) -> None:
+        args = self.base_workflow_args()
+        args["release_source_policy"] = "dual-branch/1"
+        args["release_targets"][0]["source_policy"] = DUAL_DEV_SOURCE_POLICY
+        result = self.run_workflow(args)
+        self.assertTrue(result["ok"], result)
+
+        mixed = self.base_workflow_args()
+        mixed["release_source_policy"] = "dual-branch/1"
+        result = self.run_workflow(mixed)
+        self.assertFalse(result["ok"])
+        self.assertIn(DUAL_DEV_SOURCE_POLICY, result["error"])
+
+        unknown = self.base_workflow_args()
+        unknown["release_source_policy"] = "dual-branch/2"
+        result = self.run_workflow(unknown)
+        self.assertFalse(result["ok"])
+        self.assertIn("candidate/1 or dual-branch/1", result["error"])
 
     def test_migration_order_drops_plan_v5_field_mapping(self) -> None:
         architecture = self.read("references/architecture-playbook.md")

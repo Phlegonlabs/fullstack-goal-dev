@@ -771,7 +771,7 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         for phrase in (
             "Production tracks `main`",
             "isolated internal environment tracks the exact candidate run branch",
-            "There is no persistent integration branch",
+            "protected `refs/heads/development` at its verified landing SHA",
             "A development PASS never proves production",
             "adds no RUN authorization keys",
             "never triggers, rolls back, or reconfigures a deployment",
@@ -801,18 +801,18 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
             "Delivery Kind And Base",
             "Candidate Gate",
             "Promote To Main",
-            "Retired Development Branch",
+            "Protected Branches",
             "require its tree to equal the verified candidate tree",
-            "exact remote `main` SHA before tagging",
+            "exact SHA before promotion",
             "fast-forward to that exact SHA",
             "Every fetch, branch creation, ref update, merge, push, external test, and branch deletion",
             "The archived RUN grants nothing",
             "request, pre-side-effect attempt, and receipt outside the checkout",
-            "exact verified candidate at remote `main`",
+            "protected-development landing SHA and read-back",
         ):
             self.assertIn(phrase, promotion)
-        self.assertIn("both initial-delivery and enhancement run branches", orchestration)
-        self.assertIn("observed remote `main`", orchestration)
+        self.assertIn("initial-delivery and enhancement run branches", orchestration)
+        self.assertIn("frozen ordinary `development` or hotfix `main` remote head", orchestration)
         self.assertIn("## Deployment", project_agents)
         self.assertIn("deployment-contract.md", project_agents)
         self.assertIn("branch-promotion-contract.md", project_agents)

@@ -1,11 +1,11 @@
 # Deployment Contract
 
-Use this reference when a delivery will be deployed, verified, or moved between platforms. Harness 0.38+ RUNs end local-only at C. `branch-promotion-contract.md` controls candidate verification and the separately authorized exact-A promotion to `main`; promotion does not require prior run-branch publication of A, which is needed only when a candidate environment must build from the remote run branch. This contract maps those SHAs to environments and verifies what the platform serves.
+Use this reference when a delivery will be deployed, verified, or moved between platforms. Harness 0.38+ RUNs end local-only at C. `branch-promotion-contract.md` controls candidate verification, the ordinary separately authorized exact-A landing on protected `development`, and the exact-SHA promotion to protected `main`; promotion does not require prior run-branch publication of A, which is needed only when a candidate environment must build from the remote run branch. This contract maps those SHAs to environments and verifies what the platform serves.
 
 ## Model
 
 - Production tracks `main`; the production pipeline deploys only the exact candidate SHA promoted there after all candidate verification passes.
-- The isolated internal environment tracks the exact candidate run branch or immutable candidate SHA. There is no persistent integration branch.
+- During managed execution, the isolated internal environment tracks the exact candidate run branch or immutable candidate SHA. After separately authorized candidate gates, the ordinary dual-branch release uses protected `refs/heads/development` at its verified landing SHA; production remains `refs/heads/main`. A candidate preview is immutable candidate evidence and never advances or replaces either protected branch.
 - A git-connected or CI-connected platform maps the candidate run branch/SHA to the isolated non-production environment and `main` to production. The bootstrap deploy remains a separately authorized owner action when required; branch promotion adds no RUN authorization keys and never reuses the run-branch grant.
 - Development and production are separate environments with separate URLs, builds, stateful resources, auth, and payment modes. A development PASS never proves production; development never binds production databases, buckets, secrets, or domains.
 - Every independently released unit has one lowercase kebab-case surface name. Production uses the canonical `<product-slug>-<surface-suffix>` name without `-prod`; development uses that exact name plus `-dev`; distinct surfaces never share a release name. Use `web`, `api`, and `extension` as the normal suffixes. Use another descriptive suffix only for a separately released unit; native artifacts use their platform suffix while a separately hosted backend remains `api`. Provider and store names stay in provider/channel fields unless artifacts actually differ by provider. Long-lived staging or QA may use its real stage suffix; ephemeral candidate previews keep platform-generated identities.
@@ -95,7 +95,7 @@ An absent `docs/ACTIVATION.md` remains valid for legacy or non-applicable produc
 
 ## Recording The Model In A Repository
 
-Two records carry the deployment model. `docs/DEPLOYMENT.md`, seeded during PRD creation and reconciled before promotion, is the detailed instance: candidate/main branch roles, platform record, name-only configuration inventory, external-console tasks, internal-test evidence, and environment status. The seeded `AGENTS.md` summarizes the same main-only governance. Keep both filled from live evidence; an unfilled record means the model is unknown. `docs/ACTIVATION.md` remains separate.
+Two records carry the deployment model. `docs/DEPLOYMENT.md`, seeded during PRD creation and reconciled before promotion, is the detailed instance: candidate/protected-branch roles, platform record, name-only configuration inventory, external-console tasks, internal-test evidence, and environment status. The seeded `AGENTS.md` summarizes the same dual-branch governance. Keep both filled from live evidence; an unfilled record means the model is unknown. `docs/ACTIVATION.md` remains separate.
 
 ## Moving Between Platforms
 
