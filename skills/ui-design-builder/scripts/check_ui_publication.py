@@ -16,7 +16,7 @@ import check_product_package as product  # noqa: E402
 
 COMPILER = Path(__file__).resolve().parents[2] / "design-system-compiler" / "scripts"
 sys.path.insert(0, str(COMPILER))
-from render_design_system_preview import render_preview  # noqa: E402
+from render_design_system_preview import render_view  # noqa: E402
 
 PACKAGE_FILES = ("docs/design/design-system.md", "docs/design/design-system.json",
                  "docs/design/design-system-preview.html")
@@ -116,9 +116,10 @@ def validate(source: Path, root: Path, *, hifi: Path, required: bool = False,
             # ui.validate above verifies the formal pair and its source bindings.
             # The view is derived; it must not drift or disappear during transfer.
             preview = root / "docs/design/design-system-preview.html"
-            expected = render_preview(
+            expected = render_view(
                 (root / "docs/design/design-system.json").read_bytes(),
                 (root / "docs/design/design-system.md").read_bytes(),
+                root,
             ).encode("utf-8") if not problems else None
             if not preview.is_file():
                 problems.append("required design-system preview is missing")

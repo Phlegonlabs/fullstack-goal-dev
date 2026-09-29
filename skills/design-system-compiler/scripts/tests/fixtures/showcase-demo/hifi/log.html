@@ -1,0 +1,43 @@
+<!doctype html><html lang="en"><head><meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; connect-src 'none'; form-action 'none'; frame-src 'none'; object-src 'none'; navigate-to 'self'; img-src data:; media-src data:; font-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'"><title>Harbor Berth Desk UI-002</title><style>
+:root{--harbor-ink:#16324f;--sea:#2f6f8f;--buoy:#e0a526;--mist:#eef3f5;--alarm:#b3261e;--kelp:#2e6b4f;
+--space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-6:24px;--radius-control:6px;--radius-card:12px;
+--shadow-card:0 1px 2px rgba(22,50,79,.18),0 6px 18px rgba(22,50,79,.10);--duration-quick:160ms;--duration-sheet:320ms;
+--ease-out:cubic-bezier(.2,0,0,1)}
+body{font:16px/1.5 "Segoe UI",system-ui,sans-serif;color:var(--harbor-ink);background:var(--mist)}
+[data-hifi-canvas]{container-type:inline-size;margin:0 auto}
+[data-hifi-canvas][data-hifi-target="390"]{width:390px}[data-hifi-canvas][data-hifi-target="768"]{width:768px}
+[data-hifi-canvas][data-hifi-target="1200"]{width:1200px}
+.desk{display:grid;gap:var(--space-4);padding:var(--space-4)}
+.desk h1{font-size:28px;line-height:1.15;margin:0}
+.btn{font:600 15px/1 inherit;border-radius:var(--radius-control);padding:var(--space-3) var(--space-4);min-height:44px;border:2px solid var(--harbor-ink);cursor:pointer;transition:background-color var(--duration-quick) var(--ease-out)}
+.btn[data-tone="primary"]{background:var(--harbor-ink);color:#fff}.btn[data-tone="secondary"]{background:#fff;color:var(--harbor-ink)}
+.btn:hover{background:var(--sea);color:#fff}.btn:focus-visible{outline:3px solid var(--buoy);outline-offset:2px}
+.btn:active{transform:translateY(1px)}.btn:disabled{opacity:.45;cursor:not-allowed;background:#fff;color:var(--harbor-ink)}
+.field{font:inherit;border:2px solid var(--sea);border-radius:var(--radius-control);padding:var(--space-2) var(--space-3);min-height:44px;width:100%;box-sizing:border-box}
+.field:focus-visible{outline:3px solid var(--buoy);outline-offset:1px}.field[aria-invalid="true"]{border-color:var(--alarm)}
+.field-error{color:var(--alarm);font-size:14px;margin:var(--space-1) 0 0}
+.tag{display:inline-block;border-radius:999px;padding:2px var(--space-3);font-size:13px;font-weight:600}
+.tag[data-tone="calm"]{background:#d8ece3;color:var(--kelp)}.tag[data-tone="alert"]{background:#f6d9d6;color:var(--alarm)}
+.berth-card{background:#fff;border-radius:var(--radius-card);box-shadow:var(--shadow-card);padding:var(--space-4);display:grid;gap:var(--space-2)}
+.berth-card[data-card-state="loading"] p{background:linear-gradient(90deg,#e4ebee,#f4f7f8);color:transparent;border-radius:4px}
+.berth-card[data-card-state="empty"]{border:2px dashed var(--sea);box-shadow:none}
+.board{display:grid;gap:var(--space-4)}
+@container (min-width:700px){.board{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container (min-width:1100px){.board{grid-template-columns:repeat(3,minmax(0,1fr))}.desk{padding:var(--space-6)}}
+.sheet{background:#fff;border-top:4px solid var(--buoy);padding:var(--space-4);transform:translateY(24px);opacity:.2;transition:transform var(--duration-sheet) var(--ease-out),opacity var(--duration-sheet) var(--ease-out)}
+.sheet[data-open="true"]{transform:none;opacity:1}
+.tide-dot{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--sea);animation:tide-pulse 1.6s var(--ease-out) infinite}
+@keyframes tide-pulse{0%{transform:scale(.6);opacity:.5}50%{transform:scale(1);opacity:1}100%{transform:scale(.6);opacity:.5}}
+.menu{list-style:none;margin:var(--space-2) 0 0;padding:var(--space-2);background:#fff;border-radius:var(--radius-control);box-shadow:var(--shadow-card)}
+.menu [role="menuitem"]{display:block;width:100%;text-align:left;border:0;background:none;padding:var(--space-2);font:inherit}
+.menu [role="menuitem"]:focus-visible{outline:2px solid var(--buoy)}
+.tabs{display:flex;gap:var(--space-2)}.tabs [role="tab"][aria-selected="true"]{border-bottom:3px solid var(--buoy)}
+@media (prefers-reduced-motion:reduce){.sheet{transition:none}.tide-dot{animation:none}.btn{transition:none}}
+</style><!-- hifi-reviewer:css:start --><style>[data-hifi-reviewer-shell]{position:fixed;left:0;top:0;width:240px}</style><!-- hifi-reviewer:css:end --></head><body><aside data-hifi-reviewer-shell data-hifi-reviewer-version="3">Reviewer shell</aside><main data-hifi-reviewer-main><div data-hifi-canvas data-hifi-targets="390 768 1200" data-hifi-target="390"><section class="desk" data-ui-surface="UI-002" data-ui-route="/tides"><header><h1>Tide log</h1></header><div class="tabs" role="tablist"><button type="button" class="btn" data-tone="secondary" role="tab" data-product-tab aria-controls="tab-today" aria-selected="true" data-control-id="today" data-specimen-variant="secondary md" data-specimen-state="default">Today</button><button type="button" class="btn" data-tone="secondary" role="tab" data-product-tab aria-controls="tab-week" aria-selected="false" data-control-id="week">This week</button></div><div id="tab-today" role="tabpanel"><p>High water 11:42, 4.1 m.</p></div><div id="tab-week" role="tabpanel" hidden><p>Spring tides from Thursday.</p></div><div data-hifi-state-view="ready" data-responsive-target="390"></div><a class="btn" data-tone="primary" href="index.html" data-navigation-id="board">Back to berths</a></section></div></main><script>document.querySelectorAll("[data-product-menu]").forEach(button => {
+  const menu = document.getElementById(button.getAttribute("aria-controls"));
+  button.addEventListener("click", () => { const open = button.getAttribute("aria-expanded") !== "true"; button.setAttribute("aria-expanded", String(open)); menu.hidden = !open; if (open) menu.querySelector("[role=menuitem]").focus(); });
+  menu.addEventListener("keydown", event => { if (event.key === "Escape") { button.setAttribute("aria-expanded", "false"); menu.hidden = true; button.focus(); } });
+});
+document.querySelectorAll("[data-product-tab]").forEach(tab => tab.addEventListener("click", () => {
+  document.querySelectorAll("[data-product-tab]").forEach(peer => { peer.setAttribute("aria-selected", String(peer === tab)); document.getElementById(peer.getAttribute("aria-controls")).hidden = peer !== tab; });
+}));</script></body></html>

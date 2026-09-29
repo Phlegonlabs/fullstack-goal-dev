@@ -1,0 +1,26 @@
+{
+  "$comment": "Add this block to DESIGN_SYSTEM.template.json and set \"schema\": \"design-system/4\" for a ui-design/3 package. Every source names an approved HiFi product element by manifest page, simple selector, data-specimen-variant and data-specimen-state; never add styles here. Cover every primitive axis value, component state, control state (default, hover, focus-visible, active, disabled) and motion variant, or give a concrete not_applicable reason.",
+  "showcase": {
+    "schema": "ds-showcase/1",
+    "specimens": [
+      {
+        "id": "<button-primary>",
+        "subject": { "kind": "<primitive | component>", "name": "<Button>" },
+        "axes": { "<variants>": "<primary>" },
+        "source": { "page": "<index.html>", "selector": "<.btn>", "variant": "<primary md>", "state": "<default>" }
+      }
+    ],
+    "states": [
+      { "subject": { "kind": "primitive", "name": "<Button>" }, "state": "hover", "mode": "pseudo", "specimen": "<button-primary>" },
+      { "subject": { "kind": "primitive", "name": "<Button>" }, "state": "disabled", "mode": "rendered", "specimen": "<button-disabled>" },
+      { "subject": { "kind": "primitive", "name": "<Button>" }, "state": "active", "mode": "not_applicable", "reason": "<concrete product reason>" }
+    ],
+    "motion": [
+      {
+        "variant": "<registered motion variant>",
+        "specimen": "<specimen id>",
+        "trigger": { "kind": "<attribute | class | animation>", "name": "<data-open>", "from": "<false>", "to": "<true>" }
+      }
+    ]
+  }
+}

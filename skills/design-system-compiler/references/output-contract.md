@@ -7,7 +7,7 @@ Publish these files only when `docs/design/ui-design.md` records `Design System 
 - `docs/design/design-system.md`
 - `docs/design/design-system.json`
 
-The pair forms one reusable visual implementation handoff. `PRD.md` owns product behavior; `docs/design/ui-design.md` owns UI decisions and the approved complete `ui-hifi/2` package. The design-system pair owns tokens, closed variants, reusable components, motion, and the state matrix. Publish or revise both files together. New `ui-design/2` packages require `design-system/3`, whose bindings exclude wireframe. Legacy `design-system/1` remains inspection-only; `design-system/2` retains its original publication checks for legacy UI packages.
+The pair forms one reusable visual implementation handoff. `PRD.md` owns product behavior; `docs/design/ui-design.md` owns UI decisions and the approved complete `ui-hifi/2` package. The design-system pair owns tokens, closed variants, reusable components, motion, and the state matrix. Publish or revise both files together. `ui-design/3` packages require `design-system/4` plus its derived HTML; `ui-design/2` packages require `design-system/3`; both bindings exclude wireframe. Legacy `design-system/1` remains inspection-only; `design-system/2` retains its original publication checks for legacy UI packages.
 
 ## `design-system.md`
 
@@ -32,8 +32,31 @@ Keep it the sole structured authority for:
 - optional primitive `dsId` values matching `DS-[A-Z]+-<number>` when a primitive needs a trace identity;
 - signature visual rules with stable `DS-*` IDs, registered in `signatureRules` — every complete `DS-*` token the Markdown names (rule, primitive `dsId`, or `DS-COMP-*`) must resolve to this file, malformed lookalikes fail, and IDs are globally unique across all three registries;
 - recurring product components with `DS-COMP-*`, required content order, composition, and states;
-- registered motion variants; and
-- the UI state matrix.
+- registered motion variants;
+- the UI state matrix; and
+- for `design-system/4` only, the `showcase` source map below.
+
+### `design-system/4` showcase
+
+`design-system/4` keeps every `design-system/3` field and rule and adds one closed `showcase` object, mirrored in the generated Markdown block:
+
+```json
+"showcase": {
+  "schema": "ds-showcase/1",
+  "specimens": [{"id": "button-primary", "subject": {"kind": "primitive", "name": "Button"},
+                 "axes": {"variants": "primary", "sizes": "md"},
+                 "source": {"page": "index.html", "selector": ".btn", "variant": "primary md", "state": "default"}}],
+  "states": [{"subject": {"kind": "primitive", "name": "Button"}, "state": "hover", "mode": "pseudo", "specimen": "button-primary"},
+             {"subject": {"kind": "primitive", "name": "Button"}, "state": "loading", "mode": "not_applicable", "reason": "Saving is instant."}],
+  "motion": [{"variant": "sheet-rise", "specimen": "arrival-sheet",
+              "trigger": {"kind": "attribute", "name": "data-open", "from": "false", "to": "true"}}]
+}
+```
+
+- A specimen resolves to the first product element on that manifest page matching the simple element, class or ID selector with exactly that `data-specimen-variant` and `data-specimen-state`. Each claimed axis value appears as a word of the source variant. The registry never stores styles.
+- Coverage is complete: every list-valued primitive axis value, every primitive and product component, every product-component `states` entry and, for `control` primitives, `default`, `hover`, `focus-visible`, `active` and `disabled`. A state is `rendered` (its own source element), `pseudo` (the approved page CSS has `<selector>…:<state>`) or `not_applicable` with a concrete reason.
+- Every `motionVariants` entry has a motion row. Its trigger is `attribute` (source element carries `from`; CSS selects the attribute and transitions or animates), `class`, or `animation` (source keyframes). The page needs an approved `prefers-reduced-motion: reduce` rule.
+- The checker reads the HiFi entry from `sourceBindings.hifi` and each sibling by its manifest hash through safe non-link paths. A stale, missing or unresolved source fails the pair before any HTML is emitted.
 
 ## Approved Input Quality Check
 
@@ -53,7 +76,17 @@ If product behavior or stack is missing, return a bounded Product Definition upd
 
 ### Derived HTML View
 
-The safe scalar preview includes typography, color, spacing, corners, shadows and user-triggered duration/easing samples. Motion respects reduced motion. Unsupported expressions stay explicitly labeled as text-only; they do not count as a visually inspected sample. The HiFi remains the source for full component styling and state behavior.
+For `design-system/4`, the same renderer emits a specimen book at the same `docs/design/design-system-preview.html` path:
+
+- Foundations: every token with its value applied, scale ranges, the approved responsive set and the `@container` rules found in source CSS.
+- Components: one sandboxed plate per specimen. A plate copies the approved element, its ancestor chain (so descendant selectors, custom properties and container queries apply) and the page's product CSS; only `hidden` on a reviewer state view is dropped, as the reviewer runtime does. Reviewer shell CSS and scripts are excluded. State tables show rendered, live pseudo-class and not-applicable treatments.
+- Surfaces: each manifest surface runs its approved product scripts in a plate with approved-size buttons, an intermediate-width slider, a state selector and the manifest operations. Links and form submissions stay on the plate.
+- Motion: Replay and Stop per motion row plus a Reduced motion control that applies the page's own reduced-motion rules; the system preference sets its initial state.
+- Traceability: every plate's source page, selector, variant, state and page hash, the frozen input hashes and coverage counts.
+
+Plates are `srcdoc` frames with `sandbox="allow-scripts"` only (no same origin, forms, popups or top navigation). The page CSP allows no network, frames or objects and pins every script by SHA-256; frames inherit it. Native platforms are labeled HTML demonstrations, not native evidence. Gallery chrome is fixed renderer styling; it never styles product specimens.
+
+For `design-system/3` and older pairs the view below is unchanged byte-for-byte. The safe scalar preview includes typography, color, spacing, corners, shadows and user-triggered duration/easing samples. Motion respects reduced motion. Unsupported expressions stay explicitly labeled as text-only; they do not count as a visually inspected sample. The HiFi remains the source for full component styling and state behavior.
 
 For new or revised required pairs, provide `docs/design/design-system-preview.html` alongside the pair. It displays token names and values, safe scalar specimens, declared primitive variants, component content order, states, responsive/platform rules and source identities. The registry does not encode complete component styling: use the approved HiFi for actual component appearance and interactions, and do not fabricate button variants from token names. Native values remain platform contracts, not proof of HTML/native parity.
 
@@ -66,7 +99,7 @@ python "<design-system-compiler-skill-root>/scripts/render_design_system_preview
 
 The first command emits UTF-8 HTML on stdout only after filled-pair and current-source validation. Capture those exact bytes at an authorized new destination; do not redirect over an existing artifact before validation succeeds. The second command is read-only and rejects changed pair bytes, stale sources, hand-edited or missing previews. It grants no approval and does not validate visual quality. Inspect the generated view in a browser and link it with the pair in the handoff.
 
-The Markdown/JSON pair remains the authority. The HTML is reproducible, contains no scripts, remote resources or imported product CSS, and is not a product route, a HiFi manifest page or a third hand-maintained contract. It is retained as a review artifact, so do not hide it with a broad generated-HTML ignore rule. Existing pairs are not rewritten merely to add a preview. A historical wireframe has no Tokens view. Do not mutate historical artifacts when adding the separate formal preview.
+The Markdown/JSON pair remains the authority. The HTML is reproducible and is not a product route, a HiFi manifest page or a third hand-maintained contract. The legacy view contains no scripts, remote resources or imported product CSS; the `design-system/4` view contains only hash-pinned local scripts and copies of approved HiFi CSS inside sandboxed plates. It is retained as a review artifact, so do not hide it with a broad generated-HTML ignore rule. Existing pairs are not rewritten merely to add a preview. A historical wireframe has no Tokens view. Do not mutate historical artifacts when adding the separate formal preview.
 
 ### Pair Checks
 
