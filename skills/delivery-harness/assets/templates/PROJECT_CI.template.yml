@@ -69,7 +69,66 @@ jobs:
       - name: Check candidate diff against a meaningful base
         run: |
           actual_sha="$(git rev-parse HEAD)"
-          diff_base="$(python skills/delivery-harness/scripts/ci_diff_base.py resolve --event "$GITHUB_EVENT_NAME" --candidate "$CANDIDATE_SHA" --base "${DIFF_BASE_SHA:-}")"
+          # Inline Git checks keep this template usable in a consumer checkout
+          # with no bundled or installed Harness skills.
+          require_commit() {
+            if ! printf '%s' "$1" | grep -Eq '^[0-9a-f]{40}$'; then
+              echo "$2 must be a full lowercase commit SHA" >&2
+              return 1
+            fi
+            if ! resolved_sha="$(git rev-parse --verify "$1^{commit}")"; then
+              echo "$2 does not resolve to a commit" >&2
+              return 1
+            fi
+            if [ "$resolved_sha" != "$1" ]; then
+              echo "$2 resolved to $resolved_sha, not its exact bytes" >&2
+              return 1
+            fi
+            printf '%s\n' "$resolved_sha"
+          }
+
+          case "$GITHUB_EVENT_NAME" in
+            workflow_dispatch)
+              [ -n "$DIFF_BASE_SHA" ] || { echo "manual release requires base_sha" >&2; exit 1; }
+              diff_base="$(require_commit "$DIFF_BASE_SHA" base_sha)" || exit 1
+              [ "$diff_base" != "$actual_sha" ] || { echo "base_sha must differ from candidate_sha" >&2; exit 1; }
+              git merge-base --is-ancestor "$diff_base" "$actual_sha" || {
+                echo "base_sha is not an ancestor of candidate_sha" >&2
+                exit 1
+              }
+              ;;
+            pull_request|merge_group)
+              [ -n "$DIFF_BASE_SHA" ] || { echo "$GITHUB_EVENT_NAME did not provide a base SHA" >&2; exit 1; }
+              event_base="$(require_commit "$DIFF_BASE_SHA" base)" || exit 1
+              [ "$event_base" != "$actual_sha" ] || { echo "base equals the candidate" >&2; exit 1; }
+              diff_base="$(git merge-base "$event_base" "$actual_sha")" || {
+                echo "base and candidate have no merge base" >&2
+                exit 1
+              }
+              printf '%s' "$diff_base" | grep -Eq '^[0-9a-f]{40}$' || {
+                echo "merge base is not a full commit SHA" >&2
+                exit 1
+              }
+              ;;
+            push)
+              if [ -z "${DIFF_BASE_SHA:-}" ] ||
+                 printf '%s' "$DIFF_BASE_SHA" | grep -Eq '^0{40}$'; then
+                diff_base="$(git mktree </dev/null)" || exit 1
+                [ -n "$diff_base" ] || { echo "Git returned an empty tree value" >&2; exit 1; }
+              else
+                diff_base="$(require_commit "$DIFF_BASE_SHA" "push base")" || exit 1
+                [ "$diff_base" != "$actual_sha" ] || { echo "push base equals the candidate" >&2; exit 1; }
+                git merge-base --is-ancestor "$diff_base" "$actual_sha" || {
+                  echo "push base is not an ancestor of candidate_sha" >&2
+                  exit 1
+                }
+              fi
+              ;;
+            *)
+              echo "unsupported event: $GITHUB_EVENT_NAME" >&2
+              exit 1
+              ;;
+          esac
           git diff --check "$diff_base" "$actual_sha"
 
   e2e:

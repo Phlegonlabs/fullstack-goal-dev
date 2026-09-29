@@ -21,6 +21,7 @@ def run_git(*arguments: str) -> str:
     try:
         result = subprocess.run(
             ["git", *arguments],
+            stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             timeout=30,
@@ -47,6 +48,7 @@ def require_ancestor(base: str, candidate: str) -> None:
     try:
         result = subprocess.run(
             ["git", "merge-base", "--is-ancestor", base, candidate],
+            stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             timeout=30,
@@ -88,7 +90,10 @@ def resolve(event: str, candidate: str, base: str | None) -> str:
         resolved_base = resolve_commit(base, "base")
         if resolved_base == candidate:
             raise DiffBaseError(f"{event} base equals the candidate")
-        return resolved_base
+        merge_base = run_git("merge-base", resolved_base, candidate)
+        if not FULL_SHA.fullmatch(merge_base):
+            raise DiffBaseError(f"{event} merge base is not a full commit SHA")
+        return merge_base
 
     if event == "push":
         if not base or ZERO_SHA.fullmatch(base):
