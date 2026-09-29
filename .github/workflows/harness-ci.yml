@@ -384,7 +384,8 @@ jobs:
             }
             $suiteSummary = Get-Content -LiteralPath $suiteLog -Tail 10
             $suiteSummary | ForEach-Object { "$_" }
-            if (-not ($suiteSummary | Where-Object { "$_" -match '^Ran [1-9][0-9]* tests?' })) {
+            $hasRunSummary = Select-String -LiteralPath $suiteLog -Pattern '^Ran [1-9][0-9]* tests?' -Quiet
+            if (-not $hasRunSummary) {
               throw "discovered test file ran zero tests: $testFile"
             }
           }

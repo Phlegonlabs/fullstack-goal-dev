@@ -203,6 +203,14 @@ class CICandidateGateTests(unittest.TestCase):
         )[0]
         self.assertIn("& python -m unittest discover", windows_step)
         self.assertIn("*> $suiteLog", windows_step)
+        self.assertIn(
+            "Select-String -LiteralPath $suiteLog -Pattern '^Ran [1-9][0-9]* tests?' -Quiet",
+            windows_step,
+        )
+        self.assertLess(
+            windows_step.index("$suiteSummary = Get-Content"),
+            windows_step.index("$hasRunSummary = Select-String"),
+        )
         self.assertLess(
             windows_step.index("$suiteStatus = $LASTEXITCODE"),
             windows_step.index("if ($suiteStatus -ne 0) {"),
