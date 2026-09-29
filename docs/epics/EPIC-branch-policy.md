@@ -35,6 +35,7 @@ The accepted interface is:
 | HARNESS-GOLDEN-001 | The enabled golden flow consumes genuine UI3/DS4 evidence, a frozen dual-branch base, and current approval hashes | `test_golden_path.py` with `HARNESS_GOLDEN_PATH=1` | frontend digest repair integration |
 | HARNESS-GOLDEN-002 | The lifecycle golden flow uses the same current package and verifies DS4 pair staleness recovery | `test_lifecycle_golden_path.py` | frontend digest repair integration |
 | HARNESS-PACKET-001 | Design authoring packet ordering follows the current wording without weakening either pinned skill or binding checks | `test_cross_skill_pipeline.py::test_design_authoring_worker_packet_requires_both_pinned_skills` | none |
+| HARNESS-RENDER-001 | Tasks-view generation uses current dual-branch packaging while retaining renderer safety behaviors | `test_render_tasks_view.py` | none |
 
 ## Document Impact
 
@@ -60,6 +61,7 @@ The accepted interface is:
 | Restrict retained legacy UI | Remove the enhancement-label shortcut; require validated frozen maintenance evidence and reject fresh 0.59 enhancement UI2 | `c9da55de4e684a9f21d2de5810118f420e44335e` | Focused module 7 PASS in 6.44 seconds; pyflakes and whitespace checks passed |
 | Upgrade golden packages to the current release contract | Replace legacy UI2/schema-3 golden construction with the shared genuine UI3/DS4 branch-policy fixture; bind traces to the real DS rule and retain plan-only fail-closed behavior | This atomic golden repair commit | Enabled golden and lifecycle golden each 1 PASS under a 300-second deadline; contract-source 7 PASS |
 | Align packet route assertion with current wording | Commit `193fa149` intentionally changed “authoring or repair” to “authoring/repair”; update the stale exact test phrase while retaining binding, pinned-skill, actual-writer, no-grant and compilation-order checks | This atomic packet-test alignment commit | Focused packet test 1 PASS in 0.002 seconds; pyflakes and whitespace checks passed |
+| Package tasks-view fixture for current joins | Add the active dual-branch marker and protected development source policy to the renderer fixture architecture; the PLAN template already supplied branch policy | This atomic renderer-fixture commit | Full focused module 13 PASS in 4.27 seconds under a 180-second deadline; pyflakes and whitespace checks passed |
 
 ## Results And Remaining Work
 
