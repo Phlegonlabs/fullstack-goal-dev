@@ -102,7 +102,7 @@
 69. Visual Approval 後執行 Need Gate。新版完整 UI 要交 Markdown、JSON、HTML；判斷 compile、update 或驗證後 reuse。
 70. Headless 不適用；不改共用契約的有限 maintenance 不重建歷史設計。舊 pinned package 保留原 gate 語意。
 71. Compiler 讀核准 PRD／stack／UI／完整 HiFi，以及既有 pair；保留穩定 DS／component ID 和未改項目。
-72. 使用 `DESIGN_SYSTEM.template.md` 與 `.json`，只編譯已核准的 tokens、primitives、product components、states、responsive 和 motion。
+72. 使用 `DESIGN_SYSTEM.template.md`、`.json` 與 `DESIGN_SYSTEM_SHOWCASE.template.json`，只編譯已核准的 tokens、primitives、product components、states、responsive 和 motion。
 73. 從核准 HiFi 綁定實際 specimen 的來源、hash、component／variant／state 對應；資料不足就由適用 frontend owner 補核准來源。
 74. 不從元件名稱猜樣式，不另外手寫第三套設計真相，不在編譯時重開產品或視覺方向。
 75. 產生 `design-system-preview.html`，展示全部登記的色彩、字體、間距、尺寸區間、元件和適用狀態。
@@ -251,7 +251,7 @@
 | `ACTIVATION.template.md` | 步驟 34、142：seed 到 staging，再記實際執行和 verified evidence |
 | `HIFI_REVIEWER.template.html`、`REVIEWER_SHARED.css` | 步驟 58：由正式 assembler 建立 reviewer shell，不手抄第二份 shell |
 | `composition-patterns.json` | 方向／HiFi 的可選構圖參考；不是固定頁面 recipe，不超越 PRD 或 owner 選擇 |
-| `DESIGN_SYSTEM.template.md`、`DESIGN_SYSTEM.template.json` | 步驟 72：同一編譯契約；HTML 由 renderer 產生，不能手寫平行真相 |
+| `DESIGN_SYSTEM.template.md`、`DESIGN_SYSTEM.template.json`、`DESIGN_SYSTEM_SHOWCASE.template.json` | 步驟 72：同一編譯契約；HTML 由 renderer 產生，不能手寫平行真相 |
 | `GOAL.template.md` | Direct 小任務或明確需要 copy-ready prompt 時選用；通常目標直接存在 PLAN／RUN，模板不自授權 |
 | `HARNESS_PLAN.template.md` | 步驟 84：Managed 靜態範圍／任務圖；RUN 由正式 generator 建立 |
 | `MISSION_RUNBOOK.template.md`、`WORKER_GOAL.template.md` | 步驟 85：目前 runtime pin、任務執行手冊及有界 worker 派工 |
