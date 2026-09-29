@@ -105,7 +105,7 @@ class CrossSkillPipelineTests(unittest.TestCase):
                 self.assertIn("actual writer", document)
                 self.assertIn("grants no", document)
         self.assertLess(
-            worker.index("For direction/HiFi authoring or repair"),
+            worker.index("For direction/HiFi authoring/repair"),
             worker.index("For design-system compilation"),
         )
         self.assertIn(
