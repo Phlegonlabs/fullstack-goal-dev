@@ -293,14 +293,21 @@ async function agent(_prompt, options) {
         self.assertIn("PROJECT_CLAUDE.template.md` for `CLAUDE.md`", skill)
         self.assertIn("never copy one template to both files", skill)
         self.assertIn("--check --merge-agents", skill)
-        self.assertIn("safe-addition and divergence report", skill)
-        self.assertIn("reports same-heading semantic conflicts", skill)
-        self.assertIn("entry bootstrap is the first source task", skill)
+        self.assertIn("semantically review its proposal", skill)
+        self.assertIn("reviewed merge plan with the observed original/template hashes", skill)
+        self.assertIn("additions remain proposals until semantic review", skill)
+        self.assertIn("reconcile same-heading conflicts in place", skill)
+        self.assertIn("entry bootstrap is the first source task for a new or existing target", skill)
         self.assertIn("run only the context bootstrap moves", skill)
         self.assertIn(
-            "the Delivery Harness entry resolves installed binding candidates",
+            "`check_skill_bindings.py --stage ui-design` before directions/HiFi",
             skill,
         )
+        self.assertIn("`--stage design-compilation` before compilation", skill)
+        self.assertIn("`--stage backend` (or all slots for mixed scope) before execution/security", skill)
+        self.assertIn("Preserve confirmed pins", skill)
+        self.assertIn("future slots may remain pending", skill)
+        self.assertNotIn("Keep Skill Bindings pending here", skill)
         self.assertNotIn("List locally installed binding candidates", skill)
         self.assertNotIn(
             "both files exist before any implementation run starts", skill

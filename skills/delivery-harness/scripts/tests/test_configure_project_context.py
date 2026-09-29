@@ -2,13 +2,16 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import hashlib
+import json
 from pathlib import Path
 
 
 SCRIPTS_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SCRIPTS_DIR))
 
-from configure_project_context import configure_context  # noqa: E402
+import configure_project_context  # noqa: E402
+from configure_project_context import _level_two_sections, configure_context  # noqa: E402
 
 
 SCRIPT = SCRIPTS_DIR / "configure_project_context.py"
@@ -61,19 +64,42 @@ class ConfigureProjectContextTests(unittest.TestCase):
     def make_merge_templates(self, root: Path) -> tuple[Path, Path]:
         agents_template = root / "merge-agents-template.md"
         claude_template = root / "merge-claude-template.md"
-        agents_template.write_text(
-            "# Shared Rules\n\n"
-            "## New Shared Rule\n\n- Add this guidance.\n\n"
-            "## Owner Rule\n\n- Template wording.\n",
-            encoding="utf-8",
+        agents_template.write_bytes(
+            b"# Shared Rules\n\n"
+            b"## New Shared Rule\n\n- Add this guidance.\n\n"
+            b"## Owner Rule\n\n- Template wording.\n"
         )
-        claude_template.write_text(
-            "# Claude Rules\n\n@AGENTS.md\n\n- Use Claude workers.\n",
-            encoding="utf-8",
+        claude_template.write_bytes(
+            b"# Claude Rules\n\n@AGENTS.md\n\n- Use Claude workers.\n"
         )
         return agents_template, claude_template
 
-    def test_merge_adds_only_missing_shared_sections_and_is_idempotent(self) -> None:
+    def write_merge_plan(
+        self,
+        root: Path,
+        agents_hash: str,
+        template_hash: str,
+        *,
+        additions: list[str],
+        acknowledgements: list[str],
+    ) -> Path:
+        path = root / "context-merge-plan.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "schema": "pdh-context-merge/1",
+                    "reviewed": True,
+                    "agents_sha256": agents_hash,
+                    "template_sha256": template_hash,
+                    "add_sections": additions,
+                    "acknowledged_divergences": acknowledgements,
+                }
+            ),
+            encoding="utf-8",
+        )
+        return path
+
+    def test_merge_requires_reviewed_plan_and_appends_selected_sections_only(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             agents_template, claude_template = self.make_merge_templates(root)
@@ -84,31 +110,157 @@ class ConfigureProjectContextTests(unittest.TestCase):
             override_bytes = b"owner override\n"
             override.write_bytes(override_bytes)
 
-            first = configure_context(
+            proposal = configure_context(
                 root, agents_template, claude_template, merge_agents=True
             )
+            self.assertEqual(original, agents.read_text(encoding="utf-8"))
+            agents_hash = hashlib.sha256(agents.read_bytes()).hexdigest()
+            template_hash = hashlib.sha256(agents_template.read_bytes()).hexdigest()
+            plan = self.write_merge_plan(
+                root,
+                agents_hash,
+                template_hash,
+                additions=["New Shared Rule"],
+                acknowledgements=["Owner Rule"],
+            )
+            plan_check = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    "--root",
+                    str(root),
+                    "--check",
+                    "--merge-agents",
+                    "--merge-plan",
+                    str(plan),
+                    "--agents-template",
+                    str(agents_template),
+                    "--claude-template",
+                    str(claude_template),
+                ],
+                capture_output=True,
+                text=True,
+                cwd=SCRIPTS_DIR,
+                timeout=10,
+            )
+            self.assertEqual(0, plan_check.returncode, plan_check.stdout + plan_check.stderr)
+            self.assertEqual(original, agents.read_text(encoding="utf-8"))
+            applied = configure_context(
+                root,
+                agents_template,
+                claude_template,
+                merge_agents=True,
+                merge_plan=plan,
+            )
             merged_text = agents.read_text(encoding="utf-8")
-            second = configure_context(
+            followup = configure_context(
                 root, agents_template, claude_template, merge_agents=True
             )
 
-            self.assertEqual(["CLAUDE.md"], first["created"])
-            self.assertTrue(first["agents_merge"]["semantic_review_required"])
+            self.assertEqual(["CLAUDE.md"], proposal["created"])
+            self.assertEqual("proposal_required", proposal["agents_merge"]["status"])
+            self.assertTrue(proposal["agents_merge"]["semantic_review_required"])
             self.assertEqual(
-                ["New Shared Rule"], first["agents_merge"]["safe_additions"]
+                ["New Shared Rule"], proposal["agents_merge"]["proposed_additions"]
             )
             self.assertEqual(
                 "Owner Rule",
-                first["agents_merge"]["unresolved_divergences"][0]["heading"],
+                proposal["agents_merge"]["unresolved_divergences"][0]["heading"],
+            )
+            self.assertEqual("applied", applied["agents_merge"]["status"])
+            self.assertEqual(
+                ["New Shared Rule"], applied["agents_merge"]["applied_additions"]
             )
             self.assertTrue(merged_text.startswith(original))
             self.assertIn("## New Shared Rule\n\n- Add this guidance.\n", merged_text)
+            self.assertNotIn("- Template wording.", merged_text)
             self.assertEqual(1, merged_text.count("## Owner Rule"))
             self.assertIn("- Keep owner wording.", merged_text)
             self.assertEqual(override_bytes, override.read_bytes())
-            self.assertEqual([], second["created"])
-            self.assertEqual([], second["agents_merge"]["safe_additions"])
+            self.assertEqual([], followup["created"])
+            self.assertEqual([], followup["agents_merge"]["proposed_additions"])
             self.assertEqual(merged_text, agents.read_text(encoding="utf-8"))
+            with self.assertRaises(ValueError):
+                configure_context(
+                    root,
+                    agents_template,
+                    claude_template,
+                    merge_agents=True,
+                    merge_plan=plan,
+                )
+
+    def test_race_after_the_final_owner_observation_is_never_replaced(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            agents_template, claude_template = self.make_merge_templates(root)
+            agents = root / "AGENTS.md"
+            original = b"# Owner Rules\n\n## Owner Rule\n\n- Keep owner wording.\n"
+            agents.write_bytes(original)
+            agents_hash = hashlib.sha256(original).hexdigest()
+            template_hash = hashlib.sha256(agents_template.read_bytes()).hexdigest()
+            plan = self.write_merge_plan(
+                root,
+                agents_hash,
+                template_hash,
+                additions=["New Shared Rule"],
+                acknowledgements=["Owner Rule"],
+            )
+            real_write = configure_project_context.os.write
+            owner_race_complete = False
+
+            def owner_appends_before_tool_write(descriptor: int, data: bytes) -> int:
+                nonlocal owner_race_complete
+                if not owner_race_complete:
+                    with agents.open("ab") as handle:
+                        handle.write(b"- owner added this during the race\n")
+                    owner_race_complete = True
+                return real_write(descriptor, data)
+
+            configure_project_context.os.write = owner_appends_before_tool_write
+            try:
+                configure_context(
+                    root,
+                    agents_template,
+                    claude_template,
+                    merge_agents=True,
+                    merge_plan=plan,
+                )
+            finally:
+                configure_project_context.os.write = real_write
+
+            merged = agents.read_bytes()
+            self.assertTrue(merged.startswith(original))
+            self.assertIn(b"- owner added this during the race\n", merged)
+            self.assertIn(b"## New Shared Rule\n", merged)
+
+    def test_duplicate_and_fenced_headings_do_not_drive_a_merge(self) -> None:
+        text = (
+            "# Owner Rules\n\n"
+            "## Real Rule\n\n- Owner policy.\n\n"
+            "```text\n"
+            "## Fenced Rule\n\n- Not a heading.\n"
+            "```\n\n"
+            "## Real Rule\n\n- Duplicate owner policy.\n"
+        )
+        sections, duplicates = _level_two_sections(text)
+        self.assertEqual({"Real Rule"}, set(sections))
+        self.assertEqual(["Real Rule"], duplicates)
+        self.assertNotIn("Fenced Rule", sections)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            agents_template, claude_template = self.make_merge_templates(root)
+            agents = root / "AGENTS.md"
+            agents.write_text(text, encoding="utf-8")
+            before = agents.read_bytes()
+            result = configure_context(
+                root, agents_template, claude_template, merge_agents=True
+            )
+
+            self.assertEqual("blocked", result["agents_merge"]["status"], result["agents_merge"])
+            self.assertEqual([], result["agents_merge"]["proposed_additions"])
+            self.assertTrue(result["agents_merge"]["parser_errors"])
+            self.assertEqual(before, agents.read_bytes())
 
     def test_merge_check_is_read_only_and_reports_the_plan(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

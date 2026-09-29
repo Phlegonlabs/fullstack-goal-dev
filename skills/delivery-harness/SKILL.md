@@ -153,8 +153,8 @@ The adapter layer owns no shared state, authorization, review, integration, hand
 
 Discover the effective instruction chain from repository root to the selected checkout.
 
-- Existing `AGENTS.md`/`AGENTS.override.md`/`CLAUDE.md` are user-owned; never overwrite, normalize, silently copy, or replace.
-- Bootstrap runs `scripts/configure_project_context.py --root <target-root> --merge-agents`; missing files use `PROJECT_AGENTS.template.md` and distinct `PROJECT_CLAUDE.template.md`; generated files are intentionally different. Existing AGENTS gets only absent shared sections; local policy/bindings stay. Same-heading differences are unresolved semantic divergences; `--check --merge-agents` previews. Resolve new Skill Bindings from observed skills with owner confirmation.
+- Existing `AGENTS.md`/`AGENTS.override.md`/`CLAUDE.md` are user-owned; never overwrite, normalize, silently copy.
+- Entry runs `scripts/configure_project_context.py --root <target-root> --merge-agents`; missing files use `PROJECT_AGENTS.template.md` and distinct `PROJECT_CLAUDE.template.md`; generated files differ. Existing AGENTS stays proposal-only until a reviewed plan binds original/template hashes, selected headings and acknowledged conflicts. Same-heading differences are unresolved semantic divergences. Resolve new Skill Bindings from observed skills with owner confirmation.
 - Follow the current host's effective instruction precedence; do not guess it from a provider name or inject another host's instructions.
 - Keep automatic context discovery enabled. A nested instruction may narrow a mission but never widen write scope or authorization.
 
