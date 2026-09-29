@@ -47,7 +47,7 @@ Produce three materially different visual directions by default, with inspected 
 
 ## Cheap Completeness Check
 
-Before Impeccable, run:
+Before HiFi author self-review and Impeccable, run:
 
 ```text
 python "<ui-design-builder-skill-root>/scripts/check_ui_design_contract.py" --ui-design docs/design/ui-design.md --repo-root <root> --prd docs/product/PRD.md --hifi docs/design/ui-references/<run>/index.html --require-hifi-preflight
@@ -74,6 +74,8 @@ Where useful, a study may play a bounded local deterministic motion option withi
 If proactive reference research introduces a structural option, route the product-side scope back to `product-definition-builder` before HiFi cosmetic work. Do not use an unreviewed reference study to add a route, control, state, or responsive destination.
 
 Record the studies in `### Direction comparison` under Style Integration using the output contract's table, with inspected screenshot paths/hashes and a concrete rationale for each row. Tie each rationale to the Design Brief's page-purpose/profile, type/density/headline, motion and reference lessons; do not substitute generic style labels. Keep their authorized files under `docs/design/directions/<round>/`. These studies are selection evidence, not the connected HiFi target or production UI. The owner selects from the recorded direction IDs; a mixed direction gets a new complete comparison round before selection. This uses the existing direction gate, not another approval step. Screenshot hashes prove identity, not aesthetic quality or honest inspection.
+
+Before asking the owner to select a direction, the author completes the UI structure/direction self-review in `../../delivery-harness/references/pre-delivery-self-review.md`. Inspect the representative studies, their required operations and primary/stress cases, repair defects and retain the result against the current candidate identities in the existing task record. An owner-selected mix or changed study needs an affected recheck.
 
 ## Frontend Design Style Integration
 
@@ -129,6 +131,10 @@ The HTML contains exactly one canonical restrictive CSP meta:
 The offline browser additionally allows only the declared package pages. CSP alone does not enforce the page allowlist and cannot prove arbitrary JavaScript safe. Follow the manifest and interaction-output schemas in `output-contract.md`.
 
 The file calls no live backend, credential, identity provider, or unapproved generation provider. Login, registration, recovery, and authentication-error preview scenes may be marked `n/a` for this visual review without removing their production requirements. Native chrome may use a labeled HTML placeholder.
+
+## HiFi Author Self-Review
+
+After the connected package passes the cheap completeness check, apply `../../delivery-harness/references/pre-delivery-self-review.md#hifi-self-review`. The same `frontend-design` author inspects actual renders and interactions under the Browser And Human Visual Approval restrictions below, checks the full contract and fixes in-scope defects before the independent review. Link existing browser, copy, motion and grading evidence rather than creating a second specification. Reuse only evidence for the same bytes and cases; changes require affected rechecks and the required final matrix. Missing visual evidence stays blocked or unvalidated. This self-review does not replace or reset the following independent diagnostic and repair budget.
 
 ## Impeccable Quality Review And PRD-Bound Grading
 

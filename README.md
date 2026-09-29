@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.56.1-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.57.0-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -151,12 +151,12 @@ Token observations retain raw source/display values separately from browser-norm
 ```mermaid
 flowchart LR
   Idea["Product idea or change request"] --> PRD["Product Definition candidate\nPRD + architecture + stack"]
-  PRD --> ProductGate{"Stack Decision +\nProduct Definition Approval"}
-  ProductGate -->|"approved UI product, explicit request"| UIDesign["ui-design-builder\nPRD preflight + intake + directions"]
-  UIDesign --> UIReview["selected direction + complete HiFi\ncompleteness + Impeccable + H1–H9"]
+  PRD --> Market["Post-draft market reconciliation"] --> ProductGate{"Stack Decision + PRD self-review +\nProduct Definition Approval"}
+  ProductGate -->|"approved UI product, explicit request"| UIDesign["ui-design-builder\nintake + directions + UI self-review"]
+  UIDesign --> UIReview["selected direction + complete HiFi\ncompleteness + self-review + Impeccable + H1–H9"]
   UIReview --> Design["approved HiFi target\ndesign-system-compiler when required"]
-  ProductGate -->|"approved, UI phase deferred"| Harness["delivery-harness\nShared delivery core"]
-  ProductGate -->|"approved headless product"| Harness
+  ProductGate -->|"approved headless product"| Harness["delivery-harness\nShared delivery core"]
+  ProductGate -->|"approved scoped enhancement or maintenance; no affected design gate"| Harness
   Design -->|"approved all-pages HTML reference or design-system pair"| Harness
   Harness --> Runtime["Observed native capabilities\nOne general contract"]
   Runtime --> Security["code-security-review\nfresh unified exact-SHA review"]
@@ -172,7 +172,9 @@ flowchart LR
   SEO -.-> Outcome
 ```
 
-You can start at any stage. Product Definition owns product and stack decisions. UI Design Builder reads those sources directly, obtains direction selection and complete HiFi approval. Harness implements frozen approved sources; security, release and activation keep their existing boundaries.
+Resume at a stage only when its prerequisites remain current. Follow the [pre-delivery self-review contract](skills/delivery-harness/references/pre-delivery-self-review.md): after post-draft market reconciliation and accepted revisions, review the PRD package; review UI structure/directions before direction selection; review the connected HiFi before independent review and Visual Approval. Keep candidate identities, findings, repairs and unresolved blockers in the existing task record. Self-review does not replace required independent review or owner approval. UI-bearing initial delivery enters Harness execution only after the applicable checks pass; a deferred UI phase cannot bypass them. Headless products record UI checks as not applicable, and enhancements/maintenance review their accepted scope. These are parent semantic checks; validator success alone does not prove self-review.
+
+Harness 0.57.0 removes the UI-deferred shortcut for UI-bearing initial delivery, including backend-first slices. A backend binding check does not waive this handoff. When a new task consumes earlier approvals, perform present-day catch-up self-reviews of the applicable scope; record the approval and candidate identities without backdating or reopening unchanged owner decisions. Earlier pinned RUNs keep their contracts.
 
 ### Full skill lifecycle
 
@@ -194,7 +196,7 @@ flowchart TB
         ra["research-first assessment<br/>research-assessment.md (skippable)"]
         rgate{{"Research Gate<br/>go | clarify | stop"}}
         interview --> ra --> rgate --> pkg --> mr --> rchoice
-        rchoice -->|accepted| revision --> sgate --> pgate
+        rchoice -->|accepted| revision --> sgate --> productself["PRD author self-review"] --> pgate
         rchoice -->|revise proposal| mr
         rchoice -->|none, deferred, or rejected; no blockers| sgate
     end
@@ -205,13 +207,13 @@ flowchart TB
         preflight["PRD preflight<br/>operations + states + responsive + copy"]
         studies["frontend-design<br/>three directions by default"]
         style["frontend-design<br/>Style Integration + HiFi target"]
-        review["Impeccable critique + audit<br/>H1–H9 grading"]
+        hifi_review["Impeccable critique + audit<br/>H1–H9 grading"]
         vgate{{"Human Visual Approval"}}
         dgate{{"Design System Need Gate"}}
         pending["Approved required/pending marker<br/>bound to Visual Approval digest"]
         pair["design-system-compiler preflight + compile<br/>design-system.md + design-system.json"]
         linked["Owner links pair hashes<br/>final UI validation"]
-        intake --> preflight --> studies --> directionChoice{{"Direction selection"}} --> style --> completeness["HiFi completeness preflight"] --> review --> vgate --> dgate
+        intake --> preflight --> studies --> directionself["UI structure/direction self-review"] --> directionChoice{{"Direction selection"}} --> style --> completeness["HiFi completeness preflight"] --> hifiself["HiFi author self-review"] --> hifi_review --> vgate --> dgate
         dgate -->|required| pending --> pair --> linked
         dgate -->|not_required| target[Approved page-faithful target]
     end
@@ -304,7 +306,8 @@ flowchart TB
 
     user --> interview
     pgate -->|approved UI product and explicit UI request| intake
-    pgate -->|headless or UI phase deferred| HARNESS
+    pgate -->|approved headless product| HARNESS
+    pgate -->|"approved scoped enhancement or maintenance; no affected design gate"| route
     linked --> route
     target --> route
     DIRECT --> directhandoff
@@ -643,6 +646,8 @@ This repository is licensed under the MIT License — see [LICENSE](LICENSE).
 ## Version history
 
 Update this section with each release, as part of the version bump and tag described in Releasing above.
+
+- **0.57.0** — Require author self-review after PRD market reconciliation, before UI direction selection and before independent HiFi review. Record current evidence and block dependent Harness execution on unresolved findings. Preserve independent review, owner decisions, scoped maintenance and historical RUNs. Web review keeps 390/768/1024/1440 px plus intermediate widths; approved targets and native size classes remain authoritative.
 
 - **0.56.1** — In a Git checkout root, bind delivery-acceptance results and evidence to the exact committed `HEAD` bytes. Ignored, untracked and edited files cannot produce a gate PASS; byte-preserving Git attributes are required.
 

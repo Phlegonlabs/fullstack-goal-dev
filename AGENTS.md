@@ -64,6 +64,8 @@ The handoff names the repository, branch, HEAD and working-tree status, the temp
 
 ## Core Development Principles
 
+For work consuming a Product Definition package, apply `skills/delivery-harness/references/pre-delivery-self-review.md` before execution. A backend-only binding check is not permission to defer required UI/self-review for a UI-bearing initial delivery. Keep scoped enhancement/maintenance routes and the reference's historical-approval catch-up rules.
+
 - Follow `delivery-harness/references/bounded-enhancement.md`: reuse the accepted scope and valid action grants for repairs, document synchronization, module replacement and retesting. Do not repeat approvals for unchanged decisions. Never infer external, destructive, publication or installation authority.
 - A module that fails accepted requirements may be replaced inside its write scope; preserve required interfaces, unaffected requirements, data and recoverable history. Bound repair attempts and keep unresolved gaps for the next round; ending a round is not a PASS.
 - Reason from the problem's actual constraints, not from habit, inherited patterns, or how another project solved it.

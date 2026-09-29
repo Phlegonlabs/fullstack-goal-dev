@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.56.1-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.57.0-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -151,12 +151,12 @@ Las observaciones conservan los valores originales y los valores normalizados po
 ```mermaid
 flowchart LR
   Idea["Idea de producto o solicitud de cambio"] --> PRD["Candidate de Product Definition\nPRD + arquitectura + stack"]
-  PRD --> ProductGate{"Stack Decision +\nProduct Definition Approval"}
-  ProductGate -->|"UI aprobada, solicitud explícita"| UIDesign["ui-design-builder\npreflight PRD + intake + direcciones"]
-  UIDesign --> UIReview["dirección elegida + HiFi completo\ncomprobaciones + Impeccable + H1–H9"]
+  PRD --> Market["Investigación de mercado posterior al borrador"] --> ProductGate{"Stack Decision + autorrevisión PRD +\nProduct Definition Approval"}
+  ProductGate -->|"UI aprobada, solicitud explícita"| UIDesign["ui-design-builder\nintake + direcciones + autorrevisión UI"]
+  UIDesign --> UIReview["dirección elegida + HiFi completo\ncobertura + autorrevisión + Impeccable + H1–H9"]
   UIReview --> Design["target HiFi aprobado\ndesign-system-compiler cuando se requiere"]
-  ProductGate -->|"aprobado, fase UI diferida"| Harness["delivery-harness\nNúcleo de entrega compartido"]
-  ProductGate -->|"producto headless aprobado"| Harness
+  ProductGate -->|"producto headless aprobado"| Harness["delivery-harness\nNúcleo de entrega compartido"]
+  ProductGate -->|"mejora o mantenimiento acotado aprobado; sin gate de diseño afectado"| Harness
   Design -->|"referencia HTML de todas las páginas aprobada o par design-system"| Harness
   Harness --> Runtime["Capacidades nativas observadas\nUn contrato general"]
   Runtime --> Security["code-security-review\nrevisión unificada fresca de SHA exacto"]
@@ -172,7 +172,9 @@ flowchart LR
   SEO -.-> Outcome
 ```
 
-Se puede empezar en cualquier etapa. Product Definition decide producto y stack. UI Design Builder lee esas fuentes y obtiene selección de dirección y aprobación del HiFi completo. Harness implementa fuentes congeladas y aprobadas; seguridad, release y activación mantienen sus límites.
+Retoma una etapa solo cuando sus requisitos previos sigan vigentes. El [contrato de autorrevisión antes de la entrega](skills/delivery-harness/references/pre-delivery-self-review.md) exige revisar el paquete PRD tras la investigación posterior al borrador y los cambios aceptados; revisar estructura y direcciones UI antes de seleccionarlas; y revisar el HiFi conectado antes de la revisión independiente y Visual Approval. Registra versiones, hallazgos, reparaciones y bloqueos en el registro de trabajo existente. La autorrevisión no sustituye la revisión independiente ni las decisiones humanas. Una entrega inicial con UI solo inicia Harness tras completar las comprobaciones aplicables; diferir la UI no permite saltarlas. Los productos headless justifican los controles UI no aplicables, y las mejoras y el mantenimiento revisan su alcance aceptado. Es una comprobación semántica del parent; un validador exitoso no demuestra la autorrevisión.
+
+Harness 0.57.0 elimina el atajo de UI diferida en entregas iniciales con UI, incluso si empiezan por backend. La comprobación de bindings backend no exime este handoff. Si una tarea nueva consume aprobaciones anteriores, realiza ahora las autorrevisiones del alcance aplicable y registra identidades de aprobación y candidato, sin antedatar evidencia ni reabrir decisiones sin cambios. Los RUN fijados a versiones anteriores conservan sus contratos.
 
 ### Ciclo de vida completo de los skills
 
@@ -194,7 +196,7 @@ flowchart TB
         ra["Evaluación research-first<br/>research-assessment.md (omitible)"]
         rgate{{"Research Gate<br/>go | clarify | stop"}}
         interview --> ra --> rgate --> pkg --> mr --> rchoice
-        rchoice -->|accepted| revision --> sgate --> pgate
+        rchoice -->|accepted| revision --> sgate --> productself["Autorrevisión PRD del autor"] --> pgate
         rchoice -->|revise proposal| mr
         rchoice -->|none, deferred, or rejected; no blockers| sgate
     end
@@ -205,13 +207,13 @@ flowchart TB
         preflight["Preflight del PRD<br/>operations + states + responsive + copy"]
         studies["frontend-design<br/>tres direcciones por defecto"]
         style["frontend-design<br/>Style Integration + target HiFi"]
-        review["Impeccable critique + audit<br/>scoring H1–H9"]
+        hifi_review["Impeccable critique + audit<br/>scoring H1–H9"]
         vgate{{"Human Visual Approval"}}
         dgate{{"Design System Need Gate"}}
         pending["Marker required/pending aprobado<br/>ligado al digest de Visual Approval"]
         pair["Preflight + compile de design-system-compiler<br/>design-system.md + design-system.json"]
         linked["El owner liga los hashes<br/>validación UI final"]
-        intake --> preflight --> studies --> directionChoice{{"Selección de dirección"}} --> style --> completeness["Preflight de cobertura HiFi"] --> review --> vgate --> dgate
+        intake --> preflight --> studies --> directionself["Autorrevisión de estructura y dirección UI"] --> directionChoice{{"Selección de dirección"}} --> style --> completeness["Preflight de cobertura HiFi"] --> hifiself["Autorrevisión HiFi del autor"] --> hifi_review --> vgate --> dgate
         dgate -->|required| pending --> pair --> linked
         dgate -->|not_required| target[Target aprobado fiel a las páginas]
     end
@@ -304,7 +306,8 @@ flowchart TB
 
     user --> interview
     pgate -->|producto UI aprobado y petición explícita| intake
-    pgate -->|headless o UI diferida| HARNESS
+    pgate -->|producto headless aprobado| HARNESS
+    pgate -->|"mejora o mantenimiento acotado aprobado; sin gate de diseño afectado"| route
     linked --> route
     target --> route
     DIRECT --> directhandoff
@@ -642,6 +645,8 @@ Este repositorio está bajo la Licencia MIT — ver [LICENSE](LICENSE).
 ## Historial de versiones
 
 Actualiza esta sección con cada release, como parte del bump de versión y el tag descritos en Releasing arriba.
+
+- **0.57.0** — Exigir autorrevisión tras reconciliar la investigación de mercado del PRD, antes de elegir dirección UI y antes de la revisión independiente HiFi. Registrar evidencia vigente y bloquear la ejecución dependiente de Harness ante hallazgos pendientes. Conservar revisiones independientes, decisiones del propietario, mantenimiento acotado y RUN históricos. La revisión Web mantiene 390/768/1024/1440 px y anchos intermedios; prevalecen los destinos aprobados y las size classes nativas.
 
 - **0.56.1** — En la raíz de un checkout Git, vincula los resultados y la evidencia de aceptación a los bytes confirmados en `HEAD`. Los archivos ignorados, sin seguimiento o modificados no pueden producir un PASS del gate; se requieren atributos Git que conserven los bytes.
 
