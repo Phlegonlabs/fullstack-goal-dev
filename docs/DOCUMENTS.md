@@ -12,6 +12,7 @@ The four READMEs remain the documentation of record for the skill bundle.
 | `docs/epics/EPIC-activation-execution-closure.md` | Read-only fail-closed Activation closeout with explicit owner deferrals and blocked-vs-complete records | Local candidate at baseline `bdae1d82`; release checks pending |
 | `docs/epics/EPIC-agent-delegation-contract.md` | Parent-owned role routing, multi-instance research/exploration and verified dispatch | Present in baseline main history at `bdae1d82`, matching local `v0.58.0`; later observation appended to Epic |
 | `docs/epics/EPIC-pre-delivery-self-review.md` | PRD/market, UI direction and HiFi author self-review before Harness execution | Present in baseline main history at `b591a618`, matching local `v0.57.0`; later observation appended to Epic |
+| `docs/epics/EPIC-ci-candidate-efficiency.md` | Exact-candidate CI, no duplicate feature runs, strict aggregate and measured shard scheduling | Local MOD-B implementation verified by focused tests; full and hosted verification pending |
 | `docs/audits/2026-09-28-contract-audit.md` | Dispositions for all 47 pasted audit items, including truncated and retained items | Integrated on `main` in the 0.56 release line |
 | `docs/epics/EPIC-macos-support.md` | Run the skill bundle and CI suites on macOS | Integrated on `main` in the 0.56 release line |
 | `docs/epics/EPIC-remove-wireframe-stage.md` | Remove the new-package Wireframe stage; move completeness and frozen-source checks to PRD and HiFi | Integrated on `main` in the 0.56 release line |
