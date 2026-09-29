@@ -292,6 +292,9 @@ async function agent(_prompt, options) {
         self.assertIn("PROJECT_AGENTS.template.md` for `AGENTS.md`", skill)
         self.assertIn("PROJECT_CLAUDE.template.md` for `CLAUDE.md`", skill)
         self.assertIn("never copy one template to both files", skill)
+        self.assertIn("--check --merge-agents", skill)
+        self.assertIn("safe-addition and divergence report", skill)
+        self.assertIn("reports same-heading semantic conflicts", skill)
         self.assertNotIn(
             "both files exist before any implementation run starts", skill
         )

@@ -58,6 +58,91 @@ class ConfigureProjectContextTests(unittest.TestCase):
         )
         return agents_template, claude_template
 
+    def make_merge_templates(self, root: Path) -> tuple[Path, Path]:
+        agents_template = root / "merge-agents-template.md"
+        claude_template = root / "merge-claude-template.md"
+        agents_template.write_text(
+            "# Shared Rules\n\n"
+            "## New Shared Rule\n\n- Add this guidance.\n\n"
+            "## Owner Rule\n\n- Template wording.\n",
+            encoding="utf-8",
+        )
+        claude_template.write_text(
+            "# Claude Rules\n\n@AGENTS.md\n\n- Use Claude workers.\n",
+            encoding="utf-8",
+        )
+        return agents_template, claude_template
+
+    def test_merge_adds_only_missing_shared_sections_and_is_idempotent(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            agents_template, claude_template = self.make_merge_templates(root)
+            agents = root / "AGENTS.md"
+            original = "# Owner Rules\n\n## Owner Rule\n\n- Keep owner wording.\n"
+            agents.write_text(original, encoding="utf-8")
+            override = root / "AGENTS.override.md"
+            override_bytes = b"owner override\n"
+            override.write_bytes(override_bytes)
+
+            first = configure_context(
+                root, agents_template, claude_template, merge_agents=True
+            )
+            merged_text = agents.read_text(encoding="utf-8")
+            second = configure_context(
+                root, agents_template, claude_template, merge_agents=True
+            )
+
+            self.assertEqual(["CLAUDE.md"], first["created"])
+            self.assertTrue(first["agents_merge"]["semantic_review_required"])
+            self.assertEqual(
+                ["New Shared Rule"], first["agents_merge"]["safe_additions"]
+            )
+            self.assertEqual(
+                "Owner Rule",
+                first["agents_merge"]["unresolved_divergences"][0]["heading"],
+            )
+            self.assertTrue(merged_text.startswith(original))
+            self.assertIn("## New Shared Rule\n\n- Add this guidance.\n", merged_text)
+            self.assertEqual(1, merged_text.count("## Owner Rule"))
+            self.assertIn("- Keep owner wording.", merged_text)
+            self.assertEqual(override_bytes, override.read_bytes())
+            self.assertEqual([], second["created"])
+            self.assertEqual([], second["agents_merge"]["safe_additions"])
+            self.assertEqual(merged_text, agents.read_text(encoding="utf-8"))
+
+    def test_merge_check_is_read_only_and_reports_the_plan(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            agents_template, claude_template = self.make_merge_templates(root)
+            agents = root / "AGENTS.md"
+            agents.write_text("# Owner Rules\n", encoding="utf-8")
+            before = agents.read_bytes()
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    "--root",
+                    str(root),
+                    "--check",
+                    "--merge-agents",
+                    "--agents-template",
+                    str(agents_template),
+                    "--claude-template",
+                    str(claude_template),
+                ],
+                capture_output=True,
+                text=True,
+                cwd=SCRIPTS_DIR,
+                timeout=10,
+            )
+
+            self.assertEqual(1, result.returncode)
+            self.assertIn('"New Shared Rule"', result.stdout)
+            self.assertIn('"semantic_review_required": true', result.stdout)
+            self.assertEqual(before, agents.read_bytes())
+            self.assertFalse((root / "CLAUDE.md").exists())
+
     def test_both_missing_receive_distinct_host_templates(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

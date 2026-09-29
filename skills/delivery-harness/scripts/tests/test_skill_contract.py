@@ -1047,6 +1047,11 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
             self.assertNotIn("frontend-design` in conformance mode", content)
             self.assertNotIn("`frontend-design` and `design-system-compiler`", content)
         self.assertIn("Harness—not the external skill—owns", worker_goal)
+        self.assertNotIn("a direct parent may author", worker_goal)
+        self.assertIn(
+            "UI authoring uses the host-bound frontend author",
+            worker_goal,
+        )
         self.assertIn("proposed design-input delta", design_updates)
         self.assertIn("return formal pair changes to `design-system-compiler`", design_updates)
 
@@ -1413,7 +1418,9 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("scripts/configure_project_context.py --root <target-root>", skill)
         self.assertIn("generated files are intentionally different", skill)
         self.assertIn("current host's effective instruction precedence", skill)
-        self.assertIn("Never overwrite, merge, normalize, or silently copy", skill)
+        self.assertIn("never overwrite, normalize, silently copy", skill)
+        self.assertIn("--merge-agents", skill)
+        self.assertIn("unresolved semantic divergences", skill)
         self.assertIn("Host-specific repository context:", worker_goal)
         self.assertIn("Runtime-specific worker contract:", worker_goal)
         self.assertIn("Keep automatic context discovery enabled", worker_goal)

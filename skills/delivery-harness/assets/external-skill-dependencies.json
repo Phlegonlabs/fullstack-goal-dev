@@ -8,7 +8,7 @@
           "source": "external",
           "source_locator": "https://github.com/anthropics/skills/tree/main/skills/frontend-design",
           "install": {
-            "kind": "codex_skill_installer",
+            "kind": "host_skill_installer",
             "request": "Install frontend-design from https://github.com/anthropics/skills/tree/main/skills/frontend-design"
           },
           "sha256": "fd14eb2fcb59fde11d9e75501995f1a08f21beaedf0ec407c4d44a954dd0eef3",
@@ -26,7 +26,7 @@
           "source": "external",
           "source_locator": "https://github.com/anthropics/skills/tree/main/skills/frontend-design",
           "install": {
-            "kind": "codex_skill_installer",
+            "kind": "host_skill_installer",
             "request": "Install frontend-design from https://github.com/anthropics/skills/tree/main/skills/frontend-design"
           },
           "sha256": "fd14eb2fcb59fde11d9e75501995f1a08f21beaedf0ec407c4d44a954dd0eef3",

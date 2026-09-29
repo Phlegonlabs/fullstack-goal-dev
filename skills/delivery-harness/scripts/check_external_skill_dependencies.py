@@ -51,7 +51,7 @@ REQUIRED_ACQUISITION: dict[str, dict[str, Any]] = {
     "frontend-design": {
         "source_locator": "https://github.com/anthropics/skills/tree/main/skills/frontend-design",
         "install": {
-            "kind": "codex_skill_installer",
+            "kind": "host_skill_installer",
             "request": (
                 "Install frontend-design from "
                 "https://github.com/anthropics/skills/tree/main/skills/frontend-design"
