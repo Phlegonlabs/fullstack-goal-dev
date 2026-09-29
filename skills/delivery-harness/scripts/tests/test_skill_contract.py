@@ -1545,7 +1545,9 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
             self.assertIn("never add a fixed prefix", content.lower())
         self.assertIn("does not own shared state", adapters)
         self.assertIn("ask before branch creation", skill.lower())
-        self.assertIn("- '**'", ci)
+        self.assertNotIn("- '**'", ci)
+        self.assertIn("<protected-branch-1>", ci)
+        self.assertIn("<protected-branch-2>", ci)
         self.assertNotIn("codex/**", ci)
 
     def test_repo_ci_workflow_verifies_every_pushed_branch(self) -> None:

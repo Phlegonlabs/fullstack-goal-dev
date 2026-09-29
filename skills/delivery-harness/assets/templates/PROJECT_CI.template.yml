@@ -5,35 +5,83 @@ on:
   merge_group:
   push:
     branches:
-      # Do not assume a run-branch prefix; verify every pushed branch.
-      - '**'
+      # Replace these placeholders with protected integration/release branches.
+      # Do not add '**': a feature branch is verified once by its pull request.
+      - <protected-branch-1>
+      - <protected-branch-2>
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Full 40-character commit SHA to verify for release
+        required: true
+        type: string
 
 permissions:
   contents: read
 
+concurrency:
+  group: project-ci-${{
+    github.event_name == 'workflow_dispatch' && inputs.release_sha ||
+    github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) ||
+    github.ref
+  }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CANDIDATE_SHA: ${{ inputs.release_sha || github.event.pull_request.head.sha || github.sha }}
+
 jobs:
-  verify:
-    name: verify
+  checks:
+    name: checks
     runs-on: ubuntu-latest
+    env:
+      DIFF_BASE_SHA: ${{
+        github.event_name == 'pull_request' && github.event.pull_request.base.sha ||
+        github.event_name == 'merge_group' && github.event.merge_group.base_sha ||
+        github.event.before
+      }}
     steps:
-      - name: Check out repository
+      - name: Check out exact candidate
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.CANDIDATE_SHA }}
+
+      - name: Verify canonical checked-out candidate
+        run: |
+          if [[ ! "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "CANDIDATE_SHA must be a full lowercase commit SHA"
+            exit 1
+          fi
+          actual_sha="$(git rev-parse HEAD)"
+          test "$actual_sha" = "$CANDIDATE_SHA"
 
       # Add the repo-specific runtime setup steps here.
 
       - name: Run required verification
         run: <verification-command>
 
+      - name: Check candidate diff whitespace
+        run: |
+          if [ -n "$DIFF_BASE_SHA" ] && git rev-parse --verify --quiet "$DIFF_BASE_SHA^{commit}" >/dev/null; then
+            git diff --check "$DIFF_BASE_SHA...HEAD"
+          elif [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            git diff --check "origin/$GITHUB_REF_NAME...HEAD"
+          else
+            git diff --check
+          fi
+
   e2e:
     name: e2e
     runs-on: ubuntu-latest
-    env:
-      E2E_HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
     steps:
-      - name: Check out repository
+      - name: Check out exact candidate
         uses: actions/checkout@v4
         with:
-          ref: ${{ env.E2E_HEAD_SHA }}
+          ref: ${{ env.CANDIDATE_SHA }}
+
+      - name: Verify exact checked-out candidate
+        run: test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
 
       # Add the same repo-specific runtime and service setup used by the target environment.
 
@@ -44,6 +92,28 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-${{ env.E2E_HEAD_SHA }}
+          name: e2e-${{ env.CANDIDATE_SHA }}
           path: <e2e-artifact-path>
           if-no-files-found: error
+
+  verify:
+    # Keep this stable name for branch protection. It is the final aggregate,
+    # so skipped or cancelled dependencies cannot produce a green release gate.
+    name: verify
+    needs: [checks, e2e]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every result to succeed
+        env:
+          CHECKS_RESULT: ${{ needs.checks.result }}
+          E2E_RESULT: ${{ needs.e2e.result }}
+        run: |
+          failed=0
+          for result in "$CHECKS_RESULT" "$E2E_RESULT"; do
+            if [ "$result" != success ]; then
+              echo "required result: $result"
+              failed=1
+            fi
+          done
+          exit "$failed"
