@@ -42,7 +42,7 @@ For administration, include the required work areas and their responsibilities, 
 
 Choose composition, hierarchy, grouping, typography, imagery and motion freely within the approved constraints. A hero, introduction, feature group or CTA is a design choice when it serves the page purpose; do not impose a universal section sequence. Use the existing Page-purpose mapping to distinguish fixed requirements from design freedom.
 
-Produce three materially different visual directions by default, with inspected reference lessons and the same representative primary and stress cases. Show applicable motion and reduced-motion treatment. If the owner explicitly requested one direction, produce one. Present comparable studies and wait for the owner's selection before creating the full connected HiFi HTML package.
+Produce three materially different visual directions by default, with inspected reference lessons and the same representative primary and stress cases. Show applicable motion and reduced-motion treatment. If the owner explicitly requested one direction for a `ui-design/2` package, produce one; a `ui-design/3` package always gets three. Present comparable studies and wait for the owner's selection before creating the full connected HiFi HTML package.
 ```
 
 ## Cheap Completeness Check
@@ -63,7 +63,7 @@ If the owner supplies a reference, read `design-reference-guide.md` and inspect 
 
 Use the existing Design Brief to connect the page-purpose/profile mapping, typography/density/headline constraints, motion intent, owner answer, reference lessons and visual constraints to Style Integration and MM records as decisions mature. An explicit `no references` answer permits relevant research and recommendations under `design-reference-guide.md`; it is not direction approval. Unanswered optional references stay `not supplied`, and inaccessible material stays uninspected. Continue independent work and wait only for work that depends on the missing input. Preserve answered preferences and unchanged enhancement directions.
 
-When the owner explicitly instructs a single recommendation, produce one product-specific direction. Otherwise a new package gets exactly three materially different directions over the same approved surfaces, states and responsive targets. Continuing uncertainty does not convert into that single-direction instruction. Never substitute a fixed catalog of style names.
+A new `ui-design/3` package always gets exactly three materially different directions over the same approved surfaces, states and responsive targets; an owner request for fewer does not waive it. The explicit single-recommendation instruction remains available only to a retained `ui-design/2` package under its original rules. Continuing uncertainty never converts into that instruction. An enhancement keeps its package's contract and retains the accepted direction for unchanged scope: a `ui-design/3` package keeps its approved round's hash-bound studies and selection, and no enhancement restarts direction selection. Never substitute a fixed catalog of style names.
 
 Present the complete direction set to the human owner. End the turn and wait for `approve`, `select`, `mix`, or `reject`; even a one-direction set needs explicit approval. A mix or rejection creates one complete revised direction set and another explicit decision. Do not create the connected HiFi reference or invoke a generation provider before a direction is selected.
 
