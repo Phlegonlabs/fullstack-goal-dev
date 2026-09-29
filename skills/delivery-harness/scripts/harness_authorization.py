@@ -264,22 +264,32 @@ def _target_branch(target: Any) -> str | None:
 
 
 def is_protected_branch_target(run: dict[str, Any], target: Any) -> bool:
-    """Return whether a local or remote target names a protected branch."""
+    """Return whether a local or full remote target names a protected branch."""
 
     branch = _target_branch(target)
     if branch is None:
         return False
     protected_names = {"main", "development"}
+    default_branch = _normalized_branch(observed_default_branch(run))
     if branch.casefold() in protected_names:
         return True
-    remote_tail = branch.split("refs/remotes/", 1)[-1]
-    if remote_tail != branch:
-        segments = remote_tail.split("/", 1)
-        if len(segments) == 2 and segments[1].casefold() in protected_names:
-            return True
+
+    remote_name = None
+    if branch.startswith("refs/remotes/"):
+        segments = branch[len("refs/remotes/") :].split("/")
+        if len(segments) >= 2:
+            remote_name = "/".join(segments[1:])
+    if remote_name is not None and (
+        remote_name.casefold() in protected_names
+        or (
+            default_branch is not None
+            and remote_name.casefold() == default_branch.casefold()
+        )
+    ):
+        return True
+
     if branch.casefold() in {f"origin/{name}" for name in protected_names}:
         return True
-    default_branch = _normalized_branch(observed_default_branch(run))
     # Loose refs on case-insensitive filesystems make "Master" name "master".
     return default_branch is not None and branch.casefold() == default_branch.casefold()
 

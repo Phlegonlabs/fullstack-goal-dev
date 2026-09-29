@@ -186,6 +186,28 @@ class CleanupLifecycleTargetTests(unittest.TestCase):
         plan, run = lifecycle_pair("branch:codex/done", ["*", "branch:codex/done"])
         self.assertEqual([], validate_current_plan_run(plan, run))
 
+    def test_full_remote_default_target_is_protected_without_origin_assumption(self) -> None:
+        _plan, run = lifecycle_pair("branch:codex/done", ["*"])
+        run["observed"]["git"]["default_branch"] = "refs/heads/trunk"
+
+        self.assertFalse(
+            authorization_covers(
+                run, "delete_branches", "M1", "branch:refs/remotes/upstream/trunk"
+            )
+        )
+        self.assertFalse(
+            authorization_covers(
+                run, "delete_branches", "M1", "branch:refs/remotes/upstream/development"
+            )
+        )
+        # The grammar permits unqualified slash names. Protection is exact:
+        # this names a local branch unless it equals the observed default.
+        self.assertTrue(
+            authorization_covers(
+                run, "delete_branches", "M1", "branch:upstream/trunk"
+            )
+        )
+
     def test_reserve_requires_exact_target_and_records_it(self) -> None:
         # The selector defers a target-less cleanup node for every RUN, so
         # reserve refuses it even where the PLAN rule does not apply.
