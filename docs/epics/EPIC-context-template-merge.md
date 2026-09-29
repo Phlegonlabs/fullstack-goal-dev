@@ -29,6 +29,7 @@ Delivery Harness context/bootstrap guidance, document-sync handoff guidance, Pro
 | Change / request | Reason and affected scope | Commit / evidence | Verification and remaining work |
 | --- | --- | --- | --- |
 | 2026-09-29 MOD-A implementation | Owner-approved batch A: add safe context merge and explicit conflict reporting; keep host roles capability-bound and remove Codex-specific frontend-design acquisition wording | Working-tree candidate on baseline `bdae1d82acfd24cdeb2866f5480ff4d4d73b0b61`; atomic task commit is the change containing this Epic | Focused bootstrap, Harness contract, Product contract and external dependency tests passed before the task commit. Full required suite, independent review, promotion, installation and release remain with the parent. No push, install, branch creation or deletion is authorized here. |
+| 2026-09-29 parent entry clarification | Keep entry bootstrap as the first source task; narrow Product Definition publication to context-bootstrap moves and defer Skill Bindings resolution to Delivery Harness entry | Follow-up to `689610c00316725db97da4fb9289f90b116c261a`; working-tree changes until the follow-up commit | Product contract verification passed (96 tests). Skill specification, changed-file pyflakes, docs weight and diff checks passed. Parent integration and full suite remain outstanding. |
 
 ## Verification Before Commit
 

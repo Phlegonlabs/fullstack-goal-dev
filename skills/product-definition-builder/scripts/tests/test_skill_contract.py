@@ -295,6 +295,13 @@ async function agent(_prompt, options) {
         self.assertIn("--check --merge-agents", skill)
         self.assertIn("safe-addition and divergence report", skill)
         self.assertIn("reports same-heading semantic conflicts", skill)
+        self.assertIn("entry bootstrap is the first source task", skill)
+        self.assertIn("run only the context bootstrap moves", skill)
+        self.assertIn(
+            "the Delivery Harness entry resolves installed binding candidates",
+            skill,
+        )
+        self.assertNotIn("List locally installed binding candidates", skill)
         self.assertNotIn(
             "both files exist before any implementation run starts", skill
         )
