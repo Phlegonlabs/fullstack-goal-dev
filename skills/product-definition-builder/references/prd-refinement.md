@@ -15,6 +15,10 @@ Check the joins between features, not only individual requirement rows. Can the 
 
 Distinguish required-now coverage, explicitly deferred scope and owner decisions using existing priorities and release targets. Required-now findings must trace to an accepted need, Must requirement, applicable NFR or release obligation. A newly discovered essential need without an owner decision becomes a blocking Open Question. Deferral cannot hide a dependency of required work or downgrade an accepted Must. The parent reconciles both perspectives and existing trace/consistency review against the same candidate before approval. Use authorized read-only lanes or perform the roles sequentially; this rule grants no delegation.
 
+## Complete The Author Self-Review
+
+Apply `../../delivery-harness/references/pre-delivery-self-review.md#prd-self-review` to the reconciled candidate after post-draft market research. Use the perspectives above to check the complete package, then recheck any changes from the Stack Decision Checkpoint before Product Definition Approval. Record the reviewed revision, evidence, findings, repairs and remaining blockers in the existing Epic/task record. A passing structural checker or a research report alone does not complete this author review. Keep required unresolved findings blocking and preserve the owner's decisions.
+
 ## Return New Evidence At Existing Checkpoints
 
 | Checkpoint | New evidence to reconcile |

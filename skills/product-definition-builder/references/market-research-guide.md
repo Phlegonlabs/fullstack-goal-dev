@@ -109,6 +109,10 @@ Each proposal states:
 
 Use this decision vocabulary: `pending | accepted | revise | deferred | rejected`. A proposal starts `pending`. A `revise` choice changes the proposal and returns it for explicit acceptance before any PRD change. When there are no useful proposals, explain the evidence-backed result and continue without a proposal-choice round; existing blockers still apply. The parent proactively sends verified absolute Markdown links to the complete current staged PRD and `market-research.md`, with a short recommendation summary, waits for an explicit decision, and applies only an owner-recorded accepted change. Silence is not approval, an agent decision is not owner approval, and accepted or deferred does not authorize implementation. A deferred or rejected proposal cannot erase an approval-blocking gap; the blocking Open Question, gate, or unresolved finding remains.
 
+## Handoff To PRD Self-Review
+
+After the parent records research evidence and applies owner-accepted recommendations, the Product Definition author performs the PRD self-review in `../../delivery-harness/references/pre-delivery-self-review.md`. Inspect the resulting package, not the pre-research draft; reconcile affected requirements, architecture, stack, metrics, tests and review copies. Recheck any later stack-decision changes before Product Definition Approval. Record source limitations and unresolved required findings. A research report, no-recommendation result or permitted skip is not a self-review PASS.
+
 ## Blocked Path
 
 Return `blocked` — do not publish a half-researched artifact — when:

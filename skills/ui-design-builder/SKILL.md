@@ -60,6 +60,12 @@ Enhancement mode takes precedence over the initial-design sequence below unless 
 8. Apply the **Design System Need Gate** after Visual Approval. Only `required` invokes `design-system-compiler`. A new required pair is `design-system/3`; it consumes the approved `ui-design/2` and `ui-hifi/2` identities and has no wireframe binding. Its exact temporary marker is `Compiled design system pair: pending — design-system-compiler`; normal publication rejects it. Legacy `design-system/2` pairs retain their historical meaning and validation. `not_required` uses the approved HiFi/UI/PRD contract and records existing-pair disposition.
 9. Run the normal publication checker at final logical paths in the authorized publication checkout. Retain every sibling, evidence file and required pair/preview. Publication, installation, commits and archival retain their separate authorization boundaries. The approved HiFi is the design baseline for this round's initial implementation.
 
+## Author Self-Review Before Handoff
+
+Apply `../delivery-harness/references/pre-delivery-self-review.md` at two existing stage exits. In step 3, the actual `frontend-design` author reviews UI structure, operations and rendered representative direction studies before requesting direction selection. After step 5's cheap completeness preflight, the same author reviews the connected HiFi's copy, layout, states, responsive behavior and actual interactions before step 6's independent quality review. Record candidate identities, inspected evidence, findings, repairs and `pass` or `blocked` in the existing Epic/task record, linking the existing UI evidence. Recheck the affected scope after changes.
+
+These author checks retain the existing review/repair limits and do not replace Impeccable, H1–H9 or the owner's decisions. Missing applicable self-review or required evidence blocks handoff to Harness execution. Enhancements review the accepted delta and shared consumers; maintenance retains its existing route and records the applicable check without rebuilding historical HiFi.
+
 ## Review And Repair Boundaries
 
 - Author directions and HiFi from the PRD contract, not from an implied page skeleton. The design author may choose hierarchy, grouping, section rhythm, typography, density and visual treatment; it may not add a page, route, control, state, responsive target, operation, copy obligation or integration.

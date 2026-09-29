@@ -19,7 +19,9 @@ Before direction/HiFi authoring or repair, run `python "<delivery-harness-skill-
 
 Combine missing design, image and motion preferences. Reuse supplied answers. Run:
 
-Product/stack and PRD preflight with `--ui-contract ui-design/2` → unresolved preferences → direction selection → complete HiFi, cheap completeness preflight, technical checks, Impeccable and grading → one human Visual Approval → conditional compiler → implementation.
+Product/stack and PRD preflight with `--ui-contract ui-design/2` → unresolved preferences → direction studies and UI author self-review → direction selection → complete HiFi, cheap completeness preflight and HiFi author self-review → technical checks, Impeccable and grading → one human Visual Approval → conditional compiler → Harness handoff check → implementation.
+
+Use `../../delivery-harness/references/pre-delivery-self-review.md` for the two author checks and their evidence. PRD self-review belongs to Product Definition after market reconciliation and before its approval. Record each applicable result in the existing work record and link the current candidate and review evidence. An unresolved required finding blocks the next dependent stage; a structural checker PASS or the author's own score does not replace independent review or human approval.
 
 A `ui-design/2` package has no wireframe, W1–W5, Copy Freeze or human Wireframe Approval stage. It reads the PRD's complete sourced wording and contract directly. The final HiFi review includes wording, structure, product menus, tabs, other interactions, visuals and all product tokens. Formal design-system compilation runs only when the Need Gate requires it.
 

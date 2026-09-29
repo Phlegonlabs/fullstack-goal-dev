@@ -60,6 +60,8 @@ These rows are intentionally unresolved in the seed. Before managed work, observ
 
 ## Core Development Principles
 
+For work consuming a Product Definition package, apply `delivery-harness/references/pre-delivery-self-review.md` before execution. A backend-only binding check is not permission to defer required UI/self-review for a UI-bearing initial delivery. Keep scoped enhancement/maintenance routes and the reference's historical-approval catch-up rules.
+
 ### Bounded Enhancement And Test Evidence
 
 - At every skill invocation, apply the shared `delivery-harness/references/document-sync-contract.md`; inspect current PRD, runtime/skill identity and relevant instruction pointers before work. Preserve owner rules and immutable history.

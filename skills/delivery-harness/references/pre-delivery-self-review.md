@@ -1,0 +1,59 @@
+# Self-Review Before Product Delivery
+
+For a new product, complete these author checks in order: draft the Product Definition, reconcile post-draft market research, review the resulting PRD package, review UI structure and direction, then review the connected HiFi. Finish the existing owner decisions and required independent reviews before Harness execution. Earlier research-first assessment does not replace the post-draft market pass.
+
+These are preparation checks inside the existing stage exits, not new human approval rounds, schemas or standalone artifacts. The parent remains responsible when a helper contributes findings. Self-review cannot supply an independent review, a human decision or permission to execute, publish, install or delegate.
+
+Apply these new author handoff requirements to work adopting Harness 0.57.0 or later. Record the observed skill version/source identity in the existing task record; an unknown loaded identity remains unknown. Earlier pinned RUNs retain their recorded contracts until an authorized upgrade boundary.
+
+When a new 0.57.0-or-later task consumes stages already approved without these checks, perform present-day catch-up self-reviews of the applicable currently approved scope at handoff. Name each approval's identity and the actual review date and candidate; never claim the review happened before that historical approval. Unchanged owner decisions remain valid. Required findings block dependent execution; repairs that change approved content renew the affected decisions. A closed approval alone never exempts a new task from current self-review.
+
+## Record The Reviewed Candidate
+
+Use the existing Epic or direct-task record, linking the existing research, UI and review evidence. Record the stage, author, date, candidate paths and revision or SHA-256 values, affected requirement/UI/TEST IDs, checks actually performed, findings and repairs, unresolved blockers, and a conclusion of `pass` or `blocked`. An explicit no-finding conclusion still names the inspected scope and evidence.
+
+Review the actual current artifacts. A substantive revision invalidates the affected self-review: inspect the delta and shared consumers, run the relevant checks again, and append the new result. Preserve earlier findings and approvals. A screenshot, score, checklist tick or validator success alone cannot establish a semantic or visual review.
+
+## PRD Self-Review
+
+The Product Definition author reviews the complete candidate after post-draft market reconciliation and accepted recommendation changes. Check it again after the Stack Decision Checkpoint, before presenting Product Definition Approval.
+
+- Confirm that relevant `RA-*` and `MR-*` evidence agrees with the problem, audience, alternatives, differentiation, scope, metrics and risks. Keep facts, vendor claims and hypotheses distinct; include source dates and unresolved evidence gaps. Apply only owner-accepted product or stack changes.
+- Walk the first useful journey, feature joins, denial/error/recovery paths, data and permission boundaries, operational setup and release obligations. A headless product reviews caller/operator journeys.
+- Check that Must requirements and applicable NFRs have observable acceptance and `TEST-*` coverage; reconcile PRD, architecture, stack and Chinese review copies. Use the existing product-package, translation and output-contract checks at their applicable stages.
+- Record skipped or unavailable market research with its existing permitted reason and impact. A research limitation is not evidence of market validation. An unresolved required fact, product decision or dependency keeps this self-review blocked; a permitted research skip never skips PRD self-review.
+
+Use `../../product-definition-builder/references/prd-refinement.md` for findings and owner boundaries. Only a current passing self-review with no required unresolved gap is ready for the existing Product Definition Approval and downstream handoff.
+
+## UI Structure And Direction Self-Review
+
+The `frontend-design` author reviews each proposed direction before asking the owner to select it. Here “UI” means the PRD-to-design translation and representative direction studies; it does not add a Wireframe stage.
+
+- Follow the approved page purposes, navigation, operations and entry/return paths, states, copy/data responsibilities and responsive targets through the representative primary and stress cases.
+- Inspect the rendered studies on the applicable platforms. Check hierarchy, grouping, density, readability, control treatment, accessibility and motion intent against the brief and inspected references.
+- Keep the approved responsive set. New Web packages default to four review widths: 390, 768, 1024 and 1440 CSS px; inspect intermediate widths too. These are review targets, not forced CSS breakpoints. Native and hybrid surfaces retain their own approved size classes/target families. Follow the existing platform stress cases in `../../ui-design-builder/references/modern-design-sources.md`; the 320 CSS-pixel reflow check is an accessibility stress case, not a fifth authored target.
+- Confirm that directions use comparable cases, respect the approved stack and expose meaningful tradeoffs. Check required behavior rather than relying on reviewer-shell navigation.
+- Repair design defects within the accepted scope. Route missing product decisions upstream and keep the dependent stage blocked.
+
+Link the existing Direction comparison, captures and Frontend Design Usage records. After an owner-selected mix or a changed direction, recheck the revised study before the existing direction decision. Direction approval remains the owner's decision.
+
+## HiFi Self-Review
+
+After the connected candidate and cheap completeness preflight, the same author reviews the actual HiFi before handing it to Impeccable and H1–H9 review.
+
+- Follow the complete PRD page/target/state matrix and the selected direction. Check visible copy and provenance, content/data meaning, operations, menus, tabs, focus, overlays, failure/recovery, tokens and applicable motion.
+- Retain evidence for every approved responsive target, including all four default Web widths when that is the approved set. A desktop-only render cannot stand in for the smaller targets; the direction study's representative cases cannot stand in for the final complete HiFi matrix.
+- Inspect actual browser renders and interactions, including long/localized copy, intermediate widths, overlap, clipping, overflow and reduced motion. Use the existing closed-browser restrictions and retain evidence for the inspected candidate.
+- Collect findings before repairing shared causes. Recheck affected pages and consumers, then retain the required final matrix. Missing browser evidence remains blocked or unvalidated; static checks do not establish a visual pass. Native HTML projections do not establish native implementation proof.
+
+Reuse the current completeness, browser and review tooling; do not run an identical browser matrix twice when current evidence already covers the same bytes and cases. This author check neither consumes nor resets the existing independent diagnostic/repair budget, and it creates no unbounded repair loop. Follow the bounded-enhancement repair limits for author repairs and the existing HiFi review limits for independent review.
+
+Impeccable critique/audit, H1–H9, Visual Approval and the conditional Design System Need Gate still follow. Any later repair invalidates the affected evidence and requires the applicable recheck before approval or handoff.
+
+## Harness Entry
+
+Before direct implementation or managed readiness, the parent checks the current self-review records alongside approved Product Definition/stack and applicable approved UI/HiFi sources. A UI-bearing initial delivery cannot enter execution with UI deferred, a missing self-review or an unresolved required finding. It returns to the owning stage; read-only inspection and planning may continue.
+
+For enhancements, review the accepted delta and shared consumers, carry forward current evidence for unaffected scope, and renew only affected decisions. Routine maintenance follows `../../ui-design-builder/references/review-workflow.md`: it records the applicable author check against the accepted change and current product without regenerating historical HiFi. A headless product records UI and HiFi as not applicable with a reason. Existing pinned RUNs keep their historical contracts; previously closed approvals follow the catch-up rule above when a new task adopts this contract.
+
+This is a parent semantic handoff check. Existing validators still check their declared artifact, hash and approval contracts; they do not automatically prove that these author reviews occurred. Record missing evidence and stop dependent execution rather than treating a structural validator PASS as self-review.

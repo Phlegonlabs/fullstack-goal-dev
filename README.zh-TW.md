@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.56.1-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.57.0-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -151,12 +151,12 @@ Token 觀察分別保留來源／顯示原值及瀏覽器正規化後的來源�
 ```mermaid
 flowchart LR
   Idea["產品構想或變更需求"] --> PRD["Product Definition candidate\nPRD + architecture + stack"]
-  PRD --> ProductGate{"Stack Decision +\nProduct Definition Approval"}
-  ProductGate -->|"UI 產品核准且明確要求"| UIDesign["ui-design-builder\nPRD 預檢 + intake + 方向研究"]
-  UIDesign --> UIReview["選定方向 + 完整 HiFi\n完整性 + Impeccable + H1–H9"]
+  PRD --> Market["草稿後市場研究與回填"] --> ProductGate{"Stack Decision + PRD 自查 +\nProduct Definition Approval"}
+  ProductGate -->|"UI 產品核准且明確要求"| UIDesign["ui-design-builder\nintake + 方向研究 + UI 自查"]
+  UIDesign --> UIReview["選定方向 + 完整 HiFi\n完整性 + 自查 + Impeccable + H1–H9"]
   UIReview --> Design["已核准 HiFi target\n需要時進 design-system-compiler"]
-  ProductGate -->|"核准、延後 UI 階段"| Harness["delivery-harness\n共用交付核心"]
-  ProductGate -->|"核准的 headless 產品"| Harness
+  ProductGate -->|"核准的 headless 產品"| Harness["delivery-harness\n共用交付核心"]
+  ProductGate -->|"已核准的限域增強或維護；無受影響設計 gate"| Harness
   Design -->|"核可的全頁面 HTML reference 或設計系統契約"| Harness
   Harness --> Runtime["觀察原生能力\n共用通用契約"]
   Runtime --> Security["code-security-review\n全新統一 exact-SHA 審查"]
@@ -172,7 +172,9 @@ flowchart LR
   SEO -.-> Outcome
 ```
 
-可以從任意階段開始。Product Definition 擁有產品與技術決策；UI Design Builder 直接讀取來源，取得方向選擇及完整 HiFi 核准。Harness 實作已凍結且核准的來源，security、release 與 activation 保留既有邊界。
+從任何階段繼續前，先確認其前置條件仍有效。依[交付前自我 review 契約](skills/delivery-harness/references/pre-delivery-self-review.md)，PRD 草稿完成市場研究與已接受建議的回填後，由作者自查整套產品文件；選擇方向前自查 UI 結構與方向；HiFi 完成後先自查，再進獨立審查與 Visual Approval。版本、問題、修正及未解阻擋項記在既有任務紀錄。自查不代替必要的獨立審查或人工核准。UI 產品的初次交付必須完成適用檢查後才進 Harness 執行，不能用「延後 UI」繞過；headless 產品註明 UI 檢查不適用，增強與維護則檢查其已接受範圍。這是 parent 的語義檢查，驗證器成功本身不證明已自查。
+
+Harness 0.57.0 移除 UI 產品初次交付的「延後 UI」捷徑，包括先做 backend 的切片；backend binding 檢查不豁免交接要求。新任務沿用舊核准時，在當前交接點補做適用範圍的自查，記錄核准與 candidate 身分，不回填假日期，也不重開未變動的 owner 決策。較舊 pinned RUN 保留原契約。
 
 ### 完整技能生命週期
 
@@ -194,7 +196,7 @@ flowchart TB
         ra["research-first 評估<br/>research-assessment.md（可跳過）"]
         rgate{{"Research Gate<br/>go | clarify | stop"}}
         interview --> ra --> rgate --> pkg --> mr --> rchoice
-        rchoice -->|accepted| revision --> sgate --> pgate
+        rchoice -->|accepted| revision --> sgate --> productself["PRD 作者自查"] --> pgate
         rchoice -->|revise proposal| mr
         rchoice -->|none, deferred, or rejected; no blockers| sgate
     end
@@ -205,13 +207,13 @@ flowchart TB
         preflight["PRD 預檢<br/>operations + states + responsive + copy"]
         studies["frontend-design<br/>預設三個方向"]
         style["frontend-design<br/>Style Integration + HiFi target"]
-        review["Impeccable critique + audit<br/>H1–H9 評分"]
+        hifi_review["Impeccable critique + audit<br/>H1–H9 評分"]
         vgate{{"Human Visual Approval"}}
         dgate{{"Design System Need Gate"}}
         pending["已核准 required/pending marker<br/>綁 Visual Approval digest"]
         pair["design-system-compiler preflight + compile<br/>design-system.md + design-system.json"]
         linked["Owner 連結 pair hashes<br/>final UI validation"]
-        intake --> preflight --> studies --> directionChoice{{"方向選擇"}} --> style --> completeness["HiFi 完整性預檢"] --> review --> vgate --> dgate
+        intake --> preflight --> studies --> directionself["UI 結構與方向自查"] --> directionChoice{{"方向選擇"}} --> style --> completeness["HiFi 完整性預檢"] --> hifiself["HiFi 作者自查"] --> hifi_review --> vgate --> dgate
         dgate -->|required| pending --> pair --> linked
         dgate -->|not_required| target[核可的 page-faithful target]
     end
@@ -304,7 +306,8 @@ flowchart TB
 
     user --> interview
     pgate -->|UI 產品核准且明確要求 UI| intake
-    pgate -->|headless 或延後 UI| HARNESS
+    pgate -->|已核准 headless 產品| HARNESS
+    pgate -->|"已核准的限域增強或維護；無受影響設計 gate"| route
     linked --> route
     target --> route
     DIRECT --> directhandoff
@@ -643,6 +646,8 @@ HiFi 範例以固定 LF 換行維持跨平台位元組雜湊。Wireframe 的 Nod
 ## 版本紀錄
 
 每次發佈都要更新這一節，連同上面《發佈》一節描述的版本號提升與 tag 一起完成。
+
+- **0.57.0** — 明確要求 PRD 市場研究整合後、UI 方向選擇前及 HiFi 獨立審查前的作者自查。保留當前證據，未解決問題阻擋相依的 Harness 執行；獨立審查、owner 決策、限域維護及歷史 RUN 不變。Web 預設檢查 390／768／1024／1440 px 與中間寬度，既有核准尺寸及原生 size classes 仍優先。
 
 - **0.56.1** — 在 Git checkout 根目錄，將交付驗收結果與證據綁定到 `HEAD` 已提交的確切位元組；被忽略、未追蹤或已修改的檔案不能取得 gate PASS，並須設定保留位元組的 Git 屬性。
 
