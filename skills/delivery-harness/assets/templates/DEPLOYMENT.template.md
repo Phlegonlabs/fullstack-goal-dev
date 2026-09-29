@@ -66,7 +66,7 @@ For a new stateful binding (KV namespace, D1 database, R2 bucket, Durable Object
 3. Create the production-side resource. This is an owner action — do not skip it or swap the order.
 4. Add the production declaration (for example `env.production`) to the same candidate lineage. If that changes the SHA, redeploy the new candidate and repeat internal verification. Then fast-forward the exact verified SHA to `main` and verify every production URL.
 5. Secrets for the new binding: fake or dedicated values on the development worker, real values only in production, never in the wrangler config.
-6. With a D1 schema change: apply the migration to the development database and verify it there first; coordinate the production database migration with the default-branch deploy so new code never ships before the production schema exists.
+6. With a D1 schema change: apply the migration to the development database and verify it there first; coordinate the production database migration with the protected-`main` deploy so new code never ships before the production schema exists.
 
 ### vercel, aws, generic
 

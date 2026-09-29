@@ -144,10 +144,10 @@ When pricing, paid access, purchase-gated features or outside sellers apply, rea
 
 - Before every authorized commit, read `delivery-harness/references/commit-convention.md`. Direct tasks use `<type>(<scope>): <imperative summary>`; managed task and mission trailers apply only inside managed runs.
 - Managed Harness requires the default branch to be named `main`; archive and promotion tooling binds only `main` refs. Confirm the name from repository state at bootstrap. If it differs, stop before managed work and ask the owner.
-- `main` is the only persistent protected branch and production source. Never edit or commit directly on it; the retired branch name `development` is not a release source or integration target.
-- Resolve the complete non-default run-branch name from repository governance or the user's instruction. Cut both `initial_delivery` and `enhancement` runs from observed remote `main`. If the kind or name is unresolved, ask; never add a fixed prefix or invent a name.
+- `main` is the persistent production branch and remains protected. In the ordinary dual-branch flow, `development` is also protected and is the observed remote base; hotfixes instead start from `main`. Never edit or commit directly on either protected branch.
+- Resolve the complete non-default run-branch name from repository governance or the user's instruction. Freeze the matching observed remote head in PLAN `branch_policy`: `development` for ordinary work and `main` for a hotfix. Cut both `initial_delivery` and `enhancement` run branches from that frozen head. If the kind or name is unresolved, ask; never add a fixed prefix or invent a name.
 - Harness 0.38+ RUNs close `local_only` and keep their push grant false. After archival, a separately authorized checkout-external request/attempt/receipt may publish exact archive candidate A to the run branch. It never authorizes `main` or `development`.
-- Follow `delivery-harness/references/branch-promotion-contract.md`: verify A and any isolated non-production deployment, then separately authorize and fast-forward exact A to `main`. Never force-push; stop on drift or divergence.
+- Follow `delivery-harness/references/branch-promotion-contract.md`: verify A and any isolated non-production deployment. In the ordinary flow, separately authorize the exact-A landing on protected `development`, then separately authorize the exact-SHA promotion to protected `main`; a hotfix may promote exact A to `main` and then be forward-landed on `development` by separate authorization. Never force-push; stop on drift or divergence.
 - Preserve unrelated dirty files, branches, and worktrees. Cleanup, worktree removal, task archival, and branch deletion require their own exact authorization.
 
 ## Deployment

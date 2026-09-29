@@ -816,7 +816,7 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("## Deployment", project_agents)
         self.assertIn("deployment-contract.md", project_agents)
         self.assertIn("branch-promotion-contract.md", project_agents)
-        self.assertIn("fast-forward exact A to `main`", project_agents)
+        self.assertIn("exact-SHA promotion to protected `main`", project_agents)
         self.assertIn("Protected resources preview must never bind", project_agents)
         self.assertIn(
             "general runtime adapter reference", project_claude
