@@ -193,6 +193,7 @@ Unary ineligibility or deferral belongs on the node entry, not on a graph edge. 
 - `runtime_contract_unobserved` — the installed harness contract digest is not observed for the loaded runtime, or an adopted receipt cannot be checked.
 - `runtime_restart_required` — the runtime upgraded but has not restarted onto the loaded contract.
 - `runtime_unavailable` — the node's allowed providers exclude the current host.
+- `mandatory_role_binding_missing` — a required logical role is missing, misdeclared, or cannot resolve to an eligible host binding.
 - `runtime_upgrade_pending` — the runtime is compatible-but-old and no wave is active, so the upgrade should run first.
 - `runtime_upgrade_required` — the recorded runtime version is below the minimum the harness requires.
 - `runtime_version_unobserved` — no runtime version evidence is recorded (or the version gate itself is missing).

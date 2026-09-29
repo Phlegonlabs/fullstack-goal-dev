@@ -2,6 +2,8 @@
 
 Read this reference only while rendering or validating a delegated worker's terminal payload.
 
+Role-bound 0.58+ assignments also follow [parent-retained execution receipts](agent-execution-receipts.md). The parent records actual launch and result/failure provenance separately from child payloads.
+
 ## Contents
 
 - [Common rules](#common-rules)
@@ -20,6 +22,7 @@ Read this reference only while rendering or validating a delegated worker's term
 - RUN-v11 workers never delegate. `subagent_activity` is `not_applicable` with an empty `children` list.
 - For `report_file`, write the exact fenced JSON under the heading `## Worker Result Manifest` to the parent-supplied temporary path — that heading plus one fenced `worker_result` JSON block is the exact shape `load_worker_result` parses; a report without it is unreadable to the validators.
 - A passing mission returns the complete worker result below. A non-passing mission returns a graph node result with `worker_result: null`; `record-worker-result` retains that terminal outcome without pretending a partial payload passed the worker contract.
+- A 0.58.0+ role-bound PASS must join the reserved assignment, attempt, worker identity, PLAN digest, and exact input SHA to the parent's persisted launch record. The parent record supplies launch/model/session evidence; a child echo does not. A mixed native/bridge result is checked against its reserved per-node axes, not the RUN's global axes.
 
 ## Verifier Execution Context
 

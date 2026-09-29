@@ -1,5 +1,8 @@
 // Pure product input validation and handoff packets. This module launches no agents.
 // The parent maps packets to its observed native tools under separate authorization.
+const {createIdentityGraph} = require("./product_graph_assignments.cjs");
+const {frozenCopy} = require("./assignment_identity.cjs");
+
 function packet(prompt, options) { return { prompt, ...options }; }
 
 // Closed release-source policies, keyed by stage (same as release_targets.py).
@@ -9,7 +12,7 @@ const SOURCE_POLICIES = {
 };
 
 function createProductAgentGraph(args) {
-  const workflowArgs = typeof args === "string" ? JSON.parse(args) : args;
+  const workflowArgs = frozenCopy(typeof args === "string" ? JSON.parse(args) : args);
 
   if (!workflowArgs || workflowArgs.multi_agent_authorized !== true) {
     throw new Error("product-definition-builder-graph requires explicit args.multi_agent_authorized=true");
@@ -66,6 +69,17 @@ function createProductAgentGraph(args) {
   }
   if (typeof workflowArgs.market_research !== "boolean") {
     throw new Error("product-definition-builder-graph requires boolean args.market_research");
+  }
+  const resultJoinModes = ["legacy_positional", "readonly_assignments_v1"];
+  if (!resultJoinModes.includes(workflowArgs.result_join_mode)) {
+    throw new Error("product-definition-builder-graph requires args.result_join_mode as legacy_positional or readonly_assignments_v1");
+  }
+  if (workflowArgs.result_join_mode === "readonly_assignments_v1") {
+    // Reuse the canonical domain prompts/schemas; only the legacy facade accepts
+    // positional raw payloads. Current callers must pass the identity barriers.
+    return createIdentityGraph(workflowArgs, createProductAgentGraph({
+      ...workflowArgs, result_join_mode: "legacy_positional",
+    }));
   }
   const stackDecisionModes = ["review_recommendation", "select_layers", "delegate"];
   if (!stackDecisionModes.includes(workflowArgs.stack_decision_mode)) {
@@ -475,41 +489,51 @@ function createProductAgentGraph(args) {
   function finish(rawLanes, draft, verifyResults) {
     const lanes = normalizeLanes(rawLanes);
     if (!draft) throw new Error("synthesis result is required");
-    if (!Array.isArray(verifyResults) || verifyResults.length !== reviewers.length + Number(workflowArgs.market_research)) {
-      throw new Error("review results must cover every planned role exactly once");
-    }
-    const rawReviews = verifyResults.slice(0, reviewers.length);
-    const rawResearch = workflowArgs.market_research ? verifyResults[reviewers.length] : null;
-    const research = workflowArgs.market_research
-      ? (rawResearch && rawResearch.role === "market-research"
-          ? rawResearch
+    let reviews;
+    let research;
+    let researchJoin = null;
+    {
+      if (!Array.isArray(verifyResults) || verifyResults.length !== reviewers.length + Number(workflowArgs.market_research)) {
+        throw new Error("review results must cover every planned role exactly once");
+      }
+      const rawReviews = verifyResults.slice(0, reviewers.length);
+      const rawResearch = workflowArgs.market_research ? verifyResults[reviewers.length] : null;
+      research = workflowArgs.market_research
+        ? (rawResearch && rawResearch.role === "market-research"
+            ? rawResearch
+            : {
+                role: "market-research",
+                status: "blocked",
+                market_research_markdown: null,
+                mr_ids: [],
+                findings: [],
+                sources: [],
+                unresolved: ["The market-research analysis agent returned no result or the wrong role."],
+                evidence: [rawResearch ? "analysis-role-mismatch" : "analysis-agent-null"],
+              })
+        : null;
+      reviews = rawReviews.map((result, index) => (
+        result && result.role === reviewers[index].key
+          ? result
           : {
-              role: "market-research",
-              status: "blocked",
-              market_research_markdown: null,
-              mr_ids: [],
-              findings: [],
-              sources: [],
-              unresolved: ["The market-research analysis agent returned no result or the wrong role."],
-              evidence: [rawResearch ? "analysis-role-mismatch" : "analysis-agent-null"],
-            })
-      : null;
-    const reviews = rawReviews.map((result, index) => (
-      result && result.role === reviewers[index].key
-        ? result
-        : {
-            role: reviewers[index].key,
-            decision: "blocked",
-            findings: [`The ${reviewers[index].key} analysis agent returned no result or the wrong role.`],
-            evidence: [result ? "analysis-role-mismatch" : "analysis-agent-null"],
-          }
-    ));
+              role: reviewers[index].key,
+              decision: "blocked",
+              findings: [`The ${reviewers[index].key} analysis agent returned no result or the wrong role.`],
+              evidence: [result ? "analysis-role-mismatch" : "analysis-agent-null"],
+            }
+      ));
+    }
 
     return {
       run_id: workflowArgs.run_id,
-      status: lanes.some((lane) => lane.status !== "complete") || reviews.some((review) => review.decision !== "pass")
+      status: lanes.some((lane) => lane.status !== "complete")
+        || reviews.some((review) => review.decision !== "pass")
+        || (researchJoin && researchJoin.status !== "ready")
         ? "needs_revision"
         : "candidate_ready",
+      readonly_assignment_mode: null,
+      readonly_plan: null,
+      research_join: researchJoin,
       lanes,
       draft,
       reviews,

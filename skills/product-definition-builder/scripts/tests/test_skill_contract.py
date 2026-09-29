@@ -190,6 +190,8 @@ async function agent(_prompt, options) {
             "ai_automation_gate": "not_required",
             "include_implementation_plan": False,
             "market_research": True,
+            "result_join_mode": "legacy_positional",
+            "research_question_inventory": [],
             "tool_profile": "builder_readonly",
             "multi_agent_authorized": True,
             "ui_design_owner": "Product owner",
@@ -1783,13 +1785,13 @@ async function agent(_prompt, options) {
         workflow = self.read("scripts/product_agent_graph.cjs")
 
         self.assertIn(
-            "a single read-only subagent only when the parent has a separate explicit subagent/delegation authorization",
+            "when delegation authorization is present and observed `readonly_tools` plus `launch_runtime` capability are true",
             skill,
         )
-        self.assertIn("no delegation authorization is present", skill)
+        self.assertIn("Missing authorization, capability, or a required result blocks", skill)
         self.assertIn("args.multi_agent_authorized: true", work_graph)
         self.assertIn(
-            "single read-only subagent only when the parent has a separate explicit delegation authorization",
+            "Missing required authorization/capability/results block",
             work_graph,
         )
         self.assertIn("requires explicit args.multi_agent_authorized=true", workflow)
@@ -1829,13 +1831,15 @@ async function agent(_prompt, options) {
                 f"requires boolean args.{constraint} when provided", result["error"]
             )
 
-    def test_market_research_never_blocks_the_package(self) -> None:
+    def test_research_semantics_split_legacy_recommendations_from_required_assignments(self) -> None:
         workflow = self.read("scripts/product_agent_graph.cjs")
 
         status_match = re.search(r"status: lanes\.some.*?(?=\n\s*lanes,)", workflow, re.S)
         self.assertIsNotNone(status_match)
         status_expression = status_match.group(0)
-        self.assertNotIn("research", status_expression)
+        self.assertIn('researchJoin && researchJoin.status !== "ready"', status_expression)
+        self.assertIn('result_join_mode === "readonly_assignments_v1"', workflow)
+        self.assertIn("required results are missing or unexpected results were supplied", self.read("scripts/readonly_assignments.cjs"))
         self.assertIn(
             'unresolved: ["The market-research analysis agent returned no result',
             workflow,
@@ -1868,7 +1872,7 @@ async function agent(_prompt, options) {
         )
         self.assertIn("never invent a competitor, price, or market figure", skill)
         self.assertIn("| market-research |", work_graph)
-        self.assertIn("it never blocks the package on its own", work_graph)
+        self.assertIn("missing or blocked required result blocks the graph barrier", work_graph)
 
     def test_market_research_artifact_is_contracted_and_published(self) -> None:
         skill = self.read("SKILL.md")
@@ -2047,7 +2051,7 @@ async function agent(_prompt, options) {
             "Deferral or rejection never clears an approval-blocking gap",
             contract,
         )
-        self.assertIn("the role never applies them", work_graph)
+        self.assertIn("the workers never apply one", work_graph)
 
     def test_approval_presents_complete_prd_and_recommendation_links(self) -> None:
         skill = self.read("SKILL.md")
@@ -2178,7 +2182,7 @@ async function agent(_prompt, options) {
         self.assertIn("stable PRD roles as an org graph", skill)
         self.assertIn("The stable org graph", guide)
         self.assertIn("The temporary work graph", guide)
-        self.assertIn("current session's observed native tools", guide)
+        self.assertIn("current session's observed tools", guide)
         self.assertIn("Preserve installed roles", guide)
         self.assertIn("Do not use a bundled launch script", guide)
         self.assertIn('typeof args === "string" ? JSON.parse(args) : args', workflow)

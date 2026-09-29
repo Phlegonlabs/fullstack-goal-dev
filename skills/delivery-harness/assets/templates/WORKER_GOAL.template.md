@@ -1,6 +1,6 @@
 # Worker Goal: <mission ID> — <objective>
 
-Use this template only after System Review And Route, PLAN/RUN validation, exact authorization, lease allocation, and worktree verification. A `sequential_parent` route does not render it.
+Use only after routing, validation, exact authorization, lease and worktree verification. A `sequential_parent` route does not render this packet.
 
 ```text
 Complete <mission ID> (<objective>) only.
@@ -16,10 +16,12 @@ Identity:
 Runtime:
 - required_skills: <mission skill list verbatim or none>
 - Provider/driver: <provider> / <driver>
+- Logical/resolved role: <worker_role> / <resolved_role>
 - Worker/workspace/completion: <worker_runtime> / <workspace_mode> / <completion_channel>
 - Worktree and branch/ref: <exact values>
 - Host-specific repository context: <ordered paths>
 - Runtime-specific worker contract: <matching adapter contract>
+- Parent launch record: <assignment/attempt/worker/session receipt or none>
 - Runtime-contract adoption: <contract_adoption receipt or none>
 - Context handoff: <fresh bounded packet or host-native task context>
 - Context sources: <ordered paths>

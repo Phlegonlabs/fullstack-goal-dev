@@ -12,11 +12,13 @@ When a new 0.57.0-or-later task consumes stages already approved without these c
 
 Use the existing Epic or direct-task record, linking the existing research, UI and review evidence. Record the stage, author, date, candidate paths and revision or SHA-256 values, affected requirement/UI/TEST IDs, checks actually performed, findings and repairs, unresolved blockers, and a conclusion of `pass` or `blocked`. An explicit no-finding conclusion still names the inspected scope and evidence.
 
+Record the producer and self-checker worker/session identity separately enough to confirm they are the same producing agent. This evidence does not turn the check into an independent review; the independent reviewer remains separate.
+
 Review the actual current artifacts. A substantive revision invalidates the affected self-review: inspect the delta and shared consumers, run the relevant checks again, and append the new result. Preserve earlier findings and approvals. A screenshot, score, checklist tick or validator success alone cannot establish a semantic or visual review.
 
 ## PRD Self-Review
 
-The Product Definition author reviews the complete candidate after post-draft market reconciliation and accepted recommendation changes. Check it again after the Stack Decision Checkpoint, before presenting Product Definition Approval.
+The Product Definition producing agent, not a separate self-checker, checks and repairs the complete candidate after post-draft market reconciliation and accepted recommendation changes. Bind each check to the exact candidate revision or SHA-256 and recheck after any repair, before presenting Product Definition Approval. Check it again after the Stack Decision Checkpoint, before presenting Product Definition Approval.
 
 - Confirm that relevant `RA-*` and `MR-*` evidence agrees with the problem, audience, alternatives, differentiation, scope, metrics and risks. Keep facts, vendor claims and hypotheses distinct; include source dates and unresolved evidence gaps. Apply only owner-accepted product or stack changes.
 - Walk the first useful journey, feature joins, denial/error/recovery paths, data and permission boundaries, operational setup and release obligations. A headless product reviews caller/operator journeys.
@@ -39,7 +41,7 @@ Link the existing Direction comparison, captures and Frontend Design Usage recor
 
 ## HiFi Self-Review
 
-After the connected candidate and cheap completeness preflight, the same author reviews the actual HiFi before handing it to Impeccable and H1–H9 review.
+After the connected candidate and cheap completeness preflight, the same producing agent checks and repairs the rendered HiFi/UI HTML at the exact candidate revision or SHA-256 before handing it to Impeccable and H1–H9 review or owner choice/approval. Any repair changes the candidate identity and requires the affected recheck.
 
 - Follow the complete PRD page/target/state matrix and the selected direction. Check visible copy and provenance, content/data meaning, operations, menus, tabs, focus, overlays, failure/recovery, tokens and applicable motion.
 - Retain evidence for every approved responsive target, including all four default Web widths when that is the approved set. A desktop-only render cannot stand in for the smaller targets; the direction study's representative cases cannot stand in for the final complete HiFi matrix.

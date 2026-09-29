@@ -202,6 +202,7 @@ def build_run(plan: dict[str, Any], *, run_id: str, branch: str) -> dict[str, An
                 "provider": "generic",
                 "available_drivers": ["sequential_parent"],
                 "detection_source": "fallback",
+                "role_bindings": {},
                 "version_gate": {
                     "host_version": None,
                     "minimum_host_version": None,

@@ -80,6 +80,12 @@ from select_ready_nodes import (
     select_ready_nodes,
 )
 from select_ready_nodes import _runtime_binding
+from agent_launch_records import validate_launch_record_shape
+from agent_failure_receipts import load_failure_receipt
+from agent_role_contract import role_contract_enabled, role_contract_gate_enabled
+from agent_result_receipts import load_result_receipt
+from agent_role_recovery import resolve_fallback_reservation
+from agent_launch_records import validate_launch_record
 from security_review_result import (
     SecurityReviewResultError,
     load_security_review_result,
@@ -2291,12 +2297,47 @@ def _lease_worker(plan: dict[str, Any], run: dict[str, Any], args: argparse.Name
         for node in plan.get("graph", {}).get("nodes", [])
         if isinstance(node, dict) and node.get("id") == args.node_id
     )
+    mission_record = next(
+        (
+            mission
+            for mission in plan.get("missions", [])
+            if isinstance(mission, dict) and mission.get("id") == args.mission_id
+        ),
+        None,
+    )
     # The selector is the sole source of runtime/provider/driver decisions.
     # Keep optional CLI identity fields as assertions for older launchers, but
     # derive the binding and execution axes from the current PLAN/RUN pair.
     expected_binding = _runtime_binding(
-        mission_node, run.get("runtime_capabilities", {})
+        mission_node,
+        run.get("runtime_capabilities", {}),
+        mission_record,
+        next((row.get("impact") for row in run.get("ui_impact_summary", [])
+              if isinstance(row, dict) and row.get("mission_id") == args.mission_id), None),
     )
+    fallback_record_path = getattr(args, "fallback_record", None)
+    if fallback_record_path is not None:
+        try:
+            fallback_evidence = json.loads(
+                Path(fallback_record_path).read_text(encoding="utf-8")
+            )
+        except (OSError, ValueError) as exc:
+            raise ManifestError(f"cannot read --fallback-record: {exc}") from exc
+        if not role_contract_gate_enabled(runtime_axes):
+            raise ManifestError("fallback reservation requires a 0.58+ role-contract RUN")
+        if expected_binding is None:
+            raise ManifestError("fallback cannot bypass a missing mandatory primary role")
+        fallback_binding, fallback_issues = resolve_fallback_reservation(
+            mission_node, run, fallback_evidence, args.attempt_id)
+        if fallback_issues:
+            raise ManifestError(
+                "invalid fallback reservation:\n"
+                + "\n".join(f"- {item}" for item in fallback_issues)
+            )
+        expected_binding = fallback_binding
+        worker_runtime = expected_binding["worker_runtime"]
+        workspace_mode = expected_binding["workspace_mode"]
+        completion_channel = expected_binding["completion_channel"]
     if expected_binding is None:
         raise ManifestError(
             f"mission {args.mission_id!r} has no runtime binding on the observed host"
@@ -2306,7 +2347,8 @@ def _lease_worker(plan: dict[str, Any], run: dict[str, Any], args: argparse.Name
     # host probe; preserve that compatibility while making observed/explicit
     # bindings strict selector assertions.
     adapter = runtime_axes.get("runtime_adapter")
-    enforce_selector_binding = not (
+    role_bound_058 = role_contract_gate_enabled(runtime_axes)
+    enforce_selector_binding = role_bound_058 or not (
         isinstance(adapter, dict) and adapter.get("detection_source") == "fallback"
     )
     for key in ("provider", "driver"):
@@ -2324,13 +2366,17 @@ def _lease_worker(plan: dict[str, Any], run: dict[str, Any], args: argparse.Name
                 f"{expected_binding[key]!r}"
             )
     for key in ("worker_runtime", "workspace_mode", "completion_channel"):
-        expected = runtime_axes.get(key)
+        expected = expected_binding.get(key) if role_bound_058 else runtime_axes.get(key)
         supplied = getattr(args, key, None)
         if enforce_selector_binding and supplied is not None and expected is not None and supplied != expected:
             raise ManifestError(
                 f"lease-worker {key} {supplied!r} does not match selector axis "
                 f"{expected!r}"
             )
+    if role_bound_058:
+        worker_runtime = expected_binding["worker_runtime"]
+        workspace_mode = expected_binding["workspace_mode"]
+        completion_channel = expected_binding["completion_channel"]
     task_thread_id = getattr(args, "task_thread_id", None)
     if worker_runtime == "app_task":
         if not isinstance(task_thread_id, str) or not task_thread_id.strip():
@@ -2497,6 +2543,10 @@ def _lease_worker(plan: dict[str, Any], run: dict[str, Any], args: argparse.Name
         receipts: list[tuple[str, str]] = []
         if worker_runtime == "subagent":
             receipts.append(("spawn_subagents", f"worker:{args.worker_id}"))
+            if expected_binding.get("source") == "external_bridge":
+                receipts.append(
+                    ("invoke_external_runtime", f"runtime:{expected_binding['bridge_identity']}")
+                )
         elif worker_runtime == "app_task":
             receipts.append(("create_user_owned_tasks", f"task:{task_thread_id}"))
         if workspace_mode == "parent_managed_worktree":
@@ -2568,6 +2618,7 @@ def _lease_worker(plan: dict[str, Any], run: dict[str, Any], args: argparse.Name
             "report_path": report_path,
             "phase": "worker_running",
             "worker_head_sha": None,
+            **({"attempt_id": args.attempt_id} if role_contract_enabled(run) else {}),
         }
     )
     run["attempt_log"].append(
@@ -4353,6 +4404,17 @@ def _reserve_review_dispatch(
     *,
     repo_root: Path | None,
 ) -> dict[str, Any]:
+    fallback_requests = None
+    if getattr(args, "fallback_record", None) is not None:
+        try:
+            fallback_evidence = json.loads(Path(args.fallback_record).read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            raise ManifestError("cannot read --fallback-record") from exc
+        _, issues = resolve_fallback_reservation(_review_node(plan, args.node_id), run,
+                                                 fallback_evidence, args.attempt_id)
+        if issues:
+            raise ManifestError("invalid review fallback: " + "; ".join(issues))
+        fallback_requests = {args.node_id: {"evidence": fallback_evidence, "attempt_id": args.attempt_id}}
     try:
         pre_errors = validate_current_plan_run(plan, run, repo_root=repo_root)
         if pre_errors:
@@ -4361,7 +4423,8 @@ def _reserve_review_dispatch(
                 "\\n" + "\\n".join(f"- {item}" for item in pre_errors)
             )
         selection = select_ready_nodes(
-            plan, run, repo_root=repo_root, manifest_already_validated=True
+            plan, run, repo_root=repo_root, manifest_already_validated=True,
+            fallback_requests=fallback_requests,
         )
     except GraphSelectionError as exc:
         raise ManifestError(str(exc)) from exc
@@ -4449,6 +4512,7 @@ def _reserve_review_dispatch(
         "worker_runtime": directive["worker_runtime"],
         "completion_channel": directive["completion_channel"],
         "runtime_binding": copy.deepcopy(directive["runtime_binding"]),
+        **({"workspace_mode": directive["workspace_mode"]} if role_contract_enabled(run) else {}),
         "task_thread_id": None,
         "report_path": report_path,
         "phase": "leased",
@@ -4462,6 +4526,15 @@ def _reserve_review_dispatch(
             _materialize_authorized_target(
                 run, "spawn_subagents", mission_id, f"worker:{args.worker_id}"
             )
+        if directive.get("runtime_binding", {}).get("source") == "external_bridge":
+            bridge_target = f"runtime:{directive['runtime_binding']['bridge_identity']}"
+            for mission_id in node["review"]["mission_ids"]:
+                _materialize_authorized_target(
+                    run,
+                    "invoke_external_runtime",
+                    mission_id,
+                    bridge_target,
+                )
     run["review_workers"].append(review_worker)
     state = run["graph_state"]["node_states"][args.node_id]
     state.update(
@@ -4478,6 +4551,8 @@ def _reserve_review_dispatch(
     )
     return {
         "dispatch_receipt": {
+                "plan_revision": plan["revision"],
+                "plan_digest_sha256": plan_digest(plan),
             "node_id": args.node_id,
             "worker_id": args.worker_id,
             "attempt_id": args.attempt_id,
@@ -4490,6 +4565,141 @@ def _reserve_review_dispatch(
             "tool_profile": directive["tool_profile"],
         }
     }
+
+
+def _record_launch_observation(
+    plan: dict[str, Any], run: dict[str, Any], args: argparse.Namespace
+) -> dict[str, Any]:
+    if not role_contract_enabled(run):
+        raise ManifestError("launch observations require a 0.58+ role-contract RUN")
+    if args.assignment_kind == "mission":
+        reserved = next(
+            (
+                worker
+                for worker in run.get("workers", [])
+                if isinstance(worker, dict)
+                and worker.get("lease_id") == args.assignment_id
+                and worker.get("worker_id") == args.worker_id
+            ),
+            None,
+        )
+        expected_node = next(
+            (
+                node.get("id")
+                for node in plan.get("graph", {}).get("nodes", [])
+                if isinstance(node, dict)
+                and node.get("kind") == "mission"
+                and node.get("ref") == reserved.get("mission_id")
+            )
+            if isinstance(reserved, dict)
+            else None,
+            None,
+        )
+        source_sha = reserved.get("batch_base_sha") if reserved else None
+        base_sha = None
+        reviewed_sha = None
+    else:
+        reserved = next(
+            (
+                worker
+                for worker in run.get("review_workers", [])
+                if isinstance(worker, dict)
+                and worker.get("node_id") == args.assignment_id
+                and worker.get("worker_id") == args.worker_id
+                and worker.get("attempt_id") == args.attempt_id
+            ),
+            None,
+        )
+        expected_node = args.assignment_id
+        source_sha = reserved.get("reviewed_sha") if reserved else None
+        base_sha = reserved.get("base_sha") if reserved else None
+        reviewed_sha = reserved.get("reviewed_sha") if reserved else None
+    if not isinstance(reserved, dict) or reserved.get("attempt_id") != args.attempt_id:
+        raise ManifestError("launch observation has no matching reserved attempt")
+    if args.node_id != expected_node:
+        raise ManifestError("launch observation node does not match its reserved assignment")
+    if reserved.get("phase") not in {"leased", "worker_running"}:
+        raise ManifestError("launch observation requires an active reserved attempt")
+    binding = reserved.get("runtime_binding")
+    if not isinstance(binding, dict):
+        raise ManifestError("reserved attempt has no runtime_binding")
+    record: dict[str, Any] = {
+        "plan_revision": plan.get("revision"),
+        "plan_digest_sha256": plan_digest(plan),
+        "assignment_kind": args.assignment_kind,
+        "assignment_id": args.assignment_id,
+        "node_id": args.node_id,
+        "attempt_id": args.attempt_id,
+        "worker_id": args.worker_id,
+        "worker_role": binding.get("worker_role"),
+        "resolved_role": binding.get("resolved_role"),
+        "source_sha": source_sha,
+        "base_sha": base_sha,
+        "reviewed_sha": reviewed_sha,
+        "worker_runtime": binding.get("worker_runtime"),
+        "workspace_mode": binding.get("workspace_mode"),
+        "completion_channel": binding.get("completion_channel"),
+        "requested_model": binding.get("model"),
+        "requested_reasoning_effort": binding.get("reasoning_effort"),
+        "model_provider": args.model_provider,
+        "model": args.model,
+        "reasoning_effort": args.reasoning_effort,
+        "session_id": args.session_id,
+        "launch_observation": args.launch_observation,
+        "host_observation": args.host_observation,
+    }
+    if getattr(args, "fallback_record", None) is not None:
+        try:
+            fallback = json.loads(
+                Path(args.fallback_record).read_text(encoding="utf-8")
+            )
+        except (OSError, ValueError) as exc:
+            raise ManifestError(f"cannot read --fallback-record: {exc}") from exc
+        if not isinstance(fallback, dict):
+            raise ManifestError("--fallback-record must contain an object")
+        from agent_role_contract import LAUNCH_FALLBACK_KEYS
+
+        for key in LAUNCH_FALLBACK_KEYS:
+            if key in fallback:
+                record[key] = fallback[key]
+    for issue in validate_launch_record_shape(record, "run.launch_records"):
+        raise ManifestError(f"invalid launch observation: {issue}")
+    records = run.get("launch_records", [])
+    if not isinstance(records, list):
+        raise ManifestError("run.launch_records must be a list")
+    if any(
+        isinstance(item, dict)
+        and item.get("session_id") == record["session_id"]
+        for item in records
+    ):
+        raise ManifestError("launch session is already reserved by another attempt")
+    if any(
+        isinstance(item, dict)
+        and item.get("assignment_kind") == record["assignment_kind"]
+        and item.get("assignment_id") == record["assignment_id"]
+        and item.get("attempt_id") == record["attempt_id"]
+        and item.get("worker_id") == record["worker_id"]
+        for item in records
+    ):
+        raise ManifestError("launch observation already exists for this reserved attempt")
+    candidate_run = {**run, "launch_records": [*records, record]}
+    launch_issues = validate_launch_record(
+        candidate_run,
+        assignment_kind=record["assignment_kind"],
+        assignment_id=record["assignment_id"],
+        node_id=record["node_id"],
+        attempt_id=record["attempt_id"],
+        worker_id=record["worker_id"],
+        worker_role_expected=record["worker_role"],
+        reserved=reserved,
+    )
+    if launch_issues:
+        raise ManifestError(
+            "launch observation does not match its reserved predecessor:\n"
+            + "\n".join(f"- {item}" for item in launch_issues)
+        )
+    run["launch_records"] = candidate_run["launch_records"]
+    return {"command": "record-launch-observation", "record": copy.deepcopy(record)}
 
 
 def _bind_review_task_thread(
@@ -4550,6 +4760,18 @@ def _bind_review_task_thread(
 def _record_review_attempt(
     plan: dict[str, Any], run: dict[str, Any], args: argparse.Namespace
 ) -> None:
+    if not role_contract_enabled(run):
+        _stage_review_attempt(plan, run, args)
+        return
+    staged = copy.deepcopy(run)
+    _stage_review_attempt(plan, staged, args)
+    run.clear()
+    run.update(staged)
+
+
+def _stage_review_attempt(
+    plan: dict[str, Any], run: dict[str, Any], args: argparse.Namespace
+) -> None:
     lineage = run.get("review_lineages", {}).get(args.lineage)
     if not isinstance(lineage, dict):
         raise ManifestError(f"unknown review lineage {args.lineage!r}")
@@ -4601,9 +4823,16 @@ def _record_review_attempt(
     ):
         raise ManifestError("review result does not match the current reserved graph attempt")
     is_security_review = node["review"].get("type") == "security"
+    failure_receipt = None
+    if getattr(args, "failure_receipt", None) is not None:
+        if not role_contract_enabled(run) or args.result not in {"retryable_failure", "blocked", "contract_gap"}:
+            raise ManifestError("parent failure receipts require a non-passing 0.58+ review")
+        if getattr(args, "result_receipt", None) is not None:
+            raise ManifestError("a review cannot be both a returned result and a parent failure")
+        failure_receipt = load_failure_receipt(args.failure_receipt, run, worker, "review")
     security_result_path = getattr(args, "security_result", None)
     security_result: dict[str, Any] | None = None
-    if is_security_review:
+    if is_security_review and failure_receipt is None:
         if security_result_path is None:
             raise ManifestError(
                 "security review completion requires --security-result"
@@ -4685,6 +4914,28 @@ def _record_review_attempt(
         raise ManifestError(
             "invalid --contract-adoption-check: " + "; ".join(adoption_errors)
         )
+    result_receipt = None
+    if role_contract_enabled(run) and failure_receipt is None:
+        result_receipt = load_result_receipt(
+            getattr(args, "result_receipt", None), run, worker, "review",
+            {"outcome": args.result, "findings": findings, "security_result": security_result,
+             "contract_adoption_check": adoption_check},
+        )
+        launch_issues = validate_launch_record(
+            run,
+            assignment_kind="review",
+            assignment_id=node["id"],
+            node_id=node["id"],
+            attempt_id=args.attempt_id,
+            worker_id=args.worker_id,
+            worker_role_expected=(worker.get("runtime_binding") or {}).get("worker_role"),
+            reserved=worker,
+        )
+        if launch_issues:
+            raise ManifestError(
+                "role-bound review PASS has no matching parent launch record:\n"
+                + "\n".join(f"- {item}" for item in launch_issues)
+            )
     allowance = lineage.get("base_allowance", 0) + lineage.get(
         "additional_allowance", 0
     )
@@ -4741,6 +4992,10 @@ def _record_review_attempt(
         }
     )
     lineage["consumed_attempts"] += 1
+    if result_receipt is not None:
+        worker["result_receipt"] = result_receipt
+    if failure_receipt is not None:
+        worker["failure_receipt"] = failure_receipt
     worker.update(
         {
             "phase": {
@@ -4890,6 +5145,7 @@ def build_parser() -> argparse.ArgumentParser:
     reserve_review.add_argument("--worker-id", required=True)
     reserve_review.add_argument("--attempt-id", required=True)
     reserve_review.add_argument("--report-path")
+    reserve_review.add_argument("--fallback-record", type=Path)
     reserve_review.add_argument(
         "--packet-out",
         type=Path,
@@ -4898,6 +5154,19 @@ def build_parser() -> argparse.ArgumentParser:
     bind_review_task = subparsers.add_parser("bind-review-task-thread")
     bind_review_task.add_argument("--worker-id", required=True)
     bind_review_task.add_argument("--task-thread-id", required=True)
+    launch_observation = subparsers.add_parser("record-launch-observation")
+    launch_observation.add_argument("--assignment-kind", choices=["mission", "review"], required=True)
+    launch_observation.add_argument("--assignment-id", required=True)
+    launch_observation.add_argument("--node-id", required=True)
+    launch_observation.add_argument("--worker-id", required=True)
+    launch_observation.add_argument("--attempt-id", required=True)
+    launch_observation.add_argument("--model-provider", required=True)
+    launch_observation.add_argument("--model", required=True)
+    launch_observation.add_argument("--reasoning-effort", required=True)
+    launch_observation.add_argument("--session-id", required=True)
+    launch_observation.add_argument("--launch-observation", required=True)
+    launch_observation.add_argument("--host-observation", required=True)
+    launch_observation.add_argument("--fallback-record", type=Path)
     review = subparsers.add_parser("record-review-attempt")
     review.add_argument("--lineage", required=True)
     review.add_argument("--attempt-id", required=True)
@@ -4907,6 +5176,8 @@ def build_parser() -> argparse.ArgumentParser:
     review.add_argument("--evidence", action="append", required=True)
     review.add_argument("--finding", action="append")
     review.add_argument("--security-result", type=Path)
+    review.add_argument("--result-receipt", type=Path)
+    review.add_argument("--failure-receipt", type=Path)
     review.add_argument("--contract-adoption-check", type=Path)
     review.add_argument("--failure-family-id")
     review.add_argument("--failure-primitive")
@@ -4950,6 +5221,7 @@ def build_parser() -> argparse.ArgumentParser:
     lease.add_argument("--completion-channel")
     lease.add_argument("--task-thread-id")
     lease.add_argument("--report-path")
+    lease.add_argument("--fallback-record", type=Path)
     reserve_node = subparsers.add_parser("reserve-node-attempt")
     reserve_node.add_argument("--node-id", required=True)
     reserve_node.add_argument("--attempt-id", required=True)
@@ -4974,10 +5246,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="immutable receipt written by the reserved push side effect",
     )
     worker_result = subparsers.add_parser("record-worker-result")
+    worker_result.add_argument("--result-receipt", type=Path)
     worker_result.add_argument("--node-result", required=True, type=Path)
     worker_result.add_argument("--worker-result", type=Path)
     worker_result.add_argument("--verifier-result", action="append", type=Path, default=[])
     rejected = subparsers.add_parser("reject-worker-result")
+    rejected.add_argument("--failure-receipt", type=Path)
     rejected.add_argument("--node-id", required=True)
     rejected.add_argument("--worker-id", required=True)
     rejected.add_argument(
@@ -5114,6 +5388,8 @@ def _transition_under_lock(
         receipt = _reserve_review_dispatch(plan, run, args, repo_root=args.repo_root)
     elif args.command == "bind-review-task-thread":
         receipt = _bind_review_task_thread(plan, run, args)
+    elif args.command == "record-launch-observation":
+        receipt = _record_launch_observation(plan, run, args)
     elif args.command == "skip-integration-review":
         _skip_integration_review(plan, run, args)
     elif args.command == "record-observation":

@@ -20,6 +20,9 @@ from harness_core import (
 )
 from harness_schema import run_required_harness_version, version_at_least
 from harness_contract import contract_adoption_check_errors
+from agent_launch_records import validate_launch_record
+from agent_result_receipts import validate_result_receipt
+from agent_role_contract import binding_is_role_bound, role_contract_enabled
 from harness_git import GitMetadataError, reject_object_substitution, run_git
 from harness_manifest import (
     ManifestError,
@@ -1367,7 +1370,50 @@ def validate_worker_result_data(
     if worker and mission_state.get("worker_id") != worker.get("worker_id"):
         _issue(errors, "worker_record_mismatch", "harness_run.mission_states.worker_id", "does not match worker record")
     runtime_capabilities = run.get("runtime_capabilities", {})
-    for field in ("worker_runtime", "workspace_mode", "completion_channel"):
+    runtime_binding = worker.get("runtime_binding") if isinstance(worker.get("runtime_binding"), dict) else {}
+    if role_contract_enabled(run) and binding_is_role_bound(runtime_binding):
+        for issue in validate_result_receipt(run, worker, "mission", worker.get("result_receipt"), result):
+            _issue(errors, "result_receipt_mismatch", "run.workers.result_receipt", issue)
+        for field in ("worker_runtime", "workspace_mode", "completion_channel"):
+            if worker and worker.get(field) != runtime_binding.get(field):
+                _issue(
+                    errors,
+                    "worker_record_mismatch",
+                    f"harness_run.workers.{field}",
+                    "does not match the reserved role binding",
+                )
+        attempt_matches = [
+            attempt
+            for attempt in run.get("attempt_log", [])
+            if isinstance(attempt, dict)
+            and attempt.get("lease_id") == lease_id
+            and attempt.get("kind") == "dispatch"
+        ]
+        if worker and len(attempt_matches) == 1:
+            for issue in validate_launch_record(
+                run,
+                assignment_kind="mission",
+                assignment_id=lease_id,
+                node_id=next(
+                    (
+                        node.get("id")
+                        for node in plan.get("graph", {}).get("nodes", [])
+                        if isinstance(node, dict)
+                        and node.get("kind") == "mission"
+                        and node.get("ref") == mission_id
+                    ),
+                    "",
+                ),
+                attempt_id=attempt_matches[0].get("attempt_id"),
+                worker_id=worker.get("worker_id"),
+                worker_role_expected=runtime_binding.get("worker_role"),
+                reserved=worker,
+            ):
+                _issue(errors, "launch_record_mismatch", "run.launch_records", issue)
+        elif worker:
+            _issue(errors, "launch_record_mismatch", "run.launch_records", "mission lease must map to exactly one dispatch attempt")
+    else:
+      for field in ("worker_runtime", "workspace_mode", "completion_channel"):
         if worker and worker.get(field) != runtime_capabilities.get(field):
             _issue(
                 errors,

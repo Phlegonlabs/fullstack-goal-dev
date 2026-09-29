@@ -37,7 +37,7 @@ Apply `references/market-research-guide.md`'s Source Rules and confidence vocabu
 
 ## Delegation
 
-The same authorization discipline as the market-research pass applies: a single read-only subagent only when the parent holds a separate explicit delegation authorization for it, otherwise the parent runs the role inline. There is no agent work-graph lane for this phase — the bounded graph runs after the closed-set decisions — and the single-subagent grant is never inferred from tool availability or package size.
+Before drafting, build the same versioned `readonly-assignments/1` inventory directly; this phase has no product graph lane. Two or more parent-classified independent substantive questions require separate `market_researcher` instances when delegation and readonly capability are granted. Missing authorization or capability blocks the pass instead of becoming parent work. A permitted skip is explicit; an evidence-backed no-source result is not a failed launch.
 
 ## The Artifact
 

@@ -37,6 +37,9 @@ from harness_schema import (
     run_required_harness_version,
     version_at_least,
 )
+from agent_role_bindings import resolve_runtime_binding
+from agent_role_contract import mandatory_worker_role, role_contract_gate_enabled, worker_role
+from agent_role_recovery import resolve_fallback_reservation
 from verifier_runtime import sandbox_host_fingerprint
 
 
@@ -86,7 +89,9 @@ def _failure_outcome(node: dict[str, Any]) -> str:
 
 
 def _reviewer_tool_reasons(
-    node: dict[str, Any], runtime: dict[str, Any]
+    node: dict[str, Any],
+    runtime: dict[str, Any],
+    binding: dict[str, Any] | None = None,
 ) -> set[str]:
     review = node.get("review")
     if not isinstance(review, dict):
@@ -101,6 +106,16 @@ def _reviewer_tool_reasons(
             reasons.add(f"reviewer_tool_unobserved:{tool_name}")
         elif capability.get("status") != "available":
             reasons.add(f"reviewer_tool_unavailable:{tool_name}")
+        elif binding is not None:
+            expected_provider = binding.get("model_provider", binding.get("provider"))
+            expected_driver = binding.get("driver")
+            expected_session = binding.get("probe_session_id")
+            if (
+                capability.get("provider") != expected_provider
+                or capability.get("driver") != expected_driver
+                or (expected_session is not None and capability.get("session_id") != expected_session)
+            ):
+                reasons.add(f"reviewer_tool_unavailable:{tool_name}")
     return reasons
 
 
@@ -134,6 +149,8 @@ def _node_levels(plan: dict[str, Any]) -> dict[str, int]:
 def _runtime_binding(
     node: dict[str, Any],
     runtime: dict[str, Any],
+    mission: dict[str, Any] | None = None,
+    ui_impact: str | None = None,
 ) -> dict[str, Any] | None:
     """Bind a runtime_worker node to the current host, or report it unavailable.
 
@@ -152,6 +169,14 @@ def _runtime_binding(
     host_provider = runtime.get("runtime_adapter", {}).get("provider")
     if host_provider not in allowed:
         return None
+    if role_contract_gate_enabled(runtime):
+        role = mandatory_worker_role(node, mission, ui_impact)
+        if role is not None:
+            if worker_role(node) != role:
+                return None
+            if role == "frontend_worker" and isinstance(mission, dict) and "frontend-design" not in mission.get("required_skills", []):
+                return None
+            return resolve_runtime_binding(node, runtime)
     options = resolve_runtime_options(policy, host_provider)
     return {
         "provider": host_provider,
@@ -986,6 +1011,8 @@ def _required_actions(
     actions: list[str] = []
     if driver == "subagents":
         actions.append("spawn_subagents")
+    if driver == "external_bridge":
+        actions.extend(["invoke_external_runtime", "spawn_subagents"])
     elif driver == "app_threads":
         actions.append("create_user_owned_tasks")
         # RUN-v11 records nested capability separately from the worker's
@@ -1003,7 +1030,7 @@ def _required_actions(
                 actions.append("spawn_subagents")
     if read_only_review:
         return actions
-    workspace = runtime.get("workspace_mode")
+    workspace = binding.get("workspace_mode", runtime.get("workspace_mode"))
     if workspace == "parent_managed_worktree":
         actions.extend(["create_local_worktrees", "create_local_branches", "create_local_commits"])
     elif workspace == "app_managed_worktree":
@@ -1095,6 +1122,11 @@ def _dispatch_reasons(
         # real binding already guard on `binding is not None`.
         if binding is None:
             reasons.add("runtime_unavailable")
+            if role_contract_gate_enabled(runtime) and (
+                mandatory_worker_role(node, missions.get(node.get("ref"))) is not None
+                or worker_role(node) is not None
+            ):
+                reasons.add("mandatory_role_binding_missing")
         else:
             if (
                 node["kind"] == "verifier"
@@ -1107,7 +1139,9 @@ def _dispatch_reasons(
             if observed_runtime.get("available_worker_slots", 0) <= 0:
                 reasons.add("runtime_capacity_unavailable")
             if node["kind"] == "verifier":
-                reasons.update(_reviewer_tool_reasons(node, runtime))
+                reasons.update(
+                    _reviewer_tool_reasons(node, runtime, binding)
+                )
     if node["kind"] in {"mission", "lifecycle"}:
         # mission nodes spawn workers/commits and lifecycle nodes push or
         # clean up: both mutate real state derived from the parent's current git
@@ -1255,6 +1289,7 @@ def _directive(
     launch_kind = {
         "app_threads": "create_thread",
         "subagents": "spawn_subagent",
+        "external_bridge": "invoke_external_bridge",
         "sequential_parent": "run_parent",
     }[driver]
     directive = {
@@ -1283,9 +1318,9 @@ def _directive(
         }
     directive.update(
         {
-            "worker_runtime": runtime["worker_runtime"],
-            "workspace_mode": runtime["workspace_mode"],
-            "completion_channel": runtime["completion_channel"],
+            "worker_runtime": binding.get("worker_runtime", runtime["worker_runtime"]),
+            "workspace_mode": binding.get("workspace_mode", runtime["workspace_mode"]),
+            "completion_channel": binding.get("completion_channel", runtime["completion_channel"]),
         }
     )
     version_gate = (
@@ -1309,6 +1344,7 @@ def select_ready_nodes(
     repo_root: str | Path | None = None,
     manifest_already_validated: bool = False,
     require_repo_root: bool = False,
+    fallback_requests: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     # Callers that just validated the identical on-disk pair (for example the
     # reserve transition, which validates once before selection and once after
@@ -1377,8 +1413,20 @@ def select_ready_nodes(
         if reasons:
             deferred.append({"node_id": node["id"], "reason_codes": reasons})
         else:
-            binding = _runtime_binding(node, run["runtime_capabilities"])
+            binding = _runtime_binding(
+                node,
+                run["runtime_capabilities"],
+                missions.get(node.get("ref")),
+                next((row.get("impact") for row in run.get("ui_impact_summary", [])
+                      if isinstance(row, dict) and row.get("mission_id") == node.get("ref")), None),
+            )
             logical_ready.append({"node": node, "binding": binding})
+            request = (fallback_requests or {}).get(node["id"])
+            if request is not None:
+                if binding is not None:
+                    binding, _ = resolve_fallback_reservation(
+                        node, run, request.get("evidence"), request.get("attempt_id"))
+                logical_ready[-1]["binding"] = binding
 
     dispatch_ready: list[dict[str, Any]] = []
     for item in logical_ready:
