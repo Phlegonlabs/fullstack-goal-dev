@@ -28,4 +28,6 @@ Generated logs, bridge packets and temporary profiling data stay in the task dir
 
 ## Change Log
 
+- 2026-09-29: architecture inspection found that the candidate runtime validation skips cross a mutation boundary. Keep precondition and postcondition checks; defer further skip optimization until a measured identity-bound snapshot change has its own regression evidence. Added the 182-step working-version workflow, explicit multi-writer section ownership and four-language guidance. This documentation does not claim the remaining branch/design/CI changes are already implemented. Baseline `6a4d2d5`; verification: numbered-step continuity, local link targets, skill spec, docs weight and diff checks (record final results at the next checkpoint).
+
 - 2026-09-29: first implementation observation, baseline and observed HEAD `bdae1d82acfd24cdeb2866f5480ff4d4d73b0b61`; switched to the owner-named branch. No prior working-tree changes. Independent research and an Opus read-only proposal review completed before approval; neither is a verification of the forthcoming implementation. Isolated assignments MOD-A (context), MOD-B (CI), MOD-E (Activation), and ARCH-MODERNIZE-1 (read-only migration architecture) launched. Tests and implementation remain pending.
