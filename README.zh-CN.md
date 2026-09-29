@@ -101,6 +101,7 @@ Skills 更新后及实现前，执行[设计有效性检查](skills/ui-design-bu
 
 安全豁免还须有 documentation-only 产品描述与 Product Archetype，并明确记录不存在的可执行架构接口。Required security TEST 信号与 Harness criterion 使用 `denial: rejected (<signal>); no unauthorized side effects: unchanged (<state evidence>)`，两项断言均须有具体观测。
 - **建议不等于实现权威。** 每个适用领域先给出两到三组 coherent stack。新选择获批后标记 `Approved`，现有选择是 `Selected`，硬限制是 `Required`；`Recommended` 和 `Provisional` 会阻止 delivery。Checkpoint 的封闭 area set 必须等于适用且已解决的 areas，获批 option 的 layer map 必须等于可执行 stack rows。`render_stack_option_map.py` 会从既有 rows 生成供 owner review 的候选 map；它不能批准或改写包件。明确 option map 以 `||...||` 包裹；只用逗号的 legacy map 仍可读取，但 layer 名称或 selection 含逗号时必须使用明确形式。Frontend 的 component foundation 可以是一个 headless React primitive 层（Base UI 或 Radix Primitives）加上自定义组件；每个产品只选一个。Radix Themes 属于 packaged suite。HiFi 依该层的状态与焦点行为绘制，不改变 stack。
+- **完整 UI 包一定附完整 Design System。** 新的初次与完整重设计使用 `UI contract: ui-design/3`：在 `docs/design/directions/<round>/` 做三个可渲染方向，每个由同一作者自查；owner 选择、混合或修改；完整 HiFi 检查全部批准尺寸及中间宽度；并必须产出 `design-system/4` 的 Markdown／JSON／HTML（`Package action: compile|update|reuse`）。HTML specimen book 以沙盒 plate 展示批准 HiFi 的全部 token、区间、已登记组件 variants、状态、响应式尺寸与动效，可重播、停止及 reduced motion。`ui-design/2` 及其 `not_required` 批准保留原义。
 - **新设计包直接由 PRD 进入 HiFi。** `UI contract: ui-design/2` 明确选择新流程。PRD 预检验证 operations、states、responsive 与 copy status；HiFi 在 Impeccable 前验证实际文案来源及产品操作覆盖。默认三方向，选定后一次审阅完整 HiFi。原生 HTML 仍只是设计证据。旧 schema 与固定版本 RUN 保留原义；缺少 Wireframe 不会自动放宽检查。
 - **HiFi 页面必须由产品控件连通。** 新增或修订的 `ui-hifi/2` 以 `index.html` 清单绑定同目录 HTML 页面的哈希与控件目的地。现行 `ui-output/3` 观察逐 responsive target 验证点击及键盘操作；缺页、过期哈希、无效控件、错误目的地或未声明跳转均阻止批准。每页只能呈现分配给该页的 surface。发布与保留须包含完整包；schema-1 仅供读取检查，正式 Visual Approval 一律要求 HiFi schema 2。历史 output/2 与 evidence/2 保留原意。指定 Git revision 冻结时，该 revision 必须包含所有子页面且内容一致。
 - **视觉质量有独立门槛。** HiFi 的 H5（避免模板感）、H7（创意辨识度）与 H9（设计一致性）各须达到 80；总分 90 不能抵消视觉分项不足。审查须引用已检查的截图与已确认的方向原则；数字验证不代表美感或人工检查已获证明。
@@ -126,7 +127,7 @@ Skills 更新后及实现前，执行[设计有效性检查](skills/ui-design-bu
 | --- | --- | --- |
 | `product-definition-builder` | Discovery、research、security requirements、可量测产品/UI 行为、完整 frontend/backend 架构、coherent stack、release targets、tests 与 Product Definition Approval | 已批准的 `PRD.md`、`architecture.md`、`stack-decisions.md` 和研究产物 |
 | `ui-design-builder` | PRD 预检、intake、默认三方向、完整 HiFi、完整性检查、Impeccable／H1–H9、Visual Approval 与 Design System Need Gate | `docs/design/ui-design.md`、方向研究及已批准完整 HiFi 包 |
-| `design-system-compiler` | Visual Approval 后按需把已批准 `ui-design.md` target 编译成冻结 design-system pair | `docs/design/design-system.md`、`docs/design/design-system.json` |
+| `design-system-compiler` | Visual Approval 后按需把已批准 `ui-design.md` target 编译成冻结 design-system pair，并生成来源绑定的 HTML specimen book | `docs/design/design-system.md`、`docs/design/design-system.json`、`docs/design/design-system-preview.html` |
 | `delivery-harness` | 共享的规模判定与 security task gate、PLAN/RUN、授权、本地验证和集成，外加 runtime adapter 参考文档（`references/runtime-adapters.md`）：所有宿主共用的能力契约，agent 按观察到的原生工具自动对应 | 直接完成的工作，或 `PLAN.md` + `RUN.md` |
 | `code-security-review` | 实现与统一集成后的只读安全审查，优先由 fresh sibling agent 执行；主动渗透测试与修复不属于本技能 | 精确 SHA 决策、trust-boundary 覆盖、验证后的发现与修复测试 |
 | `product-activation` | 所有支持的 Web、API/backend、iOS、Android、macOS、Windows、browser-extension 与 hybrid release target 的交付后设置，包括 capability routing、精确外部动作授权、read-back、量测来源与 outcome-review 交接 | `docs/ACTIVATION.md` |
@@ -151,7 +152,7 @@ Skills 更新后及实现前，执行[设计有效性检查](skills/ui-design-bu
 
 新 `ui-design/2` 不再制作灰阶 Wireframe 或执行 W1–W5 阶段。直接用代表视觉研究探索布局、字体、层级与 responsive，再于 HiFi 验证。旧 Wireframe 工具只供历史产物只读查看与验证。
 
-HiFi 提供完整、取自实际样式的 Design Tokens 页。Need Gate 要求正式 pair 时，compiler 生成 `design-system/3`，绑定已批准 PRD、architecture、stack、UI contract 与 HiFi 包，不再绑定 Wireframe。
+HiFi 提供完整、取自实际样式的 Design Tokens 页。`ui-design/3` 包一定编译 `design-system/4`：`showcase` 把每个 primitive variant、组件状态与动效绑定到批准的 HiFi 元素，`design-system-preview.html` 以 specimen book 呈现，不自行发明样式。`ui-design/2` 在 Need Gate 要求正式 pair 时才生成 `design-system/3`。两者都绑定已批准 PRD、architecture、stack、UI contract 与 HiFi 包，不再绑定 Wireframe。
 
 HiFi 以内嵌 `ui-hifi-copy/1` 及产品 DOM 绑定保留文案来源。静态文案、动态显示契约及成对语言仍可检查。Tokens 展示实际数值、用途及控件变体；审阅器文字不能代替产品覆盖。
 
@@ -476,7 +477,7 @@ cd product-delivery-harness
 
 从 0.23 或更早版本升级时，让 installer 在同一份备份中用原 ID 保存各旧目录，并安装当前七个 skills：`delivery-harness`、`product-definition-builder`、`ui-design-builder`、`design-system-compiler`、`code-security-review`、`product-activation`、`seo-growth-review`。迁移对应为 `full-harness` → `delivery-harness`、`prd-builder` → `product-definition-builder`、`product-design-builder` → `design-system-compiler`；installer 会验证旧 ID 已不再可发现。
 
-七个内置技能可独立调用；跨技能模式会验证已批准的 Product package 与准确来源身份。当前 `ui-design/2` 直接检查 PRD → HiFi 的范围、文案、CSP、离线及浏览器证据，并按需检查 `design-system/3` pair。Hybrid `surfaceContracts` 对应每个已批准 UI surface、capture mode 与 responsive set。旧版契约保留原有检查。Deployment、Activation、Outcome Review 与保存的 SEO 报告共用 production identity。
+七个内置技能可独立调用；跨技能模式会验证已批准的 Product package 与准确来源身份。当前 `ui-design/2` 直接检查 PRD → HiFi 的范围、文案、CSP、离线及浏览器证据，并按需检查 `design-system/3` pair；`ui-design/3` 另需 `design-system/4` 完整包，Harness 0.59+ RUN 也冻结其派生 HTML，较旧固定版本不能使用 `ui-design/3`。Hybrid `surfaceContracts` 对应每个已批准 UI surface、capture mode 与 responsive set。旧版契约保留原有检查。Deployment、Activation、Outcome Review 与保存的 SEO 报告共用 production identity。
 
 新项目的 Skill Bindings 会刻意保持 unresolved，直到会话观察本机候选且 owner 确认每个 slot 的唯一 skill。Pin 覆盖完整 skill tree，不只 `SKILL.md`。公开 dependency manifest 固定两个必要 UI dependency 的 source locator 与 install route：使用当前 host 的 skill installer 从记录的 Anthropic path 安装 `frontend-design`；Impeccable 使用 `npx impeccable install`（当前 npx 路径需要 Node.js 22.18+）。然后运行 `check_external_skill_dependencies.py`；upstream tree 变化时不能静默替换 pinned bytes。Harness 负责 conformance 与 compilation contract，Impeccable workflow 仍需额外授权。
 
@@ -486,8 +487,8 @@ Managed 本地 build／test 默认使用项目工具链，不需要 Docker 或 P
 
 1. 安装一个受支持的宿主和七个 skills。Installer 会锁定目标目录、备份 managed IDs、只复制 Git-tracked files，并逐字节校验；完成后重启宿主。
 2. 先用 `product-definition-builder` 完成 research-first evidence、candidate drafting/reconciliation、明确 recommendation choices、accepted 变更、coherent stack、typed release targets、tests、Stack Decision Checkpoint 与人工 Product Definition Approval。
-3. UI 先以 `--ui-contract ui-design/2` 跑 Product Definition 预检，再进行 intake、方向研究、owner 选择及完整 HiFi。Impeccable／H1–H9 前先验 HiFi 完整性，最后一次人工 Visual Approval。
-4. Design System Need Gate 为 `required` 时，从已批准来源编译 schema-3 Markdown／JSON pair，再通过最终 UI 验证。`not_required` 时记录既有 pair 处置并绑定 HiFi 替代契约。
+3. UI 先以 `--ui-contract ui-design/3` 跑 Product Definition 预检，再进行 intake、三个可渲染方向研究及作者自查、owner 选择及完整 HiFi。Impeccable／H1–H9 前先验 HiFi 完整性，最后一次人工 Visual Approval。
+4. 从已批准来源编译 `design-system/4` Markdown／JSON pair 及其派生 HTML，再通过最终 UI 验证。保留的 `ui-design/2` 包只在 Need Gate 为 `required` 时编译 schema-3；`not_required` 时记录既有 pair 处置并绑定 HiFi 替代契约。
 5. 再调用 `delivery-harness`。Size gate 让单一小改动保持 direct；大型工作才建立 PLAN-v6/RUN-v11。每个状态变更动作都需要精确授权。
 6. Managed launch 前先通过 frozen source joins，并执行 `python "<delivery-harness-skill-root>/scripts/harness_transition.py" --plan docs/goal/PLAN.md --run docs/goal/RUN.md --repo-root <absolute-root> record-observation`；`--probe-sandboxes` 只作诊断。Mission 使用隔离工作树；candidate commands 默认在本地执行，明确选用容器时保留固定镜像与隔离检查。
 7. 完成 exact-head mission reviews、graph-ordered security checks、全新 unified `code-security-review`、broad regression gates 与 platform-correct UI evidence。
