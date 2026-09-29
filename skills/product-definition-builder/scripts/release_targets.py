@@ -12,6 +12,9 @@ from markdown_contract import active_text
 
 SECTION_HEADING = "## Release Targets"
 EXPECTED_PREFIX = "Expected deployable surfaces:"
+DUAL_BRANCH_MARKER_RE = re.compile(
+    r"^Release source policy: dual-branch/1\s*$", re.MULTILINE
+)
 TARGET_HEADING_RE = re.compile(r"^### Release Target:\s*(.*?)\s*$", re.MULTILINE)
 KEBAB_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 SOURCE_POLICY_RE = re.compile(
@@ -92,6 +95,7 @@ class ReleaseTargetContract:
     expected_surfaces: tuple[str, ...]
     targets: tuple[ReleaseTarget, ...]
     explicit_none_reason: str | None
+    source_policy_protocol: str = "candidate/1"
 
     def by_id(self) -> dict[str, ReleaseTarget]:
         return {target.target_id: target for target in self.targets}
@@ -158,13 +162,20 @@ def parse_release_targets(
         )
     )
     if len(inventory_matches) != 1:
+        dual_branch = DUAL_BRANCH_MARKER_RE.search(section) is not None
         findings.append(
             "architecture: Release Targets must contain exactly one expected "
             "deployable-surface inventory"
         )
-        return ReleaseTargetContract((), (), None), findings
+        return (
+            ReleaseTargetContract(
+                (), (), None, "dual-branch/1" if dual_branch else "candidate/1"
+            ),
+            findings,
+        )
 
     inventory = inventory_matches[0].group(1).strip()
+    dual_branch = DUAL_BRANCH_MARKER_RE.search(section) is not None
     none_match = re.fullmatch(r"none\s*(?:—|-)\s*(.+)", inventory, re.I)
     explicit_none_reason: str | None = None
     expected_values: list[str] = []
@@ -314,6 +325,11 @@ def parse_release_targets(
             ),
             "production": ("refs/heads/main", "promotion.verified_main_sha"),
         }
+        if dual_branch:
+            expected_policy["development"] = (
+                "refs/heads/development",
+                "promotion.verified_development_sha",
+            )
         if policy_match is None or stage not in expected_policy:
             findings.append(
                 f"architecture: release target {target_id!r} Source policy must use "
@@ -427,6 +443,11 @@ def parse_release_targets(
             )
 
     return (
-        ReleaseTargetContract(tuple(expected_values), tuple(targets), explicit_none_reason),
+        ReleaseTargetContract(
+            tuple(expected_values),
+            tuple(targets),
+            explicit_none_reason,
+            "dual-branch/1" if dual_branch else "candidate/1",
+        ),
         sorted(set(findings)),
     )
