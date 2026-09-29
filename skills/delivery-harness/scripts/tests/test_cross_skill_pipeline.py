@@ -114,6 +114,26 @@ class CrossSkillPipelineTests(unittest.TestCase):
         self.assertIn("both `ui-design-builder`", orchestration)
         self.assertIn("defers only that authoring node", orchestration)
 
+    def test_frontend_dispatch_requires_maximum_creativity_brief(self) -> None:
+        documents = {
+            "delegation": self.read(
+                "delivery-harness/references/delegation-contract.md"
+            ),
+            "orchestration": self.read(
+                "delivery-harness/references/worktree-thread-orchestration.md"
+            ),
+            "worker": self.read(
+                "delivery-harness/assets/templates/WORKER_GOAL.template.md"
+            ),
+            "ui": self.read("ui-design-builder/SKILL.md"),
+        }
+
+        for name, document in documents.items():
+            with self.subTest(document=name):
+                self.assertIn("maximum-creativity brief", document)
+        self.assertIn("most distinctive, high-craft visual concept", documents["delegation"])
+        self.assertIn("not a valid frontend dispatch", documents["delegation"])
+
     def test_motion_and_media_routes_are_typed_and_authorized(self) -> None:
         route = self.read("ui-design-builder/references/motion-and-media-routing.md")
         checker = self.read("ui-design-builder/scripts/check_wireframe_html.py")

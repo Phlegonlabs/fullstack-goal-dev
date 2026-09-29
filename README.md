@@ -648,7 +648,7 @@ This repository is licensed under the MIT License — see [LICENSE](LICENSE).
 
 ## Version history
 
-- **0.58.0** — Parent-owned role routing and multi-instance research/exploration, identity-bound result joins and mandatory frontend delegation. The consumer AGENTS template sets a 500-line hard cap for new code/test modules, KISS, first principles, module splitting and no speculative compatibility code; Harness source is outside this cap. Preserve legacy pinned runs and owner approval gates.
+- **0.58.0** — Parent-owned role routing and multi-instance research/exploration, identity-bound result joins and mandatory frontend delegation with a maximum-creativity brief. App-thread role bindings require observed app capabilities, per-binding workspaces drive isolation, conflict and budget checks, completed research requires sourced findings, and omitted effort accepts the host default. The consumer AGENTS template sets a 500-line hard cap for new code/test modules, KISS, first principles, module splitting and no speculative compatibility code; Harness source is outside this cap. Preserve legacy pinned runs and owner approval gates.
 
 Update this section with each release, as part of the version bump and tag described in Releasing above.
 

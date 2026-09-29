@@ -648,7 +648,7 @@ HiFi 示例以固定 LF 换行维持跨平台字节哈希。Wireframe 的 Node �
 
 ## 版本历史
 
-- **0.58.0** — Parent 角色派工、多实例研究／探索、身份绑定结果汇合和强制 frontend 委派。供使用项目套用的 AGENTS 模板加入新代码／测试模块 500 行硬上限、KISS、第一性原理、模块拆分及避免推测性兼容代码；Harness 源码不受此上限限制。保留旧版 pinned RUN 和 owner 批准关卡。
+- **0.58.0** — Parent 角色派工、多实例研究／探索、身份绑定结果汇合和附带 maximum-creativity brief 的强制 frontend 委派。App-thread 角色绑定必须观察到 app capabilities，隔离、冲突与预算检查采用每个 binding 的 workspace，研究 complete 结果必须附带带来源的 findings，省略 effort 时接受 host 默认。供使用项目套用的 AGENTS 模板加入新代码／测试模块 500 行硬上限、KISS、第一性原理、模块拆分及避免推测性兼容代码；Harness 源码不受此上限限制。保留旧版 pinned RUN 和 owner 批准关卡。
 
 每次发布都要更新本节，连同上面《发布》一节描述的版本号提升与 tag 一起完成。
 

@@ -647,7 +647,7 @@ Este repositorio está bajo la Licencia MIT — ver [LICENSE](LICENSE).
 
 ## Historial de versiones
 
-- **0.58.0** — Asignación de roles por el padre, investigación/exploración con múltiples instancias, resultados ligados a identidad y delegación frontend obligatoria. La plantilla AGENTS para consumidores añade el límite estricto de 500 líneas para módulos nuevos y tests, KISS, primeros principios, separación de módulos y ninguna compatibilidad especulativa; el código de Harness queda fuera del límite. Conserva RUN históricos fijados y decisiones del propietario.
+- **0.58.0** — Asignación de roles por el padre, investigación/exploración con múltiples instancias, resultados ligados a identidad y delegación frontend obligatoria con un brief de máxima creatividad. Los roles app-thread exigen capacidades de app observadas, el aislamiento, los conflictos y los presupuestos usan el workspace de cada binding, un resultado de investigación complete exige hallazgos con fuentes, y effort omitido acepta el valor por defecto del host. La plantilla AGENTS para consumidores añade el límite estricto de 500 líneas para módulos nuevos y tests, KISS, primeros principios, separación de módulos y ninguna compatibilidad especulativa; el código de Harness queda fuera del límite. Conserva RUN históricos fijados y decisiones del propietario.
 
 Actualiza esta sección con cada release, como parte del bump de versión y el tag descritos en Releasing arriba.
 
