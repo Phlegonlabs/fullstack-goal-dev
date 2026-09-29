@@ -13,6 +13,8 @@
 
 # Product Delivery Harness
 
+Acceptance runs focused checks per atomic task, affected integration checks per mission, then the complete required matrix and one independent security review per fixed candidate. Resource-safe regression and review may overlap. Reuse retains the original exact-SHA evidence; repairs require fresh review, and local tests never prove external state.
+
 The workflow's template map names where every existing template is used, including optional views and historical Wireframe templates; it does not create unnecessary artifacts to use them all.
 
 For the 0.59 workflow, `development` and `main` are permanent protected branches and cannot be deleted. Author on isolated work branches, retain task commits, freeze a verified development SHA for release, and authorize main promotion separately. Historical pinned runs keep their original execution meaning. The source-repository migration is being prepared on `codex/harness-flow-modernization`; local policy changes do not prove remote protection or publication.

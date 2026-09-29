@@ -13,6 +13,8 @@
 
 # Product Delivery Harness
 
+La aceptación ejecuta pruebas específicas por tarea atómica, comprueba la integración afectada por misión y completa la matriz requerida y una revisión de seguridad independiente por candidato fijo. La regresión y la revisión pueden coincidir si sus recursos no entran en conflicto. La reutilización conserva el SHA original de la evidencia; cada reparación exige otra revisión. Las pruebas locales no demuestran el estado externo.
+
 La tabla de plantillas del flujo indica cuándo usar cada plantilla existente, incluidas vistas opcionales y Wireframes históricos; no exige crear artefactos que no correspondan.
 
 El flujo 0.59 mantiene `development` y `main` como ramas protegidas permanentes que no se pueden borrar. Trabaja en ramas aisladas, conserva los commits por tarea, fija un SHA verificado de development para el release y autoriza por separado su promoción a main. Los RUN históricos conservan su significado original. La migración del repositorio se prepara en `codex/harness-flow-modernization`; cambiar reglas locales no demuestra protección remota ni publicación.

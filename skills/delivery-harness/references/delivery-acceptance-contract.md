@@ -12,6 +12,21 @@ For managed work, freeze the contract as an additional PLAN source and declare `
 
 ## Execute And Retain
 
+### Check At The Right Boundary
+
+| Boundary | Required work |
+| --- | --- |
+| Atomic task | Focused positive, negative and security checks for the changed behavior. |
+| Mission integration | Exact-head diff review and affected cross-layer checks. |
+| Fixed release candidate | Complete declared acceptance matrix, fresh independent security review and required regression/UI checks. |
+| Deployment | Actual build/configuration/account/environment read-back and authorized production-safe smoke. |
+
+Freeze coverage before execution. Share fixture setup only where ownership, isolation and cleanup remain explicit; retain a separate result for every required scenario. Collect result fields from actual runner output and review the underlying assertions. A generated register or a shared setup never replaces execution evidence.
+
+Reuse only evidence allowed by the existing exact-candidate contract and `runtime-performance.md`; retain the original execution identity. Do not rerun a passing deterministic check merely because a second document links it. Do not relabel an old result with a new SHA. The H1-to-H2 evidence-only proof below remains the narrow acceptance rule, not a general exemption from fresh security, browser, live-state or migration checks. A new candidate, changed expectations, dependencies, configuration or toolchain requires the applicable checks again.
+
+Independent security review may run alongside resource-safe deterministic regression after the candidate is frozen. Keep that checkout unchanged until both finish. A repair invalidates the review and affected gates; finish or stop owned jobs before starting the next candidate. No new reviewer is needed just to repeat the same complete exact-SHA verdict, but missing coverage or changed inputs require a new review.
+
 - Run actual project-specific setup and test commands under exact existing authority. These checkers inspect records; they never provision accounts, run a browser/simulator, invoke tools, deploy, or supply credentials themselves.
 - Keep mock, real-sandbox, and production-smoke claims separate. Real-login obligations exercise the actual test authentication boundary. Native obligations require the actual native artifact and device/OS evidence; unavailable runners are blocked, never substituted with browser projections.
 - For agent obligations, record actual tool outcomes and side effects, not merely the final answer. Use deterministic adapters for boundary tests and predeclared repeated live-model trials for reliability claims. Preserve failures/retries and do not cherry-pick a passing trial.

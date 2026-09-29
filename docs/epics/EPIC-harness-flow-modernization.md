@@ -28,6 +28,8 @@ Generated logs, bridge packets and temporary profiling data stay in the task dir
 
 ## Change Log
 
+- 2026-09-29: integrated dual-branch parser, PLAN policy validation, strict join repairs and live templates as `bbdf4d55`, `fb441bab`, `7f035cea` and `3ba4b47c`. Parent branch-policy regression passed (6 tests). Clarified acceptance/security timing and permitted same-candidate overlap without weakening frozen expectations, H1/H2 proof, independent review or fresh-state checks. No scheduler bypass or generic cross-SHA result cache was added.
+
 - 2026-09-29: added the full existing-template use map to the workflow and four README pointers, distinguishing active, optional and historical Wireframe artifacts. Template inventory inspection also found live main-only text in GOAL and duplicate CI triggers in PROJECT_CI; MOD-C and MOD-B respectively own their fixes. No historical Wireframe stage is reintroduced.
 
 - 2026-09-29: baseline `7a0fa8f`; updated this repository's Git Flow and review rules to the owner's permanent development/main policy, preserving isolated authoring, explicit protected-ref authorization, task ancestry and historical RUN semantics. Both branches are never deletion targets. This bootstrap work began from v0.58.0 main because remote development was absent at the prior read-back. Remote creation/protection and changing the existing squash-only rule remain unperformed actions, not implied by these document changes.

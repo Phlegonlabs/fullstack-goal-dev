@@ -13,6 +13,8 @@
 
 # Product Delivery Harness
 
+验收按 atomic task 运行相关测试，按 mission 检查受影响的集成，再对固定候选完成必要的完整 matrix 与一次独立安全审查。资源互不冲突的回归与审查可同时进行。复用证据时保留原始精确 SHA；修复后重新审查，本地测试不能证明外部状态。
+
 逐步流程的模板对照表列出每个现有模板的使用时点，包括可选视图与历史 Wireframe 模板；不为了用完模板而创建不适用的文档。
 
 0.59 流程以 `development` 和 `main` 为永久保护分支，两者均不得删除。实现使用隔离工作分支，保留各 task commits，固定已验证的 development SHA 作为 release，另行授权 main promotion。旧 pinned RUN 保留原执行含义。本源码库正在 `codex/harness-flow-modernization` 准备迁移；本地规则变更不代表已完成远程保护或发布。
