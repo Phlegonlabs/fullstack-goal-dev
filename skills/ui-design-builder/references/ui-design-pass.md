@@ -14,7 +14,7 @@ Apply `page-design-profiles.md` to each affected surface. Inspect the selected f
 
 ## Frozen Inputs
 
-For a current `ui-design/2` round, the Product Definition preflight uses the exact approved-package check with `--ui-contract ui-design/2`. A failed or unapproved product/stack identity blocks direction work; a missing UI-contract argument must not be treated as a current-package preflight.
+For a current round, the Product Definition preflight uses the exact approved-package check with `--ui-contract ui-design/3` (or `ui-design/2` for an existing ui-design/2 package). A failed or unapproved product/stack identity blocks direction work; a missing UI-contract argument must not be treated as a current-package preflight.
 
 For enhancements, apply `enhancement-recommendations.md#incremental-ui-scope` first. Reuse the approved direction and intake unless the accepted delta changes them. The complete matrix remains covered, but only added or changed screens and necessary entry/return controls are authored again. Keep unaffected product DOM, copy, layout, style, IDs and behavior; reviewer-shell migration alone is not a product redesign. Direction studies below apply to a new or changed direction, not automatically to every added feature.
 
@@ -173,4 +173,6 @@ After Visual Approval, record exactly one Design System Need result:
 - `not_required`: the approved target, `ui-design.md`, and PRD are sufficient; or
 - `blocked`: a required decision or source is missing.
 
-When `required`, write `Compiled design system pair: pending — design-system-compiler` as the exact handoff marker, run the compiler preflight against the approved PRD/architecture/stack/UI/HiFi bytes, compile both files as `design-system/3`, and then replace the marker with both pair paths and hashes. The ordinary UI checker rejects a pending marker. When `not_required`, publish no placeholder pair and record the machine-bound existing-pair disposition.
+When `required`, write `Compiled design system pair: pending — design-system-compiler` as the exact handoff marker, run the compiler preflight against the approved PRD/architecture/stack/UI/HiFi bytes, compile both files (`design-system/4` plus its derived HTML for `ui-design/3`, `design-system/3` for `ui-design/2`), and then replace the marker with both pair paths and hashes. The ordinary UI checker rejects a pending marker. When `not_required`, publish no placeholder pair and record the machine-bound existing-pair disposition.
+
+A `ui-design/3` package never records `not_required`: it adds `Package action: compile|update|reuse` under the output contract. Its HiFi must carry `data-specimen-variant`/`data-specimen-state` on every product element the design system will display, because the compiled HTML derives component specimens only from those approved source elements.

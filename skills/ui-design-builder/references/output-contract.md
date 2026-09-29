@@ -6,7 +6,9 @@ A current package starts `ui-design.md` with the exact top-level value `UI contr
 
 The value is closed. A missing marker means an existing file keeps its legacy checks and historical wireframe meaning. More than one marker, an unknown value, or a mixed claim of current and legacy authority fails. Do not relabel an old package by adding the marker after the fact.
 
-`ui-hifi/2` remains the current closed HiFi package: entry, hashed sibling pages, and every non-HTML asset inline. It has no external asset-folder registry. A new required compiler output is `design-system/3`; legacy `design-system/2` remains readable under its original checks.
+New initial or explicit full-redesign packages use `UI contract: ui-design/3`. It keeps the ui-design/2 rules and adds: `Direction mode: three comparable directions`; a `### Direction studies` table; an `Intermediate width check`; and a Need Gate that is always `required` with a closed `Package action`. Existing `ui-design/2` packages, their `not_required` decisions and their `design-system/3` pairs keep their original meaning. Headless products have no UI package; accepted `none`/`style` maintenance keeps its retained design sources.
+
+`ui-hifi/2` remains the current closed HiFi package: entry, hashed sibling pages, and every non-HTML asset inline. It has no external asset-folder registry. `ui-design/3` compiles `design-system/4`; `ui-design/2` compiles `design-system/3`; legacy `design-system/2` remains readable under its original checks.
 
 ## Canonical Artifacts
 
@@ -161,6 +163,18 @@ Connected HiFi reference: [repo-relative path @ sha256:<lowercase sha256>]
 
 The active table contains exactly one or three direction IDs as selected in `Direction mode`. Each direction covers the same surface/state/target/scenario/content tuples with both `primary` and `stress` scenarios. Every tuple belongs to the approved surface scope; a stress scenario may use bounded dense content in an existing state. Cover every platform with its own cases. `Selected direction` starts with one of these exact `VD-R<round>-<number>` IDs. Screenshots are repository-relative PNG, JPEG, or WebP paths under `docs/design/directions/` with lowercase SHA-256 values; identical captures cannot stand for different directions. Record only inspected captures and retain the authorized files. The checker validates scope, matrix equality, paths, and hashes; visual distinction, Design Brief conformance, and content fidelity remain human review judgments. Before Visual Approval these records may remain draft, but no missing or stale comparison can pass final validation. Never backfill an old approval: missing evidence requires renewed affected direction and Visual Approval.
 
+For `ui-design/3`, the comparison has three directions and Style Integration adds:
+
+```markdown
+### Direction studies
+
+| Direction | Study | Author | Self-check by | Self-check |
+| --- | --- | --- | --- | --- |
+| VD-R1-01 | docs/design/directions/round-1/vd-01.html @ sha256:[hash] | [frontend author identity] | [same identity] | pass |
+```
+
+Each compared direction has one distinct self-contained rendered HTML study with the HiFi CSP rules, all in one existing `docs/design/directions/<round>/` folder. One frontend author produces all three and self-checks each; a different checker, a failed self-check or a stale hash blocks. The owner may select, mix or modify (`Direction decision: modified-and-approved`); a mix or modification gets a renewed complete study set. The studies are selection evidence in the existing design folder, not another approval database.
+
 A pre-selection study may include a bounded local deterministic motion demonstration within the approved Motion and Media scope, with normal and reduced-motion behavior. It is a selection aid only: it is not Required motion evidence, native proof, an approval, or permission to call a generation provider. The connected HiFi supplies the final motion review; provider work stays after direction selection with its exact separate authorization.
 
 ### Platform rules
@@ -232,6 +246,8 @@ HiFi lowest dimension: [0-100]
 
 HiFi blocks or disputes: [none / named blocks or disputes]
 
+`ui-design/3` also records `Intermediate width check: PASS — evidence=[path] @ sha256:[hash]`. The JSON is `{"schema":"ui-intermediate-widths/1","subject":{"path","sha256"},"cases":[...]}`; `subject` equals the Approved target, and each case has exactly `surface`, `width`, `between`, `horizontalOverflow: false`, `clipping: false` and `result: "PASS"`. Every web surface covers at least one width strictly between each adjacent pair of approved viewports. These are browser observations of the full HiFi in addition to every approved width.
+
 For retained historical approvals only, each PASS evidence file is a `ui-evidence/2` human-attested JSON receipt with exactly `schema`, `check`, `result`, `reviewedArtifact`, `receipt`, `attestation`, and `owner`. `check` is platform-specific (for example `wireframe-browser`, `wireframe-browser-grading`, `wireframe-extension`, `wireframe-native`, `wireframe-desktop`, and corresponding HiFi checks); `reviewedArtifact` carries the exact current path and SHA-256; `receipt.matrix` is `{ "cases": [{"surface":"UI-*","state":"...","target":"..."}] }` derived per surface state × responsive target, `receipt.results` repeats those exact cases with `result: PASS`, and `receipt` carries a closed tool/method, a transcript/output artifact path+hash, and a past timezone-aware `executedAt`; `owner` names a human. Every `hifi-*` surface check uses method `sandboxed-offline-browser` with its platform tool. For legacy schema-1 HiFi, its retained `ui-output/1` output artifact additionally contains the exact `sandbox` object `{ "network":"disabled", "topNavigation":"blocked", "popups":"blocked", "forms":"blocked" }`, `console`, `network`, `navigation`, `popups`, and `forms` transcript arrays plus `popupAttempts` and `formAttempts` integer counts; any console error, request, navigation, popup, or form attempt fails. Legacy targets block all top navigation; schema-2 targets use the exact local-page allowlist and `ui-output/2` interaction contract above. The receipt is an attestation record, not an automatic approval—human Visual Approval remains required.
 
 For new work, agents may assemble `ui-evidence/3` from actual observations, but must not invent a human owner, attestation or Visual Approval. Historical `ui-evidence/2` attestation remains the actual owner's record and cannot be relabeled.
@@ -276,6 +292,8 @@ Replacement visual contract when not_required: target=[path @ sha256:hash]; ui-d
 
 Compiled design system pair: [markdown path @ sha256:<lowercase sha256> and json path @ sha256:<lowercase sha256>]
 
+
+A `ui-design/3` gate is always `Decision: required` and adds `Package action: compile|update|reuse`. `compile` creates a new package (disposition `none` or `retire`); `update` revises the existing `design-system/4` package (disposition `retain`); `reuse` keeps an existing complete Markdown/JSON/HTML package byte-for-byte (disposition `retain`) and publication rejects any change or missing file. A `design-system/3` pair lacks the full HTML package and cannot be reused.
 
 Use `Compiled design system pair` only for `required` and the replacement field only for `not_required`. A new required pair is `design-system/3`, consumes only the approved `ui-design/2` and `ui-hifi/2` identities, and may temporarily use the exact value `pending — design-system-compiler` only during the compiler preflight; normal publication rejects it. Legacy `design-system/2` keeps its original inputs, semantics and checks and does not acquire the marker. For `not_required`, the disposition is machine-bound: `none` forbids canonical pair files, `retain` requires both pair files, and `retire` requires the pair to be archived before publication. `blocked` cannot pass publication.
 ```

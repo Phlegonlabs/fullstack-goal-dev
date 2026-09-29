@@ -13,7 +13,7 @@ Before drafting, read the approved Product Definition package and inspect, in or
 
 If a staged UI package exists, ask whether to resume, publish, or discard it before starting a competing draft. Never delete or silently replace an existing UI artifact.
 
-Before changing an existing file, identify its mode. The exact top-level value `UI contract: ui-design/2` selects the new package; absence retains legacy validation semantics. Never move or rewrite a historical wireframe merely because it is not part of the new flow.
+Before changing an existing file, identify its mode. The exact top-level value `UI contract: ui-design/3` selects a new full package and `ui-design/2` keeps the earlier wireframe-free package; absence retains legacy validation semantics. Never move or rewrite a historical wireframe merely because it is not part of the new flow.
 
 ## Updates And Full Rebuilds
 
@@ -46,4 +46,4 @@ The design-system pair publishes and archives atomically. A new pair is `design-
 
 For a required pair, retain `docs/design/design-system-preview.html` in the same authorized publication set. `check_ui_publication.py --design-system-required` checks it against the pair before and after transfer; a missing or edited view fails. Generate it with the compiler's `render_design_system_preview.py`. It is derived review output, not another authority or a product screen. An existing package gains this view through an authorized update without rewriting prior wireframe bytes or backfilling approval.
 
-For a new required pair, the pending marker is a short-lived compiler handoff, not a publishable state. The compiler consumes the exact approved `ui-design/2` and `ui-hifi/2` digests, writes Markdown and JSON together, and the UI owner records both final hashes before the normal checker runs.
+For a new required pair, the pending marker is a short-lived compiler handoff, not a publishable state. The compiler consumes the exact approved `ui-design/2` or `ui-design/3` and `ui-hifi/2` digests, writes Markdown and JSON together (plus the derived HTML package for `ui-design/3`), and the UI owner records both final hashes before the normal checker runs.

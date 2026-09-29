@@ -26,6 +26,8 @@ from contract_utils import (
 )
 
 
+# Wireframe-free UI contracts that use the direct PRD-to-HiFi preflight.
+CURRENT_UI_CONTRACTS = ("ui-design/2", "ui-design/3")
 PRODUCT_APPROVAL_START = "<!-- product-definition-approval:start -->"
 PRODUCT_APPROVAL_END = "<!-- product-definition-approval:end -->"
 STACK_CHECKPOINT_START = "<!-- stack-decision-checkpoint:start -->"
@@ -1534,10 +1536,10 @@ def validate_texts(
 ) -> list[str]:
     """Validate already-decoded core product-package texts."""
 
-    if ui_contract is not None and ui_contract != "ui-design/2":
+    if ui_contract is not None and ui_contract not in CURRENT_UI_CONTRACTS:
         raise ValueError(
-            "unsupported --ui-contract value; the only current contract is "
-            "ui-design/2"
+            "unsupported --ui-contract value; current contracts are "
+            + " and ".join(CURRENT_UI_CONTRACTS)
         )
 
     problems: list[str] = []
@@ -1579,7 +1581,7 @@ def validate_texts(
         web_floor=3,
     )
     problems.extend(ui_contract_errors)
-    if ui_contract == "ui-design/2":
+    if ui_contract in CURRENT_UI_CONTRACTS:
         # Parse operations from the active contract.  Reusing the parser also
         # checks one operation anchor per surface and its declared endpoints.
         _operations, operation_errors = required_operations(prd_text)
@@ -3032,7 +3034,7 @@ def validate_texts(
                             # Generic product approval accepts either explicit
                             # refresh vocabulary. Current UI preflight still
                             # requires HiFi; a legacy-only row cannot pass it.
-                            current_refresh = ui_contract == "ui-design/2" or (
+                            current_refresh = ui_contract in CURRENT_UI_CONTRACTS or (
                                 re.search(r"\bhifi\b", refresh) is not None
                                 and "hifi review" in refresh
                             )
@@ -3371,7 +3373,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--require-approved", action="store_true")
     parser.add_argument(
         "--ui-contract",
-        choices=("ui-design/2",),
+        choices=CURRENT_UI_CONTRACTS,
         help="select the current wireframe-free PRD preflight",
     )
     parser.add_argument("--repo-root", type=Path)

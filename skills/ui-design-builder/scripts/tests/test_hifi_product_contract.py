@@ -96,7 +96,8 @@ class HiFiProductContractTests(unittest.TestCase):
     def test_version_marker_cannot_downgrade_malformed_current_package(self):
         self.assertEqual('legacy', ui.ui_contract_version('# UI Design Contract\n'))
         self.assertEqual('ui-design/2', ui.ui_contract_version('# UI Design Contract\nUI contract: ui-design/2\n'))
-        for marker in ('', 'ui-design/3', 'ui-design/2 extra', 'ui-design/2\nUI contract: ui-design/2'):
+        self.assertEqual('ui-design/3', ui.ui_contract_version('# UI Design Contract\nUI contract: ui-design/3\n'))
+        for marker in ('', 'ui-design/9', 'ui-design/2 extra', 'ui-design/2\nUI contract: ui-design/3'):
             with self.assertRaises(ValueError):
                 ui.ui_contract_version('# UI Design Contract\nUI contract: '+marker+'\n')
 
