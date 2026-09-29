@@ -199,6 +199,27 @@ class VersionSelectionTests(unittest.TestCase):
 
 
 class FrozenPackageJoinTests(unittest.TestCase):
+    def ui2_fixture(self, root):
+        """Build the current wireframe-free UI2 package and its frozen plan."""
+
+        legacy, _, _ = _fixtures()
+        plan, run, _ = legacy.StrictAuthorityJoinTests._ui_fixture(root, required=False)
+        with _sibling_paths():
+            from test_wireframe_free_publication import current_publication
+        ui, prd, target = current_publication(root)
+        paths = {
+            "prd": prd,
+            "architecture": root / "docs/product/architecture.md",
+            "stack decisions": root / "docs/product/stack-decisions.md",
+            "ui design": ui,
+            "approved ui target": target,
+        }
+        plan["sources"] = [legacy.StrictAuthorityJoinTests._row("SRC-" + str(index), kind, path, root)
+                           for index, (kind, path) in enumerate(paths.items())]
+        for trace in plan["traces"]:
+            trace["source_ids"] = ["SRC-0"]
+        return plan, run
+
     def fixture(self, root, *, pin="0.59.0", preview=True):
         legacy, showcase_tests, _ = _fixtures()
         base = _start_dual_branch(root)
@@ -263,11 +284,11 @@ class FrozenPackageJoinTests(unittest.TestCase):
             self.assertIn("headless PLAN must not freeze design-system-preview source",
                           "\n".join(join.validate_frozen_contract_joins(plan, root, run=run)))
 
-    def test_enhancement_record_keeps_a_retained_ui_design_two_package(self):
+    def test_fresh_enhancement_label_cannot_retain_ui_design_two(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            plan, run = self.ui2_fixture(root)
             legacy, _, _ = _fixtures()
-            plan, _, _ = legacy.StrictAuthorityJoinTests._ui_fixture(root, required=False)
             record = root / "docs/epics/EPIC-enhancement.md"
             record.parent.mkdir(parents=True, exist_ok=True)
             record.write_text("```\nDesign workflow: maintenance\n```\nDesign workflow: enhancement\n", encoding="utf-8")
@@ -278,9 +299,47 @@ class FrozenPackageJoinTests(unittest.TestCase):
             row["source_revision"] = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, check=True,
                                                     capture_output=True, text=True, timeout=15).stdout.strip()
             plan["sources"].append(row)
-            self.assertEqual("enhancement", join._frozen_task_workflow(plan, root))
-            plan["sources"].pop()
-            self.assertIsNone(join._frozen_task_workflow(plan, root))
+            _run_version(run, "0.59.0")
+            findings = join.validate_frozen_contract_joins(plan, root, run=run)
+            self.assertIn("Harness 0.59+ new full UI delivery requires UI contract: ui-design/3",
+                          "\n".join(findings))
+
+    def test_validated_maintenance_record_retains_ui_design_two(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            plan, run = self.ui2_fixture(root)
+            legacy, _, _ = _fixtures()
+            record = root / "docs/epics/EPIC-maintenance.md"
+            record.parent.mkdir(parents=True, exist_ok=True)
+            record.write_text("""# Retained UI repair
+
+Design workflow: maintenance
+UI impact: none
+Plan ID: PLAN-TEST
+Plan objective: Deliver a deterministic test plan
+Requirement refs: REQ-001
+UI scope: UI-001
+""", encoding="utf-8")
+            for arguments in (("init", "-q"), ("config", "core.autocrlf", "false"),
+                              ("add", "docs/epics/EPIC-maintenance.md"),
+                              ("-c", "user.name=Fixture", "-c", "user.email=fixture@example.test",
+                               "commit", "-qm", "record")):
+                subprocess.run(["git", *arguments], cwd=root, check=True, capture_output=True, timeout=15)
+            row = legacy.StrictAuthorityJoinTests._row("SRC-TASK", "task record", record, root)
+            row["source_revision"] = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, check=True,
+                                                    capture_output=True, text=True, timeout=15).stdout.strip()
+            plan["sources"].append(row)
+            next(trace for trace in plan["traces"] if trace["id"] == "REQ-001")["source_ids"].append("SRC-TASK")
+            self.assertEqual((True, []), join._frozen_maintenance_record(plan, root))
+            _run_version(run, "0.59.0")
+            findings = join.validate_frozen_contract_joins(plan, root, run=run)
+            self.assertNotIn("Harness 0.59+ new full UI delivery requires UI contract: ui-design/3",
+                             findings)
+            self.assertIn(
+                "architecture: Harness 0.59+ current joins require an active "
+                "'Release source policy: dual-branch/1' marker",
+                findings,
+            )
 
     def test_source_spec_names_the_canonical_html_path(self):
         spec = join._STRICT_SOURCE_SPECS["design-system-preview"]

@@ -411,20 +411,6 @@ def ui_design_v3_required(run: dict[str, Any] | None) -> bool:
         run_required_harness_version(run), UI_DESIGN_V3_VERSION))
 
 
-def _frozen_task_workflow(plan: dict[str, Any], root: Path) -> str | None:
-    """Return the live ``Design workflow`` of the one frozen task record."""
-    rows = [row for row in plan.get("sources", []) if isinstance(row, dict)
-            and normalized_kind(row.get("kind")) == "task record"]
-    if len(rows) != 1:
-        return None
-    payload, errors = _resolve_source_bytes(rows[0], root, label="task record", strict=True)
-    if errors or payload is None:
-        return None
-    body = re.sub(r"^\s*(?:```|~~~)[\s\S]*?^\s*(?:```|~~~)", "", payload.decode("utf-8", errors="replace"), flags=re.M)
-    workflows = re.findall(r"^Design workflow:\s*(\S+)\s*$", body, re.M)
-    return workflows[0] if len(workflows) == 1 else None
-
-
 def _ui_contract_version_errors(version: str, *, run: dict[str, Any] | None, current: bool,
                                 retained: bool) -> list[str]:
     """Select the one UI contract a RUN may consume."""
@@ -2271,8 +2257,9 @@ def _validate_strict_frozen_contract_joins(
         return sorted(set(errors))
     errors.extend(parser_errors)
     version = view.get("contract_version", "legacy")
-    # Maintenance and enhancement records keep a retained ui-design/2 package.
-    retained = bool(maintenance and not maintenance_errors) or _frozen_task_workflow(plan, root) == "enhancement"
+    # Only a validated maintenance record may keep a retained ui-design/2
+    # package. An enhancement label is never retention evidence.
+    retained = bool(maintenance and not maintenance_errors)
     errors.extend(_ui_contract_version_errors(version, run=run, current=current, retained=retained))
     errors.extend(_strict_ui_surface_errors(plan, view))
 
