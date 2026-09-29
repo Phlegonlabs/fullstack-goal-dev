@@ -21,6 +21,7 @@ from harness_design_contract import compare_design_system_pair
 from harness_git import GitMetadataError, _path_has_reparse_or_link, reject_object_substitution, run_git
 from harness_schema import run_required_harness_version, version_at_least
 from harness_ui_evidence import validate_ui_surface_design_registry
+from branch_policy import validate_branch_policy_join
 
 
 FROZEN_SOURCE_STATUSES = {"frozen", "delta_accepted", "delta accepted"}
@@ -1359,12 +1360,55 @@ _PRODUCT_SECURITY_REQUIREMENT_PARSERS: dict[Path, Any] = {}
 _FULL_DESIGN_SYSTEM_CHECKERS: dict[Path, Any] = {}
 _UI_CONTRACT_VIEWS: dict[Path, Any] = {}
 _PRD_UI_CONTRACT_PARSERS: dict[Path, Any] = {}
+_RELEASE_SOURCE_CONTRACTS: dict[Path, Any] = {}
 
 
 def sibling_builder_scripts_dir() -> Path:
     """The product-definition-builder scripts dir shipped next to this skill."""
 
     return Path(__file__).resolve().parents[2] / "product-definition-builder" / "scripts"
+
+
+def _load_release_source_contract(sibling_scripts: Path) -> Any:
+    """Load the canonical active-Markdown release parser without host aliasing."""
+
+    key = sibling_scripts.resolve()
+    if key in _RELEASE_SOURCE_CONTRACTS:
+        return _RELEASE_SOURCE_CONTRACTS[key]
+    contract: Any = None
+    parser_path = key / "release_targets.py"
+    markdown_path = key / "markdown_contract.py"
+    if parser_path.is_file() and markdown_path.is_file():
+        tag = hashlib.sha256(str(key).encode("utf-8")).hexdigest()[:16]
+        markdown_name = f"_harness_release_markdown_contract_{tag}"
+        parser_name = f"_harness_release_targets_{tag}"
+        previous_markdown = sys.modules.get("markdown_contract")
+        try:
+            markdown_spec = importlib.util.spec_from_file_location(markdown_name, markdown_path)
+            parser_spec = importlib.util.spec_from_file_location(parser_name, parser_path)
+            if markdown_spec is None or parser_spec is None or markdown_spec.loader is None or parser_spec.loader is None:
+                raise ImportError("canonical release parser module spec is unavailable")
+            markdown_module = importlib.util.module_from_spec(markdown_spec)
+            parser_module = importlib.util.module_from_spec(parser_spec)
+            sys.modules[markdown_name] = markdown_module
+            sys.modules["markdown_contract"] = markdown_module
+            markdown_spec.loader.exec_module(markdown_module)
+            parser_module.active_text = markdown_module.active_text
+            parser_spec.loader.exec_module(parser_module)
+            if Path(str(getattr(parser_module, "__file__", ""))).resolve() != parser_path.resolve():
+                raise ImportError("canonical release parser path does not match sibling source")
+            contract = parser_module
+        except Exception:
+            contract = None
+        finally:
+            if previous_markdown is None:
+                sys.modules.pop("markdown_contract", None)
+            else:
+                sys.modules["markdown_contract"] = previous_markdown
+            sys.modules.pop(markdown_name, None)
+            sys.modules.pop(parser_name, None)
+    _RELEASE_SOURCE_CONTRACTS[key] = contract
+    return contract
 
 
 def _load_canonical_prd_ui_contract_parser(sibling_scripts: Path) -> Any:
@@ -2080,6 +2124,22 @@ def _validate_strict_frozen_contract_joins(
     except UnicodeDecodeError as exc:
         errors.append(f"product package: core artifact is not valid UTF-8 ({exc})")
         return sorted(set(errors))
+
+    release_contract = _load_release_source_contract(sibling_builder_scripts_dir())
+    if release_contract is None or not callable(getattr(release_contract, "active_text", None)):
+        errors.append(
+            "architecture: canonical active-Markdown release contract parser is unavailable"
+        )
+    else:
+        errors.extend(
+            validate_branch_policy_join(
+                plan,
+                resolved["architecture"].decode("utf-8"),
+                root,
+                run=run,
+                active_text=release_contract.active_text,
+            )
+        )
 
     errors.extend(
         product_security_requirements_join_errors(
