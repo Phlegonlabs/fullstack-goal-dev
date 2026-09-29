@@ -4,6 +4,7 @@ The four READMEs remain the documentation of record for the skill bundle.
 
 | Document | Purpose | Status |
 | --- | --- | --- |
+| `docs/epics/EPIC-harness-flow-modernization.md` | Template merge, dual protected branches, design showcase, Activation execution and validation efficiency | Implementation on `codex/harness-flow-modernization`; not released |
 | `docs/epics/EPIC-agent-delegation-contract.md` | Parent-owned role routing, multi-instance research/exploration and verified dispatch | In progress on `codex/agent-delegation-contract`; local changes, not released |
 | `docs/epics/EPIC-pre-delivery-self-review.md` | PRD/market, UI direction and HiFi author self-review before Harness execution | 0.57.0 candidate on `codex/pre-delivery-self-review`; fixed-candidate verification pending; not released |
 | `docs/audits/2026-09-28-contract-audit.md` | Dispositions for all 47 pasted audit items, including truncated and retained items | Integrated on `main` in the 0.56 release line |
