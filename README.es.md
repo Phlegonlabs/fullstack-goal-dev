@@ -17,6 +17,8 @@ La aceptación ejecuta pruebas específicas por tarea atómica, comprueba la int
 
 La tabla de plantillas del flujo indica cuándo usar cada plantilla existente, incluidas vistas opcionales y Wireframes históricos; no exige crear artefactos que no correspondan.
 
+Las pruebas de CI analizan el YAML completo del workflow fuente y de la plantilla CI del consumidor, incluidas las expresiones multilínea del candidato y la base del diff. Las comprobaciones de texto no demuestran que GitHub pueda cargar el workflow.
+
 El flujo 0.59 mantiene `development` y `main` como ramas protegidas permanentes que no se pueden borrar. Trabaja en ramas aisladas, conserva los commits por tarea, fija un SHA verificado de development para el release y autoriza por separado su promoción a main. Los RUN históricos conservan su significado original. La migración del repositorio se prepara en `codex/harness-flow-modernization`; cambiar reglas locales no demuestra protección remota ni publicación.
 
 El [flujo paso a paso](docs/WORKFLOW.zh-TW.md) identifica responsables, plantillas existentes y verificaciones de cada etapa aplicable. Una sección admite varios autores frontend/backend aislados después de fijar las interfaces comunes; cada tarea ejecutable conserva su commit atómico. Usa capacidad observada, paquetes acotados, eventos de finalización, revisión al terminar cada misión e integración serial. No elimines verificaciones previas o posteriores como si fueran duplicadas ni declares un planificador continuo de autores que aún no existe.

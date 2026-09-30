@@ -25,11 +25,12 @@ permissions:
 # its pull_request run. Manual releases are grouped by immutable SHA, so later
 # development pushes cannot cancel or replace an exact-candidate release run.
 concurrency:
-  group: ${{ github.workflow }}-${{
+  group: >-
+    ${{ github.workflow }}-${{
     github.event_name == 'workflow_dispatch' && inputs.candidate_sha ||
     github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) ||
     github.ref
-  }}
+    }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
@@ -40,12 +41,13 @@ jobs:
     name: quality
     runs-on: ubuntu-latest
     env:
-      DIFF_BASE_SHA: ${{
+      DIFF_BASE_SHA: >-
+        ${{
         github.event_name == 'workflow_dispatch' && inputs.base_sha ||
         github.event_name == 'pull_request' && github.event.pull_request.base.sha ||
         github.event_name == 'merge_group' && github.event.merge_group.base_sha ||
         github.event.before
-      }}
+        }}
     steps:
       - name: Check out exact candidate
         uses: actions/checkout@v4

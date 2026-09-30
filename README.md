@@ -17,6 +17,8 @@ Acceptance runs focused checks per atomic task, affected integration checks per 
 
 The workflow's template map names where every existing template is used, including optional views and historical Wireframe templates; it does not create unnecessary artifacts to use them all.
 
+CI regression parses the complete source workflow and consumer CI template as YAML, including multiline candidate and diff-base expressions. Text assertions alone do not prove GitHub can load a workflow.
+
 For the 0.59 workflow, `development` and `main` are permanent protected branches and cannot be deleted. Author on isolated work branches, retain task commits, freeze a verified development SHA for release, and authorize main promotion separately. Historical pinned runs keep their original execution meaning. The source-repository migration is being prepared on `codex/harness-flow-modernization`; local policy changes do not prove remote protection or publication.
 
 The [step-by-step workflow](docs/WORKFLOW.zh-TW.md) maps every applicable stage to its owner, existing templates and verification boundary. A section may have several isolated frontend/backend writers after shared interfaces are frozen; each executable task retains its atomic commit. Use observed host capacity, bounded packets and completion events, streaming review and serial integration. Do not remove precondition or postcondition validation as duplicate work, or claim rolling writer scheduling before it is implemented.

@@ -17,6 +17,8 @@
 
 逐步流程的模板对照表列出每个现有模板的使用时点，包括可选视图与历史 Wireframe 模板；不为了用完模板而创建不适用的文档。
 
+CI 回归会完整解析源 workflow 与 consumer CI 模板的 YAML，包括多行 candidate 与 diff-base 表达式。只有文本断言，不能证明 GitHub 能加载 workflow。
+
 0.59 流程以 `development` 和 `main` 为永久保护分支，两者均不得删除。实现使用隔离工作分支，保留各 task commits，固定已验证的 development SHA 作为 release，另行授权 main promotion。旧 pinned RUN 保留原执行含义。本源码库正在 `codex/harness-flow-modernization` 准备迁移；本地规则变更不代表已完成远程保护或发布。
 
 [逐步流程](docs/WORKFLOW.zh-TW.md) 列出每个适用阶段的角色、现有模板及验证边界。同一 section 可在共享接口冻结后分给多位隔离的 frontend／backend writer；每个 executable task 保留自己的 atomic commit。按实际 host 容量派工，使用有界 packet、完成事件、streaming review 与串行集成。不把修改前／后验证当作重复工作删除，也不宣称已有尚未实现的 rolling writer scheduler。
