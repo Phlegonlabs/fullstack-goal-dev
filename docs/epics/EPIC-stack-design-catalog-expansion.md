@@ -57,6 +57,10 @@ The design change proceeds before Cloudflare while the extra official-verificati
 
 ## Results And Remaining Work
 
+### 2026-10-02 follow-up repair
+
+The owner requested multi-agent repair and further architecture choices in [the linked extension Epic](EPIC-architecture-catalog-extension.md). Read-only `ARCH-EXT-Q1/2` found a pre-existing release-source inconsistency in the frontend guide: it always selected the candidate branch for development, while canonical `dual-branch/1` selects verified protected development. The bounded repair restores the explicit protocol distinction and production readback, with a focused contract regression and four-language description. The new regression failed against the old guide; repaired checks and its atomic SHA follow in the extension record. The original catalog result above remains historical.
+
 CAT-1–CAT-4 are complete as bounded source maintenance. The three atomic source commits are `156d8496ba584d409b0915917fe819695561a4b0`, `7db8255a65549c7b952e90bf6a5cc817dc14fea9` and `ef22e92ee65fc3f352417dd54663d5587ef60d09`. The last is the independently reviewed catalog candidate; the final bookkeeping commit changes only this Epic and its index row.
 
 Focused validation passed on the working tree from the repository root: reference-library 9/9 in each atomic phase, stack-option-map 7/7, skill specification, docs-weight and whitespace checks. The working tree contains the original unrelated recovery edits; these are bounded source checks, not a full exact-SHA release matrix or a release-readiness claim. Independent review passed within the stated catalog scope and evidence limits.

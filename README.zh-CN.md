@@ -129,6 +129,8 @@ Skills 更新后及实现前，执行[设计有效性检查](skills/ui-design-bu
 - **代码安全是全新的最终审查。** 所有 code PLAN 都必须执行 `code-security-review`；`not_applicable` 只允许窄范围纯文档工作。实际 candidate path 必须落在 mission/security scope，并且永远不能带入 parent coordination files。项目要求的 security commands 是 graph 排序的 host 或 container verifiers；review 前会核对 exact current-head execution key。PASS 必须绑定 exact SHA、完整 coverage、零 exclusion，且不可复用旧结果。
 - **Release source 使用 dual-branch policy。** 0.59+ managed PLAN 会在 ordinary work 冻结 remote `development`、在 hotfix 冻结 remote `main`，再使用 non-protected run branch。Harness 0.38+ RUN 在 C 以 local-only 关闭，不能由 RUN push。A 的授权 publication 必须同时携带 pre-archive external anchor、immutable request/attempt/receipt 与 trusted-host/human boundary；candidate gates 通过后，ordinary flow 先把精确 A 落到受保护的 `development`，再把完整验证的 SHA 升级到受保护的 `main`；hotfix 则先升级 A 到 `main`，再 no-force forward-integrate 到现有 `development`，并验证保留 development work 的 SHA T。两个 protected branch 都永不删除。如果 A 之后的 candidate/preview evidence 失败，就在同一 non-default branch 以精确 A 创建新的 PLAN/RUN continuation，保留 branch policy，导入原 verified scope 与 repair、把 A records 绑定为历史输入，关闭 C2、用新 anchor 收档 A2；不能改写 A history 或复用旧 records。已 publication 的 A 要求 A2 remote pre-state 精确等于 A；未 publication 的 A 则必须保持 absent。
 
+前端选型指南按明确的 release-source 协议记录来源：`dual-branch/1` 使用已验证的受保护 development SHA，旧协议使用 candidate branch/SHA。两者的 production 都需要另行授权并验证 main promotion。
+
 ## 包含哪些内容
 
 | 技能 | 适用场景 | 主要产出 |

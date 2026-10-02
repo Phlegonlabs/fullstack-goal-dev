@@ -985,6 +985,25 @@ async function agent(_prompt, options) {
             self.assertIn("production", content.lower())
             self.assertIn("cloudflare", content.lower())
 
+    def test_frontend_release_sources_follow_explicit_protocol(self) -> None:
+        frontend = self.read("references/frontend-stack-selection.md")
+        platform = frontend.split("### Any Platform", 1)[1].split("### Cloudflare", 1)[0]
+
+        self.assertIn("output-contract.md#release-targets", platform)
+        self.assertIn("Release source policy: dual-branch/1", platform)
+        self.assertIn("`refs/heads/development`", platform)
+        self.assertIn("`promotion.verified_development_sha`", platform)
+        self.assertIn("without that marker, legacy development", platform)
+        self.assertIn("exact candidate run branch/SHA", platform)
+        self.assertIn("`refs/heads/main`", platform)
+        self.assertIn("`promotion.verified_main_sha`", platform)
+        self.assertIn("separately authorized", platform)
+        self.assertIn("readback", platform)
+        self.assertNotIn(
+            "Development releases build from the exact candidate run branch/SHA and use",
+            platform,
+        )
+
     def test_interview_marks_closed_set_questions_for_askuserquestion(self) -> None:
         skill = self.read("SKILL.md")
         interview = self.read("references/interview-guide.md")
