@@ -2,6 +2,8 @@
 
 Reference only. Source check date: 2026-09-25.
 
+Scoped additions checked 2026-10-02: TanStack ecosystem and application-stack alternatives. Existing entries retain their original source dates; a catalog refresh is not a product adoption or install.
+
 This is a maintained catalog for comparing technology and design choices. It does not select a stack, install anything, create a gate, or change approvals. Start with [reference selection](../reference-selection.md), read only the relevant domain, compare coherent options or retain the existing stack, and record any adopted choice in the existing project document.
 
 Domain content stays in Traditional Chinese because that is the researched authoring copy. The English index below is the routing surface. Keep the layer boundaries: product and stack decisions belong to `product-definition-builder`; visual direction belongs to `ui-design-builder`; the compiler only consumes adopted choices; delivery, security, activation, and SEO act only on their own scopes.
@@ -14,7 +16,7 @@ CSS frameworks, component foundations and icon packages are technology choices o
 | --- | --- | --- |
 | [AI / Agentic](ai-agentic.md) | Model call, fixed workflow, agent loop, durable execution, and multi-agent tradeoffs | `product-definition-builder`: AI/automation decisions; `delivery-harness`: testing/ops for adopted behavior |
 | [API](api.md) | REST/OpenAPI, GraphQL, gRPC, tRPC, webhooks/events, SSE, WebSocket | `product-definition-builder`: API contract and integration decisions |
-| [Architecture](architecture.md) | Modular monolith, BFF, web-queue-worker, event-driven, microservices, serverless topology | `product-definition-builder`: service topology; `delivery-harness`: implementation and operations |
+| [Architecture](architecture.md) | Service topology plus coherent TanStack, managed React, portable React, content, realtime, Python and business-app stacks | `product-definition-builder`: service topology and stack composition; `delivery-harness`: implementation and operations |
 | [Authentication](authentication-and-identity.md) | Managed, ecosystem-coupled, application-session, and self-hosted identity paths | `product-definition-builder`: auth strategy; `code-security-review`: exact-scope session/token review |
 | [Backend](backend.md) | FastAPI, Django, NestJS, Hono, ASP.NET Core, and Go/runtime paths | `product-definition-builder`: backend stack; `delivery-harness`: testing/runtime constraints |
 | [Cloudflare platform](cloudflare-platform.md) | Compute, data, queues/workflows, AI, abuse controls; mixed-provider alternatives | `product-definition-builder`: deployment/runtime decisions; `product-activation`: adopted provider setup |
@@ -23,7 +25,7 @@ CSS frameworks, component foundations and icon packages are technology choices o
 | [Data / Storage](data-storage.md) | Relational, embedded, document, cache, and object storage | `product-definition-builder`: data architecture; `delivery-harness`: tests and migrations |
 | [Deployment](deployment.md) | Serverless platforms, managed workers, containers, and VM lifecycle candidates | `product-definition-builder`: release targets; `product-activation`: adopted deployment/operations |
 | [Design](design.md) | Page/style profiles, fonts, grids, motion intent, overlap and compression checks | `ui-design-builder`: intake, direction, wireframes, HiFi |
-| [Frontend](frontend.md) | React/Vue/Svelte application paths, content sites, SPA, existing/native alternatives | `product-definition-builder`: frontend stack; `ui-design-builder`: consumes approved stack |
+| [Frontend](frontend.md) | TanStack Start/Router and ecosystem, React Router/Next, Vue/Svelte, content sites, SPA, existing/native alternatives | `product-definition-builder`: frontend stack; `ui-design-builder`: consumes approved stack |
 | [Icon systems](icon-systems.md) | Existing assets, SVG packages, platform symbols, brand assets | `ui-design-builder`: direction and HiFi with approved stack |
 | [Integrations](integrations.md) | Sync APIs, webhooks, polling, queues, workflow tools, provider adapters | `product-definition-builder`: integration topology; `product-activation`: adopted setup |
 | [Motion](motion.md) | CSS, WAAPI, Motion, GSAP, Lottie, Rive, native animation, and video | `ui-design-builder`: existing motion routing; simple CSS/WAAPI remains possible |

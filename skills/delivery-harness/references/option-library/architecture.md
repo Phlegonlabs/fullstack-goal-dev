@@ -21,6 +21,23 @@
 
 部署拓撲與服務分解不互斥。同一產品可以是「模組化單體＋serverless worker」、「微服務＋佇列」，或「BFF＋事件驅動整合」。選擇應依旅程與失敗模型組合，不應因標籤互斥而錯配。
 
+## 完整應用技術棧候選（2026-10-02 增補）
+
+下表是選型假設，不是固定 starter 或已驗證部署。Cloudflare／Vercel 是部署平台，React 是 UI library，TanStack Start／Next.js／React Router 是應用框架；Supabase／Convex 是後端與資料服務。先選服務邊界，再把需要的層組成可驗證方案。既有可用技術仍是候選。
+
+| 組合與官方入口 | 適合的需求 | 必須另外決定 | 主要取捨／採納前驗證 |
+| --- | --- | --- | --- |
+| [TanStack Start](https://tanstack.com/start/latest)＋React＋Workers 或 Node host＋所選資料服務 | 型別化路由、SSR、server functions、互動型 Web App | auth、資料庫、jobs、元件、樣式與部署目標 | Start 查核時為 RC；用代表性 SSR、session、mutation、快取與錯誤路由驗證選定 adapter，不能假設全生態同成熟度 |
+| [Next.js](https://nextjs.org/docs)＋[Vercel](https://vercel.com/docs/frameworks/nextjs)＋[Supabase](https://supabase.com/docs) | React 全端產品、公開 SEO 與登入後應用混合 | auth/session 邊界、RLS、背景工作、資料與部署地區 | 託管整合方便，但框架、託管與資料服務各有升級、費用及退出責任；可替換部署或資料層 |
+| [React Router framework mode](https://reactrouter.com/start/framework/installation)＋Node host＋PostgreSQL | 用 loader/action 組織全端 React、保留服務與 SQL 控制權 | auth、ORM／migration、jobs、觀測與服務維運 | Framework/Data/Declarative mode 分開選；驗證 SSR、表單、session 與目標 host |
+| [Astro](https://docs.astro.build/en/concepts/islands/)＋CMS／內容來源＋需要時的 API | 品牌、文件、內容與少量會員／互動島 | 預覽、內容更新、搜尋、動態表單與 auth | 靜態內容與互動島各有資料邊界；大量應用狀態時重訪此路線 |
+| [Nuxt](https://nuxt.com/docs/4.x/guide/concepts/rendering) 或 [SvelteKit](https://svelte.dev/docs/kit/introduction)＋所選 host＋PostgreSQL | Vue 或 Svelte 團隊的 SSR／混合渲染應用 | UI foundation、session、server/data 邊界與 jobs | 各自核對 adapter、元件生態和部署限制；不是 React 元件的直接替代 |
+| React＋[Convex](https://docs.convex.dev/quickstarts)＋所選前端 host | 協作、即時更新、TypeScript 後端整合 | auth、權限、函式邊界、排程與資料退出 | 先驗證訂閱、租戶隔離、費用及匯出；不能把服務語意當作通用 SQL |
+| React＋[FastAPI](https://fastapi.tiangolo.com/features/)＋PostgreSQL＋queue/worker | Python 資料處理、AI／科學工作、明確 API 邊界 | 契約生成、auth、worker、部署與觀測 | 前後端分開發布與維運；測試 API 版本、重试、取消和 job 狀態 |
+| [Rails](https://rubyonrails.org/)／[Django](https://docs.djangoproject.com/en/stable/intro/overview/)／[Laravel](https://laravel.com/docs)＋其原生資料／工作工具 | 業務交易、管理後台、以框架慣例縮小整合面 | server-rendered 或獨立 frontend、部署、auth 與背景工作 | 依語言、團隊與原生 ORM 選一條路線；不要假設一般伺服器框架能直接放入 Workers |
+
+每個比較方案都要補齊實際適用的 frontend、backend、資料、auth、API、jobs、部署、測試、成本與維護責任，再交現有 Stack Decision Checkpoint。表內組合的產品適配是研究判斷，官方連結只支持各元件定位。TanStack 模組分工見 [Frontend](frontend.md)，Cloudflare 資源組合見 [Cloudflare platform](cloudflare-platform.md)。
+
 ## 來源事實與研究判斷
 
 來源事實：Azure Architecture Center 將 Web-Queue-Worker 描述為 web 前端、message queue 與後端 worker 的組合，前端處理請求，worker 處理耗時或批次工作，兩者可獨立伸縮，並提醒元件可能長成大型單體。微服務則由自治服務組成，每個服務有明確業務能力與資料自主性，但帶來服務發現、資料一致性與分散式管理複雜度。見 [Architecture styles](https://learn.microsoft.com/en-gb/azure/architecture/guide/architecture-styles/) 與 [Web-Queue-Worker](https://learn.microsoft.com/en-us/azure/architecture/guide/architecture-styles/web-queue-worker)。

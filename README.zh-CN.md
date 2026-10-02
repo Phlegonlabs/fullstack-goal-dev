@@ -70,6 +70,8 @@ PRD 会在整个交付流程中持续补全。首次交付批准前，UI 与技�
 
 共享的 optional reference library 提供 19 个技术与设计领域的对比资料，不预设任何技术栈。[selection rule](skills/delivery-harness/references/reference-selection.md) 先从需求出发，只加载 [option-library](skills/delivery-harness/references/option-library/README.md) 中相关领域。它保留健康的既有技术；CSS/Tailwind、icon、Cloudflare、Expo/React Native、GSAP 或任何供应商都不是必选项。采纳结论写入既有 product、architecture、stack、UI 或任务记录，不新增 gate、register、runtime 或审批权限。
 
+前端目录把 TanStack Start／Router 与周边生态分开比较；架构示例涵盖完整的托管 React、可迁移 React、内容、实时、Python 与业务应用技术栈。成熟度观察附核查日期，各项目仍由既有 stack checkpoint 决定采纳。
+
 docs-weight 可见度报告会纳入嵌套的可选 reference Markdown，不新增 gate。
 
 ### 设计转译与可复用模板

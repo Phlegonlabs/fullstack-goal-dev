@@ -70,6 +70,8 @@ Cada uno de los siete skills incluidos se puede invocar por separado; el pipelin
 
 Una biblioteca de referencias opcional compara 19 dominios de tecnología y diseño sin elegir un stack por defecto. La [regla de selección](skills/delivery-harness/references/reference-selection.md) parte de la necesidad y lee solo el dominio relevante bajo [option-library](skills/delivery-harness/references/option-library/README.md). Conserva un stack existente y saludable; CSS/Tailwind, icons, Cloudflare, Expo/React Native, GSAP o cualquier proveedor no son obligatorios. Las decisiones adoptadas se registran en los documentos existentes de product, architecture, stack, UI o tareas; no se añaden gates, registros, runtimes ni autoridad de aprobación.
 
+El catálogo frontend compara TanStack Start/Router y su ecosistema como opciones separadas. Los ejemplos de arquitectura cubren stacks completos de React gestionado, React portable, contenido, tiempo real, Python y aplicaciones de negocio. Las observaciones de madurez tienen fecha; la adopción sigue en el checkpoint de stack de cada proyecto.
+
 El informe de visibilidad de docs-weight incluye el Markdown opcional anidado de references y no añade una gate.
 
 ### Traducción de diseño y patrones reutilizables

@@ -70,6 +70,8 @@ Platform is a separate, already-resolved input (see the interview's platform `As
 
 React's official guidance recommends starting new React apps with a framework and treating a from-scratch Vite setup as a deliberate choice. Therefore, do not default every production web app to bare React + Vite: use it when a SPA or custom architecture is itself the product-fit decision.
 
+For an unresolved React framework or routing/data choice, compare TanStack Start, React Router framework mode, Next.js, or a deliberate Vite SPA using the optional [frontend catalog](../../delivery-harness/references/option-library/frontend.md). TanStack Start owns the server/build layer around Router; Query, Table, Virtual, Form and the other TanStack modules remain separate need-based choices. Start's RC label is a dated observation, not a blanket production recommendation. Recheck current official maturity, security advisories, hosting adapter and actual peer dependencies before recommending it. Use the [architecture catalog](../../delivery-harness/references/option-library/architecture.md) for complete stack compositions; keep deployment, backend/data/auth, component foundation and styling as separate approved layers.
+
 ## Browser Extension Stacks
 
 When the product surface is a browser extension, the same layer separation and approval discipline apply to browser targets, extension bundler, UI framework, component/styling approach, and testing. Use the v1 browser set resolved in the interview; do not silently default the target.

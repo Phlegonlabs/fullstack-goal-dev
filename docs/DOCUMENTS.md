@@ -20,6 +20,7 @@ The four READMEs remain the documentation of record for the skill bundle.
 | `docs/epics/EPIC-motion-media-quality.md` | Motion/Three.js routes, silent-owner motion proposal, HiFi media limits and reference captures | Committed on `codex/review-fixes` for 0.55.0 |
 | `docs/epics/EPIC-review-fixes-20260927.md` | Seven-skill review fixes, round-4 follow-ups, audit and 0.56.1 acceptance repair | Original fixes released in v0.55.0; follow-ups and audit integrated on `main`; 0.56.1 repair in PR #132 |
 | `docs/epics/EPIC-reference-flow-integration.md` | Optional 19-domain reference catalog, selection rule, and stage-local skill pointers | Released in v0.54.4 |
+| `docs/epics/EPIC-stack-design-catalog-expansion.md` | TanStack and architecture alternatives, Cloudflare coverage, component/design/motion sources and manual reference intake | Owner accepted source additions; local implementation in progress; no release or installation |
 | `docs/epics/EPIC-reviewer-sidebar-polish.md` | Shared Wireframe and HiFi reviewer sidebar styling | Released in v0.54.3 |
 | `docs/epics/EPIC-app-companion-web.md` | Technology-neutral one-PRD App/showcase-Web specifications | Released in v0.54.2 |
 | `docs/epics/EPIC-design-authoring-flow.md` | PRD-bound style and playable-motion authoring across skills | Released in v0.54.2 |

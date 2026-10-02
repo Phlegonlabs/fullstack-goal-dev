@@ -70,6 +70,8 @@ Each bundled skill can be invoked on its own; the full pipeline is optional. Eac
 
 A shared optional reference library compares 19 technology and design domains without choosing a default stack. The [selection rule](skills/delivery-harness/references/reference-selection.md) starts from the need and reads only the relevant domain under [option-library](skills/delivery-harness/references/option-library/README.md). It preserves an existing stack and never makes CSS/Tailwind, icons, Cloudflare, Expo/React Native, GSAP, or any provider mandatory. Adopted choices go into existing product, architecture, stack, UI, or task records; no new gate, registry, runtime, or approval authority is added.
 
+The frontend catalog includes TanStack Start/Router and the supporting ecosystem as separate choices. Architecture examples compare complete managed React, portable React, content, realtime, Python and business-app stacks. Maturity observations carry dates; each project's existing stack checkpoint still decides adoption.
+
 The docs-weight visibility report includes nested optional reference Markdown and adds no gate.
 
 ### Design translation and reusable patterns

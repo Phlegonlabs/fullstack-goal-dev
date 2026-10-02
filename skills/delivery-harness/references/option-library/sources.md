@@ -2,6 +2,8 @@
 
 Reference only · 查閱日期：2026-09-25
 
+2026-10-02 增補的來源按下方領域標示；原有條目不因本輪增補而取得新的查核日期。
+
 此處按領域列出最終稿引用的官方來源。連結支持其附近的能力敘述，不能擴大成整個產品已驗證。適配、成本、遷移與情境組合是研究判斷。
 
 本次以官方文件為主；沒有把搜尋排行當推薦順序。數值配額、價格、license、SDK/框架支援與帳號權限採用時再核對。
@@ -38,6 +40,8 @@ Reference only · 查閱日期：2026-09-25
 - [官方來源：trpc.io — docs/](https://trpc.io/docs/)
 
 ## [architecture.md](architecture.md)
+
+2026-10-02 完整組合的官方定位來源：[TanStack Start](https://tanstack.com/start/latest)、[Next.js](https://nextjs.org/docs)、[Vercel Next.js](https://vercel.com/docs/frameworks/nextjs)、[Supabase](https://supabase.com/docs)、[React Router framework mode](https://reactrouter.com/start/framework/installation)、[Astro islands](https://docs.astro.build/en/concepts/islands/)、[Nuxt rendering](https://nuxt.com/docs/4.x/guide/concepts/rendering)、[SvelteKit](https://svelte.dev/docs/kit/introduction)、[Convex](https://docs.convex.dev/quickstarts)、[FastAPI](https://fastapi.tiangolo.com/features/)、[Rails](https://rubyonrails.org/)、[Django](https://docs.djangoproject.com/en/stable/intro/overview/)、[Laravel](https://laravel.com/docs)。組合本身與產品適配是研究判斷，未在本輪建立或部署。
 
 - [官方來源：learn.microsoft.com — en-gb/azure/architecture/guide/architecture-styles/](https://learn.microsoft.com/en-gb/azure/architecture/guide/architecture-styles/)
 - [官方來源：learn.microsoft.com — en-us/azure/architecture/guide/architecture-styles/event-driven](https://learn.microsoft.com/en-us/azure/architecture/guide/architecture-styles/event-driven)
@@ -128,6 +132,8 @@ Reference only · 查閱日期：2026-09-25
 - [官方來源：www.w3.org — WAI/WCAG22/Understanding/target-size-minimum](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum)
 
 ## [frontend.md](frontend.md)
+
+2026-10-02：TanStack 的 [Start 及官方 library 導覽](https://tanstack.com/start/latest) 支持 18 項 library 與 Starter／Builder 的目錄觀察。各項細節、成熟度與安裝入口直接連在 frontend 矩陣，採納時逐項回查；不將一項已核對的能力擴大成整套已驗證。另見 [React Router framework mode](https://reactrouter.com/start/framework/installation)。
 
 - [官方來源：docs.astro.build — en/concepts/islands/](https://docs.astro.build/en/concepts/islands/)
 - [官方來源：nextjs.org — docs](https://nextjs.org/docs)
