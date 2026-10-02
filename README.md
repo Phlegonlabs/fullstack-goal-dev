@@ -76,6 +76,8 @@ Design references include component foundations, eight visual directions and man
 
 The docs-weight visibility report includes nested optional reference Markdown and adds no gate.
 
+The Cloudflare catalog separates compute, data, agents/search, browser/sandbox, media/email and analytics roles. Basin, K2, Artifacts, framework adapters, CLI and skill candidates include dated maturity or migration checks; catalog coverage does not establish local installation, account availability or deployment readiness.
+
 ### Design translation and reusable patterns
 
 App + companion Web products use one PRD with separate iOS, Android and public-showcase surfaces; authenticated Web apps are included only when scoped. React Native + Expo is a reference option, not a required or default stack; choose technology from product needs and preserve existing approved decisions. Native phone targets, Web widths, shared-code boundaries and platform-specific design, tests and release paths follow the [App and companion Web contract](skills/product-definition-builder/references/mobile-stack-selection.md#app-and-companion-web-contract). Choosing Expo for mobile does not select the website stack or approve paid EAS services.

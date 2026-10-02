@@ -2,7 +2,7 @@
 
 Reference only. Source check date: 2026-09-25.
 
-Scoped additions checked 2026-10-02: TanStack ecosystem and application-stack alternatives. Existing entries retain their original source dates; a catalog refresh is not a product adoption or install.
+Scoped additions checked 2026-10-02: TanStack ecosystem, application-stack alternatives, Cloudflare development-platform coverage and design/motion references. Existing entries retain their original source dates; a catalog refresh is not a product adoption or install.
 
 Design additions cover component foundations, eight visual-direction candidates and manual discovery across Mobbin, Dribbble, Awwwards, Refero and MotionSites. React Bits is a component source; Anime.js is an animation engine. Reference discovery uses website search and shared case/original-site links, without design-reference MCP setup.
 
@@ -21,7 +21,7 @@ CSS frameworks, component foundations and icon packages are technology choices o
 | [Architecture](architecture.md) | Service topology plus coherent TanStack, managed React, portable React, content, realtime, Python and business-app stacks | `product-definition-builder`: service topology and stack composition; `delivery-harness`: implementation and operations |
 | [Authentication](authentication-and-identity.md) | Managed, ecosystem-coupled, application-session, and self-hosted identity paths | `product-definition-builder`: auth strategy; `code-security-review`: exact-scope session/token review |
 | [Backend](backend.md) | FastAPI, Django, NestJS, Hono, ASP.NET Core, and Go/runtime paths | `product-definition-builder`: backend stack; `delivery-harness`: testing/runtime constraints |
-| [Cloudflare platform](cloudflare-platform.md) | Compute, data, queues/workflows, AI, abuse controls; mixed-provider alternatives | `product-definition-builder`: deployment/runtime decisions; `product-activation`: adopted provider setup |
+| [Cloudflare platform](cloudflare-platform.md) | Compute, data, agents/search, browser/sandbox, media/email, Basin/K2/Artifacts, framework/CLI/skill options and dated maturity | `product-definition-builder`: deployment/runtime decisions; `product-activation`: adopted provider setup |
 | [Components / Icons](components-icons.md) | Native/existing controls, headless/owned-source foundations, React Aria, Mantine, framework-specific suites, registries | `ui-design-builder`: intake, direction and HiFi with approved stack |
 | [CSS / Styling](css-styling.md) | Native CSS through utility/atomic/typed/framework styling | `ui-design-builder`: intake and direction with approved stack; `design-system-compiler`: consumed choices only |
 | [Data / Storage](data-storage.md) | Relational, embedded, document, cache, and object storage | `product-definition-builder`: data architecture; `delivery-harness`: tests and migrations |

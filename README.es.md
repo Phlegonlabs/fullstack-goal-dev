@@ -76,6 +76,8 @@ Las referencias de diseño incluyen bases de componentes, ocho direcciones visua
 
 El informe de visibilidad de docs-weight incluye el Markdown opcional anidado de references y no añade una gate.
 
+El catálogo de Cloudflare separa compute, datos, agentes/búsqueda, navegador/sandbox, medios/email y analítica. Basin, K2, Artifacts, adaptadores, CLI y skills conservan comprobaciones de madurez o migración con fecha; su inclusión no confirma instalación local, disponibilidad en la cuenta ni preparación para desplegar.
+
 ### Traducción de diseño y patrones reutilizables
 
 App + Web complementaria usa un PRD con superficies separadas para iOS, Android y el sitio público; una aplicación Web autenticada se incluye solo cuando está en alcance. React Native + Expo es una opción de referencia, no un stack obligatorio ni predeterminado; la elección depende del producto y respeta decisiones ya aprobadas. El [contrato de App y Web](skills/product-definition-builder/references/mobile-stack-selection.md#app-and-companion-web-contract) define tamaños móviles, anchos Web, código compartido y diseño, pruebas y releases por plataforma. Elegir Expo no selecciona el stack del sitio ni autoriza servicios EAS de pago.

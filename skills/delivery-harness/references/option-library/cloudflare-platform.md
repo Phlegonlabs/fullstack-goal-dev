@@ -2,6 +2,8 @@
 
 Reference only。查閱日期：2026-09-25。產品能力依官方文件；適用條件、組合與驗收建議是研究判斷。可以只選一項，也可以與其他供應商混用。這份文件不批准安裝、部署或技術棧；選定結果回填專案現有 PRD、architecture、stack decision 與部署文件。
 
+2026-10-02 增補下方開發平台、框架與工具候選；原有條目的查閱日期保留。覆蓋的是本輪討論的應用開發選項，不宣稱已盤點 Cloudflare 全部企業網路產品或確認每個帳號可用。其他產品從 [官方目錄](https://developers.cloudflare.com/directory/) 按需求補查。
+
 ## 產品責任與選擇
 
 | 候選與官方來源 | 負責什麼 | 何時考慮 | 限制與評估重點 |
@@ -18,6 +20,39 @@ Reference only。查閱日期：2026-09-25。產品能力依官方文件；適�
 | [Vectorize](https://developers.cloudflare.com/vectorize/) | 向量索引與相似度查詢 | 語意搜尋、RAG | embeddings、維度、更新／刪除、租戶過濾與評估集需另外設計 |
 | [Turnstile](https://developers.cloudflare.com/turnstile/) | 公開互動的防濫用訊號 | 登入、註冊、表單、敏感提交 | 不是帳號、session 或授權服務；前端 widget 之外必須伺服器驗證 |
 | [Cloudflare One：Access／Tunnel](https://developers.cloudflare.com/cloudflare-one/) | 應用存取政策與私有服務連接 | 員工／合作方使用的內部工具 | Tunnel 提供連接，不等於授權；Access 不自動補齊消費者帳號生命週期 |
+
+## 開發平台增補（2026-10-02）
+
+| 候選與官方來源 | 負責什麼 | 何時考慮 | 限制與評估重點 |
+|---|---|---|---|
+| [AI Gateway](https://developers.cloudflare.com/ai-gateway/) | 模型請求的觀測、快取、限流與路由 | 多模型供應商、成本與失敗處理 | 不提供應用帳號或自動批准模型替換；快取、日誌敏感資料與各功能成熟度分開核對 |
+| [AI Search](https://developers.cloudflare.com/ai-search/) | 受管資料索引、檢索與 RAG | 希望減少索引管線維護的搜尋產品 | 與自行組合 Vectorize 比較；來源權限、租戶隔離、更新／刪除、API 遷移與品質仍需驗證 |
+| [Agents SDK](https://developers.cloudflare.com/agents/) | Agent 的持久身分、狀態、連線、排程與恢復 | 有持久互動或工具呼叫的應用 | Agent loop、模型、工具授權和外部動作仍要另外設計；不等於本次開發代理的 runtime |
+| [MCP handler APIs](https://developers.cloudflare.com/agents/model-context-protocol/apis/handler-api/) | 建置產品需要的 MCP 服務 | 產品明確需要向 MCP client 提供工具 | 核對 transport、OAuth、session 與副作用授權；不是設計參考網站的連接方式 |
+| [Browser Run](https://developers.cloudflare.com/browser-run/) | 受管 headless Chrome、截圖、PDF 與自動化 | 程式化瀏覽器工作 | 原名 Browser Rendering；分清 Quick Actions 與長 session，評估登入資料、逾時、並行、費用與清理 |
+| [Sandboxes](https://developers.cloudflare.com/sandbox/) | 隔離執行生成或使用者提供的程式 | Agent runner、資料分析、預覽與建置 | 依工作選 Linux container 或 Dynamic Worker；限制網路、憑證、資源與存活時間，核對目前 SDK／遷移路線 |
+| [Containers](https://developers.cloudflare.com/containers/) | 執行自訂 Linux image 與程序 | Worker isolate 無法滿足的 native／長程序需求 | 映像、冷啟動、排程、持久檔案、故障與終止各自驗證；不假設是完整 Kubernetes 平台 |
+| [Email Service](https://developers.cloudflare.com/email-service/) | Email Sending 與 Email Routing | 交易郵件、通知、來信處理 | DNS／寄件者驗證、送達、退信／suppression 與帳號限制；Routing 本身不代表可任意對外寄信 |
+| [Images](https://developers.cloudflare.com/images/)／[Stream](https://developers.cloudflare.com/stream/) | 圖片處理／交付與影片上傳、編碼、播放 | 需要媒體管線的產品 | 與 R2 檔案儲存分開；核對 signed delivery、媒體權限、轉換、播放成本與刪除 |
+| [Basin](https://developers.cloudflare.com/basin/) | Pipelines 收集／轉換、Catalog 管 Iceberg tables、SQL 作 OLAP 分析 | 事件與分析資料平台 | 原 Cloudflare Data Platform：Pipelines、R2 Data Catalog、R2 SQL 已更名；不當交易型 D1／PostgreSQL 替代 |
+| [K2](https://developers.cloudflare.com/k2/) | 持久事件 log 與獨立訂閱消費 | 需要保留、重讀或多消費者的事件 | 與工作佇列分開比較；設計 retention、offset、重複、重放、排序邊界與帳號限制 |
+| [Artifacts](https://developers.cloudflare.com/artifacts/) | Git 相容的版本化檔案與 repository 儲存 | 使用者程式、專案或 Agent 工作樹 | 不等於完整 GitHub 工作流程；權限、匯出、事件、保存、費用與 push／部署授權分開 |
+| [Workers Cache API](https://developers.cloudflare.com/workers/runtime-apis/cache/) | 程式控制回應快取 | 明確可快取的 HTTP 輸出 | 不當持久或強一致資料來源；確認快取位置、key、私人回應隔離與失效語意 |
+| [Workers Analytics Engine](https://developers.cloudflare.com/analytics/analytics-engine/)／[Observability](https://developers.cloudflare.com/workers/observability/) | 自訂事件分析與 Worker logs／traces | 產品事件、錯誤與服務觀測 | sampling、查詢、保留、敏感資料與成本分開核對；不是所有業務資料的永久來源 |
+| [Pages](https://developers.cloudflare.com/pages/) | 網站部署的另一條平台路線 | 維護既有 Pages 或 owner 明確選用 | 新選型仍遵守現有 frontend 平台規則；Pages 與 Workers 的 bindings、SSR、預覽與遷移不可假設等價 |
+
+DNS／CDN、WAF 與 Cloudflare One 是另有方案、政策和權限的產品層。按 [Security](security.md)、[Deployment](deployment.md) 與 [Operations](operations.md) 的需要選取，不由選用 Workers 一併批准或啟用。
+
+### 當日成熟度與遷移紀錄
+
+| 觀察日期 | 官方觀察 | 採用時的處理 |
+|---|---|---|
+| 2026-10-02 | [Basin](https://developers.cloudflare.com/basin/) 於 2026-10-01 GA；保留舊資源／配置的相容路線 | 新文件使用 Basin 名稱；不自動改既有 bindings 或搬資料 |
+| 2026-10-02 | [K2](https://developers.cloudflare.com/k2/) 是 public beta；[Artifacts](https://developers.cloudflare.com/changelog/product/artifacts/) 於 2026-10-01 open beta | 先核對帳號、費用與限制；Beta 不等於專案已批准用於正式產品 |
+| 2026-10-02 | [McpAgent](https://developers.cloudflare.com/agents/model-context-protocol/apis/agent-api/) 已 deprecated、feature-frozen | 新服務核對 `createMcpHandler`；既有 stateful server 依官方指南分階段遷移，不直接換 import |
+| 2026-10-02 | [Sandboxes](https://developers.cloudflare.com/sandbox/) 區分目前 API、Dynamic Workers 與 SDK 0.x 遷移；Durable Object container scheduling 是 public beta | 先辨識已用版本與執行模型；不把 stable／next skill 名稱當目前 runtime 狀態 |
+
+以上是當日觀察；採用時重查 changelog、release／SDK、方案與 limits。未列明 GA 不代表已證明 GA，也不將整個 Cloudflare 的成熟度套到每項功能。
 
 ## 最容易混淆的邊界
 
@@ -41,6 +76,20 @@ Reference only。查閱日期：2026-09-25。產品能力依官方文件；適�
 | 多步媒體處理＋核准 | Workflows＋R2＋選定推論服務 | 等待、逾時、取消、重試與發布授權分開；推論服務不限定 Workers AI |
 | RAG／語意搜尋 | Vectorize＋選定 embeddings＋資料來源 | 品質評估、租戶隔離、來源權限與刪除同步已定義；資料來源不限平台內 |
 | 公開提交／內部後台 | 公開端評估 Turnstile；內部端評估 Access＋Tunnel | 依使用者與威脅模型分別選擇，可同時存在；都不能取代業務授權 |
+
+增補的條件式組合：TanStack Start＋Workers＋按需求選的 D1／R2；Agents SDK＋Browser Run／Sandboxes；AI Search 或自組 Vectorize 檢索；K2＋Basin 分析；Email Service＋Queues 通知。各層獨立選用；TanStack Query 不是資料庫，AI Gateway 不是推論模型，分析 SQL 不是交易資料庫。這些是比較方案，未在本輪建立或部署。
+
+## 框架、CLI 與可安裝內容
+
+| 候選與官方來源 | 角色與採用檢查 |
+|---|---|
+| [TanStack Start on Workers](https://developers.cloudflare.com/workers/framework-guides/web-apps/tanstack-start/)／[Vite plugin](https://developers.cloudflare.com/workers/vite-plugin/) | 應用框架與 workerd 整合分開；核對目前 `@cloudflare/vite-plugin`、SSR、bindings、compatibility date 和部署 adapter |
+| [Next.js on Workers](https://developers.cloudflare.com/workers/framework-guides/web-apps/nextjs/)／[vinext](https://github.com/cloudflare/vinext) | 官方目前推薦 vinext，但 upstream 明列 Next.js 相容缺口；是 Vite 上的 API 重實作，不將其描述為所有 Next.js 專案的直接替換。既有 OpenNext 有維護路線，保留已批准方案 |
+| [Wrangler](https://developers.cloudflare.com/workers/wrangler/)／[Cloudflare CLI `cf`](https://developers.cloudflare.com/cf/) | Wrangler 維護既有 Worker 配置；`cf` 涵蓋 Cloudflare API 與 Workers 專案，當日為 beta。可並用資源命令；專案 build／dev／deploy 的轉換需依官方 migration，不自行改現有配置 |
+| [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) | Tunnel 連接工具，與前兩個管理／開發 CLI 分工不同 |
+| [Cloudflare Skills](https://github.com/cloudflare/skills)／[vinext Agent Skill](https://github.com/cloudflare/vinext#optional-migrate-with-an-ai-agent) | Skills 是開發指引，npm package 是應用／CLI 依賴；MCP server 是另一種連接。按實際 runtime 盤點 installed／loaded 身分與版本，只選需要的項目，不從本目錄推定已安裝或啟用 |
+
+可比較的技能包含 `cloudflare`、`basin`、`k2`、`nextjs-on-cloudflare`、`agents-sdk`、`durable-objects`、`workers-best-practices`、`wrangler`、`cloudflare-email-service`、`turnstile-spin`、`web-perf`、`cloudflare-one`、`cloudflare-one-migrations` 與 Sandbox stable／next／migration 路線。使用前核對上游與本地內容；preview、stable 與舊 SDK 的差異以目前官方文件為準。這裡新增候選與來源，不執行 installer、遷移或任何帳號動作。
 
 ## 平台外與混合路線
 
