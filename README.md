@@ -72,6 +72,8 @@ A shared optional reference library compares 19 technology and design domains wi
 
 The frontend catalog includes TanStack Start/Router and the supporting ecosystem as separate choices. Architecture examples compare complete managed React, portable React, content, realtime, Python and business-app stacks. Maturity observations carry dates; each project's existing stack checkpoint still decides adoption.
 
+Design references include component foundations, eight visual directions and manual discovery with Mobbin, Dribbble, Awwwards, Refero and MotionSites. Owners share selected case/original-site links or screenshots; no design-reference MCP connection is added. React Bits supplies effect components and Anime.js supplies an animation engine; source reuse and dependencies still follow the existing stack and license decisions.
+
 The docs-weight visibility report includes nested optional reference Markdown and adds no gate.
 
 ### Design translation and reusable patterns

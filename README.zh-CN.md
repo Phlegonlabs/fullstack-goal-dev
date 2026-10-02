@@ -72,6 +72,8 @@ PRD 会在整个交付流程中持续补全。首次交付批准前，UI 与技�
 
 前端目录把 TanStack Start／Router 与周边生态分开比较；架构示例涵盖完整的托管 React、可迁移 React、内容、实时、Python 与业务应用技术栈。成熟度观察附核查日期，各项目仍由既有 stack checkpoint 决定采纳。
 
+设计参考涵盖组件基础、八种视觉方向，以及 Mobbin、Dribbble、Awwwards、Refero、MotionSites 的手动搜索。owner 分享选中的案例／原站链接或截图，不新增设计参考 MCP 连接。React Bits 提供动效组件，Anime.js 提供动画引擎；代码重用与依赖仍遵循既有 stack 和许可决策。
+
 docs-weight 可见度报告会纳入嵌套的可选 reference Markdown，不新增 gate。
 
 ### 设计转译与可复用模板

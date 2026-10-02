@@ -22,10 +22,20 @@ PRD 未隨附，採用前確認：要覆蓋哪些 surface？React／Next、SSR�
 | Radix Primitives | React、品牌強、要可及性互動基礎 | 團隊無法處理 focus、ARIA、測試 | 自建樣式層、tokens、SSR 與用戶端邊界 | 低視覺鎖定；互動升級要追版本 |
 | Base UI | React、要 headless、進階邊界處理與持續維護 | 非 React、要企業 SLA 或未驗證版本 | 對齊 WAI-ARIA；補 focus 視覺、contrast、screen-reader 測試 | MIT 與商用允許在源文有記載；無 SLA 表示支援成本自擔 |
 | shadcn/ui | React 團隊要擁有並客製元件碼 | 要自動上游更新、零維護或非 React | 程式碼入庫、版本、授權審查、樣式 token 統一 | 減少黑箱包裝；專案負責漂移與安全修補 |
+| [React Aria](https://react-aria.adobe.com/getting-started) | React、自有視覺系統、需要可及性互動基礎 | 要直接取得整套品牌樣式，或非 React | 自建樣式、tokens、複合控制項；驗證 focus、鍵盤、i18n 與所選 framework | 不附預設樣式；客製與專案驗收仍有成本 |
+| [Mantine](https://mantine.dev/getting-started/) | React App／dashboard、要一套元件與主題工具 | 現有 DS 健康，或需大幅覆寫每個控制項 | 核對 provider、樣式入口、SSR、主題、版本及框架 guide | 較快形成一致 UI；套件 API 與升級仍由專案維護 |
+| [Nuxt UI](https://ui.nuxt.com/) | 已選 Nuxt／Vue 的產品 UI | React 專案，或未確認 Vue／Nuxt 整合 | 核對版本、UI primitives、樣式／tokens 與 SSR | 留在所選 Vue 生態；不能當 React 套件直接換用 |
+| [shadcn-svelte](https://www.shadcn-svelte.com/docs/installation) | 已選 Svelte／SvelteKit、要擁有元件程式碼 | React 專案，或不願维护複製碼 | 核對 Svelte、primitives、樣式、SSR 和更新方式 | 入庫程式碼可改；更新、授權與品質由專案承擔 |
 | MUI／MUI X | Material 語彙、表單、表格、date picker、charts | 品牌要完全非 Material 或 Pro 功能未授權 | 主題、bundle、SSR、表單狀態、license tier 紀錄 | 生態成熟；覆寫過深會增加升級成本 |
 | Chakra UI | React、偏好內建 theme 與快速組合 | 專案已有穩定 DS 或需要極低 CSS 相依 | 核對 v2 與目前版本、color mode、tokens | 降低初期樣式工作；遷移需留 API 差異 |
 | Ant Design | 中文／企業後台與既有 Ant 專案 | 尚未驗證版本、RSC、主題與品牌距離 | 查 lockfile、SSR、tokens、按鈕語意與狀態 | 主題與元件 API 會形成遷移成本 |
 | 21st.dev | 行銷區塊、hero、展示型靈感與候選搜尋 | 當成產品基礎、未查作者／license／依賴 | 記錄 URL、作者、hash、修改、效能與來源 | 複製碼成專案責任；未知授權不可安裝 |
+
+## Framework-specific foundations（2026-10-02 增補）
+
+2026-10-02 增補：React Aria、Mantine、Nuxt UI 與 shadcn-svelte 是按 framework 比較的候選。shadcn/ui 可依已確認的版本使用 Base UI 或 Radix primitives；同一控制項先選一套基礎，不混裝兩套。Mantine、Ant Design、MUI 等完整 suite 與 headless/owned-source 路線的主要取捨是現成覆蓋、品牌自由度和維護責任，沒有預設勝出者。
+
+[React Bits](https://www.reactbits.dev/get-started/index) 是文字、背景、卡片等創意動效元件來源，放在 [Motion](motion.md) 比較；它不能因為外觀好看而取代 form/dialog/menu 的基礎語意、完整狀態或可及性驗收。
 
 ## Buttons
 

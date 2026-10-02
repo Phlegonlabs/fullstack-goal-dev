@@ -77,6 +77,8 @@ Reference only · 查閱日期：2026-09-25
 
 ## [components-icons.md](components-icons.md)
 
+2026-10-02 增補：[React Aria](https://react-aria.adobe.com/getting-started)、[Mantine](https://mantine.dev/getting-started/)、[Nuxt UI](https://ui.nuxt.com/)、[shadcn-svelte](https://www.shadcn-svelte.com/docs/installation)。新項目只核對基本定位與官方入口；實際 peer dependencies、授權、樣式、SSR 與 framework 版本在採納時驗證。
+
 - [官方來源：21st.dev — ](https://21st.dev/)
 - [官方來源：ant.design — docs/react/introduce/](https://ant.design/docs/react/introduce/)
 - [官方來源：base-ui.com — react/overview/about](https://base-ui.com/react/overview/about)
@@ -119,6 +121,8 @@ Reference only · 查閱日期：2026-09-25
 
 ## [design.md](design.md)
 
+2026-10-02 發布者入口：[Mobbin](https://mobbin.com/)、[Dribbble](https://dribbble.com/)、[Awwwards](https://www.awwwards.com/websites/)、[Refero](https://refero.design/)、[MotionSites](https://motionsites.ai/)。這次核對來源用途，沒有替任何個別作品做視覺／操作驗收。MotionSites 網址由名稱暫定，沒有宣稱 owner 已確認。制度型設計參考：[Material 3](https://m3.material.io/)、[Fluent 2](https://fluent2.microsoft.design/)、[Carbon](https://carbondesignsystem.com/)。八種方向為本輪研究判斷，不是官方分類。
+
 - [官方來源：base-ui.com — react/overview/about](https://base-ui.com/react/overview/about)
 - [官方來源：base-ui.com — react/overview/accessibility](https://base-ui.com/react/overview/accessibility)
 - [官方來源：developer.android.com — develop/adaptive-apps/guides/canonical-layouts?hl=en](https://developer.android.com/develop/adaptive-apps/guides/canonical-layouts?hl=en)
@@ -153,6 +157,8 @@ Reference only · 查閱日期：2026-09-25
 - [官方來源：resend.com — docs/introduction](https://resend.com/docs/introduction)
 
 ## [motion.md](motion.md)
+
+2026-10-02 增補：[React Bits index](https://www.reactbits.dev/get-started/index)、[Anime.js](https://animejs.com/) 及 [官方文件](https://animejs.com/documentation)、[MotionSites](https://motionsites.ai/)。分開動效元件、動畫引擎與案例／prompt；本輪不核准元件 license、下載、安裝或個別示範品質。
 
 - [官方來源：developer.mozilla.org — en-US/docs/Web/API/Web_Animations_API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API)
 - [官方來源：developers.lottiefiles.com — ](https://developers.lottiefiles.com/)

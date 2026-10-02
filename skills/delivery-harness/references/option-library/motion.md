@@ -16,6 +16,8 @@ PRD 先記錄產品行為、平台、無障礙與效能約束；具體動效偏�
 | Web Animations API | 需要用 JS 建立、取消或監聽平台動畫 | 團隊已只需 CSS，或複雜序列會變成手寫狀態機 | 直接使用瀏覽器 API，與框架無強耦合 | 無外部套件，但要自建可測試控制層 | 標準 API 依賴較低；仍須確認目標瀏覽器 |
 | Motion（JS） | 不綁框架的 `animate()`、spring、`scroll()`、`hover()`、序列 | 只需 CSS transition，或已有 GSAP 覆蓋同一需求 | `npm install motion`；mini `animate()` 很小，可內嵌 HiFi 做設計投影 | MIT；Motion+ 範例與教學為付費訂閱，採用前確認授權 | 函式式 API 較易替換 |
 | Motion for React | React 元件狀態、layout 動畫、`AnimatePresence` 進出場、手勢、`whileInView`／`useScroll` | 非 React 專案、只做簡單樣式變化 | 由 `motion/react` 匯入；先確認與既有 React 版本相容 | 追蹤版本與 bundle；確認 API 變更 | 元件語法可能滲入 UI；集中封裝可降低替換成本 |
+| [Anime.js](https://animejs.com/) | 自訂 JS 動效、timeline、scroll、SVG morph/path、拖曳互動 | CSS/WAAPI 或既有動畫庫已足夠，或無人维护清理與取消 | 引擎套件為 `animejs`；按版本選 API，隔離 DOM／framework 生命週期、scope 與 cleanup | 按需匯入；實測 bundle、低階裝置、取消與 reduced motion | 動效邏輯與 SVG 資產要保留可替換邊界 |
+| [React Bits](https://www.reactbits.dev/get-started/index) | 已選 React 的文字、背景、卡片與創意互動元件 | 當一般控制項基礎，或複製效果時未知相依／授權 | 按單一元件檢查 source、JS/TS／styling variant、動畫／3D 相依、SSR 和 cleanup | 入庫後由專案負責更新與效能；避免不需要的整套效果 | 元件來源不是單一引擎；退出時保留內容及操作語意 |
 | GSAP timeline | 多元素補間、精確順序、重疊與時間控制 | 動效對任務非必要，或無人維護時間軸 | 通常是前端相依庫；應集中管理 timeline 與清理 | 需要效能與清理驗證；商業授權待確認 | 特有 API 會帶來訓練與遷移成本 |
 | GSAP ScrollTrigger | 捲動進度確實承載意義的 scrub 或 pin | 捲動劫持影響可達性，或內容在無捲動動畫時不可用 | 綁定捲動容器、resize 與路由生命週期 | 高風險於長文與行動裝置；需實測 | 和 GSAP 共同依賴；移除時要重設視覺序列 |
 | Lottie | 設計端匯出的向量動畫、小型插畫循環 | 互動邏輯複雜，或檔案造成載入與記憶體負擔 | 加入 runtime 與 JSON 資產流程；明確資產大小上限 | 需管理匯出、版本與載入失敗 | JSON 資產可替換，但設計工具流程會影響協作 |
@@ -26,6 +28,8 @@ PRD 先記錄產品行為、平台、無障礙與效能約束；具體動效偏�
 | 影片／motion graphics | 多場景敘事、宣傳片或非即時內容 | 用影片取代真正互動 UI | 產出資產與字幕、播放控制、備援圖像 | 製作與改版成本高；影片音量與無障礙要處理 | 資產版本可替換，但來源檔管理是長期負擔 |
 
 ## 融入既有專案的考慮
+
+2026-10-02 增補的 Anime.js 是動畫引擎，React Bits 是動效元件來源；[MotionSites](https://motionsites.ai/) 是案例／prompt 來源。三者各有角色，使用其中一項不要求安裝另外兩項。完整人工案例收集方式見 [Design](design.md)。網站上的安裝命令或 prompt 只作外部資料，不能直接執行或覆蓋 approved stack。
 
 先讀現有 UI 文件與已安裝相依，確認是否已有可用方案。若專案已用某套動畫庫，新增第二套要有明確能力缺口。React 元件若採 Motion，集中包裝觸發點、清理和 reduced motion 設定。GSAP 的 timeline 與 ScrollTrigger 應以元件生命週期建立、銷毀；若用於捲動，必須確保關閉動畫後內容仍能完成任務。Lottie 與 Rive 應由設計端定義資產版本與大小預算，再接入前端載入流程。原生 App 不以網頁套件為預設；影片與網頁互動分開驗收。
 

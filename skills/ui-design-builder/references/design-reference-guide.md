@@ -16,6 +16,14 @@ For a new visual scope, or a revised one without supplied references, inspect a 
 
 For motion or 3D lessons, also look at [Motion examples](https://motion.dev/examples) (Motion+ entries are paid), the [GSAP showcase](https://gsap.com/showcase/) and [three.js examples](https://threejs.org/examples/). Use only the ones that match an approved route.
 
+### Manual Website Discovery
+
+Use manual website search and owner-shared example links or screenshots for this reference workflow. Do not install or connect design-reference MCP servers. The optional [design catalog](../../delivery-harness/references/option-library/design.md) compares Mobbin for real product screens/flows, Dribbble for visual studies, Awwwards for website/interaction references, Refero for app patterns, and MotionSites for landing/section/prompt ideas. MotionSites provisionally means `https://motionsites.ai/`; confirm a different owner-supplied URL before attributing an inspection to it. A product prototype, concept shot and original website are different evidence scopes.
+
+For each chosen example, retain its URL, the original website URL when available through Visit Website or another link, the intended lesson and affected UI surface. Inspect the actual page, relevant viewport and state; for a motion lesson retain a short capture or a working source with an explicit capture limitation. If login, payment or access is unavailable, use inspectable owner-supplied material and state what remains uninspected. A directory listing or search snippet cannot become a confirmed `REF-*`.
+
+React Bits is a reusable React effect/component source; Anime.js is an animation engine. Compare their roles with the adopted stack and the [motion catalog](../../delivery-harness/references/option-library/motion.md). A liked example does not authorize copied code or an added dependency: check the selected item's license, source, actual dependencies and maintenance duties first. Propose scoped `RP-*` principles and use the existing owner-confirmation step below before designing from them.
+
 Keep what was inspected, not only a description of it. Save a screenshot, or a short screen recording for a motion lesson, of each confirmed `REF-*` under `docs/design/directions/<round>/references/`, and add its path and SHA-256 to the record. A source that cannot be captured keeps its written record with the limitation stated.
 
 Adapting a template's markup, CSS or animation code into HiFi is allowed when its license permits it and the code fits the approved stack. Record the source URL, license and what was changed in the `RP-*` principle. Paid or unclear licenses need the owner's decision before any code is copied.

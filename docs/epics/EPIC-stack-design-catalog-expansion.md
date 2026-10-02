@@ -18,6 +18,8 @@ The owner's earlier instruction keeps design discovery manual: search the websit
 
 Use one parent writer and three sequential atomic changes: stack comparisons, Cloudflare coverage, then design and motion. Local commits follow the owner's standing atomic-commit instruction. This scope grants no push, promotion, release, local skill installation, blanket dependency installation, product-stack choice or UI approval. No PLAN/RUN is needed.
 
+The design change proceeds before Cloudflare while the extra official-verification owner choice remains pending; the outcomes have no product dependency on each other. The earlier `UI-LOCAL-04` and official design-foundation sibling reports are retained on the same entry baseline, alongside the parent's verified source links. The failed additional design probe is not relabeled successful.
+
 ## Acceptance And Dependencies
 
 | Requirement | Expected outcome | Verification | Dependency |
@@ -42,6 +44,8 @@ Use one parent writer and three sequential atomic changes: stack comparisons, Cl
 | --- | --- | --- | --- |
 | 2026-10-02 entry | Accept catalog additions, freeze the source scope and preserve recovery work | Baseline HEAD above; original source hashes and bytes retained in a checkout-external task directory | Earlier read-only sibling research remains evidence. Additional Cloudflare and design probes hit FlashX 429 quota; no automatic provider switch. Owner choice for additional official verification is pending |
 | 2026-10-02 CAT-1 | Add two frontend candidates, 18 TanStack library roles, Starter/Builder and eight complete-stack comparisons; add the selection-guide pointer and four-language description | Working-tree delta against the baseline; atomic stack commit follows verification | Reference library 9/9, stack option map 7/7, skill specification and whitespace checks passed. `CATALOG-STACK-05/1` returned read-only file/hash evidence; observed session declared GLM-5.3-FlashX, independent model attestation unavailable. No package checker/schema/runtime change |
+| 2026-10-02 stack checkpoint | Record the first task commit and proceed to the independent design scope | `156d8496ba584d409b0915917fe819695561a4b0`; 32 original dirty entries remain and the index is empty after commit | Stack task passed its focused checks. New design guide/catalog entries are working-tree evidence until their focused check and atomic commit |
+| 2026-10-02 CAT-3 | Add four framework-specific foundations, eight visual directions, five discovery sites, React Bits/Anime.js and manual original-site intake; retain reference-principle confirmation | Working-tree design delta from `156d8496ba584d409b0915917fe819695561a4b0`; no UI artifact or canonical SKILL edit | Reference library 9/9, skill specification, docs-weight and scoped whitespace checks passed. No new dependency, connector, schema or product design gate. Additional FlashX design probe failed with 429; earlier same-baseline read-only reports and inspected publisher links are retained |
 
 ## Results And Remaining Work
 

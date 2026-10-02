@@ -72,6 +72,8 @@ Una biblioteca de referencias opcional compara 19 dominios de tecnología y dise
 
 El catálogo frontend compara TanStack Start/Router y su ecosistema como opciones separadas. Los ejemplos de arquitectura cubren stacks completos de React gestionado, React portable, contenido, tiempo real, Python y aplicaciones de negocio. Las observaciones de madurez tienen fecha; la adopción sigue en el checkpoint de stack de cada proyecto.
 
+Las referencias de diseño incluyen bases de componentes, ocho direcciones visuales y búsqueda manual en Mobbin, Dribbble, Awwwards, Refero y MotionSites. El propietario comparte casos, enlaces al sitio original o capturas; no se añade una conexión MCP de referencias de diseño. React Bits aporta componentes con efectos y Anime.js un motor de animación; reutilización y dependencias conservan las decisiones existentes de stack y licencia.
+
 El informe de visibilidad de docs-weight incluye el Markdown opcional anidado de references y no añade una gate.
 
 ### Traducción de diseño y patrones reutilizables
