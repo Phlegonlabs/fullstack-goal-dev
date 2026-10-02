@@ -1,8 +1,9 @@
 """Policy added by ``UI contract: ui-design/3`` for new full UI packages.
 
 ui-design/2 keeps its original meaning. A ui-design/3 package always ships the
-design-system Markdown/JSON/HTML package, records three rendered direction
-studies by one author, and adds an observed intermediate-width HiFi receipt.
+design-system Markdown/JSON/HTML package, records rendered direction studies by
+one author (three by default, one only by explicit owner choice), and adds an
+observed intermediate-width HiFi receipt.
 """
 
 from __future__ import annotations
@@ -71,8 +72,9 @@ def direction_study_rows(rows: list[list[str]], compared: set[str]) -> tuple[lis
             problems.append(f"Direction studies {direction} self-check must be made by its own author")
         if result.casefold() != "pass":
             problems.append(f"Direction studies {direction} self-check must be pass before selection")
-    if seen != compared or len(compared) != 3:
-        problems.append("Direction studies must cover exactly the three compared directions")
+    # _direction_comparison already binds the compared count to Direction mode.
+    if seen != compared or not compared:
+        problems.append("Direction studies must cover exactly the compared directions")
     if len(rounds) > 1:
         problems.append("Direction studies must share one docs/design/directions/<round>/ folder")
     if len(authors) > 1:

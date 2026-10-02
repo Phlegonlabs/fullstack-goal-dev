@@ -65,8 +65,8 @@ Show the proposed Adopt / Adapt / Avoid set to the human owner and end the turn.
 
 `frontend-design` creates directions only after the Visual Preference Brief and any supplied-reference principles are confirmed. Give each direction a versioned `VD-R<round>-<number>` ID.
 
-- A `ui-design/3` package always gets exactly three materially different directions over the same approved surfaces, states, and responsive set.
-- A retained `ui-design/2` package keeps its original option: when the owner explicitly chooses a single recommendation, create one direction, normally `VD-R1-01`; otherwise create three. Continuing uncertainty does not substitute for that explicit single-direction choice.
+- When the owner explicitly chooses a single recommendation, create one direction, normally `VD-R1-01`. This holds for `ui-design/3` and `ui-design/2`.
+- Otherwise, create exactly three materially different directions over the same approved surfaces, states, and responsive set. Continuing uncertainty does not substitute for that explicit single-direction choice.
 - A rejected set produces a complete new round; do not append a fourth direction to the old round.
 
 Each direction records product fit, the accepted Design Brief page-purpose/profile and type/density/headline constraints, visual rules, confirmed `REF-*` and `RP-*` evidence with useful roles and avoid rationale, tradeoffs, avoid rules, and its relationship to the approved component foundation and styling approach. Carry selected direction decisions into connected HiFi and H1–H9 review; selected profile and motion decisions reach conditional compilation and implementation through their existing contracts. A current public reference may support a direction only after it has been inspected. Market evidence (`MR-*`) and visual evidence (`REF-*`) remain separate.

@@ -133,15 +133,16 @@ class UiDesignV3Tests(unittest.TestCase):
             base = ui.read_text(encoding="utf-8")
             rows =[line for line in base.splitlines() if line.startswith("| VD-R1-03 | docs/design/directions")]
             cases = {
-                "single mode": (base.replace("Direction mode: three comparable directions", "Direction mode: one recommended direction"),
-                                "requires Direction mode: three comparable directions"),
+                "one mode over three directions": (
+                    base.replace("Direction mode: three comparable directions", "Direction mode: one recommended direction"),
+                    "Direction comparison requires exactly 1 directions"),
                 "other checker": (base.replace(f"{STUDY_AUTHOR} | pass |", "independent reviewer | pass |", 1),
                                   "self-check must be made by its own author"),
                 "split authors": (base.replace(rows[0], rows[0].replace(STUDY_AUTHOR, "second author")),
                                   "one frontend author"),
                 "failed self-check": (base.replace(f"{STUDY_AUTHOR} | pass |", f"{STUDY_AUTHOR} | blocked |", 1),
                                       "self-check must be pass"),
-                "missing study": (base.replace(rows[0] + "\n", ""), "exactly the three compared directions"),
+                "missing study": (base.replace(rows[0] + "\n", ""), "exactly the compared directions"),
                 "outside round": (base.replace("docs/design/directions/round-1/vd-01.html", "docs/design/vd-01.html"),
                                   "docs/design/directions/<round>/<name>.html"),
             }
@@ -153,6 +154,42 @@ class UiDesignV3Tests(unittest.TestCase):
             study = root / "docs/design/directions/round-1/vd-02.html"
             study.write_text(study.read_text(encoding="utf-8") + "<!-- edited -->", encoding="utf-8")
             self.assertIn("Direction study", "\n".join(preflight(ui, root, prd, hifi)))
+
+    def test_explicit_owner_single_direction_needs_matching_rows_and_intake_decision(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ui, prd, hifi = v3_publication(root)
+            three = ui.read_text(encoding="utf-8")
+            others = [line for line in three.splitlines() if re.match(r"\| VD-R1-0[23] \|", line)]
+            one = three.replace("Direction mode: three comparable directions", "Direction mode: one recommended direction")
+            for line in others:
+                one = one.replace(line + "\n", "")
+            ui.write_text(one, encoding="utf-8")
+            self.assertEqual([], preflight(ui, root, prd, hifi))
+            intake = one.index("## UI Design Intake")
+            owner = re.compile(r"^Decision owner: .*$", re.M)
+            studies = [line for line in others if "docs/design/directions/round-1/vd-0" in line and ".html" in line]
+            cases = {
+                "missing owner": (one[:intake] + owner.sub("Decision owner: [human owner]", one[intake:], 1),
+                                  "ui-design/3 one recommended direction requires the owner's explicit intake decision"),
+                "agent owner": (one[:intake] + owner.sub("Decision owner: AI agent", one[intake:], 1),
+                                "ui-design/3 one recommended direction requires the owner's explicit intake decision"),
+                "undated decision": (one[:intake] + one[intake:].replace("Decided on:", "Decided on: soon //", 1),
+                                     "ui-design/3 one recommended direction requires the owner's explicit intake decision"),
+                "unrecorded mode": (one.replace("Direction mode: one recommended direction", "Direction mode:"),
+                                    "UI Design Intake Direction mode must be one of"),
+                "three mode over one direction": (
+                    one.replace("Direction mode: one recommended direction", "Direction mode: three comparable directions"),
+                    "Direction comparison requires exactly 3 directions"),
+                "three studies for one direction": (
+                    one.replace("| VD-R1-01 | docs/design/directions", "\n".join(studies) + "\n| VD-R1-01 | docs/design/directions", 1),
+                    "Direction studies must cover exactly the compared directions"),
+            }
+            for label, (text, expected) in cases.items():
+                with self.subTest(label):
+                    self.assertNotEqual(one, text)
+                    ui.write_text(text, encoding="utf-8")
+                    self.assertIn(expected, "\n".join(preflight(ui, root, prd, hifi)))
 
     def test_study_html_must_be_self_contained(self):
         findings = "\n".join(checker.ui_design_v3.study_html_findings(

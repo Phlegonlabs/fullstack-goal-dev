@@ -2651,8 +2651,10 @@ def validate_text(
                 "UI Design Intake Direction mode must be one of "
                 + ", ".join(sorted(VALID_DIRECTION_MODES)),
             )
-        if v3 and (require_filled or require_visual_approved) and direction_mode != "three comparable directions":
-            _add(problems, "ui-design/3 requires Direction mode: three comparable directions")
+        if (v3 and (require_filled or require_visual_approved) and direction_mode == "one recommended direction"
+                and not (_human_owner(values.get("Decision owner")) and _date(values.get("Decided on")))):
+            _add(problems, "ui-design/3 one recommended direction requires the owner's explicit intake decision: "
+                           "human Decision owner and Decided on")
 
     motion_intents: dict[str, dict[str, str]] = {}
     motion = sections.get("## Motion And Media Intent")

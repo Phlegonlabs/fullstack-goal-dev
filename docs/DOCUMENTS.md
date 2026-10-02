@@ -5,7 +5,7 @@ The four READMEs remain the documentation of record for the skill bundle.
 | Document | Purpose | Status |
 | --- | --- | --- |
 | `docs/research/context-decomposition.md` | Measured stage and role content boundaries, load-set estimates and atomic migration tasks | Research proposal recorded; canonical reading rules unchanged |
-| `docs/epics/EPIC-design-showcase.md` | `ui-design/3` full packages, `design-system/4` source-derived HTML showcase and Harness 0.59 joins | Main implementation and cross-skill joins integrated; owner single-direction correction remains in the stopped frontend checkout; final review pending |
+| `docs/epics/EPIC-design-showcase.md` | `ui-design/3` full packages, `design-system/4` source-derived HTML showcase and Harness 0.59 joins | Main implementation and cross-skill joins integrated; preserved owner single-direction correction restored and 8 focused regressions passed; final pipeline review and release checks pending |
 | `docs/epics/EPIC-branch-policy.md` | Dual-branch managed release policy, frozen bases, protected-branch landing and cleanup guards | Combined contract, golden and tasks-view fixture repairs integrated; final candidate verification and remote protection pending |
 | `docs/epics/EPIC-context-template-merge.md` | Safe authorized AGENTS bootstrap merge, explicit conflict reporting and host-neutral role/dependency guidance | Integrated locally through MOD-A idempotency repair; final verification pending |
 | `docs/WORKFLOW.zh-TW.md` | Numbered cross-host product delivery workflow and role/template handoffs | 0.59 working-version guide; reconcile against final implementation before release |
