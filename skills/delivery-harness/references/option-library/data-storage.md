@@ -46,6 +46,8 @@
 
 適合離線 App、單機工具、嵌入式持久化，亦可支援適當規模的網站。若多個服務直接透過網路檔案系統共用高寫入 DB，先比較 client/server DB。採納時測寫入競爭、transaction 時間、備份一致性及檔案權限；低維運不等於免備份。往 PostgreSQL 遷移要核對型別、SQL 方言與並發語意。[適用情境](https://www.sqlite.org/whentouse.html)
 
+2026-10-02 架構增補：本機 SQLite 與跨裝置同步是兩個決策。需要離線寫入時，另評估 sync service、authoritative backend、upload validation、下載分區、衝突與登出／撤權後本機資料；不要以 client cache 代替完整同步。代表性 [PowerSync 概覽](https://docs.powersync.com/intro/powersync-overview) 支持 SQLite／sync service 基本定位，實際 SDK、host 和主 DB 組合採納前核對。多租戶的共用表／獨立 DB／hybrid、restore 與遷移，以及 local-first 失敗測試見 [Architecture](architecture.md)。
+
 ### Cloudflare D1
 
 適合已選 Workers 的 SQL 需求；大型跨庫交易或特殊擴充先核對實際支援。設計 migrations、bindings、query limits、讀取副本一致性及 Time Travel 恢復流程。成本看讀寫與儲存，不能把本機 SQLite 的效能推定成 D1 配額。SQL 可匯出不代表服務 API、區域、備份和部署無遷移成本。[官方概覽](https://developers.cloudflare.com/d1/)

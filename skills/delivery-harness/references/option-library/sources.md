@@ -43,6 +43,17 @@ Reference only · 查閱日期：2026-09-25
 
 2026-10-02 完整組合的官方定位來源：[TanStack Start](https://tanstack.com/start/latest)、[Next.js](https://nextjs.org/docs)、[Vercel Next.js](https://vercel.com/docs/frameworks/nextjs)、[Supabase](https://supabase.com/docs)、[React Router framework mode](https://reactrouter.com/start/framework/installation)、[Astro islands](https://docs.astro.build/en/concepts/islands/)、[Nuxt rendering](https://nuxt.com/docs/4.x/guide/concepts/rendering)、[SvelteKit](https://svelte.dev/docs/kit/introduction)、[Convex](https://docs.convex.dev/quickstarts)、[FastAPI](https://fastapi.tiangolo.com/features/)、[Rails](https://rubyonrails.org/)、[Django](https://docs.djangoproject.com/en/stable/intro/overview/)、[Laravel](https://laravel.com/docs)。組合本身與產品適配是研究判斷，未在本輪建立或部署。
 
+2026-10-02 架構能力增補：
+
+- [htmx](https://htmx.org/docs/)：HTML request／response 與局部 DOM 更新；backend、auth、樣式與 fallback 義務由專案決定。
+- [PowerSync overview](https://docs.powersync.com/intro/powersync-overview)：client SQLite、sync service、資料分配和 SDK。嘗試的 `/architecture/overview` 入口取回失敗，已改讀此官方 overview；未核對完整 SDK／DB／host 版本矩陣。
+- [Temporal workflow execution](https://docs.temporal.io/workflow-execution)：event history／replay；不以此證明外部副作用 exactly-once。
+- [Microsoft multitenant storage](https://learn.microsoft.com/en-us/azure/architecture/guide/multitenant/approaches/storage-data)：共用／獨立／混合資料拓撲、restore 和 migration 取捨；Azure 實作另行核對。
+- [Payload Live Preview](https://payloadcms.com/docs/live-preview/overview) 與 [Shopify cart/checkout](https://shopify.dev/docs/storefronts/headless/building-with-the-storefront-api/cart/manage)：frontend preview 與 cart／checkout 邊界；沒有驗證兩者的組合或商務方案。
+- [Hono RPC](https://hono.dev/docs/guides/rpc)：TypeScript input/output type sharing 與 validator；跨語言公開 API 仍需其明確契約。
+
+來源支持各工具定位；需求適配、組合、negative cases 和退出成本是本輪研究判斷。未做安裝、帳號、benchmark、價格、license、完整相容矩陣或部署驗證。
+
 - [官方來源：learn.microsoft.com — en-gb/azure/architecture/guide/architecture-styles/](https://learn.microsoft.com/en-gb/azure/architecture/guide/architecture-styles/)
 - [官方來源：learn.microsoft.com — en-us/azure/architecture/guide/architecture-styles/event-driven](https://learn.microsoft.com/en-us/azure/architecture/guide/architecture-styles/event-driven)
 - [官方來源：learn.microsoft.com — en-us/azure/architecture/guide/architecture-styles/web-queue-worker](https://learn.microsoft.com/en-us/azure/architecture/guide/architecture-styles/web-queue-worker)

@@ -21,6 +21,7 @@
 | Nuxt/Vue | Vue 生態的全端框架候選 | 團隊已有 Vue、需要路由與伺服器整合 | 生態套件、版本或部署 adapter 尚未核對 | Nuxt 官方渲染指南列出 universal、client-side 與 hybrid rendering；需核對路由規則、Nitro 目標、狀態與資料策略 | 成本來自 runtime、建置、監控與生態維護 | 用標準 Vue 元件與 API 合約降低鎖定 |
 | SvelteKit | Svelte 生態的全端框架候選 | 團隊偏好 Svelte、需要應用級路由 | 元件庫、測試與部署路徑未核對 | SvelteKit 提供 routing、SSR 與部署 adapters；需選擇目標 adapter 並區分 server/client 資料 | 需自訂建置與觀測；避免把生態成熟度當成既成事實 | 以路由資料契約與伺服器 API 為邊界 |
 | React + Vite SPA | 官方說明的從零建置路徑之一 | 既有後端穩定、只需互動前端、團隊能自組路由與資料 | 未來需要 SSR、SSG、RSC 或更多框架級整合 | 自行補 routing、資料取得、快取、程式碼切割、錯誤與狀態管理 | Vite、Parcel、Rsbuild 都可作為建置工具；成本轉為自管生態 | SPA 可放在既有頁面或子路徑，但不要清除宿主 HTML |
+| Server templates＋htmx | Server-driven HTML 與局部互動組合 | 表單／後台、server 持有主要 state | 離線 editor、canvas 或大量 client state 未驗證 | backend 產生頁面／fragment；htmx 提供請求／DOM 更新；保留 session、CSRF、焦點與快取責任 | server app、SQL 和需要時的 jobs 各有成本；不因省去 SPA 就免除可及性測試 | templates／fragment 與 interaction attributes 需改寫；保留 domain/API 邊界 |
 | 既有前端／原生替代 | 保留可維護系統，或另選原生／跨平台方案 | 既有棧健康、需求局部；目標是 iOS/Android 原生體驗 | 因新框架流行而整站重寫 | 先定義整合點、資料契約、樣式、測試與回滾 | 保留既有投資；原生需求必須另行評估工具鏈 | 局部新增、擴充或漸進替換，不做未核對的全域遷移 |
 
 ## 事實與推論界線
@@ -28,6 +29,8 @@
 事實：React 官方說明從零建置可用 Vite、Parcel 或 Rsbuild，但這類 SPA 預設不含 routing、資料取得與樣式方案；若未來需要 SSR、SSG 或 React Server Components，會變成自行承擔框架級問題。React 也支援漸進採用、加入既有頁面，並已淘汰 Create React App。Next.js 官方定義為 React 全端 Web 應用框架，提供 App Router 與 Pages Router；App Router 使用內建 React canary，Pages Router 使用專案宣告的 React 版本。
 
 推論：內容多、互動少時，Astro islands 值得列入；登入後互動與伺服器整合時，Next.js、Nuxt 或 SvelteKit 更值得比較。這些適配判斷不是官方聲明。補查 SvelteKit 正文、Astro islands 與 Nuxt 官方渲染搜尋摘要後，可確認上述基本定位；實際版本與 adapter 相容性仍需專案驗證。
+
+上述 server-driven HTML 組合於 2026-10-02 補查：[htmx 官方文件](https://htmx.org/docs/) 說明以 HTML 元素發送請求、通常取得 HTML response 更新 DOM。Django templates＋htmx＋PostgreSQL 是比較示例，適配為研究判斷；htmx 不決定 backend、資料庫或樣式。完整責任與 negative cases 見 [Architecture](architecture.md)。
 
 ## TanStack 生態分工（2026-10-02 增補）
 
@@ -56,7 +59,7 @@
 
 [Application Starter](https://tanstack.com/application-starter)／[Builder](https://tanstack.com/builder) 查核時標為 Alpha，只作生成／探索候選；不是另一個產品 runtime。RC、Alpha、Beta 屬於單項的日期快照，不能從穩定的 Query 推定 Start、AI 或其他新項目同樣穩定。安裝前回看官方 release/security advisories，固定修補版本和 lockfile，核對實際使用的 adapter／peer dependencies；本目錄不固定永久安全版本下限。
 
-條件式起點：React SPA 可先比較 Vite＋Router＋Query；需要 SSR/server functions 再比較 Start 與其他 React framework；資料工作台按需要加 Table／Virtual／Form；local-first 或 AI 能力各自驗證 DB／AI。UI foundation 與樣式仍見 [Components](components-icons.md) 和 [CSS](css-styling.md)，完整組合見 [Architecture](architecture.md)。
+條件式起點：React SPA 可先比較 Vite＋Router＋Query；需要 SSR/server functions 再比較 Start 與其他 React framework；資料工作台按需要加 Table／Virtual／Form；local-first 或 AI 能力各自驗證 DB／AI。離線寫入、同步與撤權義務另見 [Data](data-storage.md)／[Architecture](architecture.md)，不由 client collection 套件自動完成。UI foundation 與樣式仍見 [Components](components-icons.md) 和 [CSS](css-styling.md)，完整組合見 [Architecture](architecture.md)。
 
 ## Tailwind CSS 與元件／icon 分離
 
