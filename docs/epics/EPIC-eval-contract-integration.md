@@ -1,6 +1,6 @@
 # EPIC-eval-contract-integration: Freeze eval policy and verify handoff
 
-Status: in_progress; local source candidate only.
+Status: local_verified; source integration complete, release pending.
 
 ## Problem And Accepted Outcome
 
@@ -112,6 +112,67 @@ eval parsing and input validation live in their own module (under 500 lines).
 No new responsibility is added to its existing table/approval code.
 
 ## Handoff
+
+2026-10-03 EVAL-I-05 local verification, exact clean candidate
+`882dda69b58c615683f2a96449508beb509029c2` on
+`codex/eval-contract-research`: A13's two native reviewers returned fresh
+code/security PASS across all 44 changed paths, Product 11 and Harness 33.
+Both have empty findings, exclusions and coverage gaps. Requested/configured
+binding is GPT-6.1-Sol/xhigh/read-only; independent provider/model/effort telemetry
+is unobserved. No fallback. Earlier failed, timed-out and passing receipts retain
+their original identities; none was repinned. Commit `77bfaad0` records the
+source-binding test repair; `882dda69` the translation wrapping repair.
+
+Skill spec, full six-skill pyflakes, documentation weight and diff checks PASS
+at this candidate. Harness core remains 3594 words under its 3600-word limit.
+All required regression commands ran from the repository root and exited 0:
+
+| Suite | Tests | Seconds | Declared skips |
+| --- | ---: | ---: | --- |
+| Harness | 1480 | 2778.811 | 20: platform/symlink limitations and the gated golden path |
+| Explicit golden path | 1 | 4.082 | None; `HARNESS_GOLDEN_PATH=1` |
+| Product Definition | 279 | 38.539 | None |
+| UI Design | 311 | 94.104 | None; required Chromium browser checks enabled |
+| Design System | 120 | 1.722 | 4 Windows/POSIX/symlink limitations |
+| Product Activation | 56 | 0.659 | None |
+| SEO Review | 21 | 0.426 | None |
+
+This is Windows verification, not a Linux/macOS CI result. The explicit golden
+run satisfies the Harness suite's one opt-in skip; remaining unavailable
+platform cases retain their reasons. Browser prerequisites were installed,
+`PDH_REQUIRE_BROWSER_TESTS=1` and `PLAYWRIGHT_MODULE` names this checkout's
+Playwright 1.62.1. Each check had an actual finite deadline and Windows job
+cleanup. The second Harness run finished under its 5400-second deadline.
+Captured test roots exited. Parent rechecked clean HEAD and all reviewed source
+hashes after every suite and at receipt reconciliation.
+
+Review packets, separate code verdicts, raw logs, process receipts and
+`final-882dda69-verification.json` stay in the checkout-external task directory
+`C:/Users/mps19/.codex/work/eval-integration-e493a8f9c14747c4a8e75e833cb6b5d4/`.
+The completion child changes only this Epic and `docs/DOCUMENTS.md`; code and
+test evidence remains bound to candidate C above, not relabeled as the child.
+No source, fixture or version change follows the verified candidate.
+
+Document audit: applicable eval policy/acceptance references, templates,
+four-language descriptions, version surfaces, task outcomes and index agree.
+Consumer PRD/architecture, design package, PLAN/RUN and generated tasks view
+are not applicable to this direct source task. No bilingual backfill is needed.
+Canonical artifacts remain tracked; dependencies, caches and `.env` remain
+ignored by existing rules. No new ignore class or credential read.
+
+Installed Harness remains 0.59.0, with PROJECT_AGENTS template SHA-256
+`0d5064d94c0072ad2d1f06f3b516dab328d425be79454df10b50ce6f44b2470e`.
+Shared entry/checkpoint/handoff/authorization rules are current by meaning.
+The source's main-only and UI2/conditionalDS3 rules intentionally differ from
+that installation's dual-branch and UI3/mandatoryDS4 line. A safe cross-line
+merge is unknown; `AGENTS.md` stays intact. Document-sync remains
+`review_required` for unknown loaded identity and baseline. The affected
+sources received semantic review; this does not invent a loaded identity or
+turn document inventory into approval. Other indexed Epics retain their history.
+
+Next owner action: separately authorize publication, exact-SHA main promotion,
+release/tag and installer execution if this candidate is selected. No push,
+promotion, tag, local skill update, branch deletion or worktree removal occurred.
 
 2026-10-03 EVAL-I-05 translation structure repair, baseline
 `77bfaad0a5b992e8e4ea7193dac2abdeea482839`, working-tree:
@@ -402,4 +463,5 @@ plan-only matrix ran 16 tests: 15 PASS, one POSIX symlink variant skipped on
 Windows; read-failure coverage ran on every version. Both A3 reviews remain
 fix_required. Execution identity and parser diagnostics are still pending.
 
-Pending. No release, tag, push or local skill update has occurred.
+Local source integration is verified at the candidate above. Release, tag,
+publication and local skill update remain unperformed.
