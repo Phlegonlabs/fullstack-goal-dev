@@ -4,6 +4,7 @@ Older pins keep their contracts: 0.56-0.58 consume ui-design/2 only. Fixture
 bytes are synthetic validator inputs, not product approvals.
 """
 from contextlib import contextmanager
+import copy
 import hashlib
 import json
 from pathlib import Path
@@ -340,6 +341,38 @@ UI scope: UI-001
                 "'Release source policy: dual-branch/1' marker",
                 findings,
             )
+
+    def test_ui_three_maintenance_retains_history_without_fresh_preview_approval(self):
+        for impact in ("none", "style"):
+            with self.subTest(impact=impact), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                plan, run, _, legacy = self.fixture(root, preview=False)
+                record = root / "docs/epics/EPIC-maintenance.md"
+                record.parent.mkdir(parents=True, exist_ok=True)
+                record.write_text(
+                    "# Retained UI repair\n\nDesign workflow: maintenance\n"
+                    f"UI impact: {impact}\nPlan ID: PLAN-TEST\n"
+                    "Plan objective: Deliver a deterministic test plan\n"
+                    "Requirement refs: REQ-001\nUI scope: UI-001\n", encoding="utf-8")
+                for arguments in (("add", "docs/epics/EPIC-maintenance.md"),
+                                  ("-c", "user.name=Fixture", "-c", "user.email=fixture@example.test",
+                                   "commit", "-qm", "retain maintenance record")):
+                    subprocess.run(["git", *arguments], cwd=root, check=True, capture_output=True, timeout=15)
+                row = legacy.StrictAuthorityJoinTests._row("SRC-TASK", "task record", record, root)
+                row["source_revision"] = subprocess.run(
+                    ["git", "rev-parse", "HEAD"], cwd=root, check=True,
+                    capture_output=True, text=True, timeout=15).stdout.strip()
+                plan["sources"].append(row)
+                next(trace for trace in plan["traces"] if trace["id"] == "REQ-001")["source_ids"].append("SRC-TASK")
+                self.assertEqual((True, []), join._frozen_maintenance_record(plan, root))
+                self.assertEqual([], join.validate_frozen_contract_joins(plan, root, run=run))
+                without_record = copy.deepcopy(plan)
+                without_record["sources"] = [source for source in without_record["sources"] if source["id"] != "SRC-TASK"]
+                self.assertIn("requires exactly one frozen design-system-preview.html",
+                              "\n".join(join.validate_frozen_contract_joins(without_record, root, run=run)))
+                frozen_pair = root / "docs/design/design-system.json"
+                frozen_pair.write_bytes(frozen_pair.read_bytes() + b" ")
+                self.assertTrue(join.validate_frozen_contract_joins(plan, root, run=run))
 
     def test_source_spec_names_the_canonical_html_path(self):
         spec = join._STRICT_SOURCE_SPECS["design-system-preview"]

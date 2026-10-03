@@ -32,3 +32,5 @@ Input shape: `{ "schema": "design-observation/1", "skillDigest": "<sha256 or nul
 ## After Delivery
 
 Routine maintenance is not a fresh design round. Pass `--task-record docs/epics/<current-epic>.md` when its existing record declares `Design workflow: maintenance`. The report labels old design drift `historical`; it does not claim those bytes are current, reuse browser proof or approve the product. Verify current requirements and accepted changes separately. Skill changes are classified as shell, format, rule or product-design changes before applying them; none automatically revokes all prior design decisions.
+
+The validated `none`/`style` maintenance route may retain `/3` or `/2` sources without fresh compilation or preview approval. Keep their declared frozen identities; a retained design-system file with changed bytes still fails its source join. New full delivery without that record requires `/3` → `/4` and its checked derived HTML.
