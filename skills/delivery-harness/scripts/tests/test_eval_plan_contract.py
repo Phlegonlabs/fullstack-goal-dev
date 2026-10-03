@@ -18,6 +18,15 @@ from eval_verification import QUALITY_ASSERTIONS, HANDOFF_ASSERTIONS
 
 
 class EvalPlanContractTests(unittest.TestCase):
+    def test_current_exempt_fixture_satisfies_the_policy_parser(self):
+        source = ("## AI and Automation\n"
+                  "AI and Automation Gate: not_required — Deterministic product, decided by Carmen Lee\n"
+                  "## Test Obligations\n")
+        self.assertTrue(pc.ep.validate_eval_policy(source, required=True))
+        declared = mf.eval_exempt_prd(source)
+        self.assertEqual([], pc.ep.validate_eval_policy(declared, required=True))
+        self.assertEqual("not_required", pc.ep.parse_eval_policy(declared)["applicability"])
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

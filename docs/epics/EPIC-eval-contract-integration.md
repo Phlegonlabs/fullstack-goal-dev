@@ -113,6 +113,17 @@ No new responsibility is added to its existing table/approval code.
 
 ## Handoff
 
+2026-10-03 EVAL-I-04 current fixture repair, baseline `ff121892`,
+working-tree: the synthetic ordinary-product declaration now uses the required
+JSON fence before approval hashing. A direct factory/parser control rejects the
+absent declaration and accepts the generated exemption. This addresses A8's
+reachable current new-run/golden-path fixture failure. All 21 eval readiness
+tests complete (20 PASS, one POSIX-only skip); 10 new-run and 13 tasks-view tests
+PASS. Both real CLI golden spines PASS with required browser prerequisites.
+The optional FlashX test worker failed at launch with 429 and produced no
+evidence; its stopped attempt is retained, with no fallback. Parent performed
+these operational checks. Mandatory independent review stays on Opus.
+
 2026-10-03 EVAL-I-02 fixture isolation repair, baseline `506cb564`,
 working-tree: Product fixture imports now restore the exact prior sys.path.
 A fresh interpreter verifies Harness's same-named skill-contract test still

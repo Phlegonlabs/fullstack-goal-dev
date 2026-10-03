@@ -41,7 +41,7 @@ def eval_exempt_prd(prd: str) -> str:
     policy = {"schema": "eval-policy/1", "applicability": "not_required",
               "reason": "This deterministic synthetic package has no AI output or autonomous action",
               "owner": "Carmen Lee"}
-    block = "<!-- eval-policy:start -->\n" + json.dumps(policy) + "\n<!-- eval-policy:end -->\n"
+    block = "<!-- eval-policy:start -->\n```json\n" + json.dumps(policy) + "\n```\n<!-- eval-policy:end -->\n"
     return prd.replace("## AI and Automation\n", "## AI and Automation\n" + block, 1)
 
 
