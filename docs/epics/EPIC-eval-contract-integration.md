@@ -113,6 +113,14 @@ No new responsibility is added to its existing table/approval code.
 
 ## Handoff
 
+2026-10-03 EVAL-I-02 report intake refinement, baseline `b3ee4492`,
+working-tree: A8 repeated the missing independent rejection-test family.
+A fixed-input matrix now mutates one report field at a time, without changing
+expected purpose, candidate, hashes, execution or artifacts. It covers report
+identity/context, provenance, command receipts, trial fields and dependency
+readbacks with passing controls. Existing isolated arithmetic/deadline/budget
+tests remain. All 24 report tests PASS. Fresh review and full suite pending.
+
 2026-10-03 A8 review / EVAL-I-01 visibility refinement, baseline `321c0999`,
 working-tree: Core review returned a medium Markdown visibility bypass;
 Report review required independent identity negatives; Gate review found an

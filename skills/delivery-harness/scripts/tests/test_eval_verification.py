@@ -39,6 +39,83 @@ class EvalVerificationTests(unittest.TestCase):
                 row["scores"]["correctness"] = 0
                 row["failure"] = "Synthetic wrong answer retained"
 
+    def reject_frozen_mutations(self, mutations):
+        """Keep accepted inputs fixed while changing one untrusted report field."""
+        frozen = copy.deepcopy(self.report)
+        expected = dict(purpose=frozen["purpose"], candidate_sha="a" * 40,
+                        contract_sha256=frozen["contract_sha256"], prd_sha256=frozen["prd_sha256"],
+                        execution=copy.deepcopy(frozen["execution"]), artifacts=copy.deepcopy(frozen["artifacts"]),
+                        now=self.now)
+        self.assertEqual(4, ev.validate_report(frozen, self.policy, self.approved, **expected)["passing"])
+        for path, value, diagnostic in mutations:
+            changed = copy.deepcopy(frozen)
+            target = changed
+            for part in path[:-1]:
+                target = target[part]
+            target[path[-1]] = copy.deepcopy(value)
+            with self.subTest(path=path, value=repr(value)[:80]), self.assertRaisesRegex(ev.ep.PolicyError, diagnostic):
+                ev.validate_report(changed, self.policy, self.approved, **expected)
+
+    def test_frozen_report_identity_and_context_rejection_matrix(self):
+        fields = {"schema": "eval-report/2", "purpose": "handoff", "candidate_sha": "b" * 40,
+                  "contract_sha256": "f" * 64, "prd_sha256": "f" * 64, "policy_sha256": "f" * 64}
+        mutations = [((name,), value, "report identity") for name, value in fields.items()]
+        mutations += [(("execution",), {}, "report context"), (("artifacts",), {}, "report context"),
+                      (("provenance", "checkout_sha"), "b" * 40, "clean exact candidate"),
+                      (("run_id",), "bad run id", "invalid identifier"),
+                      (("extra",), "untrusted", "exact fields required")]
+        self.reject_frozen_mutations(mutations)
+
+    def test_provenance_and_command_receipt_rejection_matrix(self):
+        mutations = [(("provenance",), {}, "exact fields"),
+                     (("provenance", "executor"), "", "concrete text"),
+                     (("provenance", "job_id"), "", "concrete text"),
+                     (("provenance", "git_status"), " M runner.py", "clean exact candidate"),
+                     (("provenance", "dependency_readbacks"), {"unplanned": {}}, "readbacks incomplete")]
+        for command in ("setup", "full"):
+            prefix = ("provenance", command)
+            mutations += [(prefix, {}, "exact fields"), (prefix + ("argv",), ["wrong"], "receipt differs"),
+                          (prefix + ("exit_code",), True, "receipt differs"),
+                          (prefix + ("exit_code",), 1, "receipt differs"),
+                          (prefix + ("observation",), "", "bounded redacted observation"),
+                          (prefix + ("observation",), "x" * 8001, "bounded redacted observation")]
+        self.reject_frozen_mutations(mutations)
+
+    def test_trial_field_rejection_matrix(self):
+        prefix = ("trials", 0)
+        mutations = [(("trials",), {}, "missing or extra"), (prefix, {}, "exact fields"),
+                     (prefix + ("case_id",), "bad case id", "invalid identifier"),
+                     (prefix + ("trial_index",), 0, "integer out of range"),
+                     (prefix + ("trial_index",), 3, "integer out of range"),
+                     (prefix + ("trial_index",), True, "integer out of range"),
+                     (prefix + ("scores",), {}, "exact rubric dimensions"),
+                     (prefix + ("scores",), {"correctness": 1, "extra": 1}, "exact rubric dimensions"),
+                     (prefix + ("scores", "correctness"), True, "integer out of range"),
+                     (prefix + ("scores", "correctness"), -1, "integer out of range"),
+                     (prefix + ("scores", "correctness"), 2, "integer out of range"),
+                     (prefix + ("assertion_results",), {}, "exact prohibited checks"),
+                     (prefix + ("assertion_results",), {"no-side-effect": "pass", "extra": "pass"}, "exact prohibited checks"),
+                     (prefix + ("assertion_results", "no-side-effect"), "unknown", "exact prohibited checks"),
+                     (prefix + ("assertion_results", "no-side-effect"), None, "prohibited outcome"),
+                     (prefix + ("failure",), None, "bounded text"),
+                     (prefix + ("failure",), "x" * 8001, "bounded text")]
+        for name in ("redacted_output", "grading_observation", "tool_observations"):
+            for value in ("", "x" * 8001):
+                mutations.append((prefix + (name,), value, "bounded redacted observation"))
+        self.reject_frozen_mutations(mutations)
+
+    def test_dependency_readback_shape_and_observation_rejection_matrix(self):
+        self.policy["freshness"]["dependencies"] = {"api": "snapshot-v1"}
+        self.report["policy_sha256"] = ev.ep.policy_digest(self.policy)
+        self.report["provenance"]["dependency_readbacks"] = {"api": {
+            "identity": "snapshot-v1", "checked_at": self.report["started_at"],
+            "observation": "API configuration readback is snapshot-v1"}}
+        prefix = ("provenance", "dependency_readbacks", "api")
+        self.reject_frozen_mutations([(prefix, {}, "exact fields"),
+            (prefix + ("identity",), "snapshot-v2", "identity changed"),
+            (prefix + ("observation",), "", "bounded redacted observation"),
+            (prefix + ("observation",), "x" * 8001, "bounded redacted observation")])
+
     def test_exact_boundary_and_quality_failures_count(self):
         self.fail_case("case-3")
         self.assertEqual(3, self.check()["passing"])
