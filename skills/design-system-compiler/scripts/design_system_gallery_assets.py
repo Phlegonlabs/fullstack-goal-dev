@@ -141,7 +141,7 @@ GALLERY_RUNTIME = """(() => {
 
 FRAME_RUNTIME = """(() => {
   const config = JSON.parse(document.getElementById("ds-frame-config").textContent);
-  const subject = document.querySelector("[data-ds-subject]") || document.body;
+  let subject = document.querySelector("[data-ds-subject]") || document.body;
   const canvas = document.querySelector("[data-hifi-canvas]");
   const reduced = document.querySelector("style[data-ds-reduced]");
   let state = config.state || null;
@@ -171,7 +171,7 @@ FRAME_RUNTIME = """(() => {
     for (const item of animations()) item.cancel();
     if (motion.kind === "attribute") { subject.setAttribute(motion.name, motion.from); void subject.offsetWidth; subject.setAttribute(motion.name, motion.to); }
     else if (motion.kind === "class") { subject.classList.remove(motion.name); void subject.offsetWidth; subject.classList.add(motion.name); }
-    else { const clone = subject.cloneNode(true); subject.replaceWith(clone); }
+    else { const clone = subject.cloneNode(true); subject.replaceWith(clone); subject = clone; }
   }
   function stop() { for (const item of animations()) item.pause(); }
   window.addEventListener("message", event => {

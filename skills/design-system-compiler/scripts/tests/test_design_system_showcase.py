@@ -376,10 +376,23 @@ const {chromium} = require(module);
   await page.click(`button[data-ds-for="${motionId}"][data-ds-motion="play"]`);
   await page.waitForTimeout(100);
   result.sheetOpen = await motion.$eval("[data-ds-subject]", item => item.getAttribute("data-open"));
+  const tideId = await page.$eval('#m-tide-pulse + figure button[data-ds-motion="play"]', item => item.dataset.dsFor);
+  const tide = await handle(tideId);
+  // Animations on the attached subject, by play state; detached nodes never count.
+  const tideStates = () => tide.evaluate(() => {
+    const subject = document.querySelector("[data-ds-subject]");
+    return document.getAnimations().filter(item => subject && subject.isConnected && item.effect.target === subject).map(item => item.playState);
+  });
+  const tideClick = async action => { await page.click(`button[data-ds-for="${tideId}"][data-ds-motion="${action}"]`); await page.waitForTimeout(100); return tideStates(); };
+  result.tideReplay = await tideClick("play");
+  result.tideReplayAgain = await tideClick("play");
+  result.tideStop = await tideClick("stop");
+  result.tideStopReplay = await tideClick("play");
   await page.click("[data-ds-reduced-toggle]");
   await page.waitForTimeout(200);
   result.reducedPressed = await page.$eval("[data-ds-reduced-toggle]", item => item.getAttribute("aria-pressed"));
   result.reducedMedia = await motion.$eval("style[data-ds-reduced]", item => item.media);
+  result.tideReduced = await tideStates();
   const fresh = await context.newPage();
   fresh.on("console", message => { if (message.type() === "error") errors.push(message.text()); });
   await fresh.goto(url);
@@ -420,8 +433,13 @@ const {chromium} = require(module);
         self.assertEqual("about:srcdoc", result["stayed"])
         self.assertIn("log.html", result["status"])
         self.assertEqual("true", result["sheetOpen"])
+        self.assertEqual(["running"], result["tideReplay"])
+        self.assertEqual(["running"], result["tideReplayAgain"])
+        self.assertEqual(["paused"], result["tideStop"])
+        self.assertEqual(["running"], result["tideStopReplay"])
         self.assertEqual("true", result["reducedPressed"])
         self.assertEqual("all", result["reducedMedia"])
+        self.assertEqual([], result["tideReduced"])
         self.assertEqual("skip", result["firstFocus"])
         self.assertEqual("main", result["skipTarget"])
         self.assertEqual("true", result["keyboardTarget"])
