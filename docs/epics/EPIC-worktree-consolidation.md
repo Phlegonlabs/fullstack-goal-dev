@@ -19,8 +19,9 @@ UI impact of conflict repair is none: the newer UI3/DS4 fixtures are retained,
 and their synthetic PRD declares eval exemption before approval hashing.
 Existing Epics retain accepted scope and historical verification.
 
-Write scope is the 15 Eval conflict paths, the Vite proposal/index, this Epic,
-the workflow guide and four-language candidate descriptions. The 13 older
+Write scope includes the 15 Eval conflict paths, the Vite proposal/index, this Epic,
+the workflow guide, four-language candidate descriptions and the five bounded
+correctness repairs recorded below. The 13 older
 detached checkouts have no uncommitted changes; their exact commits are retained
 as remote snapshot branches rather than reapplying old versions over current
 sources. Snapshot publication is preservation, not fresh verification or release.
@@ -80,6 +81,20 @@ sources. Snapshot publication is preservation, not fresh verification or release
   exception; it does not edit consumer product security gates. PR #135 was
   opened at `27b634c3`; this documentation checkpoint creates its next exact
   candidate, without repinning earlier checks or review results.
+
+- Complete hosted CI passed all 20 jobs at exact `108ec8014b808ff40432ed0adf49dcefe76104ce`, run [37147080642](https://github.com/Phlegonlabs/product-delivery-harness/actions/runs/37147080642). It covered Linux/macOS/Windows, golden path, required Chromium suites, native installer checks, quality checks and the required aggregate. This is the prior candidate's actual result, not verification of the repair commits below.
+- Two native read-only correctness reviewers inspected the unified candidate and requested five repairs. Security review remains waived by the owner. The reviewer role was configured GPT-6.1-Sol/xhigh; actual serving identity was not exposed. One reviewed Harness/root changes; the other inspected all 58 other-skill paths. Review findings and detailed coverage remain in the parent task evidence.
+
+| Repair | Atomic commit | Actual focused verification |
+| --- | --- | --- |
+| Validate PLAN-only branch policies without treating them as historical RUN pins | `4b62c2ab15f958633ac9e61e79ab03551d7b3200` | Branch policy 9 passed; explicit golden path passed |
+| Accept concrete translated Activation blocker and owner-deferral reasons | `92bf0f7648af20453f4ec855a869642acac7afb0` | Activation checker 60 passed; vague/placeholder reasons still rejected |
+| Rebind the current animation node after Replay clones it | `b90dd378f4c721fd3bb1e5817a8ee70da700d9b6` | Showcase 14 passed with browser required; before/after video confirms repeated Replay and Stop/Replay |
+| Enforce a real total test-profile deadline with owned descendant cleanup | `04c2cec043880dae11106fd10146a4d92c119b79` | Shard helper 13 passed; host runtime 20 passed with two POSIX-only skips on Windows |
+| Give native-only UI3 targets a closed intermediate-web-width exception | `fdd2a207b49dc7f38d3d6862ce5b9daba2b908e1` | UI3 12 passed; full UI 323 passed with browser required; README structure 5 passed |
+
+- The owner explicitly authorized the Replay repair through Claude Code Bridge. Observed serving model was `claude-opus-5-5`; launch effort was `high`, serving effort was unobserved. Two bounded attempts preserved the same write scope. The parent corrected its external regeneration script after the first attempt exposed a tuple-return mistake. The second attempt passed verification; an exact staging-order permission mismatch left the four files unstaged. After the worker exited, the parent verified the scoped patch and created the authorized atomic local commit. No provider fallback, permission broadening or concurrent writer was used.
+- Final local checkpoint before this bookkeeping child: clean `codex/harness-flow-modernization` at `fdd2a207b49dc7f38d3d6862ce5b9daba2b908e1`; remote work branch still at `108ec801`, main still at `bdae1d82`, development absent. Each repair is in its matching Epic. Required source/static checks and whitespace checks passed; fixtures and lockfiles remain tracked, while dependencies and Python caches use existing ignore rules. The new fixed SHA still requires fresh complete CI and review before the separate exact main decision. PR [135](https://github.com/Phlegonlabs/product-delivery-harness/pull/135) retains the external candidate, check, review and later promotion results.
 
 Focused integration checks passed on the resolved working source before the
 Eval merge commit: skill specification, full six-skill Pyflakes, docs weight,
