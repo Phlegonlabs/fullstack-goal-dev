@@ -113,6 +113,17 @@ No new responsibility is added to its existing table/approval code.
 
 ## Handoff
 
+2026-10-03 EVAL-I-05 translation structure repair, baseline
+`77bfaad0a5b992e8e4ea7193dac2abdeea482839`, working-tree:
+independent native assessment reproduced only physical-line count differences
+in the eval readiness paragraph: English has 62 nonblank lines in its section,
+the two Chinese copies 59 and Spanish 61. All headings, fence and bullet counts
+match. Add three line breaks to each Chinese copy and one to Spanish, retaining
+all words and decisions. All five README structure tests PASS in 0.023 seconds;
+diff checks PASS. Commit `77bfaad0` records the separate seven-test source-binding
+repair. No new ignore class, product UI or runtime behavior changed. A fresh
+44-path code/security review and full required verification remain pending.
+
 2026-10-03 A12 review / EVAL-I-04 source-binding test repair, baseline
 `7298f182dcfcb36e921d47f8564f83192ca13999`, working-tree:
 the two native reviewers returned fresh code/security PASS on all 43 changed
