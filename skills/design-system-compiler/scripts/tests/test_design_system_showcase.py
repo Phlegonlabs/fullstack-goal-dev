@@ -162,6 +162,63 @@ class ShowcaseCoverageTests(unittest.TestCase):
         self.assertIn('<p class="note" data-specimen-variant="default" data-specimen-state="loading" '
                       'data-ds-subject="plate-001">Loading</p>', content)
 
+    def test_animation_provenance_resolves_variables_and_cascade(self):
+        keyframes = "@keyframes pulse{from{opacity:.5}to{opacity:1}}"
+        cases = (
+            (".dot{animation:pulse 1s var(--missing) infinite}", False),
+            (".dot{animation:none!important}.dot{animation:pulse 1s linear infinite}", False),
+            ("span.dot{animation:none}.dot{animation:pulse 1s linear infinite}", False),
+            ("span.dot{animation:pulse 1s linear infinite}.dot{animation:none}", True),
+            (".dot{animation:pulse 1s var(--missing, linear) infinite}", True),
+            (".dot{--ease:linear;animation:pulse 1s var(--ease) infinite}", True),
+            (".dot{--ease:var(--missing);animation:pulse 1s var(--ease) infinite}", False),
+            (".dot{--ease:var(--ease,linear);animation:pulse 1s var(--ease) infinite}", False),
+            (".dot{--ease:var(--ease,linear);animation:pulse 1s var(--ease,linear) infinite}", True),
+            (".dot{animation:pulse 1s cubic-bezier(2,0,0,1) infinite}", False),
+            (".dot{animation:pulse 1s steps(0) infinite}", False),
+            (".dot{animation:pulse 1s steps(2,jump-none) infinite}", True),
+            (".dot{animation:pulse 1s;animation-name:none!important}", False),
+            (".dot{animation-name:none!important;animation:pulse 1s}", False),
+            (".dot{animation:pulse 1s!important;animation-name:none}", True),
+            ("span.dot{animation-name:pulse}.dot{animation:none}", True),
+            (".dot{animation:pulse 1s;all:initial}", False),
+            (".dot{animation:pulse 1s;-webkit-animation:none!important}", False),
+            (".dot{animation:pulse 1s none none}", False),
+            (".dot{animation:var(--missing,pulse 1s steps(2,jump-none))}", True),
+            (".dot{animation:pulse 1s}@media(min-width:1px){.dot{animation:none}}", False),
+            (".dot{animation:pulse 1s}.dot:hover{animation:none}", False),
+        )
+        tree = showcase.SourceTree('<html><body><span class="dot"></span></body></html>')
+        node = tree.first(lambda item: item["tag"] == "span")
+        for css, expected in cases:
+            with self.subTest(css=css):
+                self.assertEqual(expected, showcase.animation_source_backed(keyframes + css, node))
+        for style, expected in (("animation:pulse 1s", True), ("animation:pulse 1s!important", True)):
+            with self.subTest(inline=style):
+                node["map"]["style"] = style
+                self.assertEqual(expected, showcase.animation_source_backed(keyframes, node))
+        node["map"]["style"] = "animation:pulse 1s"
+        self.assertFalse(showcase.animation_source_backed(keyframes + ".dot{animation:none!important}", node))
+        node["map"]["style"] = ""
+        self.assertFalse(showcase.animation_source_backed("@keyframes NONE{to{opacity:0}}.dot{animation-name:NONE}", node))
+
+    def test_animation_variables_use_computed_ancestor_values(self):
+        pages = demo_pages()
+        original = "animation:tide-pulse 1.6s var(--ease-out) infinite"
+        cases = (
+            ("animation:tide-pulse 1.6s var(--missing-easing) infinite", "", False),
+            (original, "span.tide-dot{animation:none}", False),
+            (original + "!important", ".tide-dot{animation:none}", True),
+            (original, ":root{--alias:var(--ease-out)}.tide-dot{--ease-out:var(--alias)}", True),
+            ("animation:tide-pulse 1.6s var(--ease-out,linear) infinite", ".tide-dot{--ease-out:initial}", True),
+            (original, ".tide-dot{--ease-out:initial}", False),
+        )
+        for declaration, extra, expected in cases:
+            with self.subTest(declaration=declaration, extra=extra):
+                changed = dict(pages)
+                changed["index.html"] = pages["index.html"].replace(original, declaration).replace("</style>", extra + "</style>")
+                self.assertEqual(expected, not findings(demo_registry(), changed))
+
     def test_package_loader_rejects_stale_or_missing_children(self):
         pages = demo_pages()
         entry = pages["index.html"].encode("utf-8")
