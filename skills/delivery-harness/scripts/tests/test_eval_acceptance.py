@@ -3,6 +3,7 @@ import copy
 import hashlib
 import io
 import json
+import runpy
 import sys
 import tempfile
 import unittest
@@ -15,6 +16,16 @@ import manifest_fixtures as mf
 from eval_delivery_fixtures import fixture, encoded, prd
 from test_delivery_acceptance import execution
 from eval_verification import QUALITY_ASSERTIONS, HANDOFF_ASSERTIONS
+
+
+class EvalMissingParserTests(unittest.TestCase):
+    def test_cli_missing_sibling_returns_json_failure_without_traceback(self):
+        output = io.StringIO()
+        with patch.dict(sys.modules, {"eval_verification": None}), contextlib.redirect_stdout(output):
+            with self.assertRaises(SystemExit) as result:
+                runpy.run_path(checker.__file__, run_name="__main__")
+        self.assertEqual(1, result.exception.code)
+        self.assertEqual("FAIL", json.loads(output.getvalue())["status"])
 
 
 class EvalAcceptanceTests(unittest.TestCase):

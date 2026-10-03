@@ -10,7 +10,13 @@ import sys
 
 import check_delivery_acceptance as acceptance
 from delivery_acceptance_io import AcceptanceError, _read_bytes, _load_json, _safe_file, _sha256, _parse_required_prd_tests
-from eval_verification import ep, validate_contract, validate_report, QUALITY_ASSERTIONS, HANDOFF_ASSERTIONS
+try:
+    from eval_verification import ep, validate_contract, validate_report, QUALITY_ASSERTIONS, HANDOFF_ASSERTIONS
+except (ImportError, OSError):
+    if __name__ == "__main__":
+        print(json.dumps({"status": "FAIL", "errors": ["installed sibling eval policy parser unavailable"]}))
+        sys.exit(1)
+    raise
 from harness_git import GitMetadataError, run_git, reject_object_substitution
 
 

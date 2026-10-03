@@ -20,11 +20,13 @@ def product_policy():
     try:
         spec = importlib.util.spec_from_file_location(name, folder / "eval_policy.py")
         if spec is None or spec.loader is None:
-            raise ValueError("sibling eval policy parser unavailable")
+            raise ImportError("installed sibling eval policy parser unavailable")
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         sys.modules[name] = module
         return module
+    except (ImportError, OSError) as exc:
+        raise ImportError("installed sibling eval policy parser unavailable") from exc
     finally:
         sys.path.remove(str(folder))
 

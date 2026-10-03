@@ -3,6 +3,7 @@ import datetime as dt
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import eval_verification as ev
@@ -12,6 +13,15 @@ from eval_delivery_fixtures import fixture
 class EvalVerificationTests(unittest.TestCase):
     def setUp(self):
         self.policy, _, self.contract, self.approved, self.report, self.now = fixture()
+
+    def test_missing_sibling_parser_returns_clear_import_error(self):
+        before = list(sys.path)
+        with patch.dict(sys.modules):
+            sys.modules.pop("pdh_eval_policy", None)
+            with patch.object(ev.importlib.util, "spec_from_file_location", side_effect=FileNotFoundError):
+                with self.assertRaisesRegex(ImportError, "installed sibling eval policy parser unavailable"):
+                    ev.product_policy()
+        self.assertEqual(before, sys.path)
 
     def check(self, report=None):
         current = report or self.report

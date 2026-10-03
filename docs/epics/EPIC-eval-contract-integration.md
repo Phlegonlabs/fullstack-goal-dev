@@ -74,6 +74,12 @@ The existing large source-join module retains Product/UI authority. Eval source,
 command and graph validation are isolated in one new module under 500 lines;
 the public wrapper joins both checks, so early returns cannot bypass eval.
 
+2026-10-03 EVAL-I-03 parser availability repair, baseline `9104dad`, working-tree:
+missing installed sibling parser returns a clear join/CLI failure; restore the
+import path after loader errors. 9 report tests, 13 readiness tests and 10
+real-Git/CLI tests PASS. Pyflakes caught a shadowed test helper in the host matrix;
+renamed its local variable and reran static checks successfully. Review pending.
+
 2026-10-03 EVAL-I-04 execution repair, baseline `a31bc3a`, working-tree:
 both acceptance gates require explicit host isolation, preserving the installed
 checker and Git checkout in one namespace. Container, missing and malformed

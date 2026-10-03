@@ -1,4 +1,5 @@
 import copy
+import builtins
 import hashlib
 import sys
 import tempfile
@@ -68,6 +69,18 @@ class EvalPlanContractTests(unittest.TestCase):
         self.assertEqual([], self.check())
         self.assertEqual([], pc.validate_eval_plan(self.plan, self.root, run=None,
             source_rows=join._strict_source_rows, resolve_source=join._resolve_source_bytes))
+
+    def test_missing_sibling_import_returns_validation_error(self):
+        original = builtins.__import__
+
+        def missing(name, *arguments, **options):
+            if name == "eval_plan_contract":
+                raise ImportError("missing sibling")
+            return original(name, *arguments, **options)
+
+        with patch("builtins.__import__", side_effect=missing):
+            errors = join.validate_frozen_contract_joins(self.plan, self.root, run=self.run)
+        self.assertEqual(["eval-plan: installed sibling eval policy parser unavailable"], errors)
 
     def test_current_missing_marker_but_legacy_keeps_checks(self):
         path = self.root / "docs/product/PRD.md"
@@ -163,11 +176,11 @@ class EvalPlanContractTests(unittest.TestCase):
 
     def test_checker_execution_namespace_must_be_explicit_host(self):
         for index in (1, 2):
-            for execution in (None, {}, {"isolation": "container", "sandbox": {"image": "fixture@sha256:" + "a" * 64}},
+            for execution_policy in (None, {}, {"isolation": "container", "sandbox": {"image": "fixture@sha256:" + "a" * 64}},
                               {"isolation": "unknown"}, "host"):
                 plan = copy.deepcopy(self.plan)
-                plan["final_gates"][index]["execution"] = execution
-                with self.subTest(gate=index, execution=execution):
+                plan["final_gates"][index]["execution"] = execution_policy
+                with self.subTest(gate=index, execution=execution_policy):
                     self.assertTrue(self.check(plan))
 
     def test_common_join_cannot_skip_eval_through_strict_early_return(self):
