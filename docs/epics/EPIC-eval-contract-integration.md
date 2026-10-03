@@ -113,6 +113,22 @@ No new responsibility is added to its existing table/approval code.
 
 ## Handoff
 
+2026-10-03 A10 native review / EVAL-I-01 resource repair, baseline `450ec3f4`,
+working-tree: five disjoint scopes cover all 43 changed paths. Workflow and
+Digest code/security PASS; Policy, Report and Gate return fix_required for
+quadratic slice work and an H1 artifact/evidence overlap. Two native reviewers
+use the effective GPT-6.1-Sol/xhigh binding; actual model/effort telemetry is
+unobserved. A third spawn was rejected by the thread limit, so the two instances
+returned separate scope receipts sequentially. No availability fallback or
+parent review substitution occurred. Reports and logs stay outside the checkout.
+The Product parser now counts each validated membership once, retaining the
+approved minima and population limits. A deterministic visit-count regression
+and a root-bound 50,000-case/slice control with an undersized variant have a
+finite child deadline. All 21 policy tests PASS in 2.089 seconds; the root-bound
+control and undersized variant both ran. Focused pyflakes and diff checks PASS.
+Report and H1 repairs,
+fresh candidate review and broad verification remain required.
+
 2026-10-03 EVAL-I-01 input lifecycle repair, baseline `40c59023`, working-tree:
 approved inputs use new immutable repository paths outside Markdown staging;
 the existing task records exact creation authority before writing. Reuse valid

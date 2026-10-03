@@ -4,10 +4,12 @@ import hashlib
 import io
 import json
 import re
+import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import eval_policy as ep
@@ -300,6 +302,71 @@ class EvalPolicyTests(unittest.TestCase):
             candidate[name]["sha256"] = hashlib.sha256(raw).hexdigest()
             with self.assertRaises(ep.PolicyError):
                 ep.parse_inputs(candidate, files.__getitem__)
+
+    def sparse_inputs(self, count):
+        policy, files = inputs()
+        cases = [{"case_id": f"case-{index}", "split": "heldout", "slices": [f"slice-{index}"],
+                  "critical": False, "input": "x", "expected": "x"} for index in range(count)]
+        policy["trials_per_case"] = 1
+        policy["slices"] = [{"id": f"slice-{index}", "minimum_cases": 1,
+                             "minimum_rate": {"numerator": 1, "denominator": 1}} for index in range(count)]
+        files[policy["dataset"]["path"]] = b"".join(
+            (json.dumps(case, separators=(",", ":")) + "\n").encode() for case in cases)
+        policy["dataset"]["sha256"] = hashlib.sha256(files[policy["dataset"]["path"]]).hexdigest()
+        return policy, files
+
+    def test_sparse_slice_checks_visit_memberships_linearly(self):
+        policy, files = self.sparse_inputs(1000)
+        visits = []
+        original = ep.json_object
+
+        class Memberships(list):
+            def __iter__(self):
+                visits.append(len(self))
+                return super().__iter__()
+
+            def __contains__(self, value):
+                visits.append(len(self))
+                return super().__contains__(value)
+
+        def counted_json(raw):
+            value = original(raw)
+            if "case_id" in value:
+                value["slices"] = Memberships(value["slices"])
+            return value
+
+        with patch.object(ep, "json_object", side_effect=counted_json):
+            ep.parse_inputs(policy, files.__getitem__)
+        self.assertLessEqual(sum(visits), 8 * len(policy["slices"]))
+        policy["slices"][-1]["minimum_cases"] = 2
+        with self.assertRaisesRegex(ep.PolicyError, "fewer cases"):
+            ep.parse_inputs(policy, files.__getitem__)
+
+    def test_large_sparse_population_at_root_bound_product_entry(self):
+        policy, files = self.sparse_inputs(50000)
+        source = prd(policy).replace(json.dumps(policy, indent=2), json.dumps(policy, separators=(",", ":")))
+        self.assertLess(len(source.encode()), 16 * 1024 * 1024)
+        self.assertTrue(all(len(raw) < 16 * 1024 * 1024 for raw in files.values()))
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name, raw in files.items():
+                target = root / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(raw)
+            path = root / "PRD.md"
+            path.write_text(source, encoding="utf-8")
+            program = ("import json, sys\nfrom pathlib import Path\n"
+                       "sys.path.insert(0, sys.argv[1])\nimport eval_policy as ep\n"
+                       "source = Path(sys.argv[2]).read_text(encoding='utf-8')\n"
+                       "valid = ep.validate_eval_policy(source, required=True, repo_root=sys.argv[3])\n"
+                       "changed = source.replace('\"minimum_cases\":1', '\"minimum_cases\":2', 1)\n"
+                       "invalid = ep.validate_eval_policy(changed, required=True, repo_root=sys.argv[3])\n"
+                       "print(json.dumps({'valid': valid, 'undersized': invalid}))\n"
+                       "sys.exit(bool(valid) or not any('fewer cases' in error for error in invalid))\n")
+            result = subprocess.run([sys.executable, "-c", program, str(Path(ep.__file__).parent),
+                                     str(path), str(root)], capture_output=True, text=True, timeout=90)
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+            self.assertEqual([], json.loads(result.stdout)["valid"])
 
     def test_file_boundary_and_package_api(self):
         with tempfile.TemporaryDirectory() as directory:

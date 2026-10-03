@@ -274,6 +274,7 @@ def parse_inputs(policy, reader):
     if len(cases) * policy["trials_per_case"] > 100000:
         fail("v1 limits the planned population to 100000 trials")
     declared = {row["id"] for row in policy["slices"]}
+    slice_counts = dict.fromkeys(declared, 0)
     seen = set()
     for case in cases:
         keys(case, "case_id split slices critical input expected", "case")
@@ -288,8 +289,10 @@ def parse_inputs(policy, reader):
             fail("case slices must be unique declared IDs")
         data_text(case["input"], "case input")
         data_text(case["expected"], "case expected")
+        for slice_id in case["slices"]:
+            slice_counts[slice_id] += 1
     for row in policy["slices"]:
-        if sum(row["id"] in c["slices"] for c in cases) < row["minimum_cases"]:
+        if slice_counts[row["id"]] < row["minimum_cases"]:
             fail("slice has fewer cases than approved minimum")
     rubric = values["rubric"]
     keys(rubric, "schema dimensions prohibited_assertions", "rubric")
