@@ -113,6 +113,21 @@ No new responsibility is added to its existing table/approval code.
 
 ## Handoff
 
+2026-10-03 A6/A7 review / EVAL-I-02 report regression repair, baseline
+`cb8c373c`, working-tree: A6 Gate code/security PASS on its 21 paths; A6 Product
+timed out at 900 seconds with no verdict. Its captured process exited and logs
+remain. A7 split the remaining scope: Product code/security PASS on 9 paths
+with four low findings, and report code/security fix_required on 11 paths for
+missing discriminating regressions. Both completed on Opus 5.5, requested
+xhigh, Read/Glob/Grep only, no denials or fallback. Named effort is unobserved;
+numeric 40 is recorded. The three exact-SHA scopes cover all 41 changed paths.
+The report repair adds valid-boundary and isolated-rejection controls for both
+budgets, cost totals, currencies, separate deadline/freshness, future dates,
+readback windows, retained failures, both slice metrics and subject identity.
+All 19 report tests PASS. Production report code is unchanged. Product parser
+findings will receive separate bounded commits; timestamp overflow remains a
+low fail-closed diagnostic. Fresh candidate review and broad suites are pending.
+
 2026-10-03 A5 review / EVAL-I-05 current-fixture repair, baseline `0b0d4f5f`,
 working-tree: both 20-path Product and 16-path Gate code/security reviews PASS
 at exact `0b0d4f5f8eae26696c658f4cd361c502bf4979bf`, no security findings,

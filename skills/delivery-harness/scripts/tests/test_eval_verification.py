@@ -116,6 +116,102 @@ class EvalVerificationTests(unittest.TestCase):
         handoff.update(purpose="handoff", run_id="handoff-run-1")
         self.assertEqual(4, self.check(handoff)["passing"])
 
+    def test_calls_and_cost_caps_reject_correctly_recomputed_usage(self):
+        for field, limit in (("calls", "max_calls"), ("cost_microunits", "max_cost_microunits")):
+            with self.subTest(field=field):
+                self.setUp()
+                for trial in self.report["trials"]:
+                    trial["usage"][field] = 2
+                total = len(self.report["trials"]) * 2
+                self.report["usage"][field] = total
+                self.policy["limits"][limit] = total
+                self.assertEqual(4, self.check()["passing"])
+                self.policy["limits"][limit] = total - 1
+                with self.assertRaisesRegex(ev.ep.PolicyError, "budget"):
+                    self.check()
+
+    def test_cost_total_must_recompute_with_room_in_budget(self):
+        self.policy["limits"]["max_cost_microunits"] = 10
+        self.report["trials"][0]["usage"]["cost_microunits"] = 1
+        self.report["usage"]["cost_microunits"] = 1
+        self.assertEqual(4, self.check()["passing"])
+        self.report["usage"]["cost_microunits"] = 0
+        with self.assertRaisesRegex(ev.ep.PolicyError, "recompute"):
+            self.check()
+
+    def test_trial_and_report_usage_require_approved_currency(self):
+        for target in ("trial", "report"):
+            with self.subTest(target=target):
+                self.setUp()
+                self.assertEqual(4, self.check()["passing"])
+                usage = self.report["trials"][0]["usage"] if target == "trial" else self.report["usage"]
+                usage["currency"] = "EUR"
+                with self.assertRaisesRegex(ev.ep.PolicyError, "currency"):
+                    self.check()
+
+    def test_run_deadline_is_independent_of_freshness(self):
+        self.report["started_at"] = (self.now - dt.timedelta(seconds=120)).isoformat()
+        self.policy["limits"]["run_timeout_ms"] = 119000
+        self.assertEqual(4, self.check()["passing"])
+        self.policy["limits"]["run_timeout_ms"] -= 1
+        with self.assertRaisesRegex(ev.ep.PolicyError, "deadline"):
+            self.check()
+
+    def test_freshness_is_independent_of_run_duration(self):
+        self.report["started_at"] = (self.now - dt.timedelta(seconds=120)).isoformat()
+        self.report["finished_at"] = (self.now - dt.timedelta(seconds=111)).isoformat()
+        self.policy["freshness"]["max_age_seconds"] = 120
+        self.assertEqual(4, self.check()["passing"])
+        self.policy["freshness"]["max_age_seconds"] -= 1
+        with self.assertRaisesRegex(ev.ep.PolicyError, "stale"):
+            self.check()
+
+    def test_future_finish_fails_with_fresh_inputs_and_short_duration(self):
+        self.report["finished_at"] = self.now.isoformat()
+        self.assertEqual(4, self.check()["passing"])
+        self.report["finished_at"] = (self.now + dt.timedelta(seconds=1)).isoformat()
+        with self.assertRaisesRegex(ev.ep.PolicyError, "future-dated"):
+            self.check()
+
+    def test_readback_must_be_inside_the_run_window(self):
+        self.policy["freshness"]["dependencies"] = {"api": "snapshot-v1"}
+        readback = {"identity": "snapshot-v1", "checked_at": self.report["started_at"],
+                    "observation": "API configuration readback is snapshot-v1"}
+        self.report["provenance"]["dependency_readbacks"] = {"api": readback}
+        self.assertEqual(4, self.check()["passing"])
+        for endpoint, offset in (("started_at", -1), ("finished_at", 1)):
+            with self.subTest(endpoint=endpoint):
+                readback["checked_at"] = (ev.timestamp(self.report[endpoint]) + dt.timedelta(seconds=offset)).isoformat()
+                with self.assertRaisesRegex(ev.ep.PolicyError, "readback stale"):
+                    self.check()
+
+    def test_quality_failure_requires_retained_observation(self):
+        self.fail_case("case-3")
+        self.assertEqual(3, self.check()["passing"])
+        self.report["trials"][-1]["failure"] = ""
+        with self.assertRaisesRegex(ev.ep.PolicyError, "retained failure"):
+            self.check()
+
+    def test_slice_rate_cannot_hide_behind_passing_aggregate(self):
+        for metric in ("case_all_trials", "trial_pass_rate"):
+            with self.subTest(metric=metric):
+                self.setUp()
+                self.policy["metric"] = metric
+                self.policy["slices"].append({"id": "focused", "minimum_cases": 2,
+                    "minimum_rate": {"numerator": 1, "denominator": 1}})
+                for case in self.approved["dataset"][1:3]:
+                    case["slices"].append("focused")
+                self.check()
+                self.fail_case("case-1")
+                with self.assertRaisesRegex(ev.ep.PolicyError, "slice"):
+                    self.check()
+
+    def test_observed_subject_cannot_substitute_another_identity(self):
+        self.assertEqual(4, self.check()["passing"])
+        self.report["trials"][0]["observed_subject"] = "different-subject"
+        with self.assertRaisesRegex(ev.ep.PolicyError, "subject or grader"):
+            self.check()
+
     def test_derived_contract_cannot_weaken_policy(self):
         ev.validate_contract(self.contract, self.policy, self.report["prd_sha256"])
         self.contract["quality"]["test_id"] = "TEST-003"
