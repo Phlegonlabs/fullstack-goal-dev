@@ -81,6 +81,40 @@ class CITestShardTests(unittest.TestCase):
                 self.assertFalse(check_aggregate(["success", bad_result]))
                 self.assertFalse(check_aggregate([]))
 
+    def test_gate_cli_accepts_all_required_successes(self) -> None:
+        command = [sys.executable, str(SCRIPT), "gate"]
+        for _ in range(9):
+            command.extend(("--result", "success"))
+        result = subprocess.run(
+            command,
+            cwd=SCRIPTS_DIR.parents[2], capture_output=True, text=True,
+            timeout=15, check=False,
+        )
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("all required matrix jobs succeeded", result.stdout)
+
+    def test_gate_cli_rejects_each_unsuccessful_required_result(self) -> None:
+        for status in ("failure", "skipped", "cancelled", "timed_out", "", "unknown"):
+            with self.subTest(status=status):
+                result = subprocess.run(
+                    [sys.executable, str(SCRIPT), "gate", "--result", "success", "--result", status],
+                    cwd=SCRIPTS_DIR.parents[2], capture_output=True, text=True,
+                    timeout=15, check=False,
+                )
+                self.assertEqual(2, result.returncode, result.stderr)
+                self.assertIn("a required matrix job did not succeed", result.stderr)
+                self.assertNotIn("Traceback", result.stderr)
+
+    def test_gate_cli_requires_results(self) -> None:
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT), "gate"],
+            cwd=SCRIPTS_DIR.parents[2], capture_output=True, text=True,
+            timeout=15, check=False,
+        )
+        self.assertEqual(2, result.returncode)
+        self.assertIn("--result", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+
     def test_profile_command_writes_finite_manifest(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

@@ -269,7 +269,7 @@ def check_aggregate(results: list[str]) -> bool:
     return bool(results) and all(result == AGGREGATE_SUCCESS for result in results)
 
 
-def run_gate(args: argparse.Namespace) -> None:
+def run_gate(_root: Path, args: argparse.Namespace) -> None:
     if check_aggregate(args.result):
         print("all required matrix jobs succeeded")
         return
