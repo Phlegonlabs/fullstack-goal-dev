@@ -1,5 +1,6 @@
 import copy
 import datetime as dt
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -23,6 +24,17 @@ class EvalVerificationTests(unittest.TestCase):
                     with self.assertRaisesRegex(ImportError, "installed sibling eval policy parser unavailable"):
                         ev.product_policy()
                 self.assertEqual(before, sys.path)
+
+    def test_fixture_import_preserves_the_harness_test_namespace(self):
+        scripts = Path(__file__).resolve().parents[1]
+        source = ("import sys\nfrom pathlib import Path\n"
+                  "sys.path[:0] = sys.argv[1:]\nbefore = list(sys.path)\n"
+                  "import eval_delivery_fixtures\nassert sys.path == before\n"
+                  "import test_skill_contract\n"
+                  "assert Path(test_skill_contract.__file__).parent == Path(sys.argv[2])\n")
+        result = subprocess.run([sys.executable, "-c", source, str(scripts), str(scripts / "tests")],
+                                capture_output=True, text=True, timeout=15)
+        self.assertEqual(0, result.returncode, result.stderr)
 
     def check(self, report=None):
         current = report or self.report

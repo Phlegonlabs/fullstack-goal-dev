@@ -113,6 +113,13 @@ No new responsibility is added to its existing table/approval code.
 
 ## Handoff
 
+2026-10-03 EVAL-I-02 fixture isolation repair, baseline `506cb564`,
+working-tree: Product fixture imports now restore the exact prior sys.path.
+A fresh interpreter verifies Harness's same-named skill-contract test still
+resolves to Harness after importing eval fixtures. This addresses A8's low
+test-order note without changing any production boundary. All 25 report tests
+PASS, including the fresh-process namespace assertion. Fresh review pending.
+
 2026-10-03 EVAL-I-02 report intake refinement, baseline `b3ee4492`,
 working-tree: A8 repeated the missing independent rejection-test family.
 A fixed-input matrix now mutates one report field at a time, without changing

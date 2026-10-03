@@ -4,8 +4,12 @@ import hashlib
 import sys
 from pathlib import Path
 
+_prior_path = list(sys.path)
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "product-definition-builder" / "scripts" / "tests"))
-from eval_fixtures import inputs, prd, encoded
+try:
+    from eval_fixtures import inputs, prd, encoded
+finally:
+    sys.path[:] = _prior_path
 from eval_verification import ep
 
 
