@@ -20,7 +20,7 @@ and their synthetic PRD declares eval exemption before approval hashing.
 Existing Epics retain accepted scope and historical verification.
 
 Write scope includes the 15 Eval conflict paths, the Vite proposal/index, this Epic,
-the workflow guide, four-language candidate descriptions and the five bounded
+the workflow guide, four-language candidate descriptions and the bounded
 correctness repairs recorded below. The 13 older
 detached checkouts have no uncommitted changes; their exact commits are retained
 as remote snapshot branches rather than reapplying old versions over current
@@ -109,6 +109,19 @@ The bound reviewer is native GPT-6.1-Sol/xhigh with read-only assignments;
 review coverage and actual returned identity will be retained externally.
 
 ## Document And Local-Data Audit
+
+- Expanded PR #135 review at exact `c382375b7b305d30f9b196814125d8a0199b8f4f` found four more correctness gaps in its unresolved automated threads. Both independent reviewers reproduced their assigned cases, superseding the earlier narrower PASS. Complete hosted CI at c382 passed all 20 jobs in run [37150717350](https://github.com/Phlegonlabs/product-delivery-harness/actions/runs/37150717350); it remains that candidate's result and does not certify the repairs below. The task-ancestry comment was inapplicable: Eval merge `14eb8674` and head `72560a1b` are ancestors, with all 42 Eval commits retained. The 13 older worktree snapshots remain preserved. No history rewrite is needed.
+
+| Additional repair | Atomic commit | Actual working-tree verification |
+| --- | --- | --- |
+| Require substantive no-op target reason suffixes | `6027662666f6a807f0d505f1decf06938b22b935` | Activation checker 61 passed, including English/CJK positives and trivial/placeholder negatives |
+| Reject concurrent AGENTS merge drift without removing any bytes | `de553f06fff3478ba6b9999f1adb80e20a1bed61` | Configure tests 16 passed, including pre-open append, same-size edit and late-write preservation |
+| Require explicit state-treatment rows even when specimens exist | `77420a901dc2b6fc0c188b19b93091e33384b80c` | Showcase 16 passed with Chromium required; defaults displayed and counted once; fixtures regenerated |
+| Bind animation provenance to the actual specimen and named keyframes | `a1052aef0d333c644c5748055242971c02237686` | Full Design System suite 137 passed with four POSIX-only skips on Windows; later expanded Showcase 17 passed with Chromium required |
+
+- Additional-repair checkpoint: clean `codex/harness-flow-modernization` at `a1052aef0d333c644c5748055242971c02237686`; only the current source checkout was authored. Each concern has a scoped Epic entry, regression evidence and an atomic receipt. Full source Pyflakes, skill specification, docs weight, README structure (5) and base-to-candidate whitespace passed. The source and observed installed governance template hashes still match. Existing ignore rules cover dependencies and caches; lockfiles and required fixtures remain tracked. This bookkeeping child freezes the replacement candidate for new complete CI and independent re-review. The previous source-only security waiver remains in force. Main promotion, development bootstrap, ruleset changes, tagging, installation and cleanup remain unperformed.
+
+- The expanded document-sync inventory also reports retired-name review in all four READMEs. The Harness reviewer checked that these are intentional migration mappings or dated version history, with no live route to a retired skill. Unobserved loaded identity and first-observation baselines remain observations, never an approval. No consumer product package or managed state is created.
 
 Observed installed Harness is 0.59.0 from a development installation. Its
 PROJECT_AGENTS template and the source template both hash to
