@@ -113,6 +113,20 @@ No new responsibility is added to its existing table/approval code.
 
 ## Handoff
 
+2026-10-03 EVAL-I-01 input lifecycle repair, baseline `40c59023`, working-tree:
+approved inputs use new immutable repository paths outside Markdown staging;
+the existing task records exact creation authority before writing. Reuse valid
+grants, never overwrite live/historical input bytes, keep paths stable through
+publication, include prepared paths/hashes/authority in the publication list,
+and retain superseded inputs outside core-document archive moves. A contract
+test covers both policy and lifecycle references. This closes A9's remaining
+low workflow gap without changing runtime schemas or introducing cleanup.
+The owner replaced the reviewer policy during this repair: subsequent reviews
+use native reviewer / GPT-6.1-Sol / xhigh / read-only. This is a policy change,
+not a provider fallback; prior Opus attempts remain immutable evidence.
+All 98 Product skill-contract tests PASS. Fresh exact-SHA native review and
+full suites pending.
+
 2026-10-03 A9 workflow call-family repair, baseline `58cb3d91`, working-tree:
 Report and Gate returned code/security PASS with no findings; Workflow returned
 PASS with two low documentation findings. Core timed out at 901 seconds without

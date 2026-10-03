@@ -42,6 +42,17 @@ Freeze dataset/rubric/judge/subject before approval. Runner, grader code,
 lockfile and runbook bytes bind later to tested candidate H1; they need not
 exist at Product Definition time. No digest cycle is introduced.
 
+Approved inputs use new immutable repository-relative paths outside
+`.prd-staging`, for example `evals/inputs/<revision>/`. Record exact paths and
+their creation authority in the existing task/Epic before writing; reuse an
+existing grant and resolve only a concrete missing grant. Never overwrite a
+file bound by a live or historical policy. A changed input uses a new path.
+These paths stay the same through validation and Markdown publication. Include
+the prepared paths, hashes and creation authority in the step-20 publication
+mutation list; content approval never grants a missing filesystem action.
+Retain superseded inputs at their approved paths. Moving or deleting them needs
+separate authority; do not put them in the core-document archive move set.
+
 ## Approved Input Files
 
 Dataset is UTF-8 JSONL. Each row has exactly `case_id`, `split`, `slices`,

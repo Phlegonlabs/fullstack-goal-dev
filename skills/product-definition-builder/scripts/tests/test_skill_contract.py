@@ -14,6 +14,13 @@ PROD_SOURCE_POLICY = "stage=production; ref=refs/heads/main; sha=promotion.verif
 
 
 class ProductDefinitionBuilderSkillContractTests(unittest.TestCase):
+    def test_eval_inputs_keep_durable_paths_and_separate_mutation_authority(self) -> None:
+        for path in ("references/eval-policy-contract.md", "references/artifact-lifecycle.md"):
+            text = self.read(path)
+            for required in ("evals/inputs/<revision>/", "outside", ".prd-staging", "creation authority",
+                             "Never overwrite", "publication", "mutation list", "Retain superseded"):
+                self.assertIn(required, text, (path, required))
+
     def test_eval_approval_and_publication_invocations_keep_both_checks(self) -> None:
         for path in ("SKILL.md", "references/eval-policy-contract.md",
                      "references/output-contract.md", "references/artifact-lifecycle.md"):

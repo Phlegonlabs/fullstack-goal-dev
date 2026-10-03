@@ -82,6 +82,7 @@ Record the candidate paths before creating staged artifacts. Do not archive or o
 
 1. Create a run-specific staging directory under `docs/product/.prd-staging/` — unless Detect Enhancement Mode found a staged package for this product and the user chose to resume it, in which case reuse that directory instead of opening a second one.
 2. Write the core Markdown candidate there using the final artifact filenames, including the drafted `DEPLOYMENT.md` and `DOCUMENTS.md` and the create-once `ACTIVATION.md` seed when applicable. Do not prepare UI wireframe data. The staged Activation seed is validated against the staged PRD, architecture, and Deployment records, never a published or caller-selected architecture path.
+   Required eval inputs follow `eval-policy-contract.md`: use new immutable repository-relative paths outside `.prd-staging` (for example `evals/inputs/<revision>/`). Record their exact creation authority before writing and reuse existing grants. Never overwrite inputs bound by a live or historical policy. The staged PRD references these durable paths; they stay unchanged when its Markdown publishes. Include prepared input paths, hashes and creation authority in the publication mutation list.
 3. Complete market reconciliation, Stack Decision Checkpoint, and Product Definition Approval. A substantive approved-content revision reopens approval.
    A rendered stack option map is a candidate for that owner review. It never approves a row, rewrites the staged package, or substitutes for the canonical checkpoint digest.
 4. Run `python "<product-definition-builder-skill-root>/scripts/check_product_package.py" --prd <staged PRD.md> --architecture <staged architecture.md> --stack-decisions <staged stack-decisions.md> --repo-root <repository-root> --require-filled --require-approved`; new packages add `--eval-policy eval-policy/1`. Then run the canonical seed check `python "<product-activation-skill-root>/scripts/check_activation.py" --activation <staged ACTIVATION.md> --prd <staged PRD.md> --architecture <staged architecture.md> --deployment <staged DEPLOYMENT.md> --stack-decisions <staged stack-decisions.md> --repo-root <repository-root>` when the seed applies. Do not add `--require-filled` to a create-once seed: pending action/evidence fields are intentional. A seed with an invented, omitted, or profile-incomplete target fails before publication.
@@ -105,12 +106,14 @@ After the entire staged package has an approved Product Definition decision, pas
 5. If an archive or publish move fails, restore moved files when safe, keep every recoverable copy, stop, and report the exact state.
 
 Do not delete superseded documents. Do not overwrite an archive directory. Do not add unrelated files merely to make the archive look complete.
+Retain superseded eval inputs at their approved paths; exclude them from these core-document archive moves. Any later input move or deletion needs separate authority.
 
 ## Completion Report
 
 List:
 
 - Every artifact published under `docs/product/`.
+- Prepared eval input paths/hashes and their creation authority, plus superseded inputs retained at their approved paths.
 - The operational documents published or refreshed under `docs/` (`DEPLOYMENT.md`, `DOCUMENTS.md`) and whether `ACTIVATION.md` was created or preserved.
 - Every document moved under `docs/product/archived/`.
 - Any ambiguous legacy document deliberately left untouched.
