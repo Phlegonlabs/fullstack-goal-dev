@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import eval_policy as ep
-from contract_utils import canonical_product_bytes
+from contract_utils import canonical_product_bytes, _without_machine_block
 from eval_fixtures import encoded, inputs, prd
 
 
@@ -91,12 +91,37 @@ class EvalPolicyTests(unittest.TestCase):
                                      canonical_product_bytes(weakened, architecture, stack))
                     errors = package.validate_texts(weakened, architecture, stack,
                         require_filled=True, require_approved=True, eval_policy="eval-policy/1")
-                    self.assertTrue(any("eval-policy" in error for error in errors), errors)
+                    self.assertTrue(any("overlaps the raw approval digest exclusion" in error for error in errors), errors)
         # Python splitlines recognizes these separators; the digest regex uses LF.
         for separator in ("\x0c", "\u2028", "\r"):
             candidate = prd(self.policy).replace(ep.START, "prefix" + separator + start + "\n" + ep.START)
             candidate += "\n<!-- product-definition-approval:end -->\n"
             self.assertTrue(ep.validate_eval_policy(candidate, required=True))
+
+    def test_mixed_line_endings_preserve_historical_digest_and_policy_offsets(self):
+        import check_product_package as package
+        from test_product_package_checker import valid_prd, valid_architecture, valid_stack, strictize_approved_package
+        start, end = "<!-- product-definition-approval:start -->", "<!-- product-definition-approval:end -->"
+        historical = rf"(?ms)^\s*{re.escape(start)}\s*\n.*?^\s*{re.escape(end)}\s*\n?"
+        separators = ("\n", "\r\n", "\r\r\n", "\r\r\r\n", "\u2028", "\x0c", "\r", "\x85", "\x1c")
+        for before in separators:
+            for inside in separators:
+                raw = "a" + before * 2 + "b\n" + start + "\nfield" + inside + "\n" + end + "\nz"
+                with self.subTest(before=repr(before), inside=repr(inside)):
+                    self.assertEqual(re.sub(historical, "", raw.replace("\r\n", "\n"), count=1),
+                                     _without_machine_block(raw, start, end))
+        block = ep.START + prd(self.policy).split(ep.START)[1].split(ep.END)[0] + ep.END
+        for separator in separators:
+            source = valid_prd().replace("## AI and Automation", "```text\n" + start + "\n```\n## AI and Automation")
+            source = source.replace("## Business Rules", separator * 200 + block + "\n## Business Rules")
+            source, architecture, stack = strictize_approved_package(source, valid_architecture(), valid_stack())
+            weakened = source.replace('"numerator": 3', '"numerator": 2')
+            with self.subTest(policy_prefix=repr(separator)):
+                self.assertEqual(canonical_product_bytes(source, architecture, stack),
+                                 canonical_product_bytes(weakened, architecture, stack))
+                errors = package.validate_texts(weakened, architecture, stack,
+                    require_filled=True, require_approved=True, eval_policy="eval-policy/1")
+                self.assertTrue(any("overlaps the raw approval digest exclusion" in error for error in errors), errors)
 
     def test_ai_cannot_waive_and_tests_are_required_traced_and_distinct(self):
         waived = {"schema": "eval-policy/1", "applicability": "not_required",

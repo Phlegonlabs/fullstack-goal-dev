@@ -74,6 +74,16 @@ The existing large source-join module retains Product/UI authority. Eval source,
 command and graph validation are isolated in one new module under 500 lines;
 the public wrapper joins both checks, so early returns cannot bypass eval.
 
+2026-10-03 A3 review / EVAL-I-01 coordinate repair, baseline `7246883`,
+working-tree: Product review found a high raw/normalized-coordinate bypass and
+medium double-normalization regression for repeated CR bytes. Gate review found
+a medium legacy reader divergence. The same authority families recurred, so
+this round requires structural matrices rather than isolated examples: one
+normalization coordinate map, raw-span messages, 81 historical digest comparisons
+and nine policy-prefix separators. All 14 policy tests PASS. Gate authority
+selection/read safety and execution identity matrix are the next bounded repair.
+A3 remains fix_required; no delivery PASS or availability fallback is claimed.
+
 2026-10-03 EVAL-I-03 parser availability repair, baseline `9104dad`, working-tree:
 missing installed sibling parser returns a clear join/CLI failure; restore the
 import path after loader errors. 9 report tests, 13 readiness tests and 10

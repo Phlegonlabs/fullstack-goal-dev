@@ -64,10 +64,10 @@ def release_area_requirements(targets: Iterable[object]) -> set[str]:
 
 
 def machine_block_span(text: str, start: str, end: str) -> tuple[int, int] | None:
-    """Return the first raw digest-excluded span in LF-normalized text."""
+    """Return the first digest-excluded span; caller normalizes CRLF once."""
     match = re.search(
         rf"(?ms)^\s*{re.escape(start)}\s*\n.*?^\s*{re.escape(end)}\s*\n?",
-        text.replace("\r\n", "\n"),
+        text,
     )
     return match.span() if match else None
 

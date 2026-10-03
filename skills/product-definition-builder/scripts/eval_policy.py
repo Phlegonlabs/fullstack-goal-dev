@@ -141,8 +141,12 @@ def parse_eval_policy(prd_text, *, required=False):
         if starts[0] <= approval_ends[0] and approval_starts[0] <= ends[0]:
             fail("eval policy must not overlap the excluded approval block")
     normalized = prd_text.replace("\r\n", "\n")
-    lines = normalized.splitlines(keepends=True)
-    policy_start, policy_end = sum(map(len, lines[:starts[0] - 1])), sum(map(len, lines[:ends[0]]))
+    # Marker line numbers belong to raw splitlines. Map their raw offsets into
+    # the once-normalized digest text; repeated CR bytes must not shift the range.
+    lines = prd_text.splitlines(keepends=True)
+    raw_start, raw_end = sum(map(len, lines[:starts[0] - 1])), sum(map(len, lines[:ends[0]]))
+    policy_start = len(prd_text[:raw_start].replace("\r\n", "\n"))
+    policy_end = len(prd_text[:raw_end].replace("\r\n", "\n"))
     excluded = machine_block_span(normalized, "<!-- product-definition-approval:start -->",
                                   "<!-- product-definition-approval:end -->")
     if excluded and policy_start < excluded[1] and excluded[0] < policy_end:
