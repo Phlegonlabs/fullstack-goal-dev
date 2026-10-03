@@ -1,5 +1,6 @@
 import copy
 import hashlib
+import re
 import sys
 import tempfile
 import unittest
@@ -27,6 +28,43 @@ class EvalPolicyTests(unittest.TestCase):
         self.assertEqual([], ep.validate_eval_policy("legacy"))
         self.assertTrue(ep.validate_eval_policy("legacy", required=True))
         self.assertIsNone(ep.parse_eval_policy("````\n" + prd(self.policy) + "\n````"))
+
+    def test_approval_overlap_and_malformed_boundaries_rejected(self):
+        approval_start = "<!-- product-definition-approval:start -->"
+        approval_end = "<!-- product-definition-approval:end -->"
+        valid = prd(self.policy)
+        for candidate in (
+                valid.replace(ep.START, approval_start + "\n" + ep.START).replace(ep.END, ep.END + "\n" + approval_end),
+                valid.replace(ep.START, ep.START + "\n" + approval_start).replace(ep.END, approval_end + "\n" + ep.END),
+                valid.replace(ep.START, approval_start + "\n" + ep.START).replace(ep.END, approval_end + "\n" + ep.END),
+                valid + "\n" + approval_start, valid + "\n" + approval_end,
+                valid + "\n" + approval_end + "\n" + approval_start):
+            with self.subTest(candidate=candidate[:60]):
+                self.assertTrue(ep.validate_eval_policy(candidate, required=True))
+        self.assertEqual([], ep.validate_eval_policy(valid + "\n" + approval_start + "\n" + approval_end))
+
+    def test_complete_approved_package_cannot_hide_threshold_in_approval(self):
+        import check_product_package as package
+        from test_product_package_checker import valid_prd, valid_architecture, valid_stack, strictize_approved_package
+        policy_block = prd(self.policy).split(ep.START, 1)[1].split(ep.END, 1)[0]
+        policy_block = ep.START + policy_block + ep.END
+        normal = valid_prd().replace("## Business Rules", policy_block + "\n## Business Rules")
+        normal, architecture, stack = strictize_approved_package(normal, valid_architecture(), valid_stack())
+        self.assertEqual([], package.validate_texts(normal, architecture, stack,
+                         require_filled=True, require_approved=True, eval_policy="eval-policy/1"))
+        approval = re.search(r"<!-- product-definition-approval:start -->.*?<!-- product-definition-approval:end -->",
+                             valid_prd(), re.S).group()
+        source = valid_prd().replace(approval, "")
+        enclosed = approval.replace("<!-- product-definition-approval:end -->",
+                                    policy_block + "\n<!-- product-definition-approval:end -->")
+        source = source.replace("## Business Rules", enclosed + "\n## Business Rules")
+        source, architecture, stack = strictize_approved_package(source, valid_architecture(), valid_stack())
+        weakened = source.replace('"numerator": 3', '"numerator": 2')
+        self.assertEqual(canonical_product_bytes(source, architecture, stack),
+                         canonical_product_bytes(weakened, architecture, stack))
+        errors = package.validate_texts(weakened, architecture, stack,
+                                      require_filled=True, require_approved=True, eval_policy="eval-policy/1")
+        self.assertTrue(any("overlap" in error for error in errors), errors)
 
     def test_markers_must_be_active_unique_and_in_ai_section(self):
         valid = prd(self.policy)

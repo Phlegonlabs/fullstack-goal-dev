@@ -126,6 +126,14 @@ def parse_eval_policy(prd_text, *, required=False):
         return None
     if len(starts) != 1 or len(ends) != 1 or starts[0] >= ends[0]:
         fail("eval policy requires one ordered active marker pair")
+    approval_starts = exact_marker_lines(prd_text, "<!-- product-definition-approval:start -->")
+    approval_ends = exact_marker_lines(prd_text, "<!-- product-definition-approval:end -->")
+    if approval_starts or approval_ends:
+        if (len(approval_starts) != 1 or len(approval_ends) != 1
+                or approval_starts[0] >= approval_ends[0]):
+            fail("eval policy requires an ordered active approval block when present")
+        if starts[0] <= approval_ends[0] and approval_starts[0] <= ends[0]:
+            fail("eval policy must not overlap the excluded approval block")
     prefix = active_text("\n".join(prd_text.splitlines()[:starts[0] - 1]))
     headings = re.findall(r"^## .+$", prefix, re.M)
     if not headings or headings[-1] != "## AI and Automation":
