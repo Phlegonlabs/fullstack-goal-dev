@@ -25,7 +25,7 @@ def product_policy():
         spec.loader.exec_module(module)
         sys.modules[name] = module
         return module
-    except (ImportError, OSError) as exc:
+    except (ImportError, OSError, SyntaxError) as exc:
         raise ImportError("installed sibling eval policy parser unavailable") from exc
     finally:
         sys.path.remove(str(folder))

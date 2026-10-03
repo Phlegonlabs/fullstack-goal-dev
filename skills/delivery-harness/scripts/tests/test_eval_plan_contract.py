@@ -74,14 +74,15 @@ class EvalPlanContractTests(unittest.TestCase):
     def test_missing_sibling_import_returns_validation_error(self):
         original = builtins.__import__
 
-        def missing(name, *arguments, **options):
-            if name == "eval_plan_contract":
-                raise ImportError("missing sibling")
-            return original(name, *arguments, **options)
+        for error in (ImportError, OSError, SyntaxError):
+            def missing(name, *arguments, **options):
+                if name == "eval_plan_contract":
+                    raise error("unavailable sibling")
+                return original(name, *arguments, **options)
 
-        with patch("builtins.__import__", side_effect=missing):
-            errors = join.validate_frozen_contract_joins(self.plan, self.root, run=self.run)
-        self.assertEqual(["eval-plan: installed sibling eval policy parser unavailable"], errors)
+            with self.subTest(error=error), patch("builtins.__import__", side_effect=missing):
+                errors = join.validate_frozen_contract_joins(self.plan, self.root, run=self.run)
+            self.assertEqual(["eval-plan: installed sibling eval policy parser unavailable"], errors)
 
     def test_current_missing_marker_but_legacy_keeps_checks(self):
         path = self.root / "docs/product/PRD.md"

@@ -113,6 +113,15 @@ No new responsibility is added to its existing table/approval code.
 
 ## Handoff
 
+2026-10-03 EVAL-I-03 parser diagnostic repair, baseline `1b6de68d`,
+working-tree: missing, unreadable or syntactically broken installed sibling
+parser returns an explicit validation/JSON failure in loader, common join and
+CLI. The import path is restored after failure. All eval suites ran 37 tests:
+36 PASS, one POSIX variant skipped on Windows. Product/Harness pyflakes PASS.
+This completes A3's accepted structural repair scope; fresh A4 review must
+inspect the full coordinate, authority-read and program-identity matrices,
+including every surrounding consumer. No earlier review becomes a PASS.
+
 2026-10-03 EVAL-I-04 interpreter authority repair, baseline `efde904`,
 working-tree: both acceptance gates require the absolute interpreter resolved
 to readiness's observed Python, as well as the absolute installed checker and

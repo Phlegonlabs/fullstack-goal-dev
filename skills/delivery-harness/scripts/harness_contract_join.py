@@ -2267,7 +2267,7 @@ def validate_frozen_contract_joins(plan, repo_root, *, run=None):
     """Join eval authority before any legacy/current Product/UI early return."""
     try:
         from eval_plan_contract import validate_eval_plan
-    except (ImportError, OSError):
+    except (ImportError, OSError, SyntaxError):
         return ["eval-plan: installed sibling eval policy parser unavailable"]
     errors = validate_eval_plan(plan, repo_root, run=run,
         source_rows=_strict_source_rows, resolve_source=_resolve_source_bytes)

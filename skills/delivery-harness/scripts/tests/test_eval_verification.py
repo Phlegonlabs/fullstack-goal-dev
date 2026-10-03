@@ -16,12 +16,13 @@ class EvalVerificationTests(unittest.TestCase):
 
     def test_missing_sibling_parser_returns_clear_import_error(self):
         before = list(sys.path)
-        with patch.dict(sys.modules):
-            sys.modules.pop("pdh_eval_policy", None)
-            with patch.object(ev.importlib.util, "spec_from_file_location", side_effect=FileNotFoundError):
-                with self.assertRaisesRegex(ImportError, "installed sibling eval policy parser unavailable"):
-                    ev.product_policy()
-        self.assertEqual(before, sys.path)
+        for error in (FileNotFoundError, ImportError, SyntaxError):
+            with self.subTest(error=error), patch.dict(sys.modules):
+                sys.modules.pop("pdh_eval_policy", None)
+                with patch.object(ev.importlib.util, "spec_from_file_location", side_effect=error):
+                    with self.assertRaisesRegex(ImportError, "installed sibling eval policy parser unavailable"):
+                        ev.product_policy()
+                self.assertEqual(before, sys.path)
 
     def check(self, report=None):
         current = report or self.report

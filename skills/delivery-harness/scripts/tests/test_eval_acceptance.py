@@ -1,4 +1,5 @@
 import contextlib
+import builtins
 import copy
 import hashlib
 import io
@@ -26,6 +27,21 @@ class EvalMissingParserTests(unittest.TestCase):
                 runpy.run_path(checker.__file__, run_name="__main__")
         self.assertEqual(1, result.exception.code)
         self.assertEqual("FAIL", json.loads(output.getvalue())["status"])
+
+    def test_cli_broken_sibling_returns_json_failure_without_traceback(self):
+        original = builtins.__import__
+        for error in (OSError, SyntaxError):
+            def unavailable(name, *arguments, **options):
+                if name == "eval_verification":
+                    raise error("broken sibling")
+                return original(name, *arguments, **options)
+
+            output = io.StringIO()
+            with self.subTest(error=error), patch("builtins.__import__", side_effect=unavailable), contextlib.redirect_stdout(output):
+                with self.assertRaises(SystemExit) as result:
+                    runpy.run_path(checker.__file__, run_name="__main__")
+                self.assertEqual(1, result.exception.code)
+                self.assertEqual("FAIL", json.loads(output.getvalue())["status"])
 
 
 class EvalAcceptanceTests(unittest.TestCase):

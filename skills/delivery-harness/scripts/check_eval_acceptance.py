@@ -12,7 +12,7 @@ import check_delivery_acceptance as acceptance
 from delivery_acceptance_io import AcceptanceError, _read_bytes, _load_json, _safe_file, _sha256, _parse_required_prd_tests
 try:
     from eval_verification import ep, validate_contract, validate_report, QUALITY_ASSERTIONS, HANDOFF_ASSERTIONS
-except (ImportError, OSError):
+except (ImportError, OSError, SyntaxError):
     if __name__ == "__main__":
         print(json.dumps({"status": "FAIL", "errors": ["installed sibling eval policy parser unavailable"]}))
         sys.exit(1)
