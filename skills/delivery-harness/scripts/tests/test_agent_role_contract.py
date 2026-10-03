@@ -409,7 +409,7 @@ class AgentRoleContractTests(unittest.TestCase):
             launch_args = type("LaunchArgs", (), {
                 "assignment_kind": "mission", "assignment_id": "lease-2", "node_id": "N-M1",
                 "worker_id": "worker-2", "attempt_id": "attempt-2", "model_provider": "codex",
-                "model": "gpt-6-sol", "reasoning_effort": "high", "session_id": "fallback-session-2",
+                "model": "gpt-6-sol", "reasoning_effort": "high", "worker_session_id": "fallback-session-2",
                 "launch_observation": "actual fallback launch", "host_observation": "parent observation",
                 "fallback_record": fallback_path,
             })()

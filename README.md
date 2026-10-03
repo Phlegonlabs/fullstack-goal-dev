@@ -101,6 +101,8 @@ After applicable skill updates and before implementation, [design freshness](ski
 
 ## Core guarantees
 
+- **Recovery preserves identity and evidence.** Launch recording separates the parent `--session-id` lock from `--worker-session-id`.
+
 - **Recommendations before implementation.** When owners have no stack preference, propose a product-fit default and alternatives covering frontend, hosting, backend/runtime and agent orchestration, with compatibility, cost assumptions and revisit triggers. Enhancements inspect the current UI and show affected before/after cases. Research templates and CSS references with license and stack checks; preserve native platform conventions. Explicit hero and motion requests remain traceable through delivery. Visual Approval requires typed, hash-bound normal and reduced-motion observations for every motion intent; HTML evidence proves only the review projection.
 - **Small work stays small.** One bounded change uses a direct inspect, implement, verify, and review loop.
 - **Large work is explicit.** PLAN v6 defines the typed graph; RUN v11 records authorization, attempts, and evidence.

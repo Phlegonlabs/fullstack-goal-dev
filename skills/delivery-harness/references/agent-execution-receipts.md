@@ -4,6 +4,8 @@ Applies to role-bound RUN-v11 assignments pinned to 0.58 or later. Older pinned 
 
 ## Trust Boundary
 
+The global `--session-id <parent>` belongs before the transition subcommand and holds the RUN lock. `record-launch-observation --worker-session-id <child>` records the independently observed native worker session. Both are required for launch recording; they are different identities. The old launch-local `--session-id` spelling is ambiguous and rejected. Stored launch records keep their existing `session_id` field.
+
 The parent reads the terminal response through the reserved host handle. Its adapter retains a normalized JSON envelope with exactly `schema_version: 1`, `session_id` from host metadata, and `payload` extracted from that response. Never take the session from child prose or manufacture an envelope from a different worker's output. Retain the original host response alongside it for review. The source envelope is limited to 8 MiB.
 
 The receipt binds retained bytes; it is not a signature or independent authentication of the parent adapter. A compromised or fabricated parent observation is outside this local validator's trust boundary. Keep the source readable for subsequent validation and archive verification. Do not put secrets in retained task evidence.

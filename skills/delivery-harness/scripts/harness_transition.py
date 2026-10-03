@@ -306,6 +306,7 @@ DISPATCH_COMMANDS = {
     "adopt-runtime-contract",
     "accept-wave",
     "lease-worker",
+    "record-launch-observation",
     "record-worker-result",
     "reject-worker-result",
     "reserve-review-dispatch",
@@ -4644,7 +4645,7 @@ def _record_launch_observation(
         "model_provider": args.model_provider,
         "model": args.model,
         "reasoning_effort": args.reasoning_effort,
-        "session_id": args.session_id,
+        "session_id": args.worker_session_id,
         "launch_observation": args.launch_observation,
         "host_observation": args.host_observation,
     }
@@ -5163,7 +5164,7 @@ def build_parser() -> argparse.ArgumentParser:
     launch_observation.add_argument("--model-provider", required=True)
     launch_observation.add_argument("--model", required=True)
     launch_observation.add_argument("--reasoning-effort", required=True)
-    launch_observation.add_argument("--session-id", required=True)
+    launch_observation.add_argument("--worker-session-id", required=True)
     launch_observation.add_argument("--launch-observation", required=True)
     launch_observation.add_argument("--host-observation", required=True)
     launch_observation.add_argument("--fallback-record", type=Path)

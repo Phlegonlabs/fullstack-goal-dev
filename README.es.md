@@ -101,6 +101,8 @@ Tras actualizar skills y antes de implementar, [design freshness](skills/ui-desi
 
 ## Garantías centrales
 
+- **La recuperación conserva identidad y evidencia.** Launch recording separa el lock del parent `--session-id` de `--worker-session-id`.
+
 - **Recomendaciones antes de implementar.** Cuando no hay preferencias técnicas, se propone una opción adecuada al producto y alternativas para frontend, alojamiento, backend/runtime y agentes, con compatibilidad, supuestos de coste y motivos para reconsiderar. Las mejoras comparan los casos afectados antes y después. Las referencias de plantillas y CSS requieren revisar licencia y stack, conservando las convenciones nativas. Los pedidos de hero y animación se rastrean hasta la entrega. Visual Approval exige observaciones tipadas con hashes en modo normal y reducido para cada animación; HTML solo acredita la proyección de revisión.
 - **El trabajo pequeño se queda pequeño.** Un cambio acotado usa un ciclo directo de inspección, implementación, verificación y revisión.
 - **El trabajo grande es explícito.** PLAN v6 define el typed graph; RUN v11 registra autorización, intentos y evidencia.
