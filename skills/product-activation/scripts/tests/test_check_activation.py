@@ -1291,6 +1291,35 @@ class ActivationCheckerTests(unittest.TestCase):
             )
         self.assertEqual([], findings)
 
+    def test_noop_target_dispositions_need_substantive_reason_suffixes(self) -> None:
+        for reason, accepted in (
+            ("n/a - x", False), ("n/a — pending", False), ("n/a: TBD", False),
+            ("n/a — 稍後處理", False), ("n/a", False),
+            ("n/a — release has no external activation delta", True),
+            ("n/a — 此版本不需要外部啟用設定", True),
+        ):
+            with self.subTest(reason=reason):
+                readiness = {"web-prod": {"status": "n/a", "na_reason": reason}}
+                self.assertEqual(accepted, check_activation._explicit_noop(True, {}, readiness))
+                closeout = check_activation._closeout_findings(
+                    {"Status": "handoff_ready"}, {}, readiness)
+                self.assertEqual(accepted, not closeout)
+                record = valid_noop_record().replace(
+                    "n/a — development target has no activation scope", reason
+                ).replace("n/a — release has no external activation delta", reason)
+                with patch("check_product_package.validate_texts", return_value=[]), patch(
+                    "check_deployment.check_deployment_text", return_value=[]
+                ):
+                    findings = check_activation.check_activation_text(
+                        record, prd_text=NOOP_PRD, architecture_text=ARCHITECTURE,
+                        deployment_text=DEPLOYMENT, stack_text="# Stack Decisions: Example",
+                        repo_root=Path.cwd(), require_closeout=True,
+                    )
+                if accepted:
+                    self.assertEqual([], findings)
+                else:
+                    self.assertIn("needs a concrete reason", "\n".join(findings))
+
     def test_empty_task_boundary_cannot_bypass_an_active_target(self) -> None:
         active = valid_noop_record().replace(
             "| web-prod | production | Cloudflare;fixture-production-route | pending | pending | n/a | n/a | pending | n/a — release has no external activation delta | none |",

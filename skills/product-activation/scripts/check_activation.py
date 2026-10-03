@@ -365,6 +365,11 @@ def _concrete_reason(value: str) -> bool:
     return len(words) >= 2 or unsegmented_prose
 
 
+def _concrete_n_a_reason(value: str) -> bool:
+    match = re.fullmatch(r"n/a\s*(?::|-|—|–)\s*(\S.*)", value.strip(), re.IGNORECASE)
+    return match is not None and _concrete_reason(match.group(1))
+
+
 def _timestamp(value: str) -> datetime | None:
     if not RFC3339_RE.fullmatch(value):
         return None
@@ -1429,7 +1434,7 @@ def _closeout_findings(
                 findings.append(
                     f"Activation closeout: no-op target {target} must have an explicit n/a disposition"
                 )
-            elif not _n_a_with_reason(str(item["na_reason"])):
+            elif not _concrete_n_a_reason(str(item["na_reason"])):
                 findings.append(
                     f"Activation closeout: no-op target {target} needs a concrete n/a reason"
                 )
@@ -1456,7 +1461,7 @@ def _explicit_noop(
         and readiness
         and all(
             item["status"] == "n/a"
-            and _n_a_with_reason(str(item["na_reason"]))
+            and _concrete_n_a_reason(str(item["na_reason"]))
             for item in readiness.values()
         )
     )
@@ -2063,7 +2068,7 @@ def check_activation_text(
             findings.append(
                 f"Target Readiness: {target} has invalid availability state {availability!r}"
             )
-        if status == "n/a" and not _n_a_with_reason(na_reason):
+        if status == "n/a" and not _concrete_n_a_reason(na_reason):
             findings.append(
                 f"Target Readiness: n/a target {target} needs a concrete reason"
             )
