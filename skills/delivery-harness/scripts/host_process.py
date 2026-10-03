@@ -14,6 +14,7 @@ import signal
 import subprocess
 import time
 import tempfile
+from contextlib import nullcontext
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping, Sequence
@@ -338,19 +339,26 @@ else:
 def run_process_tree(
     argv: Sequence[str], *, cwd: Path, environment: Mapping[str, str],
     timeout_seconds: float,
+    stdout_stream=None, stderr_stream=None,
 ) -> HostProcessResult:
     """Finish the owned tree before reading output or returning to Git checks."""
     runner = _run_windows if IS_WINDOWS else _run_posix
     # Files avoid pipe backpressure and grandchildren keeping communicate() open.
     # Decode as UTF-8, not the locale code page; bad bytes become U+FFFD.
-    with tempfile.TemporaryFile(mode="w+t", encoding="utf-8", errors="replace") as stdout, \
-            tempfile.TemporaryFile(mode="w+t", encoding="utf-8", errors="replace") as stderr:
+    with (tempfile.TemporaryFile(mode="w+t", encoding="utf-8", errors="replace")
+          if stdout_stream is None else nullcontext(stdout_stream)) as stdout, \
+            (tempfile.TemporaryFile(mode="w+t", encoding="utf-8", errors="replace")
+             if stderr_stream is None else nullcontext(stderr_stream)) as stderr:
+        def captured(stream, supplied):
+            if supplied is not None:
+                return ""
+            stream.seek(0)
+            return stream.read()
+
         try:
             code, timed_out = runner(argv, cwd, environment, timeout_seconds, stdout, stderr)
         except (HostProcessError, OSError, ValueError, subprocess.SubprocessError) as exc:
-            stdout.seek(0)
-            stderr.seek(0)
-            raise HostProcessError(str(exc), stdout=stdout.read(), stderr=stderr.read()) from exc
-        stdout.seek(0)
-        stderr.seek(0)
-        return HostProcessResult(code, stdout.read(), stderr.read(), timed_out)
+            raise HostProcessError(str(exc), stdout=captured(stdout, stdout_stream),
+                                   stderr=captured(stderr, stderr_stream)) from exc
+        return HostProcessResult(code, captured(stdout, stdout_stream),
+                                 captured(stderr, stderr_stream), timed_out)

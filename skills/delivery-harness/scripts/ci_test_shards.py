@@ -7,12 +7,16 @@ import argparse
 import importlib.util
 import json
 import math
+import os
 import sys
+import tempfile
 import time
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
+
+from host_process import HostProcessError, run_process_tree
 
 
 SUITES = {
@@ -155,9 +159,27 @@ def import_test_module(path: Path, index: int):
     return module
 
 
+def _profile_file(root: Path, relative_name: str, output: Path) -> None:
+    """Run one file in the parent's deadline-owned process tree."""
+    path = root / relative_name
+    sys.path.insert(0, str(path.parent))
+    started = time.perf_counter()
+    module = import_test_module(path, 0)
+    suite = unittest.defaultTestLoader.loadTestsFromModule(module)
+    result = unittest.TextTestRunner(stream=sys.stderr, verbosity=0).run(suite)
+    output.write_text(json.dumps({
+        "duration_seconds": round(time.perf_counter() - started, 6),
+        "tests": result.testsRun,
+        "errors": len(result.errors) + int(result.testsRun == 0),
+        "failures": len(result.failures),
+        "skipped": len(result.skipped),
+        "status": "failed" if result.errors or result.failures or not result.testsRun else "passed",
+    }), encoding="utf-8")
+
+
 def profile_suite(root: Path, args: argparse.Namespace) -> dict[str, object]:
-    directory = suite_dir(root, args.suite)
-    sys.path.insert(0, str(directory))
+    if not math.isfinite(args.timeout_seconds) or args.timeout_seconds < 0:
+        raise CommandError("profile timeout must be a finite nonnegative number")
     started = time.perf_counter()
     timings: dict[str, float] = {}
     counts = {"tests": 0, "errors": 0, "failures": 0, "skipped": 0}
@@ -165,32 +187,47 @@ def profile_suite(root: Path, args: argparse.Namespace) -> dict[str, object]:
     file_results: dict[str, dict[str, object]] = {}
     timed_out = False
 
-    for index, relative_name in enumerate(discover_files(root, args.suite)):
-        path = root / relative_name
+    for relative_name in discover_files(root, args.suite):
+        remaining = args.timeout_seconds - (time.perf_counter() - started)
+        if remaining <= 0:
+            timed_out = True
+            break
         file_started = time.perf_counter()
-        module = import_test_module(path, index)
-        suite = unittest.defaultTestLoader.loadTestsFromModule(module)
-        result = unittest.TextTestRunner(stream=sys.stderr, verbosity=0).run(suite)
-        timings[relative_name] = round(time.perf_counter() - file_started, 6)
-        file_results[relative_name] = {
-            "duration_seconds": timings[relative_name],
-            "tests": result.testsRun,
-            "errors": len(result.errors),
-            "failures": len(result.failures),
-            "skipped": len(result.skipped),
-            "status": "failed" if result.errors or result.failures else "passed",
-        }
-        counts["tests"] += result.testsRun
-        counts["errors"] += len(result.errors)
-        counts["failures"] += len(result.failures)
-        counts["skipped"] += len(result.skipped)
-        if result.errors or result.failures:
+        with tempfile.TemporaryDirectory(prefix="pdh-ci-profile-") as temporary:
+            output = Path(temporary) / "result.json"
+            environment = dict(os.environ)
+            environment["PYTHONPATH"] = os.pathsep.join(filter(None, (
+                str(Path(__file__).resolve().parent), environment.get("PYTHONPATH"),
+            )))
+            command = [sys.executable, "-c",
+                       "from ci_test_shards import _profile_file; from pathlib import Path; "
+                       "import sys; _profile_file(Path(sys.argv[1]), sys.argv[2], Path(sys.argv[3]))",
+                       str(root), relative_name, str(output)]
+            try:
+                process = run_process_tree(command, cwd=root, environment=environment,
+                                           timeout_seconds=remaining,
+                                           stdout_stream=sys.stdout, stderr_stream=sys.stderr)
+            except HostProcessError as exc:
+                raise CommandError(f"profile process ownership failed: {exc}") from exc
+            file_result = {
+                "duration_seconds": round(time.perf_counter() - file_started, 6),
+                "tests": 0, "errors": 1, "failures": 0, "skipped": 0, "status": "failed",
+            }
+            if process.timeout:
+                file_result.update(errors=0, status="timed_out")
+                file_results[relative_name] = file_result
+                timed_out = True
+                break
+            if process.exit_code == 0 and output.is_file():
+                file_result = json.loads(output.read_text(encoding="utf-8"))
+        file_results[relative_name] = file_result
+        timings[relative_name] = max(float(file_result["duration_seconds"]), 0.000001)
+        for key in counts:
+            counts[key] += file_result[key]
+        if file_result["status"] != "passed":
             failures.append(relative_name)
             if args.fail_fast:
                 break
-        if time.perf_counter() - started > args.timeout_seconds:
-            timed_out = True
-            break
 
     payload: dict[str, object] = {
         "profiled_at": datetime.now(timezone.utc).isoformat(),

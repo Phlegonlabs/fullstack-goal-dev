@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -197,10 +199,110 @@ class CITestShardTests(unittest.TestCase):
             self.assertIn("timed out", result.stderr)
             payload = json.loads(results_path.read_text(encoding="utf-8"))
             self.assertTrue(payload["timeout"])
-            file_result = payload["file_results"][
-                "skills/delivery-harness/scripts/tests/test_one.py"
-            ]
-            self.assertEqual("passed", file_result["status"])
+            self.assertEqual({}, payload["file_results"])
+            self.assertEqual({}, payload["timings"])
+            self.assertEqual(0, payload["counts"]["tests"])
+
+    def test_profile_deadline_stops_a_hanging_import_or_test_and_its_child(self) -> None:
+        for phase in ("import", "test"):
+            with self.subTest(phase), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                test_dir = root / "skills/delivery-harness/scripts/tests"
+                test_dir.mkdir(parents=True)
+                (test_dir / "test_a_fast.py").write_text(
+                    "import unittest, sys\n"
+                    "class Fast(unittest.TestCase):\n"
+                    "    def test_pass(self):\n"
+                    "        print('profile stdout reaches the caller')\n"
+                    "        print('profile stderr reaches the caller', file=sys.stderr)\n",
+                    encoding="utf-8",
+                )
+                hang = (
+                    "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])\n"
+                    "Path('owned-child.pid').write_text(str(child.pid))\n"
+                    "time.sleep(60)\n"
+                )
+                source = "import subprocess, sys, time, unittest\nfrom pathlib import Path\n"
+                source += (hang if phase == "import" else
+                           "class Hang(unittest.TestCase):\n    def test_hang(self):\n" +
+                           "".join("        " + line + "\n" for line in hang.splitlines()))
+                (test_dir / "test_b_hang.py").write_text(source, encoding="utf-8")
+                with (root / "stdout.log").open("wb") as stdout, (root / "stderr.log").open("wb") as stderr:
+                    started = time.monotonic()
+                    result = subprocess.run(
+                        [sys.executable, str(SCRIPT), "--repo-root", str(root), "profile",
+                         "--timeout-seconds", "3", "--manifest-out", str(root / "timings.json"),
+                         "--results-out", str(root / "results.json")],
+                        cwd=root, stdout=stdout, stderr=stderr, timeout=15, check=False,
+                    )
+                self.assertLess(time.monotonic() - started, 10)
+                self.assertEqual(2, result.returncode)
+                payload = json.loads((root / "results.json").read_text(encoding="utf-8"))
+                self.assertTrue(payload["timeout"])
+                self.assertTrue(payload["incomplete"])
+                fast = "skills/delivery-harness/scripts/tests/test_a_fast.py"
+                hung = "skills/delivery-harness/scripts/tests/test_b_hang.py"
+                self.assertEqual("passed", payload["file_results"][fast]["status"])
+                self.assertEqual("timed_out", payload["file_results"][hung]["status"])
+                self.assertEqual([fast], list(payload["timings"]))
+                self.assertIn("profile stdout reaches the caller", (root / "stdout.log").read_text(encoding="utf-8"))
+                self.assertIn("profile stderr reaches the caller", (root / "stderr.log").read_text(encoding="utf-8"))
+                process_id = int((root / "owned-child.pid").read_text(encoding="utf-8"))
+                if os.name == "nt":
+                    import ctypes
+                    from ctypes import wintypes
+                    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+                    kernel.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+                    kernel.OpenProcess.restype = wintypes.HANDLE
+                    kernel.GetExitCodeProcess.argtypes = (wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD))
+                    kernel.CloseHandle.argtypes = (wintypes.HANDLE,)
+                    handle = kernel.OpenProcess(0x1000, False, process_id)
+                    if handle:
+                        try:
+                            exit_code = wintypes.DWORD()
+                            self.assertTrue(kernel.GetExitCodeProcess(handle, ctypes.byref(exit_code)))
+                            self.assertNotEqual(259, exit_code.value)
+                        finally:
+                            kernel.CloseHandle(handle)
+                else:
+                    inspection = subprocess.run(["/bin/ps", "-o", "stat=", "-p", str(process_id)],
+                                                capture_output=True, text=True, timeout=2, check=False)
+                    self.assertTrue(not inspection.stdout.strip() or inspection.stdout.strip().startswith("Z"))
+
+    def test_profile_rejects_nonfinite_and_negative_deadlines(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "skills").mkdir()
+            for deadline in ("-1", "nan", "inf"):
+                with self.subTest(deadline):
+                    result = subprocess.run(
+                        [sys.executable, str(SCRIPT), "--repo-root", str(root), "profile",
+                         "--timeout-seconds", deadline, "--manifest-out", str(root / "timings.json")],
+                        cwd=root, capture_output=True, text=True, timeout=15, check=False,
+                    )
+                    self.assertEqual(2, result.returncode)
+                    self.assertIn("finite nonnegative", result.stderr)
+                    self.assertFalse((root / "timings.json").exists())
+
+    def test_profile_records_import_errors_empty_files_and_fail_fast(self) -> None:
+        for source in ("raise RuntimeError('fixture import fails')\n", "",
+                       "import unittest\nclass Broken(unittest.TestCase):\n    def test_fail(self): self.fail('fixture failure')\n"):
+            with self.subTest(source), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                test_dir = root / "skills/delivery-harness/scripts/tests"
+                test_dir.mkdir(parents=True)
+                (test_dir / "test_a_bad.py").write_text(source, encoding="utf-8")
+                (test_dir / "test_b_unreached.py").write_text("raise RuntimeError('must not run')\n", encoding="utf-8")
+                result = subprocess.run(
+                    [sys.executable, str(SCRIPT), "--repo-root", str(root), "profile", "--fail-fast",
+                     "--manifest-out", str(root / "timings.json"), "--results-out", str(root / "results.json")],
+                    cwd=root, capture_output=True, text=True, timeout=15, check=False,
+                )
+                self.assertEqual(2, result.returncode)
+                payload = json.loads((root / "results.json").read_text(encoding="utf-8"))
+                self.assertTrue(payload["incomplete"])
+                self.assertEqual(["skills/delivery-harness/scripts/tests/test_a_bad.py"], list(payload["file_results"]))
+                self.assertEqual("failed", next(iter(payload["file_results"].values()))["status"])
 
 
 if __name__ == "__main__":
