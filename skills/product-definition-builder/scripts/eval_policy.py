@@ -249,7 +249,7 @@ def parse_inputs(policy, reader):
             fail(f"{name}: bytes differ from approved policy")
         if name == "dataset":
             try:
-                lines = raw.decode("utf-8").splitlines()
+                lines = raw.decode("utf-8").split("\n")
             except UnicodeError as exc:
                 raise PolicyError("dataset must be UTF-8 JSONL") from exc
             values[name] = [json_object(line) for line in lines if line.strip()]

@@ -180,6 +180,26 @@ class EvalPolicyTests(unittest.TestCase):
             with self.assertRaises(ep.PolicyError):
                 ep.parse_inputs(self.policy, altered.__getitem__)
 
+    def test_jsonl_keeps_unicode_separators_inside_prompts(self):
+        original = [json.loads(line) for line in self.files["evals/cases.jsonl"].splitlines()]
+        for separator in ("\u0085", "\u2028", "\u2029"):
+            for newline in ("\n", "\r\n"):
+                with self.subTest(separator=repr(separator), newline=repr(newline)):
+                    cases = copy.deepcopy(original)
+                    cases[0]["input"] = "Before" + separator + "after"
+                    raw = (newline.join(json.dumps(case, ensure_ascii=False) for case in cases) + newline).encode()
+                    policy = copy.deepcopy(self.policy)
+                    policy["dataset"]["sha256"] = hashlib.sha256(raw).hexdigest()
+                    files = dict(self.files, **{"evals/cases.jsonl": raw})
+                    parsed = ep.parse_inputs(policy, files.__getitem__)
+                    self.assertEqual(cases, parsed["dataset"])
+            with self.subTest(invalid_record_separator=repr(separator)):
+                raw = separator.join(json.dumps(case) for case in original).encode()
+                policy = copy.deepcopy(self.policy)
+                policy["dataset"]["sha256"] = hashlib.sha256(raw).hexdigest()
+                with self.assertRaisesRegex(ep.PolicyError, "invalid UTF-8 JSON"):
+                    ep.parse_inputs(policy, dict(self.files, **{"evals/cases.jsonl": raw}).__getitem__)
+
     def test_dataset_and_rubric_structure_validated(self):
         for path, raw in (("evals/cases.jsonl", self.files["evals/cases.jsonl"] * 2),
                           ("evals/rubric.json", encoded({"schema": "eval-rubric/1", "dimensions": [], "prohibited_assertions": {}}))):

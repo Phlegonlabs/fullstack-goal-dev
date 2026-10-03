@@ -113,6 +113,12 @@ No new responsibility is added to its existing table/approval code.
 
 ## Handoff
 
+2026-10-03 EVAL-I-01 JSONL repair, baseline `4fd43240`, working-tree:
+record boundaries use LF/CRLF, retaining U+0085/U+2028/U+2029 inside approved
+prompts. The nine-case matrix accepts those strings unchanged and rejects the
+same characters used between records. All 15 policy tests PASS. This repairs
+the existing JSONL contract without changing its schema or approval bytes.
+
 2026-10-03 A6/A7 review / EVAL-I-02 report regression repair, baseline
 `cb8c373c`, working-tree: A6 Gate code/security PASS on its 21 paths; A6 Product
 timed out at 900 seconds with no verdict. Its captured process exited and logs
