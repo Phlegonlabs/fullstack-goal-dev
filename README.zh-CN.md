@@ -372,7 +372,7 @@ Full-stack 按完整流程实现页面、API、权限、数据保存与反馈。
 
 [Eval 验收契约](skills/delivery-harness/references/eval-acceptance-contract.md) 从 policy 推导执行契约，再重算每个已规划 trial。质量失败留在分母，prohibited 或 critical 失败直接阻挡验收。两份 full report 保留 output、judge／tool 观测、身份、时间和用量；handoff report 在干净 checkout 重跑。
 
-`check_eval_acceptance.py` 在干净 H2 将两份 report 接上现有 delivery register，验证冻结 hash 及 H1 等价，再执行 delivery acceptance。交付的 [eval runbook](skills/delivery-harness/assets/templates/EVAL_RUNBOOK.template.md) 记录 setup、full／quick 指令、限额、失败案例重跑和自有 fixture 清理。Checker 不执行 runner 指令；review 仍核对证据来源。
+`check_eval_acceptance.py` 在干净 H2 将两份 report 接上现有 delivery register，验证冻结 hash 及 H1 等价，再执行 delivery acceptance。冻结契约、已批准输入及交付文件必须已存在且符合 H1，即使同时登记为 evidence。交付的 [eval runbook](skills/delivery-harness/assets/templates/EVAL_RUNBOOK.template.md) 记录 setup、full／quick 指令、限额、失败案例重跑和自有 fixture 清理。Checker 不执行 runner 指令；review 仍核对证据来源。
 
 RUN pin >=0.60.0 的 readiness 需要明确 eval applicability；required 时冻结 eval／delivery source，并强制 always-run gate：broad final checks → eval acceptance → delivery acceptance → closeout。错误 hash、替换 checker 或断开 gate 都失败。旧 pin 没有 marker 保留原契约；加入 marker即采用新检查。
 两个 acceptance checker 使用安装目录及已观察 Python 的绝对路径，明确在 host 执行，

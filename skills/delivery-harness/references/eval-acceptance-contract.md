@@ -83,8 +83,10 @@ bytes in HEAD. Primary and independent clean-checkout full runs execute at H1;
 only the parent adds directly listed reports and register as evidence child H2.
 Run this checker before the unchanged delivery-acceptance gate at clean H2.
 It resolves HEAD once, verifies source/report bytes, H1 ancestry and the existing
-evidence-only change allowlist, then rechecks HEAD and clean status. Product or
-runner changes after H1 require new runs. No transitive trace exemption is added.
+evidence-only change allowlist, then rechecks HEAD and clean status. Frozen
+PRD/contracts, approved inputs and delivered artifacts must match regular blobs
+at H1, even if directly registered as evidence. Changes or additions after H1
+require a new candidate and full runs. No transitive trace exemption is added.
 
 Deliver `EVAL_RUNBOOK.template.md` filled with setup/full/quick commands, versions,
 credential variable names, limits, readbacks, heldout protection, failure replay,

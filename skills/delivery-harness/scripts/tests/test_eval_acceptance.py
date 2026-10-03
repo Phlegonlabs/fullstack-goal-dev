@@ -52,6 +52,21 @@ class EvalAcceptanceTests(unittest.TestCase):
         self.root = Path(self.temp.name).resolve()
         mf.init_repo(self.root, "README.md")
         self.policy, files, self.contract, _, report, _ = fixture()
+        artifact_name = getattr(self, "artifact_in_evidence", None)
+        if artifact_name:
+            old = self.policy["delivery"][artifact_name]
+            new = "docs/verification/evidence/implementation/" + Path(old).name
+            self.policy["delivery"][artifact_name] = new
+            for name in ("setup_argv", "full_argv"):
+                self.policy["delivery"][name] = [new if arg == old else arg for arg in self.policy["delivery"][name]]
+            self.contract.update(prd_sha256=hashlib.sha256(prd(self.policy).encode()).hexdigest(),
+                                 policy_sha256=checker.ep.policy_digest(self.policy), delivery=copy.deepcopy(self.policy["delivery"]))
+            report.update(prd_sha256=self.contract["prd_sha256"], policy_sha256=self.contract["policy_sha256"],
+                          contract_sha256=hashlib.sha256(encoded(self.contract)).hexdigest())
+            report["artifacts"].pop(old)
+            report["artifacts"][new] = hashlib.sha256(("Delivered " + new).encode()).hexdigest()
+            for name in ("setup", "full"):
+                report["provenance"][name]["argv"] = copy.deepcopy(self.policy["delivery"][name + "_argv"])
         self.write(".gitattributes", b"* -text -filter\n")
         self.prd_path = "docs/product/PRD.md"
         self.contract_path = "docs/verification/eval-contract.json"
@@ -63,7 +78,8 @@ class EvalAcceptanceTests(unittest.TestCase):
             self.write(path, raw)
         for name in ("runner", "grader", "lockfile", "runbook"):
             path = self.policy["delivery"][name]
-            self.write(path, ("Delivered " + path).encode())
+            if not (name == artifact_name and getattr(self, "defer_artifact", False)):
+                self.write(path, ("Delivered " + path).encode())
         self.delivery = {"schema": "delivery-acceptance/1", "prd_sha256": self.contract["prd_sha256"], "tests": []}
         self.register = {"schema": "delivery-results/1", "candidate_sha": "", "results": []}
         self.reports = {}
@@ -83,12 +99,25 @@ class EvalAcceptanceTests(unittest.TestCase):
                 **{name: scenario[name] for name in ("execution", "platform", "auth_mode", "environment", "build")},
                 "status": "pass", "assertion_results": {name: "pass" for name in assertions},
                 "fixture_cleanup": "not_required", "evidence": {"path": declared["report"], "sha256": ""}})
+        if artifact_name:
+            scenario = copy.deepcopy(self.delivery["tests"][0]["scenarios"][0])
+            scenario["id"] = "implementation-evidence"
+            scenario["execution"]["assertions"] = {"artifact-check": "Delivered implementation is retained"}
+            self.delivery["tests"][0]["scenarios"].append(scenario)
+            row = copy.deepcopy(self.register["results"][0])
+            row.update(scenario_id=scenario["id"], execution=scenario["execution"],
+                       assertion_results={"artifact-check": "pass"},
+                       evidence={"path": self.policy["delivery"][artifact_name], "sha256": ""})
+            self.register["results"].append(row)
         self.write(self.delivery_path, encoded(self.delivery))
         self.h1 = self.commit("product candidate")
         self.register["candidate_sha"] = self.h1
         for report in self.reports.values():
             report["candidate_sha"] = self.h1
             report["provenance"]["checkout_sha"] = self.h1
+        if artifact_name and getattr(self, "defer_artifact", False):
+            path = self.policy["delivery"][artifact_name]
+            self.write(path, ("Delivered " + path).encode())
         self.save_reports()
         self.h2 = self.commit("directly registered evidence")
 
@@ -108,8 +137,11 @@ class EvalAcceptanceTests(unittest.TestCase):
             raw = encoded(report)
             self.write(path, raw)
             for row in self.register["results"]:
-                if row["test_id"] == self.policy[purpose]["test_id"]:
+                if (row["test_id"], row["scenario_id"]) == (self.policy[purpose]["test_id"], self.policy[purpose]["scenario_id"]):
                     row["evidence"]["sha256"] = hashlib.sha256(raw).hexdigest()
+        if getattr(self, "artifact_in_evidence", None):
+            row = self.register["results"][-1]
+            row["evidence"]["sha256"] = hashlib.sha256((self.root / row["evidence"]["path"]).read_bytes()).hexdigest()
         self.write(self.results_path, encoded(self.register))
 
     def invoke(self, overrides=None):
@@ -222,6 +254,44 @@ class EvalAcceptanceTests(unittest.TestCase):
         self.write(path, b'{"schema":1,"schema":2}')
         self.commit("duplicate evidence keys")
         self.assertEqual(1, self.invoke()[0])
+
+
+class EvalProtectedArtifactTests(unittest.TestCase):
+    def test_registered_implementation_cannot_change_after_h1(self):
+        for name in ("runner", "grader", "lockfile", "runbook"):
+            with self.subTest(artifact=name):
+                case = EvalAcceptanceTests("test_h1_h2_full_quality_and_handoff_pass")
+                case.artifact_in_evidence = name
+                try:
+                    case.setUp()
+                    self.assertEqual(0, case.invoke()[0])
+                    path = case.policy["delivery"][name]
+                    changed = b"Changed after tested H1\n"
+                    case.write(path, changed)
+                    for report in case.reports.values():
+                        report["artifacts"][path] = hashlib.sha256(changed).hexdigest()
+                    case.save_reports()
+                    case.commit("change directly registered implementation after H1")
+                    code, result = case.invoke()
+                    self.assertEqual((1, "FAIL"), (code, result["status"]))
+                    self.assertTrue(any("tested candidate H1" in error and path in error for error in result["errors"]), result)
+                finally:
+                    case.doCleanups()
+
+    def test_registered_implementation_must_exist_at_h1(self):
+        for name in ("runner", "grader", "lockfile", "runbook"):
+            with self.subTest(artifact=name):
+                case = EvalAcceptanceTests("test_h1_h2_full_quality_and_handoff_pass")
+                case.artifact_in_evidence = name
+                case.defer_artifact = True
+                try:
+                    case.setUp()
+                    code, result = case.invoke()
+                    self.assertEqual((1, "FAIL"), (code, result["status"]))
+                    path = case.policy["delivery"][name]
+                    self.assertTrue(any("tested candidate H1" in error and path in error for error in result["errors"]), result)
+                finally:
+                    case.doCleanups()
 
 
 if __name__ == "__main__":

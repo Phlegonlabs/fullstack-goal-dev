@@ -36,8 +36,9 @@ def verify(root, *, prd, prd_sha256, contract, contract_sha256, delivery_contrac
     if clean.returncode or clean.stdout.strip():
         raise AcceptanceError("eval gate requires a clean exact-head checkout")
     captured = {}
+    candidate_bound = set()
 
-    def read(path, label):
+    def read(path, label, *, at_candidate=False):
         safe = _safe_file(root, str(path))
         relative = safe.relative_to(root).as_posix()
         raw = _read_bytes(safe, label, root)
@@ -45,11 +46,13 @@ def verify(root, *, prd, prd_sha256, contract, contract_sha256, delivery_contrac
         if prior is not None and prior != raw:
             raise AcceptanceError("input changed during eval check")
         captured[relative] = raw
+        if at_candidate:
+            candidate_bound.add(relative)
         return raw
 
-    prd_bytes = read(prd, "PRD")
-    eval_bytes = read(contract, "eval contract")
-    delivery_bytes = read(delivery_contract, "delivery contract")
+    prd_bytes = read(prd, "PRD", at_candidate=True)
+    eval_bytes = read(contract, "eval contract", at_candidate=True)
+    delivery_bytes = read(delivery_contract, "delivery contract", at_candidate=True)
     result_bytes = read(results, "results")
     for raw, expected in ((prd_bytes, prd_sha256), (eval_bytes, contract_sha256), (delivery_bytes, delivery_contract_sha256)):
         if _sha256(raw) != expected:
@@ -64,7 +67,7 @@ def verify(root, *, prd, prd_sha256, contract, contract_sha256, delivery_contrac
     policy = ep.parse_eval_policy(prd_text, required=True)
     if policy["applicability"] != "required":
         raise AcceptanceError("eval verifier requires an applicable policy")
-    approved = ep.parse_inputs(policy, lambda path: read(path, "approved eval input"))
+    approved = ep.parse_inputs(policy, lambda path: read(path, "approved eval input", at_candidate=True))
     validate_contract(_load_json(eval_bytes, "eval contract"), policy, prd_sha256)
     delivery = _load_json(delivery_bytes, "delivery contract")
     register = _load_json(result_bytes, "results")
@@ -86,11 +89,14 @@ def verify(root, *, prd, prd_sha256, contract, contract_sha256, delivery_contrac
     errors.extend(result_errors)
     if errors:
         return {"status": "FAIL", "errors": errors}
-    captured.update(evidence)
+    for path, raw in evidence.items():
+        if path in captured and captured[path] != raw:
+            raise AcceptanceError("input changed during eval check")
+        captured[path] = raw
     artifacts = {policy[name]["path"]: policy[name]["sha256"] for name in ("dataset", "rubric", "grader", "subject")}
     for name in ("runner", "grader", "lockfile", "runbook"):
         path = policy["delivery"][name]
-        raw = read(path, "delivered eval artifact")
+        raw = read(path, "delivered eval artifact", at_candidate=True)
         artifacts[path] = _sha256(raw)
     summaries = {}
     reports = {}
@@ -115,6 +121,9 @@ def verify(root, *, prd, prd_sha256, contract, contract_sha256, delivery_contrac
         raise AcceptanceError("quality and handoff require independent run/job identities")
     for path, raw in sorted(captured.items()):
         errors.extend(acceptance._committed_file_errors(root, head, path, raw))
+    for path in sorted(candidate_bound):
+        errors.extend("tested candidate H1: " + error for error in
+                      acceptance._committed_file_errors(root, candidate, path, captured[path]))
     errors.extend(acceptance._candidate_tree_errors(root, candidate, head,
         {results_path} | acceptance._evidence_paths(register, evidence_root)))
     if acceptance._head_sha(root) != head:

@@ -113,6 +113,19 @@ No new responsibility is added to its existing table/approval code.
 
 ## Handoff
 
+2026-10-03 EVAL-I-03 protected candidate repair, baseline `49059be9`,
+working-tree: the parent reproduced Gate/A10 in four real temporary Git
+checkouts. Runner, grader, lockfile and runbook each passed valid controls and
+incorrectly passed after H1 changes plus updated report/register hashes.
+The checker now binds frozen PRD/contracts, approved inputs and delivered
+artifacts to regular blobs at H1 independently of evidence exemptions. H2
+byte, ancestry and clean-status checks remain. Overlapping reads retain their
+consistency guard. Real-Git regressions cover all four artifact classes for
+changed and newly introduced files, with positive controls for unchanged bytes.
+The reference and four READMEs agree. All 15 real-Git/CLI tests PASS in 211.749
+seconds; focused pyflakes and diff checks PASS. Fresh review and broad
+verification are pending.
+
 2026-10-03 EVAL-I-02 resource repair, baseline `06e076f1`, working-tree:
 Report/A10 confirmed another full population scan per slice and a trial rescan
 for `trial_pass_rate`. Aggregate passing repeats per case, then visit each
