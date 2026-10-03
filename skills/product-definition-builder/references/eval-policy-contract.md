@@ -1,6 +1,9 @@
 # Evaluation Policy
 
-New packages run `check_product_package.py --eval-policy eval-policy/1`.
+New packages run `check_product_package.py --repo-root <repository-root> --eval-policy eval-policy/1`
+with the three canonical paths. The root enables approved-input byte checks.
+Calls without a root inspect shape only and cannot complete the new-package
+approval/publication flow.
 Legacy calls may omit the flag and marker; a present marker always validates.
 Never migrate historical approvals automatically.
 

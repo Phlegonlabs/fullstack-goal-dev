@@ -113,6 +113,15 @@ No new responsibility is added to its existing table/approval code.
 
 ## Handoff
 
+2026-10-03 EVAL-I-01 workflow invocation repair, baseline `fbb5a062`,
+working-tree: new-package approval, final publication checklist and reference
+examples now all require both repository root and the explicit eval-policy
+flag. The root enables approved input byte checks; rootless API inspection
+remains shape-only and cannot complete this flow. Legacy omissions keep their
+existing API semantics. Four READMEs agree. This closes both A8 workflow notes
+through documented invocation changes, without expanding the parser API.
+Diff check PASS; package and static checks follow on the frozen candidate.
+
 2026-10-03 EVAL-I-03 Git timeout diagnostic repair, baseline `ed47747d`,
 working-tree: subprocess failures at the eval CLI boundary now produce JSON
 FAIL and exit 1. A passing real-Git control and independently injected entry
