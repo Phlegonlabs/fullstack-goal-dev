@@ -134,6 +134,7 @@ Ask only questions that are not already answered. Route unresolved details into 
    - What model or automation capability is needed, and what may it read, retain, generate, or change?
    - Which tool calls or side effects require confirmation or human approval, and how can the feature be disabled safely?
    - What evaluation set, quality threshold, prohibited outcome, cost/latency budget, observability, fallback, and incident path define acceptable behavior?
+   - Resolve `eval-policy-contract.md`: exact cases/splits, repeats and denominator, slice minima, critical failures, rubric anchors, judge/calibration, freshness, budgets, runner interface and clean-checkout handoff TEST. Reuse answered decisions; no universal pass rate.
    - How are prompt injection, untrusted tool output, data leakage, and invalid generated output contained?
 10. Delivery and release targets
    - What is in scope for v1?

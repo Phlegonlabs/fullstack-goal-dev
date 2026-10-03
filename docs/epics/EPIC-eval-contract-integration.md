@@ -61,6 +61,11 @@ the checkout; no new ignore class is introduced.
 | Observation | Baseline / observed head | Scope and result | Verification / remaining work |
 | --- | --- | --- | --- |
 | 2026-10-03 entry | `1d21e59` / same clean head | Research accepted; explicit implementation scope above. No canonical source change yet | Local Git, live main and installed version observed. Implementation and all required checks pending |
+| 2026-10-03 EVAL-I-01 | `9a707dd` / working-tree | Product policy parser, explicit checker flag, approved input validation, docs and four-language description | 9 policy tests and 79 existing package tests PASS; Product pyflakes, docs weight and diff checks PASS. Runner/checker/readiness still pending |
+
+The large existing Product checker remains the package validation entrypoint;
+eval parsing and input validation live in their own module (under 500 lines).
+No new responsibility is added to its existing table/approval code.
 
 ## Handoff
 

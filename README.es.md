@@ -369,6 +369,8 @@ Cada invocación aplica el [contrato de sincronización documental](skills/deliv
 El [contrato de aceptación](skills/delivery-harness/references/delivery-acceptance-contract.md) vincula los TEST obligatorios del PRD con la matriz congelada de escenarios/plataformas y evidencia de la versión exacta. Prepara cuentas sintéticas y datos propios solo en un entorno aislado autorizado. Un login mock no prueba autenticación real; Web, iOS nativo y herramientas de agentes necesitan evidencia propia. Un bypass de login en producción, secretos en fixtures, pruebas obligatorias omitidas, builds obsoletos o bloqueos aplazados nunca cuentan como PASS. Los verificadores comprueban cobertura y evidencia retenida, no la veracidad de una declaración humana u observación externa.
 
 El Harness se construye sobre límites explícitos:
+La [política eval](skills/product-definition-builder/references/eval-policy-contract.md) congela rúbrica, población, repeticiones, tasa mínima, slices, reglas críticas y entradas del juez en el PRD aprobado. Los paquetes nuevos usan `--eval-policy eval-policy/1`; los ordinarios justifican la exención. Todos los TEST funcionales obligatorios siguen pasando. Los paquetes antiguos sin marcador conservan sus controles; cualquier marcador presente se valida.
+
 
 1. Inspecciona el proyecto actual e identifica el trabajo requerido.
 2. Congela los contratos, fuentes, scopes y pasos de verificación relevantes.

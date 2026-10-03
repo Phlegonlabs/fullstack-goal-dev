@@ -224,6 +224,8 @@ Older documents may be inspected for history, but a current approval requires th
 ## AI and Automation
 AI and Automation Gate: [required / not_required / blocked] — [reason], decided by [human owner]
 
+New packages include the active `eval-policy/1` JSON block from `eval-policy-contract.md` here and run the core checker with `--eval-policy eval-policy/1`. Freeze policy/input bytes before approval; runner implementation and handoff evidence come later. Required AI cannot waive eval.
+
 When `required`, record:
 
 | Area | Decision | Owner / evidence | TEST IDs |

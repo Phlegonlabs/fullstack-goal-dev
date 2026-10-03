@@ -369,6 +369,8 @@ Every skill invocation starts with the shared [document-sync contract](skills/de
 The [delivery-acceptance contract](skills/delivery-harness/references/delivery-acceptance-contract.md) joins required PRD TEST IDs to a frozen scenario/platform matrix and exact-version evidence. Prepare isolated synthetic accounts and owned test data only under the declared test-environment authority. Mock login proves mocked behavior, not real authentication; Web, native iOS and agent-tool outcomes need their own evidence. No production login bypass, secret-bearing fixture, skipped required test, stale build or deferred blocker can count as PASS. The checkers validate retained evidence and coverage, not whether a human attestation or external observation is truthful.
 
 The Harness is built around explicit boundaries:
+The [eval policy](skills/product-definition-builder/references/eval-policy-contract.md) freezes rubric, population, repeats, pass rate, slices, critical rules and judge inputs in the approved PRD. New packages use `--eval-policy eval-policy/1`; ordinary products give a reasoned exemption. Required functional TESTs still all pass. Legacy packages without the marker keep their checks; a present marker always validates.
+
 
 1. Inspect the current project and identify the required work.
 2. Freeze the relevant contracts, sources, scope, and verification steps.
