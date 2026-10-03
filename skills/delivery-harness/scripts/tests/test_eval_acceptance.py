@@ -55,10 +55,12 @@ class EvalAcceptanceTests(unittest.TestCase):
         artifact_name = getattr(self, "artifact_in_evidence", None)
         if artifact_name:
             old = self.policy["delivery"][artifact_name]
-            new = "docs/verification/evidence/implementation/" + Path(old).name
+            new = "docs/verification/evidence/implementation/" + getattr(self, "artifact_filename", Path(old).name)
             self.policy["delivery"][artifact_name] = new
             for name in ("setup_argv", "full_argv"):
                 self.policy["delivery"][name] = [new if arg == old else arg for arg in self.policy["delivery"][name]]
+            if getattr(self, "direct_runner", False):
+                self.policy["delivery"]["full_argv"] = [new, "--full"]
             self.contract.update(prd_sha256=hashlib.sha256(prd(self.policy).encode()).hexdigest(),
                                  policy_sha256=checker.ep.policy_digest(self.policy), delivery=copy.deepcopy(self.policy["delivery"]))
             report.update(prd_sha256=self.contract["prd_sha256"], policy_sha256=self.contract["policy_sha256"],
@@ -128,6 +130,11 @@ class EvalAcceptanceTests(unittest.TestCase):
 
     def commit(self, message):
         mf.git(self.root, "add", "-A")
+        executable = getattr(self, "h1_runner_executable", None)
+        if message == "product candidate" and executable is not None:
+            path = self.policy["delivery"]["runner"]
+            (self.root / path).chmod(0o755 if executable else 0o644)
+            mf.git(self.root, "update-index", "--chmod=" + ("+x" if executable else "-x"), "--", path)
         mf.git(self.root, "commit", "-qm", message)
         return mf.git(self.root, "rev-parse", "HEAD")
 
@@ -203,6 +210,22 @@ class EvalAcceptanceTests(unittest.TestCase):
                 self.assertEqual((1, "FAIL"), (code, result["status"]))
                 self.assertIn("invalid report timestamp", str(result["errors"]))
 
+    def test_protected_tree_git_failure_returns_json_fail(self):
+        self.assertEqual(0, self.invoke()[0])
+        original = checker.run_git
+        for failure in ("exit", "timeout"):
+            def unavailable_tree(root, *command, **options):
+                if command[:2] == ("--literal-pathspecs", "diff"):
+                    if failure == "timeout":
+                        raise subprocess.TimeoutExpired(["git", *command], 30)
+                    return subprocess.CompletedProcess(command, 1, stdout=b"", stderr=b"unavailable")
+                return original(root, *command, **options)
+
+            with self.subTest(failure=failure), patch.object(checker, "run_git", side_effect=unavailable_tree):
+                code, result = self.invoke()
+            self.assertEqual((1, "FAIL"), (code, result["status"]))
+            self.assertTrue(result["errors"])
+
     def test_changed_uncommitted_report_and_product_after_h1_fail(self):
         self.write(self.policy["quality"]["report"], b"{}")
         self.assertEqual(1, self.invoke()[0])
@@ -257,6 +280,32 @@ class EvalAcceptanceTests(unittest.TestCase):
 
 
 class EvalProtectedArtifactTests(unittest.TestCase):
+    def test_registered_runner_mode_change_fails_with_unchanged_blob(self):
+        for executable in (True, False):
+            with self.subTest(h1_executable=executable):
+                case = EvalAcceptanceTests("test_h1_h2_full_quality_and_handoff_pass")
+                case.artifact_in_evidence = "runner"
+                case.artifact_filename = "run[1].py"
+                case.direct_runner = True
+                case.h1_runner_executable = executable
+                try:
+                    case.setUp()
+                    self.assertEqual(0, case.invoke()[0])
+                    path = case.policy["delivery"]["runner"]
+                    before = mf.git(case.root, "ls-tree", case.h1, "--", path).split()
+                    (case.root / path).chmod(0o644 if executable else 0o755)
+                    mf.git(case.root, "update-index", "--chmod=" + ("-x" if executable else "+x"), "--", path)
+                    changed = case.commit("change only directly registered runner mode")
+                    after = mf.git(case.root, "ls-tree", changed, "--", path).split()
+                    self.assertNotEqual(before[0], after[0])
+                    self.assertEqual(before[2], after[2])
+                    self.assertEqual("", mf.git(case.root, "status", "--porcelain", "--untracked-files=all"))
+                    code, result = case.invoke()
+                    self.assertEqual((1, "FAIL"), (code, result["status"]))
+                    self.assertTrue(any("tested candidate H1" in error and path in error for error in result["errors"]), result)
+                finally:
+                    case.doCleanups()
+
     def test_registered_implementation_cannot_change_after_h1(self):
         for name in ("runner", "grader", "lockfile", "runbook"):
             with self.subTest(artifact=name):

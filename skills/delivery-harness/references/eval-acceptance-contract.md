@@ -85,7 +85,9 @@ Run this checker before the unchanged delivery-acceptance gate at clean H2.
 It resolves HEAD once, verifies source/report bytes, H1 ancestry and the existing
 evidence-only change allowlist, then rechecks HEAD and clean status. Frozen
 PRD/contracts, approved inputs and delivered artifacts must match regular blobs
-at H1, even if directly registered as evidence. Changes or additions after H1
+and Git modes at H1, even if directly registered as evidence. A literal-path
+tree diff rejects mode, type, content or existence changes in those paths.
+Changes or additions after H1
 require a new candidate and full runs. No transitive trace exemption is added.
 
 Deliver `EVAL_RUNBOOK.template.md` filled with setup/full/quick commands, versions,

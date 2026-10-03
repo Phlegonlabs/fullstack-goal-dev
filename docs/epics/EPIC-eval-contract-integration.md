@@ -113,6 +113,20 @@ No new responsibility is added to its existing table/approval code.
 
 ## Handoff
 
+2026-10-03 EVAL-I-03 protected tree repair, baseline `e11f8ede`, working-tree:
+the parent reproduced Gate/A11's clean H2 mode-only PASS with an unchanged
+runner blob. Keep regular captured H2 blob checks, and replace separate H1
+content checks with one literal-path tree diff over every protected path.
+No evidence or coordination exemption applies to those paths; mode, type,
+content and existence must remain equal. Git errors fail closed. The four
+READMEs and acceptance reference agree. All 17 real-Git/CLI tests PASS in
+192.821 seconds, including unchanged direct-runner controls, both executable
+bit directions with identical blobs, a bracket filename, four artifact
+change/introduction classes, and protected-diff exit/timeout failures.
+Focused pyflakes, documentation weight and diff checks PASS. Commit `e11f8ede`
+records the separate exclusion scan repair and its 23 policy tests. Fresh
+whole-candidate native code/security review and complete suites remain.
+
 2026-10-03 A11 native review / EVAL-I-01 exclusion scan repair, baseline
 `10079881`, working-tree: Policy, Workflow and Report code/security PASS;
 Gate returns fix_required for a mode-only change on a protected artifact,

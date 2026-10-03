@@ -121,9 +121,13 @@ def verify(root, *, prd, prd_sha256, contract, contract_sha256, delivery_contrac
         raise AcceptanceError("quality and handoff require independent run/job identities")
     for path, raw in sorted(captured.items()):
         errors.extend(acceptance._committed_file_errors(root, head, path, raw))
-    for path in sorted(candidate_bound):
-        errors.extend("tested candidate H1: " + error for error in
-                      acceptance._committed_file_errors(root, candidate, path, captured[path]))
+    protected = run_git(root, "--literal-pathspecs", "diff", "--no-ext-diff",
+        "--no-textconv", "--no-renames", "--ignore-submodules=none", "--name-only", "-z",
+        candidate, head, "--", *sorted(candidate_bound), text=False)
+    if protected.returncode:
+        raise AcceptanceError("cannot compare protected eval paths with tested candidate H1")
+    errors.extend("tested candidate H1: " + path.decode("utf-8") + " tree changed"
+                  for path in protected.stdout.split(b"\0") if path)
     errors.extend(acceptance._candidate_tree_errors(root, candidate, head,
         {results_path} | acceptance._evidence_paths(register, evidence_root)))
     if acceptance._head_sha(root) != head:
