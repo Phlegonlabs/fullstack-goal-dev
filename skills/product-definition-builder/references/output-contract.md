@@ -224,7 +224,7 @@ Older documents may be inspected for history, but a current approval requires th
 ## AI and Automation
 AI and Automation Gate: [required / not_required / blocked] — [reason], decided by [human owner]
 
-New packages include the active `eval-policy/1` JSON block from `eval-policy-contract.md` here and run the core checker with `--eval-policy eval-policy/1`. Freeze policy/input bytes before approval; runner implementation and handoff evidence come later. Required AI cannot waive eval.
+New packages include the active `eval-policy/1` JSON block from `eval-policy-contract.md` here and run the core checker with `--repo-root <repository-root> --eval-policy eval-policy/1`. Freeze policy/input bytes before approval; runner implementation and handoff evidence come later. Required AI cannot waive eval.
 
 When `required`, record:
 
@@ -951,7 +951,7 @@ Before archiving earlier documents or publishing the staged package, verify:
 ### Completeness
 
 - Before first-delivery approval, apply `prd-refinement.md`: reconcile UI and technical perspectives on the same candidate's complete journeys and cross-feature dependencies. Findings retain evidence, stable IDs and dispositions; required gaps cannot be silently deferred. Later findings follow the same rule without rewriting frozen approvals.
-- `PRD.md`, `architecture.md`, and `stack-decisions.md` are present in the run-specific staging directory. Their Product Definition Approval and Stack Decision Checkpoint are both `approved`, and `check_product_package.py --repo-root <repository-root> --require-filled --require-approved` passes before publication. The staged operational documents follow their existing applicability rules. UI-bearing packages record a pending `ui-design-builder` handoff; headless packages record `not_required` without skipping Product Definition Approval.
+- `PRD.md`, `architecture.md`, and `stack-decisions.md` are present in the run-specific staging directory. Their Product Definition Approval and Stack Decision Checkpoint are both `approved`, and `check_product_package.py --repo-root <repository-root> --require-filled --require-approved` passes before publication; new packages add `--eval-policy eval-policy/1`. The staged operational documents follow their existing applicability rules. UI-bearing packages record a pending `ui-design-builder` handoff; headless packages record `not_required` without skipping Product Definition Approval.
 - `## Non-Functional Requirements` is always present immediately after `## Functional Requirements`. Every applicable quality attribute has a measurable `PRD-*` requirement with a measure and target; non-applicable categories are explicitly `N/A` with a reason. Vague adjectives alone do not pass. Units, tested population or traffic shape, measurement window, and percentile are present where applicable.
 - `## Test Obligations` is always present after `## Open Questions` and before the trailing product decision records. Its rows use stable `TEST-*` IDs and include obligation, test type, required status, upstream trace IDs, and an expected signal.
 - Every `Must` functional requirement and every applicable non-functional requirement maps to at least one `TEST-*` row marked `Required: Yes`. No required obligation is left as anonymous prose.

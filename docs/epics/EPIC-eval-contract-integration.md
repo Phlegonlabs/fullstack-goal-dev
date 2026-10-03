@@ -113,6 +113,19 @@ No new responsibility is added to its existing table/approval code.
 
 ## Handoff
 
+2026-10-03 A9 workflow call-family repair, baseline `58cb3d91`, working-tree:
+Report and Gate returned code/security PASS with no findings; Workflow returned
+PASS with two low documentation findings. Core timed out at 901 seconds without
+a verdict; PID 10196 exited, cleanup succeeded, no fallback. All attempts remain
+retained. The entire new-package call family now includes root and explicit
+policy mode, including AI, completeness and staging references. A contract
+regression guards root on every policy-mode line and both pre-publication paths.
+The existing large Product contract-test module keeps one responsibility; these
+checks extend its documented-flow boundary rather than adding another module.
+All 97 Product skill-contract tests PASS. Input lifecycle repair and fresh review pending;
+the next Core review splits policy/tests from digest/fixture paths at the same
+new candidate, preserving full union coverage without increasing the deadline.
+
 2026-10-03 EVAL-I-01 workflow invocation repair, baseline `fbb5a062`,
 working-tree: new-package approval, final publication checklist and reference
 examples now all require both repository root and the explicit eval-policy

@@ -14,6 +14,21 @@ PROD_SOURCE_POLICY = "stage=production; ref=refs/heads/main; sha=promotion.verif
 
 
 class ProductDefinitionBuilderSkillContractTests(unittest.TestCase):
+    def test_eval_approval_and_publication_invocations_keep_both_checks(self) -> None:
+        for path in ("SKILL.md", "references/eval-policy-contract.md",
+                     "references/output-contract.md", "references/artifact-lifecycle.md"):
+            text = self.read(path)
+            lines = [line for line in text.splitlines() if "--eval-policy eval-policy/1" in line]
+            self.assertTrue(lines, path)
+            for line in lines:
+                self.assertIn("--repo-root", line, (path, line))
+        output = self.read("references/output-contract.md")
+        completeness = output.split("### Completeness", 1)[1].split("### Publication", 1)[0]
+        self.assertIn("--eval-policy eval-policy/1", completeness)
+        lifecycle = self.read("references/artifact-lifecycle.md")
+        staging = lifecycle.split("## Stage and Validate", 1)[1].split("## Publication Authorization Gate", 1)[0]
+        self.assertIn("--eval-policy eval-policy/1", staging)
+
     def read(self, relative_path: str) -> str:
         path = SKILL_ROOT / relative_path
         if not path.is_file():
