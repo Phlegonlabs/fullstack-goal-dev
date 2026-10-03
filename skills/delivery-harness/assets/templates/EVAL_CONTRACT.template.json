@@ -1,0 +1,12 @@
+{
+  "schema": "eval-contract/1",
+  "prd_sha256": "<frozen-prd-sha256>",
+  "policy_sha256": "<canonical-policy-sha256>",
+  "quality": {"test_id": "<required-quality-test>", "scenario_id": "eval-quality", "report": "docs/verification/evidence/eval/quality-report.json"},
+  "handoff": {"test_id": "<required-handoff-test>", "scenario_id": "eval-handoff", "report": "docs/verification/evidence/eval/handoff-report.json"},
+  "delivery": {
+    "runner": "<approved-runner-path>", "grader": "<approved-grader-path>",
+    "lockfile": "<approved-lockfile-path>", "runbook": "docs/verification/EVAL_RUNBOOK.md",
+    "setup_argv": ["<approved-setup-command>"], "full_argv": ["<approved-full-command>"]
+  }
+}
