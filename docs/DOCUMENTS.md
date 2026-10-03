@@ -4,6 +4,7 @@ The four READMEs remain the documentation of record for the skill bundle.
 
 | Document | Purpose | Status |
 | --- | --- | --- |
+| `docs/epics/EPIC-viteplus-evaluation.md` | Vite+/VoidZero frontend tooling and AI/skill evaluation assessment | Research complete; integration and eval pilot proposed, not implemented |
 | `docs/epics/EPIC-eval-contract-integration.md` | Approved eval policy, deterministic quality gate and reproducible handoff integration | 0.60.0 local candidate `882dda69` verified on Windows; independent code/security review PASS; release/install pending |
 | `docs/epics/EPIC-eval-contract-research.md` | Eval rubric, frozen pass rate and reproducible handoff research | Research complete; accepted implementation continues in EPIC-eval-contract-integration |
 | `docs/research/eval-contract-integration.md` | Integration proposal, eval gate rules and future-project handoff | Accepted on 2026-10-03; implementation tracked separately |
