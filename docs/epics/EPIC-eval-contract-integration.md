@@ -113,6 +113,12 @@ No new responsibility is added to its existing table/approval code.
 
 ## Handoff
 
+2026-10-03 EVAL-I-01 policy visibility repair, baseline `f0fefbea`, working-tree:
+require a JSON code fence so rendered approval cannot hide policy fields inside
+HTML comments. Read the body from exact raw offsets, retaining Unicode in valid
+JSON strings. The policy reference and four README descriptions agree. All 17
+policy tests PASS, including raw-offset/digest and LF/CRLF Unicode controls.
+
 2026-10-03 EVAL-I-01 malformed-input diagnostic repair, baseline `ad48d708`,
 working-tree: oversized JSON integers become typed policy errors, existing
 duplicate-key diagnostics stay intact, and control characters in artifact paths

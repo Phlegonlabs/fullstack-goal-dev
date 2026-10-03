@@ -75,6 +75,21 @@ class EvalPolicyTests(unittest.TestCase):
             with self.subTest(candidate=candidate[:30]):
                 self.assertTrue(ep.validate_eval_policy(candidate, required=True))
 
+    def test_policy_fence_keeps_all_fields_visible_and_unicode_intact(self):
+        self.assertEqual([], ep.validate_eval_policy(prd(self.policy), required=True))
+        hidden = copy.deepcopy(self.policy)
+        hidden.update(reason="Output quality <!--", owner="Jacky Chan -->")
+        for policy in (self.policy, hidden):
+            unfenced = prd(policy).replace("```json\n", "").replace("\n```", "")
+            self.assertTrue(any("json fence" in error for error in ep.validate_eval_policy(unfenced, required=True)))
+        for separator in ("\u0085", "\u2028", "\u2029"):
+            policy = copy.deepcopy(self.policy)
+            policy["delivery"]["full_argv"] += ["--prompt", "Before" + separator + "after"]
+            source = prd(policy).replace(json.dumps(policy, indent=2), json.dumps(policy, indent=2, ensure_ascii=False))
+            for newline in ("\n", "\r\n"):
+                with self.subTest(separator=repr(separator), newline=repr(newline)):
+                    self.assertEqual(policy, ep.parse_eval_policy(source.replace("\n", newline), required=True))
+
     def test_raw_digest_exclusion_matrix_cannot_hide_policy(self):
         import check_product_package as package
         from test_product_package_checker import valid_prd, valid_architecture, valid_stack, strictize_approved_package

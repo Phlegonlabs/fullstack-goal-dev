@@ -158,10 +158,12 @@ def parse_eval_policy(prd_text, *, required=False):
     headings = re.findall(r"^## .+$", prefix, re.M)
     if not headings or headings[-1] != "## AI and Automation":
         fail("eval policy must be in the AI and Automation section")
-    body = "\n".join(prd_text.splitlines()[starts[0]:ends[0] - 1]).strip()
-    if body.startswith("```json\n") and body.endswith("\n```"):
-        body = body[8:-4]
-    return json_object(body)
+    body_start = sum(map(len, lines[:starts[0]]))
+    body_end = sum(map(len, lines[:ends[0] - 1]))
+    body = prd_text[body_start:body_end].replace("\r\n", "\n").strip()
+    if not (body.startswith("```json\n") and body.endswith("\n```")):
+        fail("eval policy body requires a json fence for visible review")
+    return json_object(body[8:-4])
 
 
 def rate(value, label):

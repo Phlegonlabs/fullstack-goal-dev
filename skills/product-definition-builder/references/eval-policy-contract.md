@@ -6,7 +6,8 @@ Never migrate historical approvals automatically.
 
 Record one `<!-- eval-policy:start -->` / `<!-- eval-policy:end -->` pair in
 PRD's `## AI and Automation`, outside the approval block. Its body is a JSON
-object, optionally in a `json` fence. The existing product approval digest
+object inside a `json` fence, keeping every field visible in rendered review.
+The existing product approval digest
 covers these bytes. Derived delivery contracts cannot replace this authority.
 Overlapping or malformed approval boundaries fail validation; approval-excluded
 bytes cannot carry policy authority.
