@@ -124,3 +124,9 @@ Third read-only Claude review completed as `claude-opus-5-5`, requested xhigh, s
 - Parent baseline `19f833f9b70e76ae2c00a507131f58f6c2e8546c`; staged source tree `cf53b84c4e90dbd2d95688fe3a48e767bc9ef6fe` exported and tested from its repository root before the commit. Documentation added after testing changes no tested skill bytes.
 - Focused positive and negative checks: 27 tests passed in `recovery-01-staged.log`; finite job exited with no remaining owned processes. The commit contains only this FLOW outcome, its tests and four-language descriptions.
 - Full exact-candidate release matrix and independent UI pipeline/candidate review remain pending. No remote publication or installed-skill mutation.
+
+### 2026-10-02 — FLOW-02 atomic integration
+
+- Parent baseline `d727dbe5d8e177f6f8a1d4a214aeaef5284bee79`; staged source tree `0b9634e09cc49d42059d0fe9c4780b0040b7588b` exported and tested from its repository root before the commit. Documentation added after testing changes no tested skill bytes.
+- Focused positive and negative checks: 19 tests passed in `recovery-02-staged.log`; finite job exited with no remaining owned processes. The commit contains only this FLOW outcome, its tests and four-language descriptions.
+- Full exact-candidate release matrix and independent UI pipeline/candidate review remain pending. No remote publication or installed-skill mutation.

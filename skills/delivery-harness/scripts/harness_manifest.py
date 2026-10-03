@@ -7297,6 +7297,32 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                     worker.get("outcome") == "fix_required"
                 ):
                     current_reviewable_shas.update(integration_prior_heads)
+                # A detached terminal review remains evidence for its old
+                # candidate. It cannot provide current exact-head coverage.
+                retained_attempts = [
+                    attempt
+                    for attempt in run.get("attempt_log", [])
+                    if isinstance(attempt, dict)
+                    and attempt.get("attempt_id") == worker.get("attempt_id")
+                ]
+                historical_integration_review = (
+                    review_stage == "integration"
+                    and not is_current_review_worker
+                    and worker.get("reviewed_sha") in integration_prior_heads
+                    and (
+                        worker.get("phase") in {"worker_passed", "worker_failed"}
+                        or _is_reconciled_interrupted_review(
+                            worker, node, run.get("attempt_log")
+                        )
+                    )
+                    and len(retained_attempts) == 1
+                    and retained_attempts[0].get("kind") == "review"
+                    and retained_attempts[0].get("result") == worker.get("outcome")
+                    and retained_attempts[0].get("review_lineage_id")
+                    == node.get("review", {}).get("lineage_id")
+                )
+                if historical_integration_review:
+                    current_reviewable_shas.update(integration_prior_heads)
                 if worker["reviewed_sha"] not in current_reviewable_shas:
                     _add(
                         errors,
@@ -7412,7 +7438,7 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                 if worker["phase"] in {"worker_running", "worker_passed"} and (
                     state.get("bound_worker_id") != worker["worker_id"]
                     or state.get("last_attempt_id") != worker["attempt_id"]
-                ):
+                ) and not historical_integration_review:
                     _add(errors, path, "active review worker must match the bound graph attempt")
                 binding = worker["runtime_binding"]
                 if _keys(
