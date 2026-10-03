@@ -4,8 +4,9 @@ The four READMEs remain the documentation of record for the skill bundle.
 
 | Document | Purpose | Status |
 | --- | --- | --- |
-| `docs/epics/EPIC-eval-contract-research.md` | Eval rubric, frozen pass rate and reproducible handoff research | Research complete on `codex/eval-contract-research`; implementation proposal not accepted |
-| `docs/research/eval-contract-integration.md` | Proposed integration points, eval gate rules and future-project handoff | Research proposal; does not change installed or published skill behavior |
+| `docs/epics/EPIC-eval-contract-integration.md` | Approved eval policy, deterministic quality gate and reproducible handoff integration | In progress on `codex/eval-contract-research`; local source only |
+| `docs/epics/EPIC-eval-contract-research.md` | Eval rubric, frozen pass rate and reproducible handoff research | Research complete; accepted implementation continues in EPIC-eval-contract-integration |
+| `docs/research/eval-contract-integration.md` | Integration proposal, eval gate rules and future-project handoff | Accepted on 2026-10-03; implementation tracked separately |
 | `docs/epics/EPIC-agent-delegation-contract.md` | Parent-owned role routing, multi-instance research/exploration and verified dispatch | In progress on `codex/agent-delegation-contract`; local changes, not released |
 | `docs/epics/EPIC-pre-delivery-self-review.md` | PRD/market, UI direction and HiFi author self-review before Harness execution | 0.57.0 candidate on `codex/pre-delivery-self-review`; fixed-candidate verification pending; not released |
 | `docs/audits/2026-09-28-contract-audit.md` | Dispositions for all 47 pasted audit items, including truncated and retained items | Integrated on `main` in the 0.56 release line |
