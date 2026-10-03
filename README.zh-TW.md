@@ -378,6 +378,7 @@ RUN pin >=0.60.0 的 readiness 需要明確 eval applicability；required 時凍
 兩個 acceptance checker 使用安裝目錄及已觀測 Python 的絕對路徑，明確在 host 執行，
 避免 image 在同一路徑放入替代 checker。
 舊 pin 也必須安全讀取 PRD authority；無法讀取是驗證缺口，不能當作沒有 policy。
+解析 policy 有／無之前，讀到的 bytes 都須符合凍結 hash 及已宣告的 Git revision。
 
 Harness 是圍繞明確的邊界所打造的：
 

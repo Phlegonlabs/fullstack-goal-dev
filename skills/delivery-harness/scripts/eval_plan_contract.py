@@ -10,9 +10,27 @@ import check_delivery_acceptance as acceptance
 from delivery_acceptance_io import _read_bytes, _safe_file, _load_json, _sha256, _parse_required_prd_tests, AcceptanceError
 from eval_verification import ep, validate_contract, QUALITY_ASSERTIONS, HANDOFF_ASSERTIONS
 from harness_schema import run_required_harness_version, version_at_least
+from harness_git import GitMetadataError, reject_object_substitution
 
 INTRODUCTION_VERSION = (0, 60, 0)
 RESULTS_PATH = "docs/verification/delivery-results.json"
+
+
+def _authority_bytes(root, source):
+    """Prove one safe byte sequence before interpreting policy presence/absence."""
+    path = _safe_file(root, str(source.get("location", "")))
+    raw = _read_bytes(path, "PRD", root)
+    if source.get("content_sha256") != _sha256(raw):
+        ep.fail("PRD authority bytes do not match the frozen content_sha256")
+    revision = source.get("source_revision")
+    if revision is not None:
+        if not isinstance(revision, str) or not acceptance.GIT_SHA_RE.fullmatch(revision):
+            ep.fail("PRD authority source_revision must be a full Git SHA")
+        reject_object_substitution(root)
+        errors = acceptance._committed_file_errors(root, revision, path.relative_to(root).as_posix(), raw)
+        if errors:
+            ep.fail("PRD authority bytes do not match the frozen source_revision: " + "; ".join(errors))
+    return raw
 
 
 def _command(gate, script, expected):
@@ -101,7 +119,7 @@ def validate_eval_plan(plan, repo_root, *, run=None, source_rows, resolve_source
         adopted = []
         for candidate in candidates:
             try:
-                raw = _read_bytes(_safe_file(root, str(candidate.get("location", ""))), "PRD", root)
+                raw = _authority_bytes(root, candidate)
             except (OSError, AcceptanceError):
                 ep.fail("PRD authority cannot be safely read; policy absence is unobserved")
             prd_text = raw.decode("utf-8")
@@ -176,7 +194,7 @@ def validate_eval_plan(plan, repo_root, *, run=None, source_rows, resolve_source
             **common, "--contract": delivery_ref["location"], "--contract-sha256": delivery_ref["content_sha256"]})
         _topology(plan, gate_map)
         return []
-    except (ep.PolicyError, AcceptanceError) as exc:
+    except (ep.PolicyError, AcceptanceError, GitMetadataError) as exc:
         return [f"eval-plan: {exc}"]
     except (OSError, UnicodeError, TypeError, KeyError, AttributeError, ValueError, RecursionError):
         return ["eval-plan: invalid or unreadable policy/source/gate"]

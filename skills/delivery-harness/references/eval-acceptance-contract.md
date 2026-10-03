@@ -106,6 +106,10 @@ Policy absence must be observed from a safe, bounded authority read. Unreadable,
 oversized, secret-like or linked PRD authority returns a gap even on old pins;
 it never means `not_required`. Non-frozen reference-only archive rows are not
 authority. No permissive fallback reads credentials or follows links.
+Before parsing either presence or absence, those bytes must match the row's
+frozen `content_sha256` and any full `source_revision` regular Git blob.
+The same bounded bytes are hashed against Git metadata; no divergent revision
+or working copy can decide applicability. A missing hash is an authority gap.
 
 Applicable PLANs freeze one canonical `eval contract` source at
 `docs/verification/eval-contract.json` and one `delivery acceptance` source at

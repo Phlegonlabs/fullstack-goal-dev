@@ -11,6 +11,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import eval_plan_contract as pc
 import harness_contract_join as join
+import manifest_fixtures as mf
 from eval_delivery_fixtures import fixture, encoded, prd
 from test_delivery_acceptance import execution
 from eval_verification import QUALITY_ASSERTIONS, HANDOFF_ASSERTIONS
@@ -163,6 +164,70 @@ class EvalPlanContractTests(unittest.TestCase):
             plan["sources"].append({"id": "SRC-ARCHIVE", "kind": "reference", "status": status,
                                    "location": "docs/archive/PRD.md"})
             self.assertEqual([], self.check(plan))
+
+    def test_policy_absence_requires_frozen_hash_even_without_revision(self):
+        path = self.root / "docs/product/PRD.md"
+        path.write_bytes(b"legacy PRD without policy\n")
+        for version in ("0.37.0", "0.59.0", "0.60.0", None):
+            run = copy.deepcopy(self.run) if version else None
+            if run:
+                run["runtime_capabilities"]["runtime_adapter"]["version_gate"]["required_harness_version"] = version
+            errors = pc.validate_eval_plan(self.plan, self.root, run=run,
+                source_rows=join._strict_source_rows, resolve_source=join._resolve_source_bytes)
+            self.assertTrue(any("frozen content_sha256" in error for error in errors))
+
+    def test_exact_committed_policy_with_complete_gates_passes(self):
+        mf.init_repo(self.root, "README.md")
+        (self.root / ".gitattributes").write_bytes(b"* -text -filter\n")
+        mf.git(self.root, "add", ".gitattributes", "docs/product/PRD.md")
+        mf.git(self.root, "commit", "-qm", "freeze synthetic eval policy")
+        self.plan["sources"][0]["source_revision"] = mf.git(self.root, "rev-parse", "HEAD")
+        for version in ("0.37.0", "0.59.0", "0.60.0", None):
+            run = copy.deepcopy(self.run) if version else None
+            if run:
+                run["runtime_capabilities"]["runtime_adapter"]["version_gate"]["required_harness_version"] = version
+            self.assertEqual([], pc.validate_eval_plan(self.plan, self.root, run=run,
+                source_rows=join._strict_source_rows, resolve_source=join._resolve_source_bytes))
+
+    def test_real_git_authority_identity_before_marker_matrix(self):
+        mf.init_repo(self.root, "README.md")
+        (self.root / ".gitattributes").write_bytes(b"* -text -filter\n")
+        shapes = (("prd", "docs/product/PRD.md"),
+                  ("product requirements", "docs/product/requirements.md"),
+                  ("reference", "docs/frozen/PRD.md"))
+        marker = prd(self.policy).encode()
+        absent = b"legacy PRD without policy\n"
+        for frozen_marker in (False, True):
+            frozen = marker if frozen_marker else absent
+            for _, location in shapes:
+                path = self.root / location
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(frozen)
+            mf.git(self.root, "add", ".gitattributes", *[location for _, location in shapes])
+            mf.git(self.root, "commit", "-qm", "freeze synthetic authority")
+            revision = mf.git(self.root, "rev-parse", "HEAD")
+            for version in ("0.37.0", "0.59.0", "0.60.0", None):
+                run = copy.deepcopy(self.run) if version else None
+                if run:
+                    run["runtime_capabilities"]["runtime_adapter"]["version_gate"]["required_harness_version"] = version
+                for kind, location in shapes:
+                    for working_marker in (False, True):
+                        working = marker if working_marker else absent
+                        (self.root / location).write_bytes(working)
+                        for declared in (frozen, working):
+                            plan = copy.deepcopy(self.plan)
+                            plan["sources"][0].update(kind=kind, location=location, source_revision=revision,
+                                content_sha256=hashlib.sha256(declared).hexdigest())
+                            plan["final_gates"].pop(1)
+                            with self.subTest(version=version, kind=kind, frozen=frozen_marker,
+                                              working=working_marker, declared_matches=declared == working):
+                                errors = pc.validate_eval_plan(plan, self.root, run=run,
+                                    source_rows=join._strict_source_rows, resolve_source=join._resolve_source_bytes)
+                                expected_failure = frozen_marker or working_marker or version == "0.60.0"
+                                self.assertEqual(expected_failure, bool(errors), errors)
+                                with patch.object(join, "_validate_product_frozen_contract_joins", return_value=[]):
+                                    self.assertEqual(expected_failure, bool(join.validate_frozen_contract_joins(plan, self.root, run=run)))
+                        (self.root / location).write_bytes(frozen)
 
     def test_non_ai_reasoned_exemption_needs_no_eval_gates(self):
         waived = {"schema": "eval-policy/1", "applicability": "not_required", "reason": "Deterministic software requires no AI quality sampling", "owner": "Jacky Chan"}

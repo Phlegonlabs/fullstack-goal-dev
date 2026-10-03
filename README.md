@@ -380,6 +380,8 @@ Python executable and explicit host execution,
 so an image cannot replace the checker at the same path.
 An unsafe or unreadable PRD authority is a validation gap, including on older
 pins; it cannot establish that a policy is absent.
+Policy presence and absence both require the read bytes to match the frozen
+hash and any declared Git revision before parsing.
 
 The Harness is built around explicit boundaries:
 

@@ -379,6 +379,8 @@ Ambos checkers usan rutas absolutas de la instalación y del Python observado, c
 el host; una imagen no puede sustituir el archivo en la misma ruta.
 Una autoridad PRD insegura o ilegible es un vacío de validación, incluso en
 pins antiguos; no demuestra que la política esté ausente.
+Antes de interpretar presencia o ausencia, los bytes deben coincidir con el
+hash congelado y cualquier revisión Git declarada.
 
 El Harness se construye sobre límites explícitos:
 

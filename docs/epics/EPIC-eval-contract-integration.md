@@ -113,6 +113,22 @@ No new responsibility is added to its existing table/approval code.
 
 ## Handoff
 
+2026-10-03 A4 review / EVAL-I-04 authority refinement, baseline `2de7a56e`,
+working-tree: Product code/security PASS, but Gate review returned fix_required
+for a 0.37-pinned frozen-Git versus working-tree absence bypass. Both completed
+on Opus 5.5 with read-only tools, no denials or fallback; captured processes
+exited. This repeated family required a new bounded structural refinement:
+prove one safe byte sequence against the frozen hash and any regular Git blob
+before interpreting presence or absence. Reuse the hardened metadata/hash
+proof; do not read an unbounded historical blob or skip unavailable authority.
+The 96-case real-Git matrix covers both marker states, four pin/plan-only modes,
+three source shapes and both declared-hash choices through both public joins.
+19 readiness tests ran: 18 PASS, one POSIX variant skipped. A separate exact
+committed-policy control passed across all four modes with complete gates.
+Focused pyflakes/diff PASS. Four READMEs and reference agree. Fresh exact-SHA
+review and broad suites remain required. A4's Product low integer-overflow
+diagnostic note is nonblocking and retained; it fails closed.
+
 2026-10-03 EVAL-I-03 parser diagnostic repair, baseline `1b6de68d`,
 working-tree: missing, unreadable or syntactically broken installed sibling
 parser returns an explicit validation/JSON failure in loader, common join and
