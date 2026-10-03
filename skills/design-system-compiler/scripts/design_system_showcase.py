@@ -215,7 +215,6 @@ def registry_findings(registry: dict[str, Any]) -> list[str]:
     specimens: dict[str, dict[str, Any]] = {}
     covered_axes: set[tuple[str, str, str]] = set()
     specimen_subjects: set[tuple[str, str]] = set()
-    rendered_states: set[tuple[str, str, str]] = set()
     for row in showcase.get("specimens") if isinstance(showcase.get("specimens"), list) else [None]:
         if not isinstance(row, dict) or set(row) != {"id", "subject", "axes", "source"}:
             problems.append("showcase specimens must contain exactly id, subject, axes and source")
@@ -235,7 +234,6 @@ def registry_findings(registry: dict[str, Any]) -> list[str]:
             continue
         if PAGE_RE.fullmatch(source["page"]) is None or SELECTOR_RE.fullmatch(source["selector"]) is None:
             problems.append(f"showcase specimen {specimen_id} source must name a package page and a simple selector")
-        rendered_states.add((subject[0], subject[1], source["state"]))
         allowed = primitive_axes(primitives.get(subject[1])) if subject[0] == "primitive" else {}
         if not isinstance(axes, dict) or any(key not in allowed or value not in allowed[key] for key, value in axes.items()):
             problems.append(f"showcase specimen {specimen_id} axes must use the subject's closed variant sets")
@@ -284,8 +282,7 @@ def registry_findings(registry: dict[str, Any]) -> list[str]:
         elif row["mode"] == "pseudo" and row["state"] not in PSEUDO_STATES:
             problems.append(f"showcase pseudo state {row['state']} must be one of " + ", ".join(PSEUDO_STATES))
     for kind, name, state in sorted(required_states - seen_states):
-        if (kind, name, state) not in rendered_states:
-            problems.append(f"showcase is missing {kind} {name} state {state}")
+        problems.append(f"showcase is missing {kind} {name} state {state}")
     variants = registry.get("motionVariants") if isinstance(registry.get("motionVariants"), list) else []
     motion_covered = set()
     for row in showcase.get("motion") if isinstance(showcase.get("motion"), list) else [None]:

@@ -206,6 +206,9 @@ def demo_registry() -> dict:
     ] + [
         {"subject": {"kind": "component", "name": "BerthCard"}, "state": state, "mode": "rendered", "specimen": f"berth-card-{state}"}
         for state in ("ready", "loading", "empty")
+    ] + [
+        {"subject": {"kind": "primitive", "name": name}, "state": "default", "mode": "rendered", "specimen": specimen}
+        for name, specimen in (("Button", "button-primary"), ("TextField", "field-default"))
     ]
     return {
         "schema": "design-system/4",

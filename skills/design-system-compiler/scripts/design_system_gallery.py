@@ -353,7 +353,7 @@ class Gallery:
         showcase, primitives = self.registry["showcase"], self.registry.get("primitives", {})
         components = self.registry.get("productComponents", {}) or {}
         axis_total = sum(len(values) for spec in primitives.values() for values in source.primitive_axes(spec).values())
-        state_total = len(showcase["states"]) + sum(1 for spec in primitives.values() if isinstance(spec, dict) and spec.get("layer") == "control")
+        state_total = len(showcase["states"])
         surface_total = sum(len(row.get("responsive", {}).get("targets", [])) for row in self.surfaces)
         counts = (("Primitive variant values", axis_total), ("Product components", len(components)),
                   ("State treatments", state_total), ("Motion variants", len(self.registry.get("motionVariants", []) or [])),

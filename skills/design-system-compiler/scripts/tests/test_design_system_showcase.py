@@ -81,6 +81,25 @@ class ShowcaseCoverageTests(unittest.TestCase):
                 mutate(data)
                 self.assertIn(expected, "\n".join(findings(data)))
 
+    def test_rendered_specimens_do_not_replace_required_state_rows(self):
+        for kind, name, state in (
+            ("component", "BerthCard", "empty"),
+            ("primitive", "Button", "default"),
+            ("primitive", "TextField", "disabled"),
+        ):
+            with self.subTest(subject=name, state=state):
+                data = demo_registry()
+                data["showcase"]["states"] = [
+                    row for row in data["showcase"]["states"]
+                    if (row["subject"]["kind"], row["subject"]["name"], row["state"]) != (kind, name, state)
+                ]
+                self.assertTrue(any(
+                    row["subject"] == {"kind": kind, "name": name} and row["source"]["state"] == state
+                    for row in data["showcase"]["specimens"]
+                ))
+                self.assertIn(f"showcase is missing {kind} {name} state {state}",
+                              "\n".join(showcase.registry_findings(data)))
+
     def test_pseudo_states_and_motion_need_approved_css(self):
         pages = demo_pages()
         without_active = dict(pages, **{"index.html": pages["index.html"].replace(".btn:active{transform:translateY(1px)}", "")})
@@ -130,6 +149,11 @@ class GalleryTests(unittest.TestCase):
         self.assertEqual(committed, self.html.encode("utf-8"),
                          "regenerate with: python skills/design-system-compiler/scripts/tests/showcase_fixture.py --write")
         self.assertEqual(self.html, render_demo()[0])
+
+    def test_default_state_rows_are_visible_and_counted_once(self):
+        count = len(self.registry["showcase"]["states"])
+        self.assertIn(f"<strong>{count}</strong>State treatments", self.html)
+        self.assertEqual(2, len(re.findall(r'<th scope="row">default</th>', self.html)))
 
     def test_scripts_are_hash_pinned_and_frames_sandboxed(self):
         policy = re.search(r'Content-Security-Policy" content="([^"]+)"', self.html).group(1).replace("&#x27;", "'")
@@ -212,6 +236,8 @@ class PairIntegrationTests(unittest.TestCase):
         reason = "The synthetic fixture control has no distinct {} appearance."
         states = [{"subject": {"kind": "primitive", "name": name}, "state": state, "mode": na, "reason": reason.format(state)}
                   for name in ("Link", "TextField") for state in ("hover", "focus-visible", "active", "disabled")]
+        states += [{"subject": {"kind": "primitive", "name": name}, "state": "default", "mode": "rendered", "specimen": specimen}
+                   for name, specimen in (("Link", "link"), ("TextField", "field"))]
         data = registry(schema="design-system/4", stylingMechanism="Tailwind CSS", stateMatrix=["ready", "updated"],
                         motionVariants=[], productComponents={},
                         primitives={"Link": {"layer": "control", "class": "product-link", "variants": ["default"]},

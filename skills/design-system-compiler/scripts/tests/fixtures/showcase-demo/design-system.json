@@ -418,6 +418,24 @@
           "kind": "component",
           "name": "BerthCard"
         }
+      },
+      {
+        "mode": "rendered",
+        "specimen": "button-primary",
+        "state": "default",
+        "subject": {
+          "kind": "primitive",
+          "name": "Button"
+        }
+      },
+      {
+        "mode": "rendered",
+        "specimen": "field-default",
+        "state": "default",
+        "subject": {
+          "kind": "primitive",
+          "name": "TextField"
+        }
       }
     ]
   },

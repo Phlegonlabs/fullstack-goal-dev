@@ -11,6 +11,7 @@
       }
     ],
     "states": [
+      { "subject": { "kind": "primitive", "name": "<Button>" }, "state": "default", "mode": "rendered", "specimen": "<button-primary>" },
       { "subject": { "kind": "primitive", "name": "<Button>" }, "state": "hover", "mode": "pseudo", "specimen": "<button-primary>" },
       { "subject": { "kind": "primitive", "name": "<Button>" }, "state": "disabled", "mode": "rendered", "specimen": "<button-disabled>" },
       { "subject": { "kind": "primitive", "name": "<Button>" }, "state": "active", "mode": "not_applicable", "reason": "<concrete product reason>" }
