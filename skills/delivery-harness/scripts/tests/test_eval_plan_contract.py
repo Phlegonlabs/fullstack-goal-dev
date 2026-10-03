@@ -52,7 +52,8 @@ class EvalPlanContractTests(unittest.TestCase):
             argv += [value for pair in options.items() for value in pair]
             if options:
                 argv.append("--candidate-from-head")
-            self.plan["final_gates"].append({"id": name, "cwd": ".", "argv": argv, "pass_signal": "exit 0"})
+            self.plan["final_gates"].append({"id": name, "cwd": ".", "argv": argv, "pass_signal": "exit 0",
+                                             "execution": {"isolation": "host"}})
             self.plan["graph"]["nodes"].append({"id": "N-" + name, "kind": "verifier", "ref": name, "executor": "local_command"})
         for before, after in (("final-check", "eval-acceptance"), ("eval-acceptance", "delivery-acceptance"), ("delivery-acceptance", "final-closeout")):
             self.plan["graph"]["edges"].append({"kind": "dependency", "from": "N-" + before, "to": "N-" + after,
@@ -159,6 +160,15 @@ class EvalPlanContractTests(unittest.TestCase):
             plan["final_gates"][index]["argv"][1] = relative
             errors = self.check(plan)
             self.assertTrue(any("absolute installed checker" in error for error in errors), errors)
+
+    def test_checker_execution_namespace_must_be_explicit_host(self):
+        for index in (1, 2):
+            for execution in (None, {}, {"isolation": "container", "sandbox": {"image": "fixture@sha256:" + "a" * 64}},
+                              {"isolation": "unknown"}, "host"):
+                plan = copy.deepcopy(self.plan)
+                plan["final_gates"][index]["execution"] = execution
+                with self.subTest(gate=index, execution=execution):
+                    self.assertTrue(self.check(plan))
 
     def test_common_join_cannot_skip_eval_through_strict_early_return(self):
         self.plan["final_gates"].pop(1)

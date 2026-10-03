@@ -109,7 +109,10 @@ Applicable PLANs freeze one canonical `eval contract` source at
 source revision. Required final gates are `eval-acceptance`, `delivery-acceptance`
 and `final-closeout`. The first two directly invoke absolute installed checker paths
 with exactly the frozen paths/hashes, default register and `--candidate-from-head`,
-`cwd: .`, `pass_signal: exit 0`, and omitted/always selection. No shell wrapper
+`cwd: .`, `pass_signal: exit 0`, explicit `execution.isolation: host`, and
+omitted/always selection. The host Git checkout and installed skill paths must
+share one filesystem namespace; an archive-only container snapshot cannot supply
+this proof. No shell wrapper
 or caller-selected passing checker substitutes for them.
 
 Each final gate has one `local_command` verifier node. Pass-only unbounded

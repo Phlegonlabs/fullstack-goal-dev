@@ -375,6 +375,8 @@ El [contrato de aceptación eval](skills/delivery-harness/references/eval-accept
 `check_eval_acceptance.py` une ambos informes al registro de entrega en H2 limpio, verifica hashes congelados y equivalencia con H1, y precede la aceptación de entrega. El [runbook eval](skills/delivery-harness/assets/templates/EVAL_RUNBOOK.template.md) documenta instalación, comandos completos/rápidos, límites, reproducción de fallos y limpieza autorizada. El checker no ejecuta runners; la revisión verifica la procedencia.
 
 Para pins >=0.60.0, readiness exige aplicabilidad eval explícita y, si es requerida, fuentes eval/entrega congeladas y gates siempre ejecutados: controles finales → eval → aceptación de entrega → closeout. Hashes, comandos o conexiones incorrectos fallan. Los pins anteriores sin marcador conservan su contrato; un marcador presente adopta los controles.
+Ambos checkers usan rutas absolutas de la instalación y ejecución explícita en
+el host; una imagen no puede sustituir el archivo en la misma ruta.
 
 El Harness se construye sobre límites explícitos:
 

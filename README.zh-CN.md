@@ -375,6 +375,8 @@ Full-stack 按完整流程实现页面、API、权限、数据保存与反馈。
 `check_eval_acceptance.py` 在干净 H2 将两份 report 接上现有 delivery register，验证冻结 hash 及 H1 等价，再执行 delivery acceptance。交付的 [eval runbook](skills/delivery-harness/assets/templates/EVAL_RUNBOOK.template.md) 记录 setup、full／quick 指令、限额、失败案例重跑和自有 fixture 清理。Checker 不执行 runner 指令；review 仍核对证据来源。
 
 RUN pin >=0.60.0 的 readiness 需要明确 eval applicability；required 时冻结 eval／delivery source，并强制 always-run gate：broad final checks → eval acceptance → delivery acceptance → closeout。错误 hash、替换 checker 或断开 gate 都失败。旧 pin 没有 marker 保留原契约；加入 marker即采用新检查。
+两个 acceptance checker 使用安装目录的绝对路径，明确在 host 执行，
+避免 image 在同一路径放入替代 checker。
 
 Harness 是围绕明确的边界构建的：
 

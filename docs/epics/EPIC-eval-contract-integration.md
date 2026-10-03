@@ -74,6 +74,12 @@ The existing large source-join module retains Product/UI authority. Eval source,
 command and graph validation are isolated in one new module under 500 lines;
 the public wrapper joins both checks, so early returns cannot bypass eval.
 
+2026-10-03 EVAL-I-04 execution repair, baseline `a31bc3a`, working-tree:
+both acceptance gates require explicit host isolation, preserving the installed
+checker and Git checkout in one namespace. Container, missing and malformed
+execution policies fail. All 12 readiness tests PASS. Template, reference and
+four README descriptions agree; stale template validator prose corrected.
+
 2026-10-03 EVAL-I-04 adoption repair, baseline `8126610`, working-tree:
 inspect every candidate PRD for opt-in policy before canonical source joins.
 Extra reference rows cannot turn evaluation off; ambiguous policies fail closed.

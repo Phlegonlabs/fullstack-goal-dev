@@ -424,7 +424,9 @@ older pins keep their checks unless a marker opts in. Applicable plans also
 freeze `SRC-EVAL` of kind `eval contract` at `docs/verification/eval-contract.json`.
 Follow `references/eval-acceptance-contract.md`: add the always-run final gate
 `eval-acceptance` invoking installed `check_eval_acceptance.py` with independently
-frozen PRD/eval/delivery hashes and default register. Add its local-command node
+frozen PRD/eval/delivery hashes and default register. Both eval and delivery
+acceptance gates declare `execution.isolation: host` and absolute installed
+checker paths; containers cannot substitute their filesystem. Add its local-command node
 between every broad final check and delivery acceptance, using pass-only
 dependency edges. Keep `final-closeout` after delivery acceptance. Missing or
 substituted sources, checker argv, hashes or graph paths fail the common join.
@@ -448,7 +450,11 @@ Use the parent's frozen contract hash, never a value derived from result writers
 
 For this, the last mission's `write_scope` lists `docs/verification/delivery-results.json` and `docs/verification/evidence/**`, as M1 shows, and so does the security review's `scope` (the validator requires it to cover every mission scope). Readiness review checks that the base already has byte-preserving `-text -filter` attributes for these paths; if not, put `.gitattributes` in an authorized pre-H1 task's `write_scope` and the security review scope, and commit it before H1. `record-integration` checks only that mission scope, so `N-ACCEPTANCE-GATE` is what refuses a product file committed with the register. Only the parent writes these paths, and every evidence file the register lists comes from its own run at H1. When the PLAN declares the acceptance gate, worker-result validation refuses a worker change to the register the gate names with `--results` or anything under its `evidence/` directory, whatever the task `write_scope` says. It also refuses any change no task `write_scope` covers, even when the register path cannot be read from the gate argv. Both checks run in every workspace mode, shared checkout included. They are not coordination paths, so a register commit after the recorded head leaves RUN stale. Any candidate repair after H2 changes files outside the register, so `N-ACCEPTANCE-GATE` fails at the repaired head. `reconcile-candidate-head` accepts only paths in the repair task's `write_scope`, which never lists the register, so rerunning acceptance after H2 needs a formal PLAN revision with fresh owner authorization: the new digest stops the old execution grants from covering anything. The revision adds a repair task whose `write_scope` lists only the register and evidence paths; that is safe then because the mission is already integrated. The parent commits that repair and records it with `reconcile-candidate-head`; a worker result cannot carry it. The template's neutral command placeholders must be replaced before execution.
 
-The manifest validator does not check that these entries exist, so the parent's readiness review must confirm them; passing schema validation alone is insufficient. Do not retrofit or silently migrate a running legacy PLAN/RUN. Direct work runs the acceptance CLI without these artifacts.
+Applicable eval policies require these entries through the common source join.
+For older plans without an eval marker, the parent's readiness review still
+confirms them; schema validation alone is insufficient. Do not retrofit or
+silently migrate a running legacy PLAN/RUN. Direct work runs the acceptance CLI
+without these artifacts.
 
 Implementation may start only after static validation passes, RUN records `plan_readiness: "ready"`, and required actions have explicit user authorization. Readiness never grants authorization.
 
