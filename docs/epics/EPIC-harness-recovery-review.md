@@ -1,6 +1,6 @@
 # Harness Recovery And Review Inputs
 
-Status: historical working-tree checks retained; atomic release integration and fresh candidate verification in progress; not released or installed.
+Status: all six outcomes integrated in atomic local commits; focused checks passed; complete release matrix and candidate review remain separate; not released or installed.
 
 ## Accepted Outcome
 
@@ -28,6 +28,12 @@ Read-only explorers supplied separate execution and upstream designs. Their init
 The unchanged context proposal remains [context-decomposition.md](../research/context-decomposition.md). Its CTX tasks, returned coverage enforcement and real host behavior/cost evaluation are later measured work; this round claims no runtime token or throughput savings. Existing modernization frontend work remains separate and untouched.
 
 ## Change Log
+
+### 2026-10-03 — Source integration complete
+
+- FLOW-01 d727dbe5, FLOW-02 73fbe145, FLOW-03 1194bea7, FLOW-04 d813a06a, FLOW-05 1a9a6d21 and FLOW-06 a4b53102 retain separate task history. The staged-source checks below passed; the timed-out broad archival selection remains recorded, not reused as PASS.
+- At parent 41bf3304d643b43b7ca315f75a76283be00609a7 the checkout is clean. Source recovery bytes are committed, and original working-tree baseline copies remain outside the checkout. Follow-up UI documentation/tests are recorded in EPIC-design-showcase.md.
+- Fixed release verification, independent/security review, hosted platform results and exact protected-target decisions are still required. Formal release and local installation have not occurred.
 
 ### 2026-10-02 — Authorized release integration
 
