@@ -5,6 +5,7 @@ import hashlib
 import io
 import json
 import runpy
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -135,6 +136,26 @@ class EvalAcceptanceTests(unittest.TestCase):
         code, result = self.invoke({"--prd-sha256": "f" * 64})
         self.assertEqual(1, code)
         self.assertIn("frozen", str(result))
+
+    def test_git_timeout_returns_json_failure_at_entry_and_final_recheck(self):
+        self.assertEqual(0, self.invoke()[0])
+        original = checker.run_git
+        for phase in ("entry", "final"):
+            status_calls = []
+
+            def bounded_git(root, *command, **options):
+                if command[0] == "status":
+                    status_calls.append(command)
+                if phase == "entry" or (command[0] == "status" and len(status_calls) == 2):
+                    raise subprocess.TimeoutExpired(["git", *command], 10)
+                return original(root, *command, **options)
+
+            with self.subTest(phase=phase), patch.object(checker, "run_git", side_effect=bounded_git):
+                code, result = self.invoke()
+            self.assertEqual((1, "FAIL"), (code, result["status"]))
+            self.assertIn("unreadable eval evidence", str(result["errors"]))
+            if phase == "final":
+                self.assertEqual(2, len(status_calls))
 
     def test_timestamp_overflow_returns_json_failure_in_both_reports(self):
         original = copy.deepcopy(self.reports)

@@ -113,6 +113,13 @@ No new responsibility is added to its existing table/approval code.
 
 ## Handoff
 
+2026-10-03 EVAL-I-03 Git timeout diagnostic repair, baseline `ed47747d`,
+working-tree: subprocess failures at the eval CLI boundary now produce JSON
+FAIL and exit 1. A passing real-Git control and independently injected entry
+and final-status timeouts cover both ends. This addresses A8's low diagnostic
+note without relaxing any Git guard. All 13 real-Git/CLI tests PASS, including
+the actual clean H1/H2 control. Fresh review and broad suite remain pending.
+
 2026-10-03 EVAL-I-04 current fixture repair, baseline `ff121892`,
 working-tree: the synthetic ordinary-product declaration now uses the required
 JSON fence before approval hashing. A direct factory/parser control rejects the

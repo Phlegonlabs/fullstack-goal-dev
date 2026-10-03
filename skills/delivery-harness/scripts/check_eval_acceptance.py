@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 from pathlib import Path
 import sys
 
@@ -144,7 +145,8 @@ def main(argv=None):
             delivery_contract_sha256=config.delivery_contract_sha256, results=config.results)
     except (AcceptanceError, ep.PolicyError) as exc:
         result = {"status": "FAIL", "errors": [str(exc)]}
-    except (OSError, ValueError, TypeError, KeyError, AttributeError, RecursionError, GitMetadataError):
+    except (OSError, ValueError, TypeError, KeyError, AttributeError, RecursionError, GitMetadataError,
+            subprocess.SubprocessError):
         result = {"status": "FAIL", "errors": ["invalid, unsafe or unreadable eval evidence"]}
     print(json.dumps(result, indent=2))
     return 0 if result["status"] == "PASS" else 1
