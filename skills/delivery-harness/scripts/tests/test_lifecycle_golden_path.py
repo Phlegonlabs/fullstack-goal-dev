@@ -42,6 +42,7 @@ for candidate in (
 
 from harness_core import load_run as _load_run  # noqa: E402
 from manifest_fixtures import (  # noqa: E402
+    eval_exempt_product_fixture,
     git,
     init_repo,
     manifest_markdown,
@@ -329,7 +330,8 @@ class SharedLifecycleGoldenPathTests(unittest.TestCase):
             )
             # Replace the legacy fixture with the same product's current HiFi
             # contract, then freeze the required schema-3 compiler pair.
-            ui_path, prd_path, target_path = current_publication(root)
+            with eval_exempt_product_fixture():
+                ui_path, prd_path, target_path = current_publication(root)
             plan["sources"] = [row for row in plan["sources"] if row["kind"] != "wireframe"]
             paths = {
                 "prd": prd_path,

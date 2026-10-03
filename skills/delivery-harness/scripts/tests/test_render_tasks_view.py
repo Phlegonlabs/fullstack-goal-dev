@@ -23,7 +23,7 @@ if str(PDB_TESTS_DIR) not in sys.path:
 import new_run  # noqa: E402
 import render_tasks_view  # noqa: E402
 from harness_manifest import load_plan  # noqa: E402
-from manifest_fixtures import carry_security_requirement, manifest_markdown  # noqa: E402
+from manifest_fixtures import carry_security_requirement, manifest_markdown, eval_exempt_prd  # noqa: E402
 from test_product_package_checker import (  # noqa: E402
     release_architecture,
     strictize_approved_package,
@@ -109,7 +109,7 @@ class RenderTasksViewTests(unittest.TestCase):
         self.dir = Path(self.tmp.name)
         self.plan = load_plan(PLAN_TEMPLATE)
         approved_prd, approved_architecture, approved_stack = strictize_approved_package(
-            valid_prd(), release_architecture(), valid_stack()
+            eval_exempt_prd(valid_prd()), release_architecture(), valid_stack()
         )
         product_sources = {
             "docs/product/PRD.md": approved_prd.encode("utf-8"),

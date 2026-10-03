@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import hashlib
+from contextlib import contextmanager
 import json
 import platform
 import subprocess
 import sys
 from pathlib import Path
+from unittest.mock import patch
 
 SCRIPTS_DIR = Path(__file__).resolve().parents[1]
 if str(SCRIPTS_DIR) not in sys.path:
@@ -32,6 +34,24 @@ SHA_A = "a" * 40
 SHA_B = "b" * 40
 SHA_C = "c" * 40
 SHA_D = "d" * 40
+
+
+def eval_exempt_prd(prd: str) -> str:
+    """Declare this deterministic synthetic package before approval is hashed."""
+    policy = {"schema": "eval-policy/1", "applicability": "not_required",
+              "reason": "This deterministic synthetic package has no AI output or autonomous action",
+              "owner": "Carmen Lee"}
+    block = "<!-- eval-policy:start -->\n" + json.dumps(policy) + "\n<!-- eval-policy:end -->\n"
+    return prd.replace("## AI and Automation\n", "## AI and Automation\n" + block, 1)
+
+
+@contextmanager
+def eval_exempt_product_fixture():
+    """Seed the current publication fixture; never mock a production checker."""
+    import test_product_package_checker as package_fixture
+    original = package_fixture.valid_prd
+    with patch.object(package_fixture, "valid_prd", side_effect=lambda **options: eval_exempt_prd(original(**options))):
+        yield
 
 
 def manifest_markdown(

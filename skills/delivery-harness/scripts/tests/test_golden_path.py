@@ -38,6 +38,7 @@ if str(SCRIPTS_DIR) not in sys.path:
 from harness_core import load_run  # noqa: E402
 from harness_contract_join import validate_frozen_contract_joins  # noqa: E402
 from manifest_fixtures import (  # noqa: E402
+    eval_exempt_product_fixture,
     git,
     init_repo,
     manifest_markdown,
@@ -304,7 +305,8 @@ class GoldenPathTests(unittest.TestCase):
             sys.path.insert(0, str(strict_authority_fixtures.UI_TESTS_DIR))
             from test_wireframe_free_publication import current_publication
             from ui_approval_digest import canonical_ui_approval_sha256
-            ui_path, _, _ = current_publication(root)
+            with eval_exempt_product_fixture():
+                ui_path, _, _ = current_publication(root)
             ui_text = ui_path.read_text(encoding="utf-8").replace("Decision: not_required", "Decision: required")
             ui_text = re.sub(r"^Replacement visual contract when_not_required:.*$",
                             "Compiled design system pair: pending — design-system-compiler", ui_text, flags=re.M)

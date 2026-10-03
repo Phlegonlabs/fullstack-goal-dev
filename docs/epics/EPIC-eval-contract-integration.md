@@ -113,6 +113,20 @@ No new responsibility is added to its existing table/approval code.
 
 ## Handoff
 
+2026-10-03 A5 review / EVAL-I-05 current-fixture repair, baseline `0b0d4f5f`,
+working-tree: both 20-path Product and 16-path Gate code/security reviews PASS
+at exact `0b0d4f5f8eae26696c658f4cd361c502bf4979bf`, no security findings,
+Opus 5.5 / requested xhigh, read-only, no denials or fallback. Actual named
+effort is unobserved; the Gate runtime reports numeric 40. Both processes exited.
+Parent then found nine new-RUN fixture failures: fresh 0.60 package inputs lacked
+explicit applicability. Seed a reasoned deterministic exemption before approval
+hashing and before the current synthetic HiFi publication, without mocking
+production checkers or changing gate requirements. New RUN and tasks-view
+suites PASS; both CLI golden paths PASS. The shared fixture factory is 1545
+lines and retains its one responsibility: synthetic test data construction.
+These two small data helpers do not warrant a second fixture system.
+Fresh security review on the resulting SHA and the full suite remain pending.
+
 2026-10-03 A4 review / EVAL-I-04 authority refinement, baseline `2de7a56e`,
 working-tree: Product code/security PASS, but Gate review returned fix_required
 for a 0.37-pinned frozen-Git versus working-tree absence bypass. Both completed

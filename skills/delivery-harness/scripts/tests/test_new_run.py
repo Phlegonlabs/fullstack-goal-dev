@@ -29,7 +29,7 @@ from test_product_package_checker import (  # noqa: E402
     valid_prd,
     valid_stack,
 )
-from manifest_fixtures import carry_security_requirement  # noqa: E402
+from manifest_fixtures import carry_security_requirement, eval_exempt_prd  # noqa: E402
 from harness_manifest import (  # noqa: E402
     load_plan,
     load_run,
@@ -51,7 +51,7 @@ class NewRunTests(unittest.TestCase):
         self.plan = load_plan(PLAN_TEMPLATE)
         self.plan_path = self.dir / "PLAN.md"
         approved_prd, approved_architecture, approved_stack = strictize_approved_package(
-            valid_prd(), release_architecture(), valid_stack()
+            eval_exempt_prd(valid_prd()), release_architecture(), valid_stack()
         )
         product_sources = {
             "docs/product/PRD.md": approved_prd.encode("utf-8"),
