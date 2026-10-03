@@ -160,11 +160,17 @@ class UiDesignV3Tests(unittest.TestCase):
             root = Path(directory)
             ui, prd, hifi = v3_publication(root)
             three = ui.read_text(encoding="utf-8")
+            ui.write_text(three.replace("Direction mode: three comparable directions",
+                                        "Direction mode: THREE Comparable Directions"), encoding="utf-8")
+            self.assertEqual([], preflight(ui, root, prd, hifi))
             others = [line for line in three.splitlines() if re.match(r"\| VD-R1-0[23] \|", line)]
             one = three.replace("Direction mode: three comparable directions", "Direction mode: one recommended direction")
             for line in others:
                 one = one.replace(line + "\n", "")
             ui.write_text(one, encoding="utf-8")
+            self.assertEqual([], preflight(ui, root, prd, hifi))
+            ui.write_text(one.replace("Direction mode: one recommended direction",
+                                      "Direction mode: ONE Recommended Direction"), encoding="utf-8")
             self.assertEqual([], preflight(ui, root, prd, hifi))
             intake = one.index("## UI Design Intake")
             owner = re.compile(r"^Decision owner: .*$", re.M)
@@ -180,6 +186,9 @@ class UiDesignV3Tests(unittest.TestCase):
                                     "UI Design Intake Direction mode must be one of"),
                 "three mode over one direction": (
                     one.replace("Direction mode: one recommended direction", "Direction mode: three comparable directions"),
+                    "Direction comparison requires exactly 3 directions"),
+                "mixed-case three mode over one direction": (
+                    one.replace("Direction mode: one recommended direction", "Direction mode: THREE Comparable Directions"),
                     "Direction comparison requires exactly 3 directions"),
                 "three studies for one direction": (
                     one.replace("| VD-R1-01 | docs/design/directions", "\n".join(studies) + "\n| VD-R1-01 | docs/design/directions", 1),
