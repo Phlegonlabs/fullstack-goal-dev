@@ -47,6 +47,8 @@ The parent adapter maps only an explicit model/provider availability error to `f
 
 ## Recovery
 
+For 0.59+ role-bound delegated missions, `reconcile-interrupted --failure-receipt <path>` verifies the stopped predecessor and inspected partial work before changing phases. The selector and `lease-worker` recheck that retained receipt before admitting a retry. Missing or changed stop evidence blocks retry, including an older interruption marker in a current RUN. Unknown liveness uses pause and host observation. Cancellation or timeout with confirmed termination can permit a fresh same-role attempt; it never permits a model fallback. This bounded check does not change pre-0.59 pins, parent/non-role assignments, or the separate review fan-out reconciliation protocol.
+
 For either `lease-worker` or `reserve-review-dispatch`, pass the existing `--fallback-record` evidence. It must name the configured primary-to-fallback mapping, exact stopped predecessor and a fresh attempt. Its error, termination and partial-work evidence must match the retained failure. The logical role remains unchanged; `resolved_role` records the fallback implementation. Recompute the fallback's capabilities, required tools, action grants, capacity and isolation before reserving it. The same review/mission retry budget still applies. Fallback cannot chain from a fallback.
 
 Record the fallback's actual launch with the same fallback evidence. A failed start has a failure receipt, not a fabricated predecessor launch. A runtime failure has both its original launch and failure receipt. Neither receipt grants an action or lets an ineligible UI/reviewer node become parent work.

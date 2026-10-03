@@ -8,11 +8,39 @@ from typing import Any
 from agent_launch_records import matching_launch_records
 from agent_result_receipts import RECEIPT_KEYS, _source
 from harness_core import ManifestError
+from agent_role_contract import binding_is_role_bound
+from harness_schema import run_required_harness_version, version_at_least
 
 
 AVAILABILITY_CODES = {"model_not_found", "model_unavailable", "provider_unavailable", "model_not_supported"}
 FAILURE_KEYS = {"worker_id", "attempt_id", "failure_classification", "error_code",
                 "observed_error", "stopped", "termination_evidence", "partial_work"}
+
+
+def interruption_receipt_required(run: dict[str, Any], worker: dict[str, Any]) -> bool:
+    """Current delegated role retries require host-observed termination."""
+
+    return (
+        version_at_least(run_required_harness_version(run), (0, 59, 0))
+        and worker.get("worker_runtime") in {"subagent", "app_task"}
+        and binding_is_role_bound(worker.get("runtime_binding"))
+    )
+
+
+def interrupted_retry_issues(run: dict[str, Any], attempt: dict[str, Any]) -> list[str]:
+    """Join the interruption marker to its exact stopped predecessor."""
+
+    workers = [worker for worker in run.get("workers", [])
+               if isinstance(worker, dict)
+               and worker.get("lease_id") == attempt.get("lease_id")
+               and worker.get("mission_id") == attempt.get("mission_id")]
+    if len(workers) != 1:
+        return ["interrupted retry requires one retained predecessor"]
+    worker = workers[0]
+    if not interruption_receipt_required(run, worker):
+        return []
+    _, issues = read_failure_receipt(run, worker, "mission", worker.get("failure_receipt"))
+    return issues
 
 
 def read_failure_receipt(run: dict[str, Any], reserved: dict[str, Any], kind: str,

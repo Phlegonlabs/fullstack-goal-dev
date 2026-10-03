@@ -81,7 +81,9 @@ from select_ready_nodes import (
 )
 from select_ready_nodes import _runtime_binding
 from agent_launch_records import validate_launch_record_shape
-from agent_failure_receipts import load_failure_receipt
+from agent_failure_receipts import (
+    interrupted_retry_issues, interruption_receipt_required, load_failure_receipt,
+)
 from agent_role_contract import role_contract_enabled, role_contract_gate_enabled
 from agent_result_receipts import load_result_receipt
 from agent_role_recovery import resolve_fallback_reservation
@@ -2441,6 +2443,10 @@ def _lease_worker(plan: dict[str, Any], run: dict[str, Any], args: argparse.Name
             == "interrupted_worker_reconciliation"
             and latest_mission_attempt.get("result") == "blocked"
         )
+        if reconciled_interrupt:
+            issues = interrupted_retry_issues(run, latest_mission_attempt)
+            if issues:
+                raise ManifestError("interrupted retry is unsafe: " + "; ".join(issues))
         if not (retryable_failure or reconciled_interrupt):
             raise ManifestError(
                 f"mission {args.mission_id!r} cannot be re-leased from "
@@ -4150,6 +4156,10 @@ def _reconcile_interrupted(run: dict[str, Any], args: argparse.Namespace) -> Non
         raise ManifestError(f"unknown worker {args.worker_id!r}")
     if worker.get("phase") not in {"leased", "worker_running"}:
         raise ManifestError("worker is not active; no interrupted transition is needed")
+    if interruption_receipt_required(run, worker):
+        worker["failure_receipt"] = load_failure_receipt(
+            getattr(args, "failure_receipt", None), run, worker, "mission"
+        )
     worker["phase"] = "blocked"
     mission_id = worker.get("mission_id")
     mission_state = run.get("mission_states", {}).get(mission_id)
@@ -5137,6 +5147,7 @@ def build_parser() -> argparse.ArgumentParser:
     reconcile = subparsers.add_parser("reconcile-interrupted")
     reconcile.add_argument("--worker-id", required=True)
     reconcile.add_argument("--reason", required=True)
+    reconcile.add_argument("--failure-receipt", type=Path)
     review_reconcile = subparsers.add_parser("reconcile-interrupted-reviews")
     review_reconcile.add_argument("--worker-id", action="append", required=True)
     review_reconcile.add_argument("--reason", required=True)

@@ -40,6 +40,7 @@ from harness_schema import (
 from agent_role_bindings import resolve_runtime_binding
 from agent_role_contract import mandatory_worker_role, role_contract_gate_enabled, worker_role
 from agent_role_recovery import resolve_fallback_reservation
+from agent_failure_receipts import interrupted_retry_issues
 from verifier_runtime import sandbox_host_fingerprint
 
 
@@ -607,6 +608,8 @@ def _logical_reasons(
         == "interrupted_worker_reconciliation"
         and latest_mission_attempt.get("result") == "blocked"
     )
+    if reconciled_interrupt and interrupted_retry_issues(run, latest_mission_attempt):
+        reconciled_interrupt = False
     retryable_mission = retryable_failure or reconciled_interrupt
     # Non-mission attempts have no worker-specific reconciliation record.  A
     # failed/blocked approval, external wait, lifecycle action, or deterministic
