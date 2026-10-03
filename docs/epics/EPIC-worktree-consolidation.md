@@ -1,7 +1,7 @@
 # Consolidate the current worktrees
 
 Status: all 16 worktree heads published; current source integrated locally.
-Fixed-candidate review, complete CI and exact main promotion remain pending.
+Fixed-candidate contract/correctness review, complete CI and exact main promotion remain pending.
 
 ## Request And Scope
 
@@ -74,6 +74,12 @@ sources. Snapshot publication is preservation, not fresh verification or release
 - Working-tree candidate preparation: index this consolidation, reconcile the
   workflow's Eval steps and distinguish the unreleased 0.59 source milestone
   from the unified 0.60 candidate in all four README histories.
+- 2026-10-03 owner clarification: "這套是 skills，skills 不用去 review security".
+  Skip security review for this source consolidation. Continue the independent
+  contract/correctness review and complete source CI. This is this task's owner
+  exception; it does not edit consumer product security gates. PR #135 was
+  opened at `27b634c3`; this documentation checkpoint creates its next exact
+  candidate, without repinning earlier checks or review results.
 
 Focused integration checks passed on the resolved working source before the
 Eval merge commit: skill specification, full six-skill Pyflakes, docs weight,
@@ -83,7 +89,7 @@ final-SHA evidence. Logs and immutable publication inventory are outside Git:
 `C:/Users/mps19/AppData/Local/Temp/pdh-worktree-merge-20261003-eb6k85jg`.
 
 The complete fixed-candidate Linux/macOS/Windows CI, required browser suites,
-golden path and independent code/security review must cover the unified SHA.
+golden path and independent contract/correctness review must cover the unified SHA.
 The bound reviewer is native GPT-6.1-Sol/xhigh with read-only assignments;
 review coverage and actual returned identity will be retained externally.
 
