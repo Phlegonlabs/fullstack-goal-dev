@@ -5157,6 +5157,7 @@ def build_parser() -> argparse.ArgumentParser:
     reserve_review.add_argument("--worker-id", required=True)
     reserve_review.add_argument("--attempt-id", required=True)
     reserve_review.add_argument("--report-path")
+    reserve_review.add_argument("--diff-artifact-out", type=Path)
     reserve_review.add_argument("--fallback-record", type=Path)
     reserve_review.add_argument(
         "--packet-out",
@@ -5459,12 +5460,19 @@ def _transition_under_lock(
         )
 
     packet = None
+    diff_artifacts = []
+    if getattr(args, "diff_artifact_out", None) and not getattr(args, "packet_out", None):
+        raise ManifestError("--diff-artifact-out requires --packet-out")
     if receipt is not None and getattr(args, "packet_out", None):
         from render_review_packet import render_packet
 
         if args.packet_out.exists():
             raise ManifestError(f"refusing to overwrite {args.packet_out}")
-        packet = render_packet(plan, run, args.node_id, args.repo_root)
+        if getattr(args, "diff_artifact_out", None) and args.diff_artifact_out.resolve() == args.packet_out.resolve():
+            raise ManifestError("packet and full diff artifact require distinct output paths")
+        packet = render_packet(plan, run, args.node_id, args.repo_root,
+                               diff_artifact_out=getattr(args, "diff_artifact_out", None),
+                               artifacts=diff_artifacts)
 
     verifier_request = None
     push_request_document = None
@@ -5509,7 +5517,17 @@ def _transition_under_lock(
     _ensure_plan_unchanged(args.plan, expected_plan_text)
     _replace_run_document(args.run, run, expected_text=original_text)
     if packet is not None:
-        args.packet_out.write_text(packet, encoding="utf-8", newline="\n")
+        from render_review_packet import write_diff_artifact
+
+        try:
+            for path, data in diff_artifacts:
+                write_diff_artifact(path, data)
+            _write_text_exclusive(args.packet_out, packet)
+        except (ManifestError, OSError) as exc:
+            raise ManifestError(
+                f"{exc}; the RUN review reservation is durable. Re-render the packet"
+                " for its fixed node and candidate to new output paths before launch"
+            ) from exc
     if verifier_request is not None:
         try:
             _write_text_exclusive(request_out, verifier_request)

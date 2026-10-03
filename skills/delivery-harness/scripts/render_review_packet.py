@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -11,6 +12,29 @@ from typing import Any
 
 from harness_git import GitMetadataError, reject_object_substitution, run_git
 from harness_manifest import ManifestError, load_plan, load_run, validate_current_plan_run
+
+
+def validate_artifact_path(path: Path, repo_root: Path) -> None:
+    """Review sidecars cannot dirty the reviewed checkout or replace data."""
+
+    try:
+        path.resolve().relative_to(repo_root.resolve())
+    except ValueError:
+        pass
+    else:
+        raise ManifestError("full diff artifacts must live outside the reviewed checkout")
+    if path.exists():
+        raise ManifestError(f"refusing to overwrite {path}")
+    if not path.parent.is_dir():
+        raise ManifestError(f"diff artifact parent directory does not exist: {path.parent}")
+
+
+def write_diff_artifact(path: Path, data: bytes) -> None:
+    try:
+        with path.open("xb") as stream:
+            stream.write(data)
+    except OSError as exc:
+        raise ManifestError(f"full diff write failed at {path}; preserve any partial file and use a new output path: {exc}") from exc
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -27,7 +51,13 @@ def render_packet(
     repo_root: Path,
     *,
     max_diff_bytes: int = 50000,
+    diff_artifact_out: Path | None = None,
+    artifacts: list[tuple[Path, bytes]] | None = None,
 ) -> str:
+    if max_diff_bytes < 1:
+        raise ManifestError("--max-diff-bytes must be positive")
+    if diff_artifact_out is not None:
+        validate_artifact_path(diff_artifact_out, repo_root)
     try:
         reject_object_substitution(repo_root)
     except (GitMetadataError, OSError) as exc:
@@ -42,14 +72,39 @@ def render_packet(
     lineage = run["review_lineages"][review["lineage_id"]]
     mission_ids = set(review["mission_ids"])
     missions = [item for item in plan["missions"] if item["id"] in mission_ids]
+    if diff_artifact_out is not None and review.get("stage", "preintegration") == "preintegration":
+        worker_ids = {run.get("mission_states", {}).get(mission["id"], {}).get("worker_id") for mission in missions}
+        for worker in run.get("workers", []):
+            if isinstance(worker, dict) and worker.get("worker_id") in worker_ids and isinstance(worker.get("worktree_path"), str):
+                validate_artifact_path(diff_artifact_out, Path(worker["worktree_path"]))
     base = run["integration"].get("batch_base_sha")
     head = run["integration"].get("integration_head_sha")
     if review.get("stage", "preintegration") == "preintegration" and len(missions) == 1:
         head = run["mission_states"][missions[0]["id"]].get("head_sha") or head
     if not isinstance(base, str) or not isinstance(head, str):
         raise ManifestError("review packet requires concrete base and reviewed head SHAs")
-    diff = _git(repo_root, "diff", "--no-ext-diff", f"{base}..{head}")
-    encoded = diff.encode("utf-8")
+    diff_args = ("diff", "--no-ext-diff", "--no-textconv", "--binary",
+                 "--full-index", "--no-color", "--find-renames=50%",
+                 "--src-prefix=a/", "--dst-prefix=b/", f"{base}..{head}")
+    result = run_git(repo_root, *diff_args, text=False, timeout=30)
+    if result.returncode != 0:
+        raise ManifestError("cannot read full review diff")
+    encoded = result.stdout
+    diff = encoded.decode("utf-8", errors="replace")
+    diff_artifact = None
+    if diff_artifact_out is not None:
+        diff_artifact = {
+            "path": str(diff_artifact_out.resolve()), "base_sha": base,
+            "head_sha": head, "sha256": hashlib.sha256(encoded).hexdigest(),
+            "bytes": len(encoded),
+            "name_status": _git(repo_root, "-c", "core.quotePath=true", "diff",
+                                "--no-ext-diff", "--no-textconv", "--name-status",
+                                "--find-renames=50%", f"{base}..{head}"),
+        }
+        if artifacts is None:
+            write_diff_artifact(diff_artifact_out, encoded)
+        else:
+            artifacts.append((diff_artifact_out, encoded))
     truncated = len(encoded) > max_diff_bytes
     if truncated:
         diff = encoded[:max_diff_bytes].decode("utf-8", errors="replace")
@@ -101,7 +156,13 @@ def render_packet(
         f"- Lineage: `{review['lineage_id']}` ({lineage['consumed_attempts']}/{lineage['base_allowance'] + lineage['additional_allowance']} consumed)",
         f"- Scope: {', '.join(review['scope'])}",
     ]
-    if review.get("stage") == "integration":
+    if review.get("stage") == "integration" and review["type"] == "security":
+        packet_lines += [
+            "", "## Security coverage", "",
+            "Perform a fresh full-scope review at the reviewed head. Prior mission"
+            " reviews do not reduce security scope or replace required checks.",
+        ]
+    elif review.get("stage") == "integration":
         reviewed_heads = []
         for mission in missions:
             mission_head = (
@@ -134,12 +195,21 @@ def render_packet(
         ]
     packet_lines += [
         "",
+        (
+            "This diff preview is incomplete. Read the complete base..head diff"
+            " from the artifact when supplied (verify its hash), or inspect the same fixed Git"
+            " range directly. Report uninspected paths and binary-content gaps;"
+            " do not return PASS while required coverage remains unknown."
+            if truncated else ""
+        ),
+        "",
         "## Contract",
         "",
         "```json",
         json.dumps(
             {
                 "review_type": review["type"],
+                "diff_artifact": diff_artifact,
                 "skill_binding_slot": (
                     "code_security_verification"
                     if review["type"] == "security"
@@ -193,6 +263,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repo-root", type=Path, required=True)
     parser.add_argument("--max-diff-bytes", type=int, default=50000)
     parser.add_argument("--out", type=Path)
+    parser.add_argument("--diff-artifact-out", type=Path)
     args = parser.parse_args(argv)
     try:
         plan = load_plan(args.plan)
@@ -200,11 +271,19 @@ def main(argv: list[str] | None = None) -> int:
         errors = validate_current_plan_run(plan, run, repo_root=args.repo_root)
         if errors:
             raise ManifestError("invalid PLAN/RUN:\n" + "\n".join(errors))
-        packet = render_packet(plan, run, args.node, args.repo_root, max_diff_bytes=args.max_diff_bytes)
+        if args.out and args.out.exists():
+            raise ManifestError(f"refusing to overwrite {args.out}")
+        if args.out and args.diff_artifact_out and args.out.resolve() == args.diff_artifact_out.resolve():
+            raise ManifestError("packet and full diff artifact require distinct output paths")
+        artifacts = []
+        packet = render_packet(plan, run, args.node, args.repo_root,
+                               max_diff_bytes=args.max_diff_bytes,
+                               diff_artifact_out=args.diff_artifact_out, artifacts=artifacts)
+        for path, data in artifacts:
+            write_diff_artifact(path, data)
         if args.out:
-            if args.out.exists():
-                raise ManifestError(f"refusing to overwrite {args.out}")
-            args.out.write_text(packet, encoding="utf-8", newline="\n")
+            with args.out.open("x", encoding="utf-8", newline="\n") as stream:
+                stream.write(packet)
             print(f"wrote {args.out}")
         else:
             print(packet, end="")

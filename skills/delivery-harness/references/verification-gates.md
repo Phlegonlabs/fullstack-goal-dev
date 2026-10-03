@@ -370,6 +370,8 @@ The neutral PLAN template does not guess an unknown repair mission. Its security
 
 ## Failure Handling
 
+Review packets are bounded previews. Both `render_review_packet.py` and `reserve-review-dispatch --packet-out` accept `--diff-artifact-out <new-checkout-external-path>` to retain the complete binary-capable diff. The packet binds its absolute path, SHA-256, byte count, fixed base/head and complete name-status inventory. Neither output replaces an existing file. A truncated packet requires reading the full artifact or the same fixed Git range and reporting uninspected paths or binary gaps before PASS. These instructions improve review input; the existing result receipt does not mechanically prove path coverage or reviewer understanding. Security integration packets require fresh full-scope review and retain all original checks and exclusions rules. A sidecar failure after RUN persistence reports the durable reservation and requires a new output path before launch.
+
 Apply `bounded-enhancement.md`: reuse existing exact authority for covered repairs instead of requesting repeated approval. At the stricter repair/graph limit, report verified and incomplete scope and hand remaining failures to the next round. Finishing the session is not successful delivery closeout; keep unfinished managed state paused/reconciled and do not archive it as passed.
 
 If verification fails:

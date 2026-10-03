@@ -4,11 +4,15 @@
 from __future__ import annotations
 
 import json
+import hashlib
+import contextlib
+import io
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 TESTS_DIR = Path(__file__).resolve().parent
@@ -132,6 +136,66 @@ class SecurityPacketCheckTests(unittest.TestCase):
         contract = _contract(render_packet(self.plan, self.run, "N-REVIEW-M1", self.root))
 
         self.assertEqual([], contract["required_checks"])
+
+    def test_security_packet_does_not_reduce_scope_to_merge_seams(self) -> None:
+        packet = render_packet(self.plan, self.run, "N-REVIEW-M1", self.root)
+        self.assertIn("fresh full-scope review", packet)
+        self.assertNotIn("Focus this pass on what combination", packet)
+
+    def test_truncated_packet_retains_complete_external_binary_diff(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            (self.root / "file.txt").write_text("large tail\n" * 10000, encoding="utf-8")
+            (self.root / "binary.bin").write_bytes(bytes(range(256)) * 20)
+            _git(self.root, "add", ".")
+            _git(self.root, "commit", "-qm", "large and binary")
+            self.run["integration"]["integration_head_sha"] = _git(self.root, "rev-parse", "HEAD")
+            path = Path(directory) / "full.diff"
+            packet = render_packet(self.plan, self.run, "N-REVIEW-M1", self.root,
+                max_diff_bytes=50, diff_artifact_out=path)
+            contract = _contract(packet)
+            artifact = contract["diff_artifact"]
+            raw = path.read_bytes()
+            self.assertEqual(hashlib.sha256(raw).hexdigest(), artifact["sha256"])
+            self.assertEqual(len(raw), artifact["bytes"])
+            self.assertIn(b"GIT binary patch", raw)
+            self.assertIn(b"large tail", raw)
+            self.assertIn("binary.bin", artifact["name_status"])
+            self.assertIn("## Diff (truncated)", packet)
+            self.assertIn("do not return PASS", packet)
+
+    def test_artifact_refuses_checkout_path_and_existing_file_without_overwrite(self) -> None:
+        from harness_core import ManifestError
+        with tempfile.TemporaryDirectory() as directory:
+            existing = Path(directory) / "existing.diff"
+            existing.write_bytes(b"valuable data")
+            for path in (existing, self.root / "review.diff"):
+                with self.subTest(path=path), self.assertRaises(ManifestError):
+                    render_packet(self.plan, self.run, "N-REVIEW-M1", self.root, diff_artifact_out=path)
+            self.assertEqual(b"valuable data", existing.read_bytes())
+            self.assertFalse((self.root / "review.diff").exists())
+
+    def test_preintegration_artifact_cannot_dirty_the_worker_checkout(self) -> None:
+        from harness_core import ManifestError
+        with tempfile.TemporaryDirectory() as directory:
+            worker_root = Path(directory)
+            node = next(n for n in self.plan["graph"]["nodes"] if n["id"] == "N-REVIEW-M1")
+            node["review"]["stage"] = "preintegration"
+            self.run["mission_states"]["M1"]["worker_id"] = "worker-M1"
+            self.run["workers"] = [{"worker_id": "worker-M1", "worktree_path": str(worker_root)}]
+            with self.assertRaises(ManifestError):
+                render_packet(self.plan, self.run, "N-REVIEW-M1", self.root,
+                    diff_artifact_out=worker_root / "full.diff")
+            self.assertFalse((worker_root / "full.diff").exists())
+
+    def test_standalone_packet_and_artifact_paths_must_differ_before_writes(self) -> None:
+        from render_review_packet import main
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "same-output"
+            with patch("render_review_packet.load_plan", return_value=self.plan), patch("render_review_packet.load_run", return_value=self.run), patch("render_review_packet.validate_current_plan_run", return_value=[]), contextlib.redirect_stderr(io.StringIO()):
+                code = main(["--plan", "PLAN.md", "--run", "RUN.md", "--node", "N-REVIEW-M1",
+                    "--repo-root", str(self.root), "--out", str(path), "--diff-artifact-out", str(path)])
+            self.assertEqual(2, code)
+            self.assertFalse(path.exists())
 
 
 if __name__ == "__main__":
