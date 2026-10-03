@@ -4,6 +4,7 @@ The four READMEs remain the documentation of record for the skill bundle.
 
 | Document | Purpose | Status |
 | --- | --- | --- |
+| `docs/epics/EPIC-harness-recovery-review.md` | Launch identity, historical review recovery, frozen archive base, interrupted retry and complete review input | Historical working-tree checks retained; atomic integration and fresh candidate verification in progress; unreleased and not installed |
 | `docs/research/context-decomposition.md` | Measured stage and role content boundaries, load-set estimates and atomic migration tasks | Research proposal recorded; canonical reading rules unchanged |
 | `docs/epics/EPIC-design-showcase.md` | `ui-design/3` full packages, `design-system/4` source-derived HTML showcase and Harness 0.59 joins | Main implementation and cross-skill joins integrated; preserved owner single-direction correction restored and 8 focused regressions passed; final pipeline review and release checks pending |
 | `docs/epics/EPIC-branch-policy.md` | Dual-branch managed release policy, frozen bases, protected-branch landing and cleanup guards | Combined contract, golden and tasks-view fixture repairs integrated; final candidate verification and remote protection pending |
