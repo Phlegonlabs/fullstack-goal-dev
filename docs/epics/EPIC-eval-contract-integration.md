@@ -113,6 +113,25 @@ No new responsibility is added to its existing table/approval code.
 
 ## Handoff
 
+2026-10-03 A12 review / EVAL-I-04 source-binding test repair, baseline
+`7298f182dcfcb36e921d47f8564f83192ca13999`, working-tree:
+the two native reviewers returned fresh code/security PASS on all 43 changed
+paths, with empty findings, exclusions and coverage gaps. They used the
+configured GPT-6.1-Sol/xhigh read-only binding; independent provider/model/effort
+telemetry remains unobserved. No fallback. The required Harness suite reached
+its actual 2700-second deadline near the final write-path tests. Its process
+tree exited; the timeout and four observed failing subtests remain external
+evidence, not a complete suite result. Three failures concern translated README
+structure. The other exposed a stale public-API test expectation. Independent
+assessment confirmed the immutable resolver still reads the frozen Git blob,
+while public validation must reject divergent working PRD authority before
+interpreting marker presence or absence. The test now proves unchanged public
+success, committed resolver success after branch/working-byte drift, and the
+exact public authority rejection. No production guard changed. All seven
+immutable-source tests PASS in 3.757 seconds. README repair, new exact-SHA
+review and complete required suites remain pending. The next full Harness
+deadline will allow the observed runtime without omitting tests.
+
 2026-10-03 EVAL-I-03 protected tree repair, baseline `e11f8ede`, working-tree:
 the parent reproduced Gate/A11's clean H2 mode-only PASS with an unchanged
 runner blob. Keep regular captured H2 blob checks, and replace separate H1

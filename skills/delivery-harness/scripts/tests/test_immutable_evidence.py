@@ -15,6 +15,7 @@ if str(TESTS_DIR) not in sys.path:
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
+from harness_contract_join import _resolve_source_bytes  # noqa: E402
 from harness_manifest import plan_digest, validate_current_plan_run  # noqa: E402
 from test_graph_orchestration import valid_graph_plan, valid_graph_run  # noqa: E402
 
@@ -135,6 +136,7 @@ class CurrentPlanSourceBindingTests(unittest.TestCase):
             ).stdout.strip()
             plan["sources"][0]["source_revision"] = revision
             self.refresh_digest(plan, run)
+            self.assertEqual([], validate_current_plan_run(plan, run, repo_root=root))
 
             # Move the symbolic branch after the source was frozen.  The full
             # object ID remains immutable and must still read the first blob.
@@ -159,7 +161,15 @@ class CurrentPlanSourceBindingTests(unittest.TestCase):
                 capture_output=True,
             )
             (root / "docs/product/prd.md").write_bytes(b"mutated working tree\n")
-            self.assertEqual([], validate_current_plan_run(plan, run, repo_root=root))
+            self.assertEqual(
+                (committed, []),
+                _resolve_source_bytes(plan["sources"][0], root, label="PRD", strict=False),
+            )
+            errors = validate_current_plan_run(plan, run, repo_root=root)
+            self.assertIn(
+                "eval-plan: PRD authority bytes do not match the frozen content_sha256",
+                errors,
+            )
 
     def test_repo_local_symbolic_source_revisions_are_rejected(self) -> None:
         plan, run = self.bound_plan_and_run()
