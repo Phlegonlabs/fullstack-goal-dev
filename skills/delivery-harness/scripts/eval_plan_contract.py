@@ -92,7 +92,9 @@ def validate_eval_plan(plan, repo_root, *, run=None, source_rows, resolve_source
         candidates = [row for row in plan.get("sources", []) if isinstance(row, dict)
                       and (" ".join(str(row.get("kind", "")).replace("_", " ").replace("-", " ").casefold().split())
                            in {"prd", "product requirement", "product requirements"}
-                           or str(row.get("location", "")).rsplit("/", 1)[-1].casefold() == "prd.md")]
+                           or row.get("location") == "docs/product/PRD.md"
+                           or (row.get("status") in {"frozen", "delta_accepted", "delta accepted"}
+                               and str(row.get("location", "")).rsplit("/", 1)[-1].casefold() == "prd.md"))]
         if not candidates:
             return ["eval-plan: current run needs one frozen PRD applicability declaration"] if current else []
         adopted = []
@@ -100,14 +102,15 @@ def validate_eval_plan(plan, repo_root, *, run=None, source_rows, resolve_source
             try:
                 raw = _read_bytes(_safe_file(root, str(candidate.get("location", ""))), "PRD", root)
             except (OSError, AcceptanceError):
-                if not current:
-                    continue  # Unavailable legacy authority is handled by its existing join.
-                raise
+                ep.fail("PRD authority cannot be safely read; policy absence is unobserved")
             prd_text = raw.decode("utf-8")
-            policy = ep.parse_eval_policy(prd_text, required=current)
+            canonical = candidate.get("kind") == "prd" or candidate.get("location") == "docs/product/PRD.md"
+            policy = ep.parse_eval_policy(prd_text, required=current and canonical)
             if policy is not None:
                 adopted.append((raw, prd_text, policy))
         if not adopted:
+            if current:
+                ep.fail("current run needs a canonical PRD applicability declaration")
             return []
         if len(adopted) != 1:
             ep.fail("ambiguous PRD eval-policy authority")
@@ -121,7 +124,7 @@ def validate_eval_plan(plan, repo_root, *, run=None, source_rows, resolve_source
         prd_source = rows[0]
         frozen, errors = resolve_source(prd_source, root, label="PRD", strict=True)
         if errors or frozen != raw:
-            return errors or ["eval-plan: PRD bytes changed during policy join"]
+            return errors or ["eval-plan: adopted policy differs from the canonical frozen PRD authority"]
         if policy["applicability"] == "not_required":
             return []
         sources = {}

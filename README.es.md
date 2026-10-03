@@ -377,6 +377,8 @@ El [contrato de aceptación eval](skills/delivery-harness/references/eval-accept
 Para pins >=0.60.0, readiness exige aplicabilidad eval explícita y, si es requerida, fuentes eval/entrega congeladas y gates siempre ejecutados: controles finales → eval → aceptación de entrega → closeout. Hashes, comandos o conexiones incorrectos fallan. Los pins anteriores sin marcador conservan su contrato; un marcador presente adopta los controles.
 Ambos checkers usan rutas absolutas de la instalación y ejecución explícita en
 el host; una imagen no puede sustituir el archivo en la misma ruta.
+Una autoridad PRD insegura o ilegible es un vacío de validación, incluso en
+pins antiguos; no demuestra que la política esté ausente.
 
 El Harness se construye sobre límites explícitos:
 

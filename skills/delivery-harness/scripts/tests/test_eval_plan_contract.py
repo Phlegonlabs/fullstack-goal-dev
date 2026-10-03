@@ -1,6 +1,7 @@
 import copy
 import builtins
 import hashlib
+import os
 import sys
 import tempfile
 import unittest
@@ -124,6 +125,43 @@ class EvalPlanContractTests(unittest.TestCase):
         plan["sources"].append({**plan["sources"][0], "id": "SRC-OTHER", "kind": "product requirements",
                                 "location": "docs/product/requirements.md"})
         self.assertTrue(any("ambiguous" in error for error in self.check(plan)))
+
+    def test_authoritative_read_failures_never_mean_marker_absence(self):
+        for version in ("0.37.0", "0.59.0", "0.60.0", None):
+            run = copy.deepcopy(self.run) if version else None
+            if run:
+                run["runtime_capabilities"]["runtime_adapter"]["version_gate"]["required_harness_version"] = version
+            for error in (pc.AcceptanceError("link"), pc.AcceptanceError("oversized"), OSError("unreadable")):
+                with self.subTest(version=version, error=str(error)), patch.object(pc, "_read_bytes", side_effect=error):
+                    self.assertTrue(pc.validate_eval_plan(self.plan, self.root, run=run,
+                        source_rows=join._strict_source_rows, resolve_source=join._resolve_source_bytes))
+        alternate = self.root / "docs/token-service/PRD.md"
+        alternate.parent.mkdir()
+        alternate.write_bytes((self.root / "docs/product/PRD.md").read_bytes())
+        for version in ("0.37.0", None):
+            plan = copy.deepcopy(self.plan)
+            plan["sources"][0]["location"] = "docs/token-service/PRD.md"
+            plan["final_gates"].pop(1)
+            run = copy.deepcopy(self.run) if version else None
+            if run:
+                run["runtime_capabilities"]["runtime_adapter"]["version_gate"]["required_harness_version"] = version
+            with patch.object(join, "_validate_product_frozen_contract_joins", return_value=[]):
+                self.assertTrue(join.validate_frozen_contract_joins(plan, self.root, run=run))
+
+    @unittest.skipIf(os.name == "nt", "POSIX symlink variant; read-failure matrix runs on all hosts")
+    def test_legacy_linked_authority_fails_closed(self):
+        linked = self.root / "docs/linked"
+        linked.symlink_to(self.root / "docs/product", target_is_directory=True)
+        self.plan["sources"][0]["location"] = "docs/linked/PRD.md"
+        self.run["runtime_capabilities"]["runtime_adapter"]["version_gate"]["required_harness_version"] = "0.37.0"
+        self.assertTrue(self.check())
+
+    def test_extra_non_authority_reference_without_marker_is_ignored(self):
+        for status in ("draft", "reference"):
+            plan = copy.deepcopy(self.plan)
+            plan["sources"].append({"id": "SRC-ARCHIVE", "kind": "reference", "status": status,
+                                   "location": "docs/archive/PRD.md"})
+            self.assertEqual([], self.check(plan))
 
     def test_non_ai_reasoned_exemption_needs_no_eval_gates(self):
         waived = {"schema": "eval-policy/1", "applicability": "not_required", "reason": "Deterministic software requires no AI quality sampling", "owner": "Jacky Chan"}

@@ -113,4 +113,13 @@ No new responsibility is added to its existing table/approval code.
 
 ## Handoff
 
+2026-10-03 EVAL-I-04 structural authority repair, baseline `78f6c42`,
+working-tree: unreadable, linked, oversized or secret-like PRD authority now
+fails closed before legacy Product/UI early returns. A safe read is required
+to observe marker absence; no permissive fallback opens unsafe sources.
+Non-frozen reference-only archive rows are ignored. The 0.37/0.59/0.60 and
+plan-only matrix ran 16 tests: 15 PASS, one POSIX symlink variant skipped on
+Windows; read-failure coverage ran on every version. Both A3 reviews remain
+fix_required. Execution identity and parser diagnostics are still pending.
+
 Pending. No release, tag, push or local skill update has occurred.

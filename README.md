@@ -377,6 +377,8 @@ The [eval acceptance contract](skills/delivery-harness/references/eval-acceptanc
 For RUN pins >=0.60.0, readiness requires explicit eval applicability and, when required, frozen eval/delivery sources plus always-run checker gates in dependency order: broad final checks → eval acceptance → delivery acceptance → closeout. Wrong hashes, substituted commands or disconnected gates fail. Older pins without the marker retain their contract; a present marker opts in.
 Both acceptance checkers use absolute installed paths and explicit host execution,
 so an image cannot replace the checker at the same path.
+An unsafe or unreadable PRD authority is a validation gap, including on older
+pins; it cannot establish that a policy is absent.
 
 The Harness is built around explicit boundaries:
 

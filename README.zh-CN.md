@@ -377,6 +377,7 @@ Full-stack 按完整流程实现页面、API、权限、数据保存与反馈。
 RUN pin >=0.60.0 的 readiness 需要明确 eval applicability；required 时冻结 eval／delivery source，并强制 always-run gate：broad final checks → eval acceptance → delivery acceptance → closeout。错误 hash、替换 checker 或断开 gate 都失败。旧 pin 没有 marker 保留原契约；加入 marker即采用新检查。
 两个 acceptance checker 使用安装目录的绝对路径，明确在 host 执行，
 避免 image 在同一路径放入替代 checker。
+旧 pin 也必须安全读取 PRD authority；无法读取是验证缺口，不能当作没有 policy。
 
 Harness 是围绕明确的边界构建的：
 

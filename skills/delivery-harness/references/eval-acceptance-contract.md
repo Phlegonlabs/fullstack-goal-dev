@@ -102,6 +102,10 @@ pins and plan-only validation too. Absent markers in older pinned plans keep
 their historical checks. This is a new contract boundary, not an auto-migration.
 Extra reference rows or legacy PRD kind aliases cannot suppress marker adoption;
 multiple declared policies fail as ambiguous authority.
+Policy absence must be observed from a safe, bounded authority read. Unreadable,
+oversized, secret-like or linked PRD authority returns a gap even on old pins;
+it never means `not_required`. Non-frozen reference-only archive rows are not
+authority. No permissive fallback reads credentials or follows links.
 
 Applicable PLANs freeze one canonical `eval contract` source at
 `docs/verification/eval-contract.json` and one `delivery acceptance` source at
