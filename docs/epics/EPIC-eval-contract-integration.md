@@ -113,6 +113,22 @@ No new responsibility is added to its existing table/approval code.
 
 ## Handoff
 
+2026-10-03 A11 native review / EVAL-I-01 exclusion scan repair, baseline
+`10079881`, working-tree: Policy, Workflow and Report code/security PASS;
+Gate returns fix_required for a mode-only change on a protected artifact,
+and Digest for repeated whitespace scans in the new unapproved policy route.
+All five exact-SHA scope receipts cover the 43 changed paths. The parent
+reproduced the blank-prefix scan exceeding a three-second child deadline;
+the child was terminated and waited. Search LF-delimited marker lines once,
+then retain the historical preceding blank span and trailing Unicode whitespace.
+All 23 policy tests PASS in 20.648 seconds, including 5,000 seeded first-span
+comparisons and million-line absent/quoted/hidden marker controls under a
+60-second child deadline. Existing digest and overlap matrices still pass.
+The first test run exposed an active-end fixture mistake; hiding both approval
+markers corrected the fixture, without relaxing parser checks. Focused pyflakes
+and diff checks PASS. Mode repair, fresh whole
+candidate review and broad verification remain required.
+
 2026-10-03 EVAL-I-03 protected candidate repair, baseline `49059be9`,
 working-tree: the parent reproduced Gate/A10 in four real temporary Git
 checkouts. Runner, grader, lockfile and runbook each passed valid controls and

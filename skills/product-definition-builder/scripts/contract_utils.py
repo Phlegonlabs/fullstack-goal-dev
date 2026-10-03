@@ -65,11 +65,21 @@ def release_area_requirements(targets: Iterable[object]) -> set[str]:
 
 def machine_block_span(text: str, start: str, end: str) -> tuple[int, int] | None:
     """Return the first digest-excluded span; caller normalizes CRLF once."""
-    match = re.search(
-        rf"(?ms)^\s*{re.escape(start)}\s*\n.*?^\s*{re.escape(end)}\s*\n?",
-        text,
-    )
-    return match.span() if match else None
+    # Search one LF-delimited line at a time. Multiline leading \s* would
+    # repeatedly scan the same blank prefix at every LF anchor.
+    opening = re.search(rf"(?m)^[^\S\n]*{re.escape(start)}\s*\n", text)
+    if opening is None:
+        return None
+    closing = re.compile(rf"(?m)^[^\S\n]*{re.escape(end)}\s*").search(text, opening.end())
+    if closing is None:
+        return None
+    # The historical match includes preceding blank lines, starting at the
+    # first LF anchor in this whitespace run. Keep Unicode whitespace intact.
+    prefix = opening.start()
+    while prefix and text[prefix - 1].isspace():
+        prefix -= 1
+    first = 0 if prefix == 0 else text.find("\n", prefix, opening.start()) + 1
+    return first, closing.end()
 
 
 def _without_machine_block(text: str, start: str, end: str) -> str:

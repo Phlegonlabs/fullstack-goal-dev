@@ -3,6 +3,7 @@ import contextlib
 import hashlib
 import io
 import json
+import random
 import re
 import subprocess
 import sys
@@ -13,7 +14,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import eval_policy as ep
-from contract_utils import canonical_product_bytes, _without_machine_block
+from contract_utils import canonical_product_bytes, machine_block_span, _without_machine_block
 from eval_fixtures import encoded, inputs, prd
 
 
@@ -163,6 +164,45 @@ class EvalPolicyTests(unittest.TestCase):
                 errors = package.validate_texts(weakened, architecture, stack,
                     require_filled=True, require_approved=True, eval_policy="eval-policy/1")
                 self.assertTrue(any("overlaps the raw approval digest exclusion" in error for error in errors), errors)
+
+    def test_machine_block_first_span_matches_historical_whitespace_semantics(self):
+        start, end = "<!-- product-definition-approval:start -->", "<!-- product-definition-approval:end -->"
+        historical = re.compile(rf"(?ms)^\s*{re.escape(start)}\s*\n.*?^\s*{re.escape(end)}\s*\n?")
+        tokens = (start, end, "x", "\n", "\r\n", "\r", "\t", " ", "\u2028", "\x85", "\x1c")
+        generator = random.Random(7189)
+        candidates = ["".join(generator.choices(tokens, k=20)) for _ in range(5000)]
+        candidates += ["x\n\n  " + start + "\n\n " + end + "\n\t\u2028x",
+                       start + "\n" + start + "\n" + end + "\n" + end,
+                       "x\u2028 " + start + "\n" + end,
+                       start + "\n\n" + end + "\n\n" + start + "\n" + end]
+        for source in candidates:
+            expected = historical.search(source)
+            with self.subTest(source=repr(source)):
+                self.assertEqual(expected.span() if expected else None, machine_block_span(source, start, end))
+
+    def test_large_blank_prefix_and_quoted_markers_finish_under_child_deadline(self):
+        program = ("import copy, sys\n"
+                   "sys.path[:0] = sys.argv[1:3]\n"
+                   "import eval_policy as ep\n"
+                   "from contract_utils import machine_block_span\n"
+                   "from eval_fixtures import inputs, prd\n"
+                   "start = '<!-- product-definition-approval:start -->'\n"
+                   "end = '<!-- product-definition-approval:end -->'\n"
+                   "policy, _ = inputs()\n"
+                   "prefix = '\\n' * 1000000\n"
+                   "quoted = copy.deepcopy(policy)\n"
+                   "quoted['delivery']['full_argv'] += ['--prompt', start + end]\n"
+                   "for value in (policy, quoted):\n"
+                   "    source = prefix + prd(value)\n"
+                   "    assert len(source.encode()) < ep.MAX_BYTES\n"
+                   "    assert ep.parse_eval_policy(source, required=True) == value\n"
+                   "assert machine_block_span(start + '\\n' + prefix + 'x', start, end) is None\n"
+                   "hidden = prefix + '```text\\n' + start + '\\n```\\n' + prd(policy) + '\\n```text\\n' + end + '\\n```\\n'\n"
+                   "assert any('raw approval digest exclusion' in error\n"
+                   "           for error in ep.validate_eval_policy(hidden, required=True))\n")
+        result = subprocess.run([sys.executable, "-c", program, str(Path(ep.__file__).parent),
+                                 str(Path(__file__).parent)], capture_output=True, text=True, timeout=60)
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
 
     def test_ai_cannot_waive_and_tests_are_required_traced_and_distinct(self):
         waived = {"schema": "eval-policy/1", "applicability": "not_required",
