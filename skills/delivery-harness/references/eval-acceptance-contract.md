@@ -93,3 +93,27 @@ subset is diagnostic only. Independent handoff captures setup and full command
 receipts, not a `handoff_ok` flag. Review verifies the receipts' actual origin.
 After H2, managed repairs use the existing formal revision protocol; old reports
 and approvals remain historical evidence.
+
+## Readiness And Compatibility
+
+RUN pins >=0.60.0 require an explicit PRD applicability declaration, including
+reasoned ordinary-product `not_required`. A present marker opts in under older
+pins and plan-only validation too. Absent markers in older pinned plans keep
+their historical checks. This is a new contract boundary, not an auto-migration.
+
+Applicable PLANs freeze one canonical `eval contract` source at
+`docs/verification/eval-contract.json` and one `delivery acceptance` source at
+`docs/verification/delivery-acceptance.json`, with hashes and optional full
+source revision. Required final gates are `eval-acceptance`, `delivery-acceptance`
+and `final-closeout`. The first two directly invoke installed checker scripts
+with exactly the frozen paths/hashes, default register and `--candidate-from-head`,
+`cwd: .`, `pass_signal: exit 0`, and omitted/always selection. No shell wrapper
+or caller-selected passing checker substitutes for them.
+
+Each final gate has one `local_command` verifier node. Pass-only unbounded
+dependency paths run every broad final check -> eval-acceptance ->
+delivery-acceptance -> final-closeout. Readiness rejects missing/disconnected
+nodes, wrong argv/hash/source kind, selected-away gates and changed approved
+inputs. The common source join applies before Product/UI early returns, including
+transitions and closeout. RUN continues to store normal exact-SHA verifier
+execution evidence; no eval rows or scheduler are added.

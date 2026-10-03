@@ -193,6 +193,8 @@ def _strict_source_inventory(plan: dict[str, Any]) -> tuple[dict[str, list[dict[
     inventory: dict[str, list[dict[str, Any]]] = {}
     errors: list[str] = []
     for key in _STRICT_SOURCE_SPECS:
+        if key in {"eval-contract", "delivery-acceptance"}:
+            continue  # Eval adoption owns these joins; legacy pins keep their source contract.
         rows, row_errors = _strict_source_rows(plan, key)
         inventory[key] = rows
         errors.extend(row_errors)
@@ -335,6 +337,14 @@ CURRENT_HIFI_EVIDENCE_VERSION = (0, 55, 1)
 
 
 _STRICT_SOURCE_SPECS: dict[str, dict[str, Any]] = {
+    "eval-contract": {
+        "kind": "eval contract", "filename": "eval-contract.json",
+        "canonical": "docs/verification/eval-contract.json",
+    },
+    "delivery-acceptance": {
+        "kind": "delivery acceptance", "filename": "delivery-acceptance.json",
+        "canonical": "docs/verification/delivery-acceptance.json",
+    },
     "prd": {
         "kind": "prd",
         "filename": "prd.md",
@@ -2253,7 +2263,15 @@ def _validate_strict_frozen_contract_joins(
     return sorted(set(errors))
 
 
-def validate_frozen_contract_joins(
+def validate_frozen_contract_joins(plan, repo_root, *, run=None):
+    """Join eval authority before any legacy/current Product/UI early return."""
+    from eval_plan_contract import validate_eval_plan
+    errors = validate_eval_plan(plan, repo_root, run=run,
+        source_rows=_strict_source_rows, resolve_source=_resolve_source_bytes)
+    return sorted(set(errors + _validate_product_frozen_contract_joins(plan, repo_root, run=run)))
+
+
+def _validate_product_frozen_contract_joins(
     plan: dict[str, Any],
     repo_root: str | Path,
     *,

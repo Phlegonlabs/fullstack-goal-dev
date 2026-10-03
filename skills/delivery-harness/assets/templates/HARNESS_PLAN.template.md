@@ -419,6 +419,18 @@ These are planning expectations, not authorization. Record explicit action autho
 
 ## Plan Readiness Gate
 
+For RUN pins >=0.60.0, require the PRD's explicit `eval-policy/1` applicability;
+older pins keep their checks unless a marker opts in. Applicable plans also
+freeze `SRC-EVAL` of kind `eval contract` at `docs/verification/eval-contract.json`.
+Follow `references/eval-acceptance-contract.md`: add the always-run final gate
+`eval-acceptance` invoking installed `check_eval_acceptance.py` with independently
+frozen PRD/eval/delivery hashes and default register. Add its local-command node
+between every broad final check and delivery acceptance, using pass-only
+dependency edges. Keep `final-closeout` after delivery acceptance. Missing or
+substituted sources, checker argv, hashes or graph paths fail the common join.
+Declare runner/grader/lockfile/runbook task scope and two independent full-run
+reports before execution. PLAN/RUN store no duplicate eval state.
+
 For newly authored delivery work, also follow `references/delivery-acceptance-contract.md`. The example manifest above shows these entries; keep all of them before readiness:
 
 - a source `SRC-004` of kind `delivery acceptance` at `docs/verification/delivery-acceptance.json`, frozen like the other rows;

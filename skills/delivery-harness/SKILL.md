@@ -222,6 +222,7 @@ Apply `references/gitignore-contract.md`'s task ownership and `write_scope` gate
 
 Full-stack slices and reproducible E2E follow `references/delivery-acceptance-contract.md`.
 Applicable eval policy follows `references/eval-acceptance-contract.md`: deliver runner/grader/locked dependencies/runbook, execute independent quality and clean-checkout full runs at H1, directly register both reports as H2, and run the read-only eval checker before delivery acceptance. Reports never grant actions or replace independent provenance review.
+RUN pins >=0.60 require explicit eval applicability. Required policy joins freeze eval/delivery sources and always-run direct checker gates; every broad final check precedes eval acceptance, delivery acceptance and closeout. Present markers opt in even on older pins; absent historical markers keep their original checks.
 
 After the version gate, run `python "<delivery-harness-skill-root>/scripts/harness_transition.py" --plan docs/goal/PLAN.md --run docs/goal/RUN.md --repo-root <absolute-root> record-observation`. Global flags precede the subcommand. It binds the host, PLAN revision, and digest, plus runtime and RepoDigest for explicitly selected containers; `--probe-sandboxes` is diagnostic only. `lease-worker` copies selector bindings and materializes exact targets only from active wildcard grants. Record through guarded transitions, review exact heads, integrate serially, and close the wave.
 
