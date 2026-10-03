@@ -62,3 +62,34 @@ and required functional scenarios still PASS. Both full reports independently
 recompute quality. A self-written summary, `handoff_ok` flag, or consistent hash
 cannot prove execution. Independent review inspects executor receipts, sample
 coverage, judge calibration, tool outcomes and actual clean-checkout provenance.
+
+## Exact Evidence Gate
+
+```text
+python "<delivery-harness-skill-root>/scripts/check_eval_acceptance.py" --repo-root . --prd docs/product/PRD.md --prd-sha256 <frozen-prd-hash> --contract docs/verification/eval-contract.json --contract-sha256 <frozen-eval-hash> --delivery-contract docs/verification/delivery-acceptance.json --delivery-contract-sha256 <frozen-acceptance-hash> --results docs/verification/delivery-results.json --candidate-from-head
+```
+
+Expected hashes come from the parent-frozen source rows or direct task record,
+never reports. The checker resolves reports from the registered policy scenarios;
+callers cannot substitute a passing report. It checks the existing acceptance
+contract/register, assertion IDs, safe bounded input reads and exact Git blobs.
+It never executes project commands, writes reports or supplies credentials.
+Exit 0 means both eval obligations pass structurally; exit 1 means failed/invalid
+evidence; argument errors exit 2. It is not a release or provenance certification.
+
+Before H1, set `-text -filter` for actual frozen inputs, contracts, delivered
+artifacts, register and evidence paths. Confirm effective attributes and exact
+bytes in HEAD. Primary and independent clean-checkout full runs execute at H1;
+only the parent adds directly listed reports and register as evidence child H2.
+Run this checker before the unchanged delivery-acceptance gate at clean H2.
+It resolves HEAD once, verifies source/report bytes, H1 ancestry and the existing
+evidence-only change allowlist, then rechecks HEAD and clean status. Product or
+runner changes after H1 require new runs. No transitive trace exemption is added.
+
+Deliver `EVAL_RUNBOOK.template.md` filled with setup/full/quick commands, versions,
+credential variable names, limits, readbacks, heldout protection, failure replay,
+cleanup authority/exact owned IDs, and candidate/policy change rules. A quick
+subset is diagnostic only. Independent handoff captures setup and full command
+receipts, not a `handoff_ok` flag. Review verifies the receipts' actual origin.
+After H2, managed repairs use the existing formal revision protocol; old reports
+and approvals remain historical evidence.

@@ -12,6 +12,8 @@ For managed work, freeze the contract as an additional PLAN source and declare `
 
 ## Execute And Retain
 
+For an applicable PRD `eval-policy/1`, also use `eval-acceptance-contract.md`. A quality TEST owns the rate/slice/critical assertions; a distinct handoff TEST owns the independent clean-checkout full report. Every required scenario still passes. Both reports are directly listed evidence, with the existing H1/H2 allowlist and parent write boundary unchanged. Deliver the runner, grader, lockfile and filled eval runbook.
+
 - Run actual project-specific setup and test commands under exact existing authority. These checkers inspect records; they never provision accounts, run a browser/simulator, invoke tools, deploy, or supply credentials themselves.
 - Keep mock, real-sandbox, and production-smoke claims separate. Real-login obligations exercise the actual test authentication boundary. Native obligations require the actual native artifact and device/OS evidence; unavailable runners are blocked, never substituted with browser projections.
 - For agent obligations, record actual tool outcomes and side effects, not merely the final answer. Use deterministic adapters for boundary tests and predeclared repeated live-model trials for reliability claims. Preserve failures/retries and do not cherry-pick a passing trial.
