@@ -4,6 +4,7 @@ The four READMEs remain the documentation of record for the skill bundle.
 
 | Document | Purpose | Status |
 | --- | --- | --- |
+| `docs/epics/EPIC-worktree-consolidation.md` | Publish all worktree heads and reconcile the current Eval/modernization sources | All 16 heads published; local source merged; unified candidate checks and exact main decision pending |
 | `docs/epics/EPIC-viteplus-evaluation.md` | Vite+/VoidZero frontend tooling and AI/skill evaluation assessment | Research complete; integration and eval pilot proposed, not implemented |
 | `docs/epics/EPIC-eval-contract-integration.md` | Approved eval policy, deterministic quality gate and reproducible handoff integration | 0.60.0 local candidate `882dda69` verified on Windows; independent code/security review PASS; release/install pending |
 | `docs/epics/EPIC-eval-contract-research.md` | Eval rubric, frozen pass rate and reproducible handoff research | Research complete; accepted implementation continues in EPIC-eval-contract-integration |
@@ -13,7 +14,7 @@ The four READMEs remain the documentation of record for the skill bundle.
 | `docs/epics/EPIC-design-showcase.md` | `ui-design/3` full packages, `design-system/4` source-derived HTML showcase and Harness 0.59 joins | Source integration and pipeline contract counterchecks complete; manual-reference exploration and full candidate review/matrix pending |
 | `docs/epics/EPIC-branch-policy.md` | Dual-branch managed release policy, frozen bases, protected-branch landing and cleanup guards | Combined contract, golden and tasks-view fixture repairs integrated; final candidate verification and remote protection pending |
 | `docs/epics/EPIC-context-template-merge.md` | Safe authorized AGENTS bootstrap merge, explicit conflict reporting and host-neutral role/dependency guidance | Integrated locally through MOD-A idempotency repair; final verification pending |
-| `docs/WORKFLOW.zh-TW.md` | Numbered cross-host product delivery workflow and role/template handoffs | 0.59 working-version guide; reconcile against final implementation before release |
+| `docs/WORKFLOW.zh-TW.md` | Numbered cross-host product delivery workflow and role/template handoffs | 0.60 merged-candidate guide; Eval and modernization steps reconciled; publication pending |
 | `docs/epics/EPIC-harness-flow-modernization.md` | Template merge, dual protected branches, design showcase, Activation execution and validation efficiency | Source integration complete; fixed 0.59.0 release checks, independent review and exact protected-branch decisions pending |
 | `docs/epics/EPIC-activation-execution-closure.md` | Read-only fail-closed Activation closeout with explicit owner deferrals and blocked-vs-complete records | Execution-by-default and mandatory closeout integrated; parent 65-test suite passed at 97f2fae3; final candidate checks pending |
 | `docs/epics/EPIC-agent-delegation-contract.md` | Parent-owned role routing, multi-instance research/exploration and verified dispatch | Present in baseline main history at `bdae1d82`, matching local `v0.58.0`; later observation appended to Epic |

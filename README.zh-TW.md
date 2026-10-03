@@ -692,9 +692,9 @@ HiFi 範例以固定 LF 換行維持跨平台位元組雜湊。Wireframe 的 Nod
 
 ## 版本紀錄
 
-- **0.60.0** — 以 PRD eval-policy/1 凍結 rubric、樣本分母、重跑次數、pass rate 及 judge 輸入。重算品質與獨立乾淨 checkout 報告，交付 runner／grader／lockfile／runbook，並接上精確 H1/H2 證據。適用的 >=0.60 plan 強制凍結 source 與 always-run eval／acceptance gate；舊版沒有 marker 保留原契約。
+- **0.60.0** — 以 PRD eval-policy/1 凍結 rubric、樣本分母、重跑次數、pass rate 及 judge 輸入。重算品質與獨立乾淨 checkout 報告，交付 runner／grader／lockfile／runbook，並接上精確 H1/H2 證據。適用的 >=0.60 plan 強制凍結 source 與 always-run eval／acceptance gate；舊版沒有 marker 保留原契約。 包含尚未發布的 0.59 流程更新。
 
-- **0.59.0** — 更新 AGENTS 模板合併、受保護的 development／main 流程、跨 host 平行 writer、完整 Design System HTML、Activation 執行閉環及精確候選驗證。保留歷史 pins 與每項任務的 atomic commit。實作與驗證狀態見逐步流程及 modernization Epic。
+- **0.59.0** — 更新 AGENTS 模板合併、受保護的 development／main 流程、跨 host 平行 writer、完整 Design System HTML、Activation 執行閉環及精確候選驗證。保留歷史 pins 與每項任務的 atomic commit。實作與驗證狀態見逐步流程及 modernization Epic。 合入 0.60 的原始碼里程碑，未獨立發布。
 
 - **0.58.0** — Parent 角色派工、多實例研究／探索、身分綁定結果匯合與附帶 maximum-creativity brief 的強制 frontend 委派。App-thread 角色綁定必須觀察到 app capabilities，隔離、衝突與預算檢查採用每個 binding 的 workspace，研究 complete 結果必須附帶有來源的 findings，省略 effort 時接受 host 預設。供使用專案套用的 AGENTS 模板加入新程式碼／測試模組 500 行硬上限、KISS、第一性原理、模組拆分及避免推測性相容程式碼；Harness 原始碼不受此上限限制。保留舊版 pinned RUN 與 owner 核准關卡。
 

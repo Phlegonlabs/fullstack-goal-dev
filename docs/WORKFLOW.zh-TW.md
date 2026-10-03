@@ -1,6 +1,6 @@
 # Product Delivery Harness：逐步流程
 
-這是 0.59 工作版本的流程導覽。發布狀態看四語 README 與 `EPIC-harness-flow-modernization.md`；導覽不授權外部操作，也不取代各 skill 的 checker、核准紀錄或 pinned RUN。既有核准和舊 RUN 按原版本保留。
+這是 0.60 整合候選的流程導覽。發布狀態看四語 README 與 `EPIC-worktree-consolidation.md`；導覽不授權外部操作，也不取代各 skill 的 checker、核准紀錄或 pinned RUN。既有核准和舊 RUN 按原版本保留。
 
 ## 角色與分工
 
@@ -49,7 +49,7 @@
 22. 新產品先研究功能基線、差異、商業模式與類別基準；明確記錄被允許的 skip 或沒有可靠來源。
 23. Parent 核對研究者身分、問題與 frozen inputs，合併來源；owner 決定 go、clarify 或 stop。
 24. 確定產品 archetype 與 validation depth，再決定相依的部署目標、作業系統／瀏覽器等選項。
-25. 對適用產品確認 data/trust、security、AI/automation、monetization 和 partner gates；不適用也給理由。
+25. 對適用產品確認 data/trust、security、AI/automation、monetization 和 partner gates；不適用也給理由。新版 package 明確記錄 eval-policy/1 的 applicability；適用產品凍結 rubric、樣本分母、重跑次數、pass rate、critical cases 與 judge 輸入，不使用全項目共用門檻。
 26. 將 billing、entitlement、merchant-of-record、affiliate／reseller 等責任分開，不用單一供應商名稱取代設計。
 27. 收集已選 stack 與 unresolved layers，記錄 owner 如何選擇 coherent 技術方案；沒有偏好不等於核准。
 28. 需要時派 architect、frontend/backend 分析角色研究接口與技術選項；分析不直接建立 Approved 決定。
@@ -154,14 +154,14 @@
 
 ## 統一安全、驗收與候選關閉
 
-115. 完成真實 acceptance scenarios，結果寫入分離 register，記錄精確平台、帳戶種類、環境、build 與證據。
+115. 完成真實 acceptance scenarios，結果寫入分離 register，記錄精確平台、帳戶種類、環境、build 與證據。AI eval 保留 quality 與另一乾淨 checkout 的完整 handoff 報告，交付 runner、grader、lockfile 與 runbook；必要功能 TEST 仍全部 PASS。
 116. 保留 H1 情境執行與 results/evidence-only H2 的來源關係；H2 不混產品修復，產品變更要新候選。
 117. Frontend 完成 Final Visual Parity Loop，依適用平台跑實際 UI／native 驗證，不用 HTML 投影替代裝置證據。
 118. 固定乾淨的統一候選 SHA，派獨立 code-security reviewer，讀適用安全需求和完整 declared scope。
 119. Reviewer 追 entry point 到 sensitive sink，核對 auth、資料隔離、injection、path/command、secrets、供應链與競態等適用風險。
 120. 安全工具或人工 source review 必須有實際執行結果；全部 skipped 不得 PASS，不為速度隱藏 coverage。
 121. 安全修復改變 SHA 就重新 review 新候選；不把 tree 相同的一般 review 例外套給 security。
-122. Review 通過後執行固定候選的 broad final regression／必要 E2E／UI／migration／acceptance gates。
+122. Review 通過後執行固定候選的 broad final regression／必要 E2E／UI／migration／acceptance gates。適用 Eval 的 always-run 順序為 broad final checks → eval acceptance → delivery acceptance → closeout；>=0.60 pin 需要明確 applicability，舊 pin 加入 marker 也採用檢查。
 123. 收集所有精確候選結果與 scope；缺少、失效或 failure 都不能標完整交付。
 124. Managed RUN 在 C 以 local_only 關閉，push grant 保持 false；Direct 沒有 RUN 就不製造 archive 流程。
 125. Managed 用正式 archive 工具、expected main 與不可變 checkout-external anchor 搬移協調檔案，保留歷史。
