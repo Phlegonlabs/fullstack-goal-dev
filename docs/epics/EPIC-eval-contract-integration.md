@@ -113,6 +113,14 @@ No new responsibility is added to its existing table/approval code.
 
 ## Handoff
 
+2026-10-03 EVAL-I-01 TEST authority repair, baseline `7f4be377`, working-tree:
+join only the single active canonical Test Obligations section and its real
+header/separator/rows. Earlier prose, subheadings and arbitrary six-cell rows
+cannot override Required-Yes or AI-EVALUATION. Duplicate sections/tables/IDs and
+malformed rows fail closed. All 18 policy tests and 79 existing complete-package
+tests PASS. Canonical TEST ID/Required case handling and unrelated TEST IDs stay
+consistent with the Product checker.
+
 2026-10-03 EVAL-I-01 policy visibility repair, baseline `f0fefbea`, working-tree:
 require a JSON code fence so rendered approval cannot hide policy fields inside
 HTML comments. Read the body from exact raw offsets, retaining Unicode in valid

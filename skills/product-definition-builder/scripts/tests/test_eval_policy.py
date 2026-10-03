@@ -157,6 +157,29 @@ class EvalPolicyTests(unittest.TestCase):
             candidate[key] = value
             self.assertTrue(ep.validate_eval_policy(prd(candidate)))
 
+    def test_eval_joins_only_the_canonical_test_table(self):
+        valid = prd(self.policy)
+        decoy = ("### Test Obligations rationale\n"
+                 "| TEST-001 | Decoy quality | contract | Yes | AI-EVALUATION | pass |\n"
+                 "| TEST-002 | Decoy handoff | contract | Yes | AI-EVALUATION | pass |\n")
+        prefix = "See ## Test Obligations for the approved tests.\n"
+        self.assertEqual([], ep.validate_eval_policy(prefix + valid, required=True))
+        self.assertEqual([], ep.validate_eval_policy(valid.replace(ep.START, decoy + ep.START), required=True))
+        mixed = valid.replace("| TEST-001 |", "| test-001 |").replace("| Yes |", "| yes |")
+        mixed += "| TEST-OPTIONAL | Unrelated obligation | contract | No | PRD-002 | Other signal |\n"
+        self.assertEqual([], ep.validate_eval_policy(mixed, required=True))
+        optional = valid.replace("| Yes |", "| No |", 1).replace(ep.START, decoy + ep.START)
+        self.assertTrue(any("Required-Yes" in error for error in ep.validate_eval_policy(optional, required=True)))
+        section = valid.split("## Test Obligations\n", 1)[1]
+        for candidate in (valid.replace("| TEST ID |", "| Code |"),
+                          valid + "\n" + section,
+                          valid + "\n## Test Obligations\n" + section,
+                          valid.replace("## Test Obligations\n", "## Test Obligations\n## Other\n"),
+                          valid.replace("| --- | --- | --- | --- | --- | --- |", "No table separator"),
+                          valid + "\n" + section.splitlines()[-1]):
+            with self.subTest(candidate=candidate[-70:]):
+                self.assertTrue(ep.validate_eval_policy(candidate, required=True))
+
     def test_duplicate_json_and_nonfinite_rejected(self):
         for raw in ('{"schema": 1, "schema": 2}', '{"score": NaN}'):
             with self.assertRaises(ep.PolicyError):

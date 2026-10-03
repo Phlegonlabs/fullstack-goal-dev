@@ -324,6 +324,42 @@ def parse_inputs(policy, reader):
     return values
 
 
+def _test_obligations(prd_text):
+    active = active_text(prd_text)
+    headings = list(re.finditer(r"^## Test Obligations[ \t]*$", active, re.M))
+    if len(headings) != 1:
+        fail("evaluation requires one canonical Test Obligations section")
+    section = re.split(r"^##[ \t]+", active[headings[0].end():], maxsplit=1, flags=re.M)[0]
+    lines = section.splitlines()
+
+    def cells(line):
+        line = line.strip()
+        return tuple(part.strip() for part in line[1:-1].split("|")) if line.startswith("|") and line.endswith("|") else ()
+
+    header = ("test id", "obligation", "test type", "required", "upstream trace ids", "expected signal")
+    tables = [index for index, line in enumerate(lines) if tuple(part.casefold() for part in cells(line)) == header]
+    if len(tables) != 1:
+        fail("evaluation requires one canonical Test Obligations table")
+    index = tables[0]
+    separator = cells(lines[index + 1]) if index + 1 < len(lines) else ()
+    if len(separator) != 6 or not all(re.fullmatch(r":?-{3,}:?", part) for part in separator):
+        fail("Test Obligations table needs its Markdown separator")
+    rows = {}
+    for line in lines[index + 2:]:
+        row = cells(line)
+        if not row:
+            if rows:
+                break
+            continue
+        if len(row) != 6 or not re.fullmatch(r"TEST-[A-Z0-9-]+", row[0], re.I):
+            fail("invalid row in canonical Test Obligations table")
+        test_id = row[0].upper()
+        if test_id in rows:
+            fail("duplicate TEST in evaluation obligations")
+        rows[test_id] = row
+    return rows
+
+
 def validate_eval_policy(prd_text, *, required=False, repo_root=None):
     try:
         policy = parse_eval_policy(prd_text, required=required)
@@ -336,16 +372,10 @@ def validate_eval_policy(prd_text, *, required=False, repo_root=None):
         if ai_lines[0] == "required" and policy["applicability"] != "required":
             fail("AI gate required cannot waive evaluation")
         if policy["applicability"] == "required":
-            rows = {}
-            for line in active_text(prd_text).split("## Test Obligations", 1)[-1].split("\n## ", 1)[0].splitlines():
-                cells = [x.strip() for x in line.strip().strip("|").split("|")]
-                if len(cells) == 6 and re.fullmatch(r"TEST-\d{3,}", cells[0]):
-                    if cells[0] in rows:
-                        fail("duplicate TEST in evaluation obligations")
-                    rows[cells[0]] = cells
+            rows = _test_obligations(prd_text)
             for name in ("quality", "handoff"):
                 row = rows.get(policy[name]["test_id"])
-                if row is None or row[3] != "Yes" or (ai_lines[0] == "required" and not re.search(r"\bAI-EVALUATION\b", row[4])):
+                if row is None or row[3].casefold() != "yes" or (ai_lines[0] == "required" and not re.search(r"\bAI-EVALUATION\b", row[4])):
                     fail("eval quality/handoff must join Required-Yes TESTs and AI-EVALUATION when applicable")
             if repo_root is not None:
                 parse_inputs(policy, lambda path: read_artifact(repo_root, path))
