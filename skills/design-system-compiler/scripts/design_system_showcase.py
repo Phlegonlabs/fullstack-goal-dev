@@ -123,8 +123,7 @@ def analysis_css(html: str) -> str:
     return re.sub(r"/\*[\s\S]*?\*/", "", product_css(html))
 
 
-def reduced_motion_css(css: str) -> str:
-    """Return the bodies of the source prefers-reduced-motion: reduce blocks."""
+def _reduced_motion_ranges(css: str) -> list[tuple[int, int, int, int]]:
     blocks = []
     for match in re.finditer(r"@media\b([^{}]*)\{", css, re.IGNORECASE):
         if not re.search(r"prefers-reduced-motion\s*:\s*reduce", match.group(1), re.IGNORECASE):
@@ -133,8 +132,47 @@ def reduced_motion_css(css: str) -> str:
         while cursor < len(css) and depth:
             depth += {"{": 1, "}": -1}.get(css[cursor], 0)
             cursor += 1
-        blocks.append(css[match.end():cursor - 1])
-    return "\n".join(blocks)
+        blocks.append((match.start(), cursor, match.end(), cursor - 1))
+    return blocks
+
+
+def reduced_motion_css(css: str) -> str:
+    """Return the bodies of the source prefers-reduced-motion: reduce blocks."""
+    return "\n".join(css[body_start:body_end] for _, _, body_start, body_end in _reduced_motion_ranges(css))
+
+
+def animation_source_backed(css: str, node: dict[str, Any]) -> bool:
+    """Resolve literal animation names on matching simple or compound selectors."""
+    for start, end, _, _ in reversed(_reduced_motion_ranges(css)):
+        css = css[:start] + css[end:]
+    keyframes = set(re.findall(r"@(?:-webkit-)?keyframes\s+([A-Za-z_][\w-]*)\s*\{", css, re.IGNORECASE))
+    declarations = []
+    for selectors, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css):
+        for selector in selectors.split(","):
+            selector = selector.strip()
+            if re.fullmatch(r"(?:[A-Za-z][\w-]*|[.#][A-Za-z][\w-]*)+", selector) is None:
+                continue
+            tokens = re.findall(r"[A-Za-z][\w-]*|[.#][A-Za-z][\w-]*", selector)
+            if all(selector_matches(node, token) for token in tokens):
+                declarations.append(body)
+                break
+    declarations.append(node["map"].get("style") or "")
+    keywords = set("none normal infinite ease linear ease-in ease-out ease-in-out step-start step-end "
+                   "reverse alternate alternate-reverse forwards backwards both running paused "
+                   "initial inherit unset revert revert-layer".split())
+    names: set[str] = set()
+    for body in declarations:
+        for property_name, value in re.findall(r"(?:^|;)\s*(animation(?:-name)?)\s*:\s*([^;}]+)", body, re.IGNORECASE):
+            value = re.sub(r"\s*!important\s*$", "", value, flags=re.IGNORECASE)
+            if property_name.casefold() == "animation-name":
+                names = {item.strip() for item in value.split(",") if item.strip().casefold() not in keywords}
+            else:
+                literal = re.sub(r"\b(?:var|cubic-bezier|steps|linear)\([^()]*\)", " ", value)
+                if any(character in literal for character in "()\"'"):
+                    return False
+                names = {item for item in re.findall(r"(?<![\w-])[A-Za-z_][\w-]*", literal)
+                         if item.casefold() not in keywords}
+    return bool(names) and names <= keyframes
 
 
 def container_rules(css: str) -> list[str]:
@@ -343,7 +381,7 @@ def resolve(registry: dict[str, Any], documents: dict[str, str]) -> tuple[dict[s
         if not reduced_motion_css(page_css).strip():
             problems.append(f"showcase motion {row['variant']} page lacks an approved prefers-reduced-motion rule")
         if trigger["kind"] == "animation":
-            ok = "@keyframes" in page_css and re.search(r"\banimation(?:-name)?\s*:", page_css)
+            ok = animation_source_backed(page_css, bound["node"])
         elif trigger["kind"] == "class":
             ok = re.search(r"\." + re.escape(trigger["name"]) + r"(?![\w-])", page_css) and "transition" in page_css
         else:

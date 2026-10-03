@@ -112,6 +112,42 @@ class ShowcaseCoverageTests(unittest.TestCase):
         data["showcase"]["motion"][0]["trigger"]["from"] = "closed"
         self.assertIn("not backed by the approved source", "\n".join(findings(data)))
 
+    def test_animation_provenance_belongs_to_the_bound_specimen(self):
+        data = demo_registry()
+        data["showcase"]["motion"][1]["specimen"] = "button-primary"
+        with self.subTest(unrelated_specimen="button-primary"):
+            self.assertIn("source element and CSS", "\n".join(findings(data)))
+        changes = (
+            ("@keyframes tide-pulse", "@keyframes unrelated-pulse"),
+            ("animation:tide-pulse", "animation:missing-pulse"),
+            (".tide-dot{display", ".tide-dot-other{display"),
+            ("</style>", ".tide-dot{animation:none}</style>"),
+            ("animation:tide-pulse 1.6s var(--ease-out) infinite", "animation:var(--unresolved-animation)"),
+        )
+        for old, new in changes:
+            with self.subTest(change=new):
+                pages = demo_pages()
+                self.assertIn(old, pages["index.html"])
+                pages["index.html"] = pages["index.html"].replace(old, new)
+                self.assertIn("source element and CSS", "\n".join(findings(demo_registry(), pages)))
+        with self.subTest(reduced_motion_only=True):
+            pages = demo_pages()
+            pages["index.html"] = pages["index.html"].replace(
+                "animation:tide-pulse 1.6s var(--ease-out) infinite", "animation-name:none"
+            ).replace(".tide-dot{animation:none}", ".tide-dot{animation:tide-pulse 1.6s infinite}")
+            self.assertIn("source element and CSS", "\n".join(findings(demo_registry(), pages)))
+        for old, new in (
+            (".tide-dot{display", ".unrelated,.tide-dot{display"),
+            (".tide-dot{display", "span.tide-dot{display"),
+            ("animation:tide-pulse 1.6s var(--ease-out) infinite",
+             "animation-name:tide-pulse;animation-duration:1.6s"),
+        ):
+            with self.subTest(valid_rule=new):
+                pages = demo_pages()
+                self.assertIn(old, pages["index.html"])
+                pages["index.html"] = pages["index.html"].replace(old, new)
+                self.assertEqual([], findings(demo_registry(), pages))
+
     def test_state_view_specimen_renders_at_its_view_target(self):
         page = ('<html lang="en"><body><div data-hifi-canvas data-hifi-targets="390 768" data-hifi-target="390">'
                 '<main data-ui-surface="UI-001"><div data-hifi-state-view="loading" data-responsive-target="768" hidden>'
