@@ -218,6 +218,13 @@ class EvalVerificationTests(unittest.TestCase):
         with self.assertRaises(ev.ep.PolicyError):
             ev.validate_contract(self.contract, self.policy, self.report["prd_sha256"])
 
+    def test_utc_overflow_returns_a_typed_timestamp_failure(self):
+        self.assertEqual(dt.datetime(2026, 1, 1, tzinfo=dt.timezone.utc),
+                         ev.timestamp("2026-01-01T01:00:00+01:00"))
+        for value in ("0001-01-01T00:00:00+01:00", "9999-12-31T23:00:00-02:00"):
+            with self.subTest(value=value), self.assertRaisesRegex(ev.ep.PolicyError, "invalid report timestamp"):
+                ev.timestamp(value)
+
     def test_mutable_dependency_requires_current_identity_readback(self):
         self.policy["freshness"]["dependencies"] = {"api": "snapshot-v1"}
         with self.assertRaisesRegex(ev.ep.PolicyError, "readbacks"):

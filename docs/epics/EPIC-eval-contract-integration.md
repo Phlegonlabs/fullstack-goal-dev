@@ -113,6 +113,13 @@ No new responsibility is added to its existing table/approval code.
 
 ## Handoff
 
+2026-10-03 EVAL-I-02 timestamp diagnostic repair, baseline `289b2b5b`,
+working-tree: UTC conversion outside datetime's range raises a typed policy
+failure. Unit and real-Git CLI controls cover both range ends and both report
+purposes, preserving a JSON FAIL with exit 1 instead of a traceback. All 20
+report tests and 12 real-Git/CLI tests PASS. This closes A7's remaining low
+report diagnostic; fresh review and broad verification remain pending.
+
 2026-10-03 EVAL-I-01 TEST authority repair, baseline `7f4be377`, working-tree:
 join only the single active canonical Test Obligations section and its real
 header/separator/rows. Earlier prose, subheadings and arbitrary six-cell rows

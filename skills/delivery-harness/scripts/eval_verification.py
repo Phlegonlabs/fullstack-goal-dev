@@ -46,7 +46,10 @@ def timestamp(value):
         raise ep.PolicyError("invalid report timestamp") from exc
     if "T" not in value or parsed.tzinfo is None:
         ep.fail("timestamp needs date/time and timezone")
-    return parsed.astimezone(dt.timezone.utc)
+    try:
+        return parsed.astimezone(dt.timezone.utc)
+    except OverflowError as exc:
+        raise ep.PolicyError("invalid report timestamp") from exc
 
 
 def concrete_observation(value, label):

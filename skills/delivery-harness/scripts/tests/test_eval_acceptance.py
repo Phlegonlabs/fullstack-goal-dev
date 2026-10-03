@@ -136,6 +136,20 @@ class EvalAcceptanceTests(unittest.TestCase):
         self.assertEqual(1, code)
         self.assertIn("frozen", str(result))
 
+    def test_timestamp_overflow_returns_json_failure_in_both_reports(self):
+        original = copy.deepcopy(self.reports)
+        self.assertEqual(0, self.invoke()[0])
+        for purpose, value in (("quality", "0001-01-01T00:00:00+01:00"),
+                               ("handoff", "9999-12-31T23:00:00-02:00")):
+            with self.subTest(purpose=purpose):
+                self.reports = copy.deepcopy(original)
+                self.reports[purpose]["started_at"] = value
+                self.save_reports()
+                self.commit("invalid timestamp evidence")
+                code, result = self.invoke()
+                self.assertEqual((1, "FAIL"), (code, result["status"]))
+                self.assertIn("invalid report timestamp", str(result["errors"]))
+
     def test_changed_uncommitted_report_and_product_after_h1_fail(self):
         self.write(self.policy["quality"]["report"], b"{}")
         self.assertEqual(1, self.invoke()[0])
