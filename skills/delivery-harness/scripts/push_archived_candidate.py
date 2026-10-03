@@ -47,6 +47,7 @@ from archive_run import (
 )
 from archive_run import validate_archive_anchor
 from publication_credentials import credential_binding, publication_environment, UNBOUND
+from branch_policy import archive_ancestry_base, branch_policy_required
 
 
 POSIX_TRUST_POLICY_PATH = Path("/etc/product-delivery-harness/archive-push.allowed_signers")
@@ -1029,6 +1030,7 @@ def _replacement_base_from_plan(
     branch: str,
     candidate_c: str,
     expected_main: str,
+    run: dict[str, Any] | None = None,
 ) -> tuple[str | None, dict[str, Any]]:
     """Resolve an explicit prior archive candidate for a correction RUN."""
 
@@ -1172,7 +1174,22 @@ def _replacement_base_from_plan(
         )
     if _canonical_branch(prior_receipt.get("branch")) != branch:
         raise ManifestError("prior archive candidate belongs to another run branch")
-    if prior_receipt.get("expected_main") != expected_main:
+    if branch_policy_required(run):
+        prior_directory = str(Path(location).parent).replace("\\", "/")
+        prior_plan = _manifest(root, revision, prior_directory + "/PLAN.md", PLAN_HEADING, "harness_plan")
+        prior_run = _manifest(root, revision, prior_directory + "/RUN.md", RUN_HEADING, "harness_run")
+        for name in ("PLAN.md", "RUN.md"):
+            prior_path = prior_directory + "/" + name
+            move = next((item for item in prior_receipt["moves"] if item.get("destination") == prior_path), None)
+            if move is None or hashlib.sha256(_blob(root, revision, prior_path)).hexdigest() != move.get("sha256"):
+                raise ManifestError("prior frozen policy inputs do not match archive receipt")
+        if (not branch_policy_required(prior_run)
+                or plan_digest(prior_plan) != prior_receipt.get("plan_digest_sha256")
+                or archive_ancestry_base(prior_plan, prior_run, prior_receipt.get("expected_main"))
+                != archive_ancestry_base(plan, run, expected_main)
+                or prior_plan.get("branch_policy") != plan.get("branch_policy")):
+            raise ManifestError("correction archive must retain the prior frozen branch policy")
+    elif prior_receipt.get("expected_main") != expected_main:
         raise ManifestError("prior archive candidate records another main base")
     parents = _out(root, "rev-list", "--parents", "-n", "1", revision).split()
     if (
@@ -1297,7 +1314,7 @@ def verify_archive_candidate(root: Path, *, archive_path: Path, candidate_a: str
     lineage_archives = _archive_lineage_candidates(
         root,
         candidate_c,
-        receipt.get("expected_main"),
+        archive_ancestry_base(plan, run, receipt.get("expected_main")),
     )
     if lineage_archives and len(prior_sources) != 1:
         raise ManifestError(
@@ -1310,6 +1327,7 @@ def verify_archive_candidate(root: Path, *, archive_path: Path, candidate_a: str
         branch=branch,
         candidate_c=candidate_c,
         expected_main=receipt.get("expected_main"),
+        run=run,
     )
     if lineage_archives and replacement_base != lineage_archives[0]:
         raise ManifestError(
@@ -1389,12 +1407,14 @@ def verify_archive_candidate(root: Path, *, archive_path: Path, candidate_a: str
         raise ManifestError("ARCHIVE_RECEIPT documents_after_sha256 is incorrect")
     expected_main = receipt.get("expected_main")
     main_ref = receipt.get("main_ref")
-    observed_main = _out(root, "rev-parse", "--verify", f"{main_ref}^{{commit}}")
-    if observed_main != expected_main:
-        raise ManifestError("archive receipt main_ref no longer resolves to expected_main")
-    ancestry = _git(root, "merge-base", "--is-ancestor", expected_main, candidate_c)
+    if not branch_policy_required(run):
+        observed_main = _out(root, "rev-parse", "--verify", f"{main_ref}^{{commit}}")
+        if observed_main != expected_main:
+            raise ManifestError("archive receipt main_ref no longer resolves to expected_main")
+    ancestry_base = archive_ancestry_base(plan, run, expected_main)
+    ancestry = _git(root, "merge-base", "--is-ancestor", ancestry_base, candidate_c)
     if ancestry.returncode != 0:
-        raise ManifestError("expected_main is not an ancestor of candidate C")
+        raise ManifestError("archive base is not an ancestor of candidate C")
     receipt_digest = hashlib.sha256(_blob(root, candidate_a, receipt_path)).hexdigest()
     archive_hashes = {path: digest for path, digest in actual_archive.items()}
     return {

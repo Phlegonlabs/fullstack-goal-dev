@@ -101,7 +101,7 @@ Skills 更新后及实现前，执行[设计有效性检查](skills/ui-design-bu
 
 ## 核心保证
 
-- **恢复保留身份与证据。** Launch recording 分开父代理的 `--session-id` 锁与 `--worker-session-id`。新增的历史 review admission 匹配保留的 attempt；旧 PASS 不覆盖新 head。没有中断 reconciliation receipt 的 blocked sibling review 会阻止 candidate 移动。
+- **恢复保留身份与证据。** Launch recording 分开父代理的 `--session-id` 锁与 `--worker-session-id`。新增的历史 review admission 匹配保留的 attempt；旧 PASS 不覆盖新 head。没有中断 reconciliation receipt 的 blocked sibling review 会阻止 candidate 移动。Dual-branch archive 验证冻结 base 的 ancestry，保留 main 观察；旧 pins 保留原规则。
 
 - **实现前主动提供建议.** 用户没有技术偏好时，提出符合产品的默认建议及替代方案，涵盖前端、部署、后端/runtime 和 agent 编排，说明兼容性、成本假设与重新评估条件。Enhancement 先检查现有 UI，展示受影响范围的前后比较。研究 template 与 CSS 参考时检查授权和 stack，手机界面保留原生惯例。明确要求的 hero 和动效持续跟踪至交付。Visual Approval 要求每个动效具备绑定哈希的正常及 reduced-motion 观察记录；HTML 证据只证明审阅投影。
 - **小型工作保持精简。** 一个有界变更只走检查、实现、验证和审查。

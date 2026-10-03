@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from harness_git import run_git
-from harness_core import is_full_sha
+from harness_core import ManifestError, is_full_sha
 from harness_schema import run_required_harness_version, version_at_least
 
 
@@ -83,6 +83,19 @@ def initial_or_candidate_head(run: dict[str, Any] | None) -> str | None:
         if is_full_sha(value):
             return value
     return None
+
+
+def archive_ancestry_base(
+    plan: dict[str, Any] | None, run: dict[str, Any], expected_main: str
+) -> str:
+    """Use the frozen delivery base, retaining historical main-based pins."""
+
+    if not branch_policy_required(run):
+        return expected_main
+    issues = validate_branch_policy_shape(plan if isinstance(plan, dict) else {})
+    if issues:
+        raise ManifestError("invalid archive branch policy: " + "; ".join(issues))
+    return plan["branch_policy"]["base_sha"]
 
 
 def validate_branch_policy_ancestry(

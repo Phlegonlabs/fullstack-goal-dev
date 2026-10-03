@@ -130,3 +130,10 @@ Third read-only Claude review completed as `claude-opus-5-5`, requested xhigh, s
 - Parent baseline `d727dbe5d8e177f6f8a1d4a214aeaef5284bee79`; staged source tree `0b9634e09cc49d42059d0fe9c4780b0040b7588b` exported and tested from its repository root before the commit. Documentation added after testing changes no tested skill bytes.
 - Focused positive and negative checks: 19 tests passed in `recovery-02-staged.log`; finite job exited with no remaining owned processes. The commit contains only this FLOW outcome, its tests and four-language descriptions.
 - Full exact-candidate release matrix and independent UI pipeline/candidate review remain pending. No remote publication or installed-skill mutation.
+
+### 2026-10-03 — FLOW-03 atomic integration
+
+- Parent baseline `73fbe1457a9c8c46c31626a0c7cd2853b1fb0d58`; staged source tree `545e023de8811b6b6d68b2cf895cb3fe9e4437df` exported and tested from its repository root before the commit. Documentation added after testing changes no tested skill bytes.
+- Focused positive and negative checks: 13 tests, no failures/errors, no skips in `recovery-03-changed.log`; finite job exited with no remaining owned processes. The commit contains only this FLOW outcome, its tests and four-language descriptions.
+- The larger 96-case archive/publication selection reached its 600-second deadline before completion. Its result is timeout (124), not PASS; its owned process tree exited. The focused 13-case run covers frozen-base selection, actual Git archive ancestry/main freshness, legacy and malformed pins, four dual-branch publication/correction cases and whole-set archival. Complete archive/publication regressions remain required in the final release matrix.
+- Full exact-candidate release matrix and independent UI pipeline/candidate review remain pending. No remote publication or installed-skill mutation.

@@ -31,7 +31,7 @@ SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-from harness_core import load_plan, load_run  # noqa: E402
+from harness_core import ManifestError, load_plan, load_run  # noqa: E402
 from harness_git import (  # noqa: E402
     GitMetadataError,
     git_environment,
@@ -1316,6 +1316,7 @@ def _live_head_problems(
     expected_main: str | None,
     main_ref: str | None,
     allowed_dirty_roots: list[Path],
+    plan: dict[str, object] | None = None,
 ) -> list[str]:
     """Bind pre-promotion archival to the exact run branch and observed main."""
 
@@ -1388,12 +1389,18 @@ def _live_head_problems(
             f"live HEAD {live_head} does not match run integration head {recorded_head}"
         )
 
-    ancestry = _git(root, "merge-base", "--is-ancestor", expected_main, live_head)
+    from branch_policy import archive_ancestry_base
+
+    try:
+        ancestry_base = archive_ancestry_base(plan, run, expected_main)
+    except ManifestError as exc:
+        return [*problems, str(exc)]
+    ancestry = _git(root, "merge-base", "--is-ancestor", ancestry_base, live_head)
     if ancestry is None:
         problems.append("could not verify live HEAD ancestry")
     elif ancestry.returncode != 0:
         problems.append(
-            f"live HEAD {live_head} does not descend from expected main/base {expected_main}"
+            f"live HEAD {live_head} does not descend from archive base {ancestry_base}"
         )
 
     status = _git(root, "status", "--porcelain=v1", "-z", "--untracked-files=all")
@@ -2201,7 +2208,7 @@ def archive(
             print(f"error: {problem}", file=sys.stderr)
         return 1
     live_head_problems = (
-        _live_head_problems(run, root, expected_main, main_ref, moves)
+        _live_head_problems(run, root, expected_main, main_ref, moves, plan)
         if apply
         else []
     )
@@ -2262,7 +2269,7 @@ def archive(
     # before any anchor/target write.  A concurrent ref update therefore fails
     # closed instead of producing a stale archive receipt.
     final_live_head_problems = _live_head_problems(
-        run, root, expected_main, main_ref, moves
+        run, root, expected_main, main_ref, moves, plan
     )
     if final_live_head_problems:
         for problem in final_live_head_problems:

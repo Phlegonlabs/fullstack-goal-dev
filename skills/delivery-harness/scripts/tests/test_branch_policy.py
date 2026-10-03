@@ -17,6 +17,7 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 from branch_policy import (  # noqa: E402
     DUAL_BRANCH_MARKER,
+    archive_ancestry_base,
     validate_branch_policy_ancestry,
     validate_branch_policy_join,
     validate_branch_policy_shape,
@@ -47,6 +48,42 @@ def run_at(version: str) -> dict[str, object]:
 
 
 class BranchPolicyTests(unittest.TestCase):
+    def test_archive_candidate_can_descend_from_development_while_main_has_hotfix(self):
+        from archive_run import _live_head_problems
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            def git(*arguments):
+                return subprocess.check_output(["git", *arguments], cwd=root, text=True).strip()
+            git("init", "-q", "-b", "main")
+            git("config", "user.email", "test@example.invalid")
+            git("config", "user.name", "Archive Base Test")
+            git("commit", "--allow-empty", "-qm", "original development")
+            base = git("rev-parse", "HEAD")
+            git("checkout", "-q", "-b", "codex/candidate")
+            git("commit", "--allow-empty", "-qm", "ordinary candidate")
+            candidate = git("rev-parse", "HEAD")
+            git("checkout", "-q", "main")
+            git("commit", "--allow-empty", "-qm", "hotfix awaiting forward integration")
+            main = git("rev-parse", "HEAD")
+            git("checkout", "-q", "codex/candidate")
+            run = run_at("0.59.0")
+            run["integration"].update(branch="codex/candidate", integration_head_sha=candidate)
+            plan = {"branch_policy": branch_policy(base_sha=base)}
+            self.assertEqual([], _live_head_problems(run, root, main, "refs/heads/main", [], plan))
+            self.assertTrue(_live_head_problems(run, root, base, "refs/heads/main", [], plan))
+            self.assertTrue(_live_head_problems(run, root, main, "refs/heads/main", [],
+                {"branch_policy": branch_policy(base_sha=main)}))
+            run["runtime_capabilities"]["runtime_adapter"]["version_gate"]["required_harness_version"] = "0.58.0"
+            self.assertTrue(_live_head_problems(run, root, main, "refs/heads/main", [], plan))
+
+    def test_archive_uses_frozen_base_and_keeps_legacy_main_rule(self):
+        plan = {"branch_policy": branch_policy(base_sha="b" * 40)}
+        self.assertEqual("b" * 40, archive_ancestry_base(plan, run_at("0.59.0"), "c" * 40))
+        self.assertEqual("c" * 40, archive_ancestry_base(plan, run_at("0.58.0"), "c" * 40))
+        from harness_core import ManifestError
+        with self.assertRaises(ManifestError):
+            archive_ancestry_base(None, run_at("0.59.0"), "c" * 40)
+
     def test_old_and_malformed_pins_do_not_require_policy_or_marker(self) -> None:
         plan = valid_plan()
         with tempfile.TemporaryDirectory() as directory:
