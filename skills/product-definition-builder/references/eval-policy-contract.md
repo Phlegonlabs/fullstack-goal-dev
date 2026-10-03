@@ -7,6 +7,9 @@ Never migrate historical approvals automatically.
 Record one `<!-- eval-policy:start -->` / `<!-- eval-policy:end -->` pair in
 PRD's `## AI and Automation`, outside the approval block. Its body is a JSON
 object inside a `json` fence, keeping every field visible in rendered review.
+Before the body, use LF/CRLF/CR line endings and ASCII space/tab blank lines;
+Unicode separators and padding cannot masquerade as Markdown boundaries.
+Unicode inside JSON strings stays unchanged.
 The existing product approval digest
 covers these bytes. Derived delivery contracts cannot replace this authority.
 Overlapping or malformed approval boundaries fail validation; approval-excluded

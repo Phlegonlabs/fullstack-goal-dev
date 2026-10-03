@@ -113,6 +113,22 @@ No new responsibility is added to its existing table/approval code.
 
 ## Handoff
 
+2026-10-03 A8 review / EVAL-I-01 visibility refinement, baseline `321c0999`,
+working-tree: Core review returned a medium Markdown visibility bypass;
+Report review required independent identity negatives; Gate review found an
+unfenced current fixture. Workflow source review passed with two low invocation
+notes. All four Opus 5.5 read-only review processes exited; no fallback. Gate's
+security PASS does not override its code finding. All receipts are retained.
+The parent reproduced nine accepted invisible-policy cases. The parser now
+rejects Python-only line separators before the body, non-ASCII blank lines in
+the prefix and Unicode padding around fences. JSON string content stays intact;
+LF/CRLF/CR and ASCII blank controls remain valid. Historical digest exclusion
+checks retain their precedence and bytes. This follows CommonMark's physical
+line and blank-line definitions: https://spec.commonmark.org/0.31.2/#characters-and-lines.
+All 19 Product policy tests PASS, including the full separator/blank/padding
+matrix and existing digest/Unicode controls. Broad suites and fresh review
+remain pending.
+
 2026-10-03 EVAL-I-02 timestamp diagnostic repair, baseline `289b2b5b`,
 working-tree: UTC conversion outside datetime's range raises a typed policy
 failure. Unit and real-Git CLI controls cover both range ends and both report

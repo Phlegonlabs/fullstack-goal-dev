@@ -90,6 +90,28 @@ class EvalPolicyTests(unittest.TestCase):
                 with self.subTest(separator=repr(separator), newline=repr(newline)):
                     self.assertEqual(policy, ep.parse_eval_policy(source.replace("\n", newline), required=True))
 
+    def test_markdown_line_and_blank_boundaries_keep_policy_visible(self):
+        hidden = copy.deepcopy(self.policy)
+        hidden.update(reason="Output quality <!--", owner="Jacky Chan -->")
+        source = prd(hidden)
+        for separator in ("\x0b", "\x0c", "\x1c", "\x1d", "\x1e", "\x85", "\u2028", "\u2029"):
+            for candidate in (source.replace(ep.START + "\n", ep.START + separator),
+                              source.replace(ep.START, separator + ep.START),
+                              source.replace("```json\n", separator + "```json\n"),
+                              source.replace("\n```\n", "\n```" + separator + "\n")):
+                with self.subTest(separator=repr(separator)), self.assertRaises(ep.PolicyError):
+                    ep.parse_eval_policy(candidate, required=True)
+        for whitespace in ("\u00a0", "\u1680", "\u2000", "\u2007", "\u202f", "\u205f", "\u3000"):
+            for candidate in (source.replace(ep.START, "<details>\n" + whitespace + "\n" + ep.START),
+                              source.replace("```json\n", whitespace + "```json\n"),
+                              source.replace("\n```\n", "\n```" + whitespace + "\n")):
+                with self.subTest(whitespace=repr(whitespace)), self.assertRaises(ep.PolicyError):
+                    ep.parse_eval_policy(candidate, required=True)
+        for newline in ("\n", "\r\n", "\r"):
+            for blank in ("", " ", "\t", " \t"):
+                candidate = source.replace(ep.START, "<details>\n" + blank + "\n" + ep.START)
+                self.assertEqual(hidden, ep.parse_eval_policy(candidate.replace("\n", newline), required=True))
+
     def test_raw_digest_exclusion_matrix_cannot_hide_policy(self):
         import check_product_package as package
         from test_product_package_checker import valid_prd, valid_architecture, valid_stack, strictize_approved_package

@@ -160,7 +160,15 @@ def parse_eval_policy(prd_text, *, required=False):
         fail("eval policy must be in the AI and Automation section")
     body_start = sum(map(len, lines[:starts[0]]))
     body_end = sum(map(len, lines[:ends[0] - 1]))
-    body = prd_text[body_start:body_end].replace("\r\n", "\n").strip()
+    # Python's splitlines/strip recognize characters that do not delimit lines
+    # or end HTML blocks in CommonMark. Keep them inside JSON strings only.
+    before_body = prd_text[:body_start]
+    if any(char in before_body for char in "\x0b\x0c\x1c\x1d\x1e\x85\u2028\u2029"):
+        fail("eval policy prefix requires Markdown line endings")
+    for line in before_body.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+        if line and not line.strip() and line.strip(" \t"):
+            fail("eval policy prefix requires Markdown blank lines")
+    body = prd_text[body_start:body_end].replace("\r\n", "\n").replace("\r", "\n").strip(" \t\n")
     if not (body.startswith("```json\n") and body.endswith("\n```")):
         fail("eval policy body requires a json fence for visible review")
     return json_object(body[8:-4])
