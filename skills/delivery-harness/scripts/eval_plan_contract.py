@@ -20,8 +20,9 @@ def _command(gate, script, expected):
     if (gate.get("cwd") != "." or gate.get("pass_signal") != "exit 0"
             or not isinstance(argv, list) or len(argv) < 3 or any(not isinstance(x, str) for x in argv)
             or argv[0] not in {"python", "python3", sys.executable}
+            or not Path(argv[1]).is_absolute()
             or Path(argv[1]).resolve() != Path(__file__).with_name(script).resolve()):
-        ep.fail("eval/acceptance gate must invoke the installed checker directly from repository root")
+        ep.fail("eval/acceptance gate must invoke the absolute installed checker directly from repository root")
     selection = gate.get("selection")
     if selection is not None and (not isinstance(selection, dict) or selection.get("mode") != "always"):
         ep.fail("eval/acceptance gates must always run")

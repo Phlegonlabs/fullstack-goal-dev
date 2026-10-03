@@ -105,7 +105,7 @@ Applicable PLANs freeze one canonical `eval contract` source at
 `docs/verification/eval-contract.json` and one `delivery acceptance` source at
 `docs/verification/delivery-acceptance.json`, with hashes and optional full
 source revision. Required final gates are `eval-acceptance`, `delivery-acceptance`
-and `final-closeout`. The first two directly invoke installed checker scripts
+and `final-closeout`. The first two directly invoke absolute installed checker paths
 with exactly the frozen paths/hashes, default register and `--candidate-from-head`,
 `cwd: .`, `pass_signal: exit 0`, and omitted/always selection. No shell wrapper
 or caller-selected passing checker substitutes for them.

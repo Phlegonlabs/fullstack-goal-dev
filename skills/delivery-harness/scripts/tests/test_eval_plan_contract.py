@@ -120,6 +120,17 @@ class EvalPlanContractTests(unittest.TestCase):
         self.plan["sources"][1]["kind"] = "untrusted expectation"
         self.assertTrue(self.check())
 
+    def test_relative_checker_cannot_resolve_against_parent_checkout(self):
+        # The verifier runs in the consumer root, not this parent's source cwd.
+        self.assertNotEqual(self.root.resolve(), Path.cwd().resolve())
+        for index, script in ((1, "check_eval_acceptance.py"), (2, "check_delivery_acceptance.py")):
+            plan = copy.deepcopy(self.plan)
+            relative = "skills/delivery-harness/scripts/" + script
+            self.assertTrue(Path(relative).is_file())
+            plan["final_gates"][index]["argv"][1] = relative
+            errors = self.check(plan)
+            self.assertTrue(any("absolute installed checker" in error for error in errors), errors)
+
     def test_common_join_cannot_skip_eval_through_strict_early_return(self):
         self.plan["final_gates"].pop(1)
         with patch.object(join, "_validate_strict_frozen_contract_joins", return_value=[]):
