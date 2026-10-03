@@ -112,12 +112,14 @@ Applicable PLANs freeze one canonical `eval contract` source at
 `docs/verification/delivery-acceptance.json`, with hashes and optional full
 source revision. Required final gates are `eval-acceptance`, `delivery-acceptance`
 and `final-closeout`. The first two directly invoke absolute installed checker paths
+with the absolute Python executable observed by readiness (same resolved path),
 with exactly the frozen paths/hashes, default register and `--candidate-from-head`,
 `cwd: .`, `pass_signal: exit 0`, explicit `execution.isolation: host`, and
 omitted/always selection. The host Git checkout and installed skill paths must
 share one filesystem namespace; an archive-only container snapshot cannot supply
 this proof. No shell wrapper
-or caller-selected passing checker substitutes for them.
+or caller-selected passing checker substitutes for them. Bare `python`/`python3`
+cannot select a project executable or another interpreter through PATH.
 
 Each final gate has one `local_command` verifier node. Pass-only unbounded
 dependency paths run every broad final check -> eval-acceptance ->

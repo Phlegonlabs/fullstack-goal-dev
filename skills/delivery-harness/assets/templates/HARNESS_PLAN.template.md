@@ -92,7 +92,7 @@ Use this template as `docs/goal/PLAN.md` for managed work that needs durable coo
         "id": "delivery-acceptance",
         "cwd": ".",
         "argv": [
-          "python",
+          "<absolute-observed-python-executable>",
           "<installed-delivery-harness>/scripts/check_delivery_acceptance.py",
           "--repo-root", ".",
           "--prd", "docs/product/PRD.md",
@@ -426,7 +426,8 @@ Follow `references/eval-acceptance-contract.md`: add the always-run final gate
 `eval-acceptance` invoking installed `check_eval_acceptance.py` with independently
 frozen PRD/eval/delivery hashes and default register. Both eval and delivery
 acceptance gates declare `execution.isolation: host` and absolute installed
-checker paths; containers cannot substitute their filesystem. Add its local-command node
+checker paths with the observed absolute Python executable; PATH or a project
+executable cannot substitute it. Containers cannot substitute their filesystem. Add its local-command node
 between every broad final check and delivery acceptance, using pass-only
 dependency edges. Keep `final-closeout` after delivery acceptance. Missing or
 substituted sources, checker argv, hashes or graph paths fail the common join.

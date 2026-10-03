@@ -50,7 +50,7 @@ class EvalPlanContractTests(unittest.TestCase):
         acceptance_args = {**common, "--contract": self.plan["sources"][2]["location"], "--contract-sha256": self.plan["sources"][2]["content_sha256"]}
         for name, script, options in (("final-check", "noop.py", {}), ("eval-acceptance", "check_eval_acceptance.py", eval_args),
                                       ("delivery-acceptance", "check_delivery_acceptance.py", acceptance_args), ("final-closeout", "noop.py", {})):
-            argv = ["python", str(Path(pc.__file__).with_name(script))]
+            argv = [sys.executable, str(Path(pc.__file__).with_name(script))]
             argv += [value for pair in options.items() for value in pair]
             if options:
                 argv.append("--candidate-from-head")
@@ -220,6 +220,15 @@ class EvalPlanContractTests(unittest.TestCase):
                 plan["final_gates"][index]["execution"] = execution_policy
                 with self.subTest(gate=index, execution=execution_policy):
                     self.assertTrue(self.check(plan))
+
+    def test_gate_interpreter_cannot_resolve_through_project_or_path(self):
+        self.assertEqual([], self.check())
+        for index in (1, 2):
+            for interpreter in ("python", "python3", "./python", "./python.exe", str(self.root / "python.exe")):
+                plan = copy.deepcopy(self.plan)
+                plan["final_gates"][index]["argv"][0] = interpreter
+                with self.subTest(gate=index, interpreter=interpreter):
+                    self.assertTrue(any("observed absolute Python" in error for error in self.check(plan)))
 
     def test_common_join_cannot_skip_eval_through_strict_early_return(self):
         self.plan["final_gates"].pop(1)

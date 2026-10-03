@@ -375,7 +375,8 @@ The [eval acceptance contract](skills/delivery-harness/references/eval-acceptanc
 `check_eval_acceptance.py` joins those two reports to the existing delivery register at clean H2, verifies frozen hashes and H1 equivalence, then precedes delivery acceptance. The delivered [eval runbook](skills/delivery-harness/assets/templates/EVAL_RUNBOOK.template.md) covers setup, full/quick commands, limits, failed-case replay and owned-fixture cleanup. Checkers execute no runner commands; review still verifies provenance.
 
 For RUN pins >=0.60.0, readiness requires explicit eval applicability and, when required, frozen eval/delivery sources plus always-run checker gates in dependency order: broad final checks → eval acceptance → delivery acceptance → closeout. Wrong hashes, substituted commands or disconnected gates fail. Older pins without the marker retain their contract; a present marker opts in.
-Both acceptance checkers use absolute installed paths and explicit host execution,
+Both acceptance checkers use absolute installed paths, the observed absolute
+Python executable and explicit host execution,
 so an image cannot replace the checker at the same path.
 An unsafe or unreadable PRD authority is a validation gap, including on older
 pins; it cannot establish that a policy is absent.

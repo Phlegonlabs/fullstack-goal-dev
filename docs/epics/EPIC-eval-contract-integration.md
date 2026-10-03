@@ -113,6 +113,14 @@ No new responsibility is added to its existing table/approval code.
 
 ## Handoff
 
+2026-10-03 EVAL-I-04 interpreter authority repair, baseline `efde904`,
+working-tree: both acceptance gates require the absolute interpreter resolved
+to readiness's observed Python, as well as the absolute installed checker and
+host isolation. Bare names, project-relative interpreters and other absolute
+interpreters fail. The full readiness matrix ran 17 tests: 16 PASS, one POSIX
+variant skipped on Windows. Template and four-language descriptions agree.
+Fresh structural review and broad verification remain pending.
+
 2026-10-03 EVAL-I-04 structural authority repair, baseline `78f6c42`,
 working-tree: unreadable, linked, oversized or secret-like PRD authority now
 fails closed before legacy Product/UI early returns. A safe read is required
