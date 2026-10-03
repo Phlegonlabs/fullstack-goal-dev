@@ -35,7 +35,9 @@ def json_object(raw):
     try:
         obj = json.loads(raw, object_pairs_hook=unique_object,
                          parse_constant=lambda _: fail("non-finite JSON number"))
-    except (UnicodeError, json.JSONDecodeError, RecursionError) as exc:
+    except PolicyError:
+        raise
+    except (UnicodeError, ValueError, RecursionError) as exc:
         raise PolicyError("invalid UTF-8 JSON object") from exc
     if not isinstance(obj, dict):
         raise PolicyError("expected JSON object")
@@ -73,7 +75,8 @@ def identifier(value, label):
 
 
 def safe_relative(value):
-    if not isinstance(value, str) or "\\" in value:
+    if (not isinstance(value, str) or "\\" in value
+            or any(ord(char) < 32 or ord(char) == 127 for char in value)):
         fail("artifact path must be POSIX repository-relative")
     path = PurePosixPath(value)
     if path.is_absolute() or not path.parts or path.as_posix() != value or ".." in path.parts:
@@ -345,5 +348,5 @@ def validate_eval_policy(prd_text, *, required=False, repo_root=None):
             if repo_root is not None:
                 parse_inputs(policy, lambda path: read_artifact(repo_root, path))
         return []
-    except (PolicyError, OSError, TypeError, KeyError, OverflowError) as exc:
+    except (PolicyError, OSError, TypeError, KeyError, OverflowError, ValueError, RecursionError) as exc:
         return [f"eval-policy: {exc}" if isinstance(exc, PolicyError) else "eval-policy: invalid or unreadable input"]

@@ -113,6 +113,13 @@ No new responsibility is added to its existing table/approval code.
 
 ## Handoff
 
+2026-10-03 EVAL-I-01 malformed-input diagnostic repair, baseline `ad48d708`,
+working-tree: oversized JSON integers become typed policy errors, existing
+duplicate-key diagnostics stay intact, and control characters in artifact paths
+fail before filesystem calls. Generic malformed input cannot escape validation
+as plain ValueError/RecursionError. All 16 policy tests PASS, including the
+actual Product CLI returning exit 1 with a typed message and no traceback.
+
 2026-10-03 EVAL-I-01 JSONL repair, baseline `4fd43240`, working-tree:
 record boundaries use LF/CRLF, retaining U+0085/U+2028/U+2029 inside approved
 prompts. The nine-case matrix accepts those strings unchanged and rejects the

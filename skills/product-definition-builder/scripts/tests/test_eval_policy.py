@@ -1,5 +1,7 @@
 import copy
+import contextlib
 import hashlib
+import io
 import json
 import re
 import sys
@@ -144,6 +146,35 @@ class EvalPolicyTests(unittest.TestCase):
         for raw in ('{"schema": 1, "schema": 2}', '{"score": NaN}'):
             with self.assertRaises(ep.PolicyError):
                 ep.json_object(raw)
+
+    def test_malformed_numeric_and_path_inputs_return_policy_errors(self):
+        with self.assertRaisesRegex(ep.PolicyError, "invalid UTF-8 JSON"):
+            ep.json_object('{"value":' + '1' * 5000 + '}')
+        candidate = prd(self.policy).replace('"numerator": 3', '"numerator":' + '1' * 5000)
+        errors = ep.validate_eval_policy(candidate, required=True)
+        self.assertTrue(errors and all(error.startswith("eval-policy:") for error in errors), errors)
+        with tempfile.TemporaryDirectory() as directory:
+            for control in ("\x00", "\t", "\n", "\x7f"):
+                with self.subTest(control=repr(control)), self.assertRaises(ep.PolicyError):
+                    ep.read_artifact(directory, "evals/a" + control + "b.json")
+        with self.assertRaisesRegex(ep.PolicyError, "duplicate JSON key"):
+            ep.json_object('{"value":1,"value":2}')
+        import check_product_package as package
+        from test_product_package_checker import valid_prd, valid_architecture, valid_stack
+        block = ep.START + candidate.split(ep.START)[1].split(ep.END)[0] + ep.END
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sources = {"PRD.md": valid_prd().replace("## Business Rules", block + "\n## Business Rules"),
+                       "architecture.md": valid_architecture(), "stack.md": valid_stack()}
+            for name, source in sources.items():
+                (root / name).write_text(source, encoding="utf-8")
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                result = package.main(["--prd", str(root / "PRD.md"), "--architecture", str(root / "architecture.md"),
+                    "--stack-decisions", str(root / "stack.md"), "--eval-policy", "eval-policy/1"])
+            self.assertEqual(1, result)
+            self.assertIn("eval-policy:", stderr.getvalue())
+            self.assertNotIn("Traceback", stderr.getvalue())
 
     def test_content_accepts_json_markup_todo_and_long_prompts(self):
         candidate, files = copy.deepcopy(self.policy), dict(self.files)
