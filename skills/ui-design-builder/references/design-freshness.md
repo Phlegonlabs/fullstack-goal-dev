@@ -1,6 +1,6 @@
 # Design Freshness Before Implementation
 
-After a skill update and before implementation, apply the shared document-sync check, then inspect the design dependency chain: PRD/architecture/stack → `ui-design.md` and direction records → every HiFi page → required `design-system/3` pair/preview. A current package has no wireframe dependency; a legacy chain may still include its historical wireframe. A newer version or file date alone does not invalidate a design. A disk update is not a session reload; unknown loaded identity remains unknown.
+After a skill update and before implementation, apply the shared document-sync check, then inspect the design dependency chain: PRD/architecture/stack → `ui-design.md` and direction records → every HiFi page → required design-system files and derived preview (`design-system/4` for `ui-design/3`, `design-system/3` for retained `ui-design/2`). A current package has no wireframe dependency; a legacy chain may still include its historical wireframe. A newer version or file date alone does not invalidate a design. A disk update is not a session reload; unknown loaded identity remains unknown.
 
 Record in the existing task or UI handoff: actual loaded/installed skill digests, relevant artifact paths/hashes and upstream inputs, implementation status (`not_started`, `started`, `unknown`) with evidence, changed rule, affected scope, required rechecks, retained decisions and result. Do not infer `not_started` merely from an absent RUN. No new approval registry is needed.
 

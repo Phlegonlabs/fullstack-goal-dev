@@ -25,7 +25,7 @@ Include only:
 Keep it the sole structured authority for:
 
 - platform, stack-bound rendering model/component foundation/styling semantics, styling mechanism, enforcement mode, token sources, and primitive sources;
-- `sourceBindings` for exactly current PRD, architecture, stack, `ui-design/2`, and approved complete HiFi entry bytes; `design-system/3` has no wireframe binding;
+- `sourceBindings` for exactly current PRD, architecture, stack, the approved UI contract (`ui-design/3` for `design-system/4`, retained `ui-design/2` for `design-system/3`), and approved complete HiFi entry bytes; neither schema has a wireframe binding;
 - one global responsive verification set for homogeneous products, or one set per `surfaceContracts` entry for hybrids; copy the exact approved PRD/HiFi set, with at least three ascending web `viewports` or two native/desktop `sizeClasses`, plus each surface’s release/capture identity and approved stack semantics; hybrids omit global platform, styling mechanism, viewports, and size classes;
 - only the tokens the product uses;
 - four primitive layers with closed variant sets;
@@ -61,7 +61,7 @@ Keep it the sole structured authority for:
 ## Approved Input Quality Check
 
 - The Design System Need Gate is `required` and records its human owner and reason.
-- `ui-design/2` is present exactly once. The UI contract records an approved immutable target, source hash, routes and states, the exact PRD/HiFi responsive set, passing browser-matrix evidence with no unintended overlap, clipping, occlusion, or horizontal overflow, tolerance, and allowed deviations.
+- The matching `ui-design/3` or retained `ui-design/2` marker is present exactly once. The UI contract records an approved immutable target, source hash, routes and states, the exact PRD/HiFi responsive set, passing browser-matrix evidence with no unintended overlap, clipping, occlusion, or horizontal overflow, tolerance, and allowed deviations.
 - Every HiFi entry, manifest-listed child page, inline asset, and copy-provenance item hashes and loads as the closed approved package. Each `UI-*` surface matches the PRD.
 - Each UI surface has one main purpose, one task-fit layout pattern, a real route or explicit `n/a`, and a density reason.
 - Every visible region carries the complete sourced copy: exact static strings and action labels, complete dynamic source/order/format/count/length/fallback contracts with representative examples, alternate-state copy, content priority, ordered responsibilities, actions, states, responsive behavior, and trace IDs.

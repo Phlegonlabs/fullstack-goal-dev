@@ -8,7 +8,7 @@ Before drafting, read the approved Product Definition package and inspect, in or
 - authorized direction-study captures under `docs/design/directions/<round>/`, referenced by the active comparison table;
 - `docs/design/wireframes.html`;
 - `docs/design/ui-references/`;
-- `docs/design/design-system.md` and `docs/design/design-system.json`; and
+- `docs/design/design-system.md`, `docs/design/design-system.json`, and their derived `docs/design/design-system-preview.html` when present; and
 - legacy `docs/product/wireframes.html` and `docs/product/design-system.*` when present.
 
 If a staged UI package exists, ask whether to resume, publish, or discard it before starting a competing draft. Never delete or silently replace an existing UI artifact.
@@ -26,7 +26,7 @@ Use `docs/design/.ui-staging/<run-id>/` only for unapproved drafts. Before colle
 - `docs/design/ui-design.md`;
 - referenced direction-study captures under `docs/design/directions/<round>/`;
 - `docs/design/ui-references/<run-id>/index.html` when retention is approved; and
-- `docs/design/design-system.md` plus `docs/design/design-system.json` when required.
+- `docs/design/design-system.md` plus `docs/design/design-system.json` and their derived `docs/design/design-system-preview.html` when required.
 
 The approved Product Definition remains under `docs/product/` in both checkouts. Preserve its exact bytes and all non-design source files; the publication checkout must retain the same HEAD and Git history so `Selected` stack source evidence can resolve. Do not use a documentation-only mirror.
 
@@ -42,7 +42,7 @@ When an approved artifact supersedes a current UI artifact, archive the old file
 
 The HiFi entry and every page listed in its `ui-hifi/2` manifest publish and archive together as one closed package. Preserve their sibling filenames, inline every non-HTML asset, and retain the entry's `ui-hifi-copy/1` provenance JSON; there is no sidecar asset folder to track. Rehash each changed child page, then the entry, and renew affected interaction evidence and Visual Approval before publication. An unchanged index with a changed child is stale. Retain the complete package for the compiler and Harness; one copied index is insufficient. The existing exact path authorization applies to every page.
 
-The design-system pair publishes and archives atomically. A new pair is `design-system/3` and has no wireframe binding. Legacy `design-system/1` remains inspection-only; `design-system/2` retains its original validation and approval semantics for legacy UI contracts. A `not_required` decision does not silently remove an existing pair; explicitly retain or retire it with owner approval.
+The required design-system files publish and archive atomically, including the derived HTML. A new `ui-design/3` package compiles `design-system/4`; a retained `ui-design/2` package compiles `design-system/3`. Neither has a wireframe binding. Legacy `design-system/1` remains inspection-only; `design-system/2` retains its original validation and approval semantics for legacy UI contracts. A retained `not_required` decision does not silently remove an existing pair; explicitly retain or retire it with owner approval.
 
 For a required pair, retain `docs/design/design-system-preview.html` in the same authorized publication set. `check_ui_publication.py --design-system-required` checks it against the pair before and after transfer; a missing or edited view fails. Generate it with the compiler's `render_design_system_preview.py`. It is derived review output, not another authority or a product screen. An existing package gains this view through an authorized update without rewriting prior wireframe bytes or backfilling approval.
 
