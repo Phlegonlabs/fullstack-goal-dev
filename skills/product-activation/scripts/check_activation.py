@@ -256,6 +256,8 @@ GENERIC_REASON_WORDS = {
     "unclear",
     "unknown",
     "waiting",
+    "稍後處理",
+    "稍后处理",
 }
 
 
@@ -352,8 +354,15 @@ def _concrete_reason(value: str) -> bool:
     normalized = unicodedata.normalize("NFC", value).strip()
     if not normalized or _placeholder(normalized) or normalized.casefold() in ABSENT:
         return False
-    words = re.findall(r"[a-z0-9]+", normalized.casefold())
-    return len(words) >= 2 and not all(word in GENERIC_REASON_WORDS for word in words)
+    words = re.findall(r"[^\W_]+", normalized.casefold())
+    if not words or all(word in GENERIC_REASON_WORDS for word in words):
+        return False
+    # Languages without spaces can express a concrete reason in one token.
+    unsegmented_prose = any(
+        len(word) >= 4 and any(character.isalpha() and not character.isascii() for character in word)
+        for word in words
+    )
+    return len(words) >= 2 or unsegmented_prose
 
 
 def _timestamp(value: str) -> datetime | None:

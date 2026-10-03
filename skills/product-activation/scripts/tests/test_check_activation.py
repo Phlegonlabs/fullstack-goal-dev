@@ -1245,6 +1245,29 @@ class ActivationCheckerTests(unittest.TestCase):
         )
         self.assertEqual([], findings)
 
+    def test_closeout_accepts_translated_blockers_and_owner_deferrals(self) -> None:
+        fields = task_fields(status="blocked", evidence_ids="none")
+        fields["Authorization"] = "pending"
+        fields["Authorization source"] = "none"
+        for reason in (
+            "正式環境帳戶無法登入",
+            "無法登入",
+            "owner-deferred by Alice: 等待店主完成正式環境登入",
+            "Le compte de production reste inaccessible",
+        ):
+            with self.subTest(reason=reason):
+                fields["Blocker / N/A reason"] = reason
+                self.assertEqual([], check_activation._closeout_findings(
+                    {"Status": "blocked"}, {"ACT-001": fields}, {}))
+                self.assertIn("Record status must be 'blocked'", "\n".join(
+                    check_activation._closeout_findings(
+                        {"Status": "handoff_ready"}, {"ACT-001": fields}, {})))
+        for reason in ("稍後", "待處理", "稍後處理", "owner-deferred by Alice: 稍後處理"):
+            with self.subTest(vague_reason=reason):
+                fields["Blocker / N/A reason"] = reason
+                self.assertTrue(check_activation._closeout_findings(
+                    {"Status": "blocked"}, {"ACT-001": fields}, {}))
+
     def test_closeout_accepts_explicit_noop_without_a_synthetic_task(self) -> None:
         tasks, _titles, parse_findings = check_activation._tasks(valid_noop_record())
         self.assertIn("Activation Tasks: no ACT task blocks found", parse_findings)
