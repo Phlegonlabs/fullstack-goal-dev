@@ -133,6 +133,8 @@ Security exemptions also require a documentation-only product description and Pr
 
 Frontend stack guidance follows the explicit release-source protocol: `dual-branch/1` uses the verified protected-development SHA; the legacy protocol uses the candidate branch/SHA. Both require separately authorized, verified `main` promotion for production.
 
+Before RUN creation, plan-only validation checks an explicit branch policy and architecture marker together. An absent RUN does not imply a legacy pin or grant execution.
+
 ## What is included
 
 | Skill | Use it for | Main output |

@@ -133,6 +133,8 @@ La exención de seguridad requiere una descripción y un Product Archetype de do
 
 La guía frontend sigue el protocolo explícito de release source: `dual-branch/1` usa el SHA verificado de development protegido; el protocolo anterior usa la branch/SHA del candidate. Ambos requieren promoción a main autorizada por separado y verificada para producción.
 
+Antes de crear RUN, la validación de PLAN comprueba juntos la política de rama explícita y el marcador de arquitectura. La ausencia de RUN no implica una versión antigua ni autoriza ejecución.
+
 ## Qué incluye
 
 | Skill | Úsalo para | Salida principal |

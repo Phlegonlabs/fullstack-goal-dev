@@ -133,6 +133,8 @@ Skills 更新後及實作前，執行[設計有效性檢查](skills/ui-design-bu
 
 前端選型指南依明確的 release-source 協定記錄來源：`dual-branch/1` 使用已驗證的受保護 development SHA，舊協定使用 candidate branch/SHA。兩者的 production 都需要另行授權並驗證 main promotion。
 
+建立 RUN 前，只有 PLAN 的驗證會一起檢查明示的分支政策及 architecture 標記。缺少 RUN 不代表舊版本固定，也不授予執行權限。
+
 ## 包含的內容
 
 | 技能 | 適用情境 | 主要產出 |

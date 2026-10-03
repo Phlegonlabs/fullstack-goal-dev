@@ -154,17 +154,20 @@ def validate_branch_policy_join(
             "Release source policy marker"
         )
     has_marker = dual_count == 1 and unknown_count == 0
-    if branch_policy_required(run) and not has_marker:
+    requires_policy = branch_policy_required(run) or (
+        run is None and (has_marker or "branch_policy" in plan)
+    )
+    if requires_policy and not has_marker:
         errors.append(
             "architecture: Harness 0.59+ current joins require an active "
             f"{DUAL_BRANCH_MARKER!r} marker"
         )
-    if not branch_policy_required(run) and has_marker:
+    if run is not None and not branch_policy_required(run) and has_marker:
         errors.append(
             "architecture: a pinned pre-0.59 RUN cannot silently adopt the "
             "dual-branch/1 release source policy"
         )
-    if branch_policy_required(run):
+    if requires_policy:
         errors.extend(validate_branch_policy_shape(plan))
         errors.extend(
             validate_branch_policy_ancestry(plan, repo_root, run=run)

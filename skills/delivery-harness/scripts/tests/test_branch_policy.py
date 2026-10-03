@@ -48,6 +48,22 @@ def run_at(version: str) -> dict[str, object]:
 
 
 class BranchPolicyTests(unittest.TestCase):
+    def test_plan_only_explicit_policy_and_marker_are_validated_together(self):
+        plan = {"branch_policy": branch_policy()}
+        self.assertEqual([], validate_branch_policy_join(plan, ARCHITECTURE, "."))
+        self.assertEqual([], validate_branch_policy_join({}, "# Architecture\n", "."))
+        cases = (
+            (plan, "# Architecture\n", "require an active"),
+            ({}, ARCHITECTURE, "requires a branch policy object"),
+            ({"branch_policy": branch_policy("ordinary") | {"base_ref": "refs/remotes/origin/main"}},
+             ARCHITECTURE, "ordinary base must be"),
+            (plan, ARCHITECTURE + DUAL_BRANCH_MARKER + "\n", "at most one active"),
+            (plan, ARCHITECTURE.replace("dual-branch/1", "dual-branch/2"), "only supported"),
+        )
+        for candidate, architecture, expected in cases:
+            with self.subTest(expected=expected):
+                self.assertIn(expected, "\n".join(validate_branch_policy_join(candidate, architecture, ".")))
+
     def test_archive_candidate_can_descend_from_development_while_main_has_hotfix(self):
         from archive_run import _live_head_problems
         with tempfile.TemporaryDirectory() as directory:

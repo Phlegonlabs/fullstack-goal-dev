@@ -133,6 +133,8 @@ Skills 更新后及实现前，执行[设计有效性检查](skills/ui-design-bu
 
 前端选型指南按明确的 release-source 协议记录来源：`dual-branch/1` 使用已验证的受保护 development SHA，旧协议使用 candidate branch/SHA。两者的 production 都需要另行授权并验证 main promotion。
 
+创建 RUN 前，只有 PLAN 的验证会一起检查明示的分支政策及 architecture 标记。缺少 RUN 不代表旧版本固定，也不授予执行权限。
+
 ## 包含哪些内容
 
 | 技能 | 适用场景 | 主要产出 |

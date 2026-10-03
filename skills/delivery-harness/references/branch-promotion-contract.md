@@ -16,6 +16,8 @@ Do not edit or commit directly on `main` or `development`. Promote an exact alre
 
 Classify the work as `initial_delivery`, `enhancement`, or `needs_owner_decision` for product and release semantics. A current managed PLAN declares `branch_policy` with `kind: ordinary` or `hotfix`, the canonical remote base ref, and the observed remote head's full SHA. Ordinary work freezes remote `development`; a hotfix freezes remote `main`. Start the non-default run branch from that frozen base, record the classification, base SHA, complete run-branch name, and any unresolved earlier candidate. A pinned pre-0.59 RUN keeps the main-only semantics recorded with it. Never advance the frozen PLAN base wave by wave, and never use a stale local protected ref as the base.
 
+Plan-only validation checks an explicit `branch_policy` and active architecture marker together before RUN creation. An absent RUN is not a historical version pin. This structural check grants no execution or promotion; a paired RUN still enforces its version and candidate ancestry.
+
 ## Managed RUN Archive Before Promotion
 
 At RUN close, candidate C is complete local work only. On that same resolved run branch, the parent reviews the dry run and applies `scripts/archive_run.py` with `--expected-main <full SHA>` and `--main-ref refs/heads/main` or `refs/remotes/<remote>/main`. `--apply` refuses missing or mismatched bindings, protected or detached branches, and a branch that does not match the RUN integration branch. It moves the coordination set without deleting it; it does not authorize a commit, push, promotion, or cleanup.

@@ -120,15 +120,10 @@ class GoldenPathTests(unittest.TestCase):
             plan_only = run_cli(str(SCRIPTS_DIR / "validate_harness_plan.py"),
                 "--plan", str(plan_path), "--repo-root", str(root), "--prd", str(prd_path),
                 "--design-system-markdown", str(design_markdown_path), "--design-system", str(design_json_path))
-            # Without RUN context, dual-branch architecture policy has no
-            # version authority and must fail closed; only the paired check
-            # above may accept the marker.
-            self.assertNotEqual(0, plan_only.returncode, plan_only.stdout)
-            self.assertIn(
-                "pinned pre-0.59 RUN cannot silently adopt the dual-branch/1 "
-                "release source policy",
-                plan_only.stdout,
-            )
+            # An explicit PLAN policy and architecture marker can be checked
+            # before a RUN exists; this grants no execution or promotion.
+            self.assertEqual(0, plan_only.returncode, plan_only.stdout)
+            self.assertEqual("PASS", json.loads(plan_only.stdout)["status"])
 
             run = load_run(run_path)
             missing_ui_design = json.loads(json.dumps(plan))
