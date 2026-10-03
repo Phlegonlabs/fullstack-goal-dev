@@ -42,6 +42,7 @@ for candidate in (
 
 from harness_core import load_run as _load_run  # noqa: E402
 from manifest_fixtures import (  # noqa: E402
+    eval_exempt_product_fixture,
     git,
     manifest_markdown,
 )
@@ -232,7 +233,10 @@ class SharedLifecycleGoldenPathTests(unittest.TestCase):
     def test_current_release_keeps_one_identity_through_harness_activation_and_seo(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            package = contract_package_fixture.current_package(root)
+            with eval_exempt_product_fixture():
+                package = contract_package_fixture.current_package(
+                    root, pin=(SCRIPTS_DIR.parent / "VERSION").read_text(encoding="utf-8").strip()
+                )
             plan = package["plan"]
             paths = package["paths"]
             self.assertIn("UI contract: ui-design/3", paths["ui"].read_text(encoding="utf-8"))

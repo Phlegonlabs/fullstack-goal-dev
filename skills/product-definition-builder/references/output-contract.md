@@ -224,6 +224,8 @@ Older documents may be inspected for history, but a current approval requires th
 ## AI and Automation
 AI and Automation Gate: [required / not_required / blocked] — [reason], decided by [human owner]
 
+New packages include the active `eval-policy/1` JSON block from `eval-policy-contract.md` here and run the core checker with `--repo-root <repository-root> --eval-policy eval-policy/1`. Freeze policy/input bytes before approval; runner implementation and handoff evidence come later. Required AI cannot waive eval.
+
 When `required`, record:
 
 | Area | Decision | Owner / evidence | TEST IDs |
@@ -952,7 +954,7 @@ Before archiving earlier documents or publishing the staged package, verify:
 ### Completeness
 
 - Before first-delivery approval, apply `prd-refinement.md`: reconcile UI and technical perspectives on the same candidate's complete journeys and cross-feature dependencies. Findings retain evidence, stable IDs and dispositions; required gaps cannot be silently deferred. Later findings follow the same rule without rewriting frozen approvals.
-- `PRD.md`, `architecture.md`, and `stack-decisions.md` are present in the run-specific staging directory. Their Product Definition Approval and Stack Decision Checkpoint are both `approved`, and `check_product_package.py --repo-root <repository-root> --require-filled --require-approved` passes before publication. The staged operational documents follow their existing applicability rules. UI-bearing packages record a pending `ui-design-builder` handoff; headless packages record `not_required` without skipping Product Definition Approval.
+- `PRD.md`, `architecture.md`, and `stack-decisions.md` are present in the run-specific staging directory. Their Product Definition Approval and Stack Decision Checkpoint are both `approved`, and `check_product_package.py --repo-root <repository-root> --require-filled --require-approved` passes before publication; new packages add `--eval-policy eval-policy/1`. The staged operational documents follow their existing applicability rules. UI-bearing packages record a pending `ui-design-builder` handoff; headless packages record `not_required` without skipping Product Definition Approval.
 - `## Non-Functional Requirements` is always present immediately after `## Functional Requirements`. Every applicable quality attribute has a measurable `PRD-*` requirement with a measure and target; non-applicable categories are explicitly `N/A` with a reason. Vague adjectives alone do not pass. Units, tested population or traffic shape, measurement window, and percentile are present where applicable.
 - `## Test Obligations` is always present after `## Open Questions` and before the trailing product decision records. Its rows use stable `TEST-*` IDs and include obligation, test type, required status, upstream trace IDs, and an expected signal.
 - Every `Must` functional requirement and every applicable non-functional requirement maps to at least one `TEST-*` row marked `Required: Yes`. No required obligation is left as anonymous prose.
@@ -992,7 +994,7 @@ Before archiving earlier documents or publishing the staged package, verify:
 - When the pass was skipped or blocked, `PRD.md`'s `## Assumptions` records that the market context is unvalidated.
 - Findings that changed the package cite their `MR-*` IDs in the sections they changed, and `PRD.md` states conclusions rather than restating the competitor table, sources, or retrieval dates. Findings that would widen product scope are recorded as open questions or recommendations, not applied silently.
 - When the read-only agent work graph was used, every required role has an explicit result, failed agents are retained as blocked lanes, and trace/consistency verifier findings are resolved or recorded before finalization. Agent output is treated as a candidate; the parent still owns staging and publication.
-- Run `python "<product-definition-builder-skill-root>/scripts/check_product_package.py" --prd <staged PRD.md> --architecture <staged architecture.md> --stack-decisions <staged stack-decisions.md> --repo-root <repository-root> --require-filled --require-approved` before publication. It validates substantive core sections, complete UI surfaces, Must/NFR-to-TEST coverage, Security Requirements traces, release-target identity, metrics, decision tables, both approval markers, executable stack statuses, live `Selected` evidence, and blocked trust/AI/security/commercial gates.
+- Run `python "<product-definition-builder-skill-root>/scripts/check_product_package.py" --prd <staged PRD.md> --architecture <staged architecture.md> --stack-decisions <staged stack-decisions.md> --repo-root <repository-root> --require-filled --require-approved` before publication; new packages add `--eval-policy eval-policy/1`. It validates substantive core sections, complete UI surfaces, Must/NFR-to-TEST coverage, Security Requirements traces, release-target identity, metrics, decision tables, both approval markers, executable stack statuses, live `Selected` evidence, and blocked trust/AI/security/commercial gates.
 
 ### Publication
 

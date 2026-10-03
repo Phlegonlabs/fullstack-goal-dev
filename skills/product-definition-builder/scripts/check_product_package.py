@@ -16,6 +16,7 @@ from prd_operations import required_operations
 from prd_ui_contract import parse_prd_ui_contract
 from release_targets import parse_release_targets
 from git_evidence import GitEvidenceError, verify_revision_path
+from eval_policy import validate_eval_policy
 from contract_utils import (
     canonical_product_bytes,
     canonical_stack_bytes,
@@ -1533,6 +1534,7 @@ def validate_texts(
     require_approved: bool = False,
     repo_root: Path | None = None,
     ui_contract: str | None = None,
+    eval_policy: str | None = None,
 ) -> list[str]:
     """Validate already-decoded core product-package texts."""
 
@@ -1542,7 +1544,11 @@ def validate_texts(
             + " and ".join(CURRENT_UI_CONTRACTS)
         )
 
-    problems: list[str] = []
+    if eval_policy not in (None, "eval-policy/1"):
+        raise ValueError("unsupported --eval-policy value")
+    problems: list[str] = validate_eval_policy(
+        prd_text, required=eval_policy is not None, repo_root=repo_root,
+    )
 
     prd_required_headings = (
         REQUIRED_PRD_HEADINGS
@@ -3340,6 +3346,7 @@ def validate(
     require_approved: bool = False,
     repo_root: Path | None = None,
     ui_contract: str | None = None,
+    eval_policy: str | None = None,
 ) -> list[str]:
     """Read and validate the three canonical core package files."""
 
@@ -3361,6 +3368,7 @@ def validate(
         require_approved=require_approved,
         repo_root=repo_root,
         ui_contract=ui_contract,
+        eval_policy=eval_policy,
     )
 
 
@@ -3377,6 +3385,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="select the current wireframe-free PRD preflight",
     )
     parser.add_argument("--repo-root", type=Path)
+    parser.add_argument("--eval-policy", choices=("eval-policy/1",))
     return parser.parse_args(argv)
 
 
@@ -3390,6 +3399,7 @@ def main(argv: list[str] | None = None) -> int:
         require_approved=args.require_approved,
         repo_root=args.repo_root,
         ui_contract=args.ui_contract,
+        eval_policy=args.eval_policy,
     )
     if problems:
         for problem in problems:

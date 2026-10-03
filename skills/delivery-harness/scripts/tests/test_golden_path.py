@@ -34,6 +34,7 @@ if str(SCRIPTS_DIR) not in sys.path:
 from harness_core import load_run  # noqa: E402
 from harness_contract_join import validate_frozen_contract_joins  # noqa: E402
 from manifest_fixtures import (  # noqa: E402
+    eval_exempt_product_fixture,
     git,
     manifest_markdown,
 )
@@ -58,7 +59,10 @@ class GoldenPathTests(unittest.TestCase):
     def test_frozen_package_walks_the_real_cli_spine(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            package = contract_package_fixture.current_package(root)
+            with eval_exempt_product_fixture():
+                package = contract_package_fixture.current_package(
+                    root, pin=(SCRIPTS_DIR.parent / "VERSION").read_text(encoding="utf-8").strip()
+                )
             plan = package["plan"]
             paths = package["paths"]
             prd_path = paths["prd"]

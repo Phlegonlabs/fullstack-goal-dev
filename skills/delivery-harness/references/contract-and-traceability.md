@@ -46,6 +46,13 @@ When `docs/goal/PLAN.md`/`RUN.md` already exist, decide whether new work extends
 
 ## Source Map
 
+For applicable `eval-policy/1`, freeze canonical eval and delivery acceptance
+sources under `eval-acceptance-contract.md`, derived from the approved PRD.
+Readiness joins the policy inputs, TEST/scenario/assertion IDs and always-run
+checker argv/hash/graph before execution; delivery code hashes bind to H1 later.
+New >=0.60 pins require explicit applicability. Legacy absent markers retain
+their original contract; never silently refresh a policy hash to accept failures.
+
 Record every canonical input and its status:
 
 ```text

@@ -8,6 +8,8 @@ For new delivery work, also apply `delivery-acceptance-contract.md` and `bounded
 
 ## Verification Ladder
 
+Applicable eval gates run `check_eval_acceptance.py` under `eval-acceptance-contract.md` before delivery acceptance. Recompute both full reports from the frozen PRD policy at exact clean H2; inspect judge/tool and clean-checkout provenance independently. A quality rate never weakens all-required functional TEST acceptance.
+
 Use the smallest reliable proof first:
 
 ```text
