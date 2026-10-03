@@ -729,6 +729,10 @@ def _resolve_direction_studies(style: str, repo_root: Path, problems: list[str])
 def _intermediate_width_evidence(value: str | None, scope: dict[str, Any] | None, repo_root: Path,
                                  problems: list[str], **evidence: Any) -> None:
     """ui-design/3: an ordinary HiFi browser receipt observed at in-between widths."""
+    if (value or "").strip() == ui_design_v3.INTERMEDIATE_WIDTH_NOT_APPLICABLE:
+        if ui_design_v3.intermediate_width_required(scope):
+            _add(problems, "Intermediate width check requires PASS evidence for adjacent approved web widths")
+        return
     before = len(problems)
     _resolve_evidence(value, repo_root=repo_root, label="Intermediate width check", problems=problems,
                       require_machine=True, **evidence)
@@ -2861,7 +2865,9 @@ def validate_text(
             review_values.get("HiFi surface check"), "HiFi surface check", problems
         )
         if v3:
-            _pass_evidence(_field(review, "Intermediate width check"), "Intermediate width check", problems)
+            width_check = _field(review, "Intermediate width check")
+            if width_check != ui_design_v3.INTERMEDIATE_WIDTH_NOT_APPLICABLE:
+                _pass_evidence(width_check, "Intermediate width check", problems)
         for name, minimum in (
             ("HiFi score", 90),
             ("H2 score", 90),

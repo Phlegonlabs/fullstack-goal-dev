@@ -88,7 +88,7 @@
 58. 使用 `HIFI_REVIEWER.template.html`、共享 reviewer CSS 與正式 assembler；保留 reviewer／product 樣式隔離。
 59. 覆蓋每個 PRD surface、route、copy、state、product control 和 operation destination。
 60. 加入 loading、empty、error、permission、expired、long content 等適用狀態與真實返回／取消／復原行為。
-61. 跑所有核准 viewports／size classes，另檢查相鄰核准尺寸間的中間寬度與 layout 轉換。
+61. 跑所有核准 viewports／size classes，另檢查相鄰核准網頁寬度間的中間尺寸與 layout 轉換。沒有相鄰網頁寬度時，`ui-design/3` 記錄完整的 `Intermediate width check: not_applicable — no adjacent approved web viewport widths`；原生尺寸與其他 HiFi 證據仍須完成。
 62. 檢查 menu、tabs、dialog、forms、keyboard、Escape、focus return；切 active class 不等於操作完成。
 63. 執行便宜的 HiFi completeness preflight；先修缺頁、漏字、漏 state、斷 operation 和非法資源。
 64. 原作者再自查完整 HiFi 畫面、copy、layout、responsive 與 interactions，記錄實際檢查與修復。

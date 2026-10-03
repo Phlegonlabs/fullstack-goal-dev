@@ -3,15 +3,17 @@
 ui-design/2 keeps its original meaning. A ui-design/3 package always ships the
 design-system Markdown/JSON/HTML package, records rendered direction studies by
 one author (three by default, one only by explicit owner choice), and adds an
-observed intermediate-width HiFi receipt.
+observed intermediate-width HiFi receipt when approved web intervals exist.
 """
 
 from __future__ import annotations
 
 import re
+import math
 from typing import Any
 
 UI_CONTRACT_V3 = "ui-design/3"
+INTERMEDIATE_WIDTH_NOT_APPLICABLE = "not_applicable — no adjacent approved web viewport widths"
 PACKAGE_ACTIONS = ("compile", "update", "reuse")
 DISPOSITION_BY_ACTION = {"compile": {"none", "retire"}, "update": {"retain"}, "reuse": {"retain"}}
 DIRECTION_STUDY_COLUMNS = ["Direction", "Study", "Author", "Self-check by", "Self-check"]
@@ -112,6 +114,41 @@ def _viewports(surface: dict[str, Any], scope: dict[str, Any]) -> list[float] | 
     if not isinstance(responsive, dict) or responsive.get("kind") != "viewports":
         return None
     return sorted(float(value) for value in responsive.get("targets", []))
+
+
+def intermediate_width_required(scope: dict[str, Any] | None) -> bool:
+    """Unknown scopes cannot waive the check; native size classes have no web interval."""
+    if not isinstance(scope, dict) or not isinstance(scope.get("surfaces"), list) or not scope["surfaces"]:
+        return True
+    for surface in scope["surfaces"]:
+        if not isinstance(surface, dict):
+            return True
+        if any(not isinstance(surface.get(key), str) or not surface[key].strip() for key in ("id", "route")):
+            return True
+        if (not isinstance(surface.get("states"), list) or not surface["states"]
+                or any(not isinstance(state, str) or not state.strip() for state in surface["states"])):
+            return True
+        responsive = surface.get("responsive")
+        if responsive is None and scope.get("captureMode") != "mixed":
+            responsive = scope.get("responsive")
+        if not isinstance(responsive, dict):
+            return True
+        targets = responsive.get("targets")
+        mode = surface.get("captureMode", scope.get("captureMode"))
+        if not isinstance(targets, list) or not targets:
+            return True
+        if mode in {"native", "desktop"} and responsive.get("kind") == "sizeClasses":
+            if any(not isinstance(target, str) or not target.strip() for target in targets):
+                return True
+            continue
+        if mode not in {"hosted-browser", "browser-extension"} or responsive.get("kind") != "viewports":
+            return True
+        if any(isinstance(target, bool) or not isinstance(target, (int, float))
+               or not math.isfinite(target) or target <= 0 for target in targets):
+            return True
+        if len(set(targets)) != len(targets) or len(targets) > 1:
+            return True
+    return False
 
 
 def intermediate_width_findings(cases: list[dict[str, str]], scope: dict[str, Any] | None) -> list[str]:

@@ -94,7 +94,102 @@ def preflight(ui, root, prd, hifi):
                                                          wireframes_path=None, hifi_path=hifi)
 
 
+def width_scope(*, hybrid=False, native=True):
+    """Parse a real Approved-target scope before testing the width-specific gate."""
+    web = {"id": "UI-001", "route": "/home", "states": ["ready", "updated"],
+           "releaseSurface": "web-app", "surfaceClass": "hosted_web", "captureMode": "hosted-browser",
+           "responsive": {"kind": "viewports", "targets": [390, 768, 1200]}}
+    ios = {"id": "UI-IOS" if hybrid else "UI-001", "route": "/ios-home" if hybrid else "/home",
+           "states": ["ready", "updated"], "releaseSurface": "ios-app", "surfaceClass": "ios",
+           "captureMode": "native", "responsive": {"kind": "sizeClasses", "targets": ["compact", "regular"]}}
+    surfaces = [web, ios] if hybrid else [ios if native else web]
+    responsive = {"kind": "per-surface", "targets": []} if hybrid else surfaces[0]["responsive"]
+    capture = "mixed" if hybrid else surfaces[0]["captureMode"]
+    source = ("docs/design/ui-references/run-1/index.html @ sha256:" + "a" * 64
+              + "; scope=surfaces=" + json.dumps(surfaces, separators=(",", ":"))
+              + "|routes=" + json.dumps([row["route"] for row in surfaces], separators=(",", ":"))
+              + '|states=["ready","updated"]|responsive=' + json.dumps(responsive, separators=(",", ":"))
+              + '|tolerance="exact"|allowedDeviations=[]|captureMode=' + capture)
+    findings = []
+    scope = checker._target_scope(source, "Approved target", findings)
+    if findings:
+        raise AssertionError(findings)
+    return source, scope
+
+
 class UiDesignV3Tests(unittest.TestCase):
+    def test_native_scope_accepts_only_the_exact_width_exemption(self):
+        sentinel = checker.ui_design_v3.INTERMEDIATE_WIDTH_NOT_APPLICABLE
+        _, scope = width_scope()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            findings = []
+            checker._intermediate_width_evidence(sentinel, scope, root, findings)
+            self.assertEqual([], findings)
+            for value in (None, "not_applicable", "not_applicable — native app", "PASS"):
+                with self.subTest(value=value):
+                    findings = []
+                    checker._intermediate_width_evidence(value, scope, root, findings)
+                    self.assertTrue(findings)
+            for invalid in (None, {}, {"surfaces": []},
+                            {"surfaces": [{"captureMode": "native"}]},
+                            {"captureMode": "mixed", "responsive": scope["responsive"], "surfaces": [{}]}):
+                with self.subTest(scope=invalid):
+                    findings = []
+                    checker._intermediate_width_evidence(sentinel, invalid, root, findings)
+                    self.assertIn("requires PASS evidence", "\n".join(findings))
+
+    def test_native_contract_text_keeps_ordinary_hifi_evidence_required(self):
+        sentinel = checker.ui_design_v3.INTERMEDIATE_WIDTH_NOT_APPLICABLE
+        source, _ = width_scope()
+        with tempfile.TemporaryDirectory() as directory:
+            ui, _, hifi = v3_publication(Path(directory))
+            text = ui.read_text(encoding="utf-8")
+            source = source.replace("a" * 64, digest(hifi))
+            text = re.sub(r"^Approved target:.*$", "Approved target: " + source, text, flags=re.M)
+            text = re.sub(r"^Intermediate width check:.*$", "Intermediate width check: " + sentinel, text, flags=re.M)
+            text = re.sub(r"^\| web \|.*$", "| ios | Native tabs and back; keyboard safe area | system text styles with Dynamic Type | SF Symbols with documented custom fallback | Touch rows | System feedback | required before expansion | Apple HIG inspected 2026-09-13 |", text, flags=re.M)
+            text = text.replace("| ready | 390 |", "| ready | compact |").replace("| ready | 1200 |", "| ready | regular |")
+            self.assertEqual([], checker.validate_text(text, require_filled=True, require_visual_approved=True,
+                                                      allow_pending_design_system_pair=True))
+            broken = re.sub(r"^HiFi surface check:.*$", "HiFi surface check: not_applicable", text, flags=re.M)
+            self.assertIn("HiFi surface check", "\n".join(checker.validate_text(
+                broken, require_filled=True, require_visual_approved=True, allow_pending_design_system_pair=True)))
+
+    def test_web_preflight_rejects_the_native_width_exemption(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ui, prd, hifi = v3_publication(root)
+            text = re.sub(r"^Intermediate width check:.*$", "Intermediate width check: " +
+                          checker.ui_design_v3.INTERMEDIATE_WIDTH_NOT_APPLICABLE,
+                          ui.read_text(encoding="utf-8"), flags=re.M)
+            ui.write_text(text, encoding="utf-8")
+            self.assertIn("requires PASS evidence", "\n".join(preflight(ui, root, prd, hifi)))
+
+    def test_hybrid_intermediate_receipt_covers_web_intervals_only(self):
+        _, scope = width_scope(hybrid=True)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ui, _, _ = v3_publication(root)
+            text = ui.read_text(encoding="utf-8")
+            subject = re.search(r"^Connected HiFi reference: (.+)$", text, re.M).group(1)
+            artifact = subject.split(" @ ", 1)[0]
+            for targets, expected in ((("560", "980"), None), (("560",), "between 768px and 1200px"),
+                                      (("compact", "regular"), "strictly between")):
+                with self.subTest(targets=targets):
+                    evidence = intermediate_receipt(root, text, targets)
+                    findings = []
+                    checker._intermediate_width_evidence("PASS — evidence=" + evidence, scope, root, findings,
+                                                        expected_artifact=artifact, expected_check="hifi-browser")
+                    if expected is None:
+                        self.assertEqual([], findings)
+                    else:
+                        self.assertIn(expected, "\n".join(findings))
+            findings = []
+            checker._intermediate_width_evidence(checker.ui_design_v3.INTERMEDIATE_WIDTH_NOT_APPLICABLE,
+                                                scope, root, findings)
+            self.assertIn("requires PASS evidence", "\n".join(findings))
+
     def test_full_package_passes_compiler_preflight(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
