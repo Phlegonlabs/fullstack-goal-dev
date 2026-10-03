@@ -218,13 +218,14 @@ class ConfigureProjectContextTests(unittest.TestCase):
 
             configure_project_context.os.write = owner_appends_before_tool_write
             try:
-                configure_context(
-                    root,
-                    agents_template,
-                    claude_template,
-                    merge_agents=True,
-                    merge_plan=plan,
-                )
+                with self.assertRaisesRegex(ValueError, "context append could not be verified"):
+                    configure_context(
+                        root,
+                        agents_template,
+                        claude_template,
+                        merge_agents=True,
+                        merge_plan=plan,
+                    )
             finally:
                 configure_project_context.os.write = real_write
 
@@ -232,6 +233,50 @@ class ConfigureProjectContextTests(unittest.TestCase):
             self.assertTrue(merged.startswith(original))
             self.assertIn(b"- owner added this during the race\n", merged)
             self.assertIn(b"## New Shared Rule\n", merged)
+
+    def test_same_inode_change_before_open_is_rejected_without_appending(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "AGENTS.md"
+            original = b"# Owner rules\n"
+            external = b"- owner added this before open\n"
+            block = b"\n## New Shared Rule\n"
+            path.write_bytes(original)
+            real_check = configure_project_context._file_has_exact_bytes
+
+            def owner_appends_after_check(target: Path, expected: bytes) -> bool:
+                matches = real_check(target, expected)
+                with target.open("ab") as handle:
+                    handle.write(external)
+                return matches
+
+            configure_project_context._file_has_exact_bytes = owner_appends_after_check
+            try:
+                with self.assertRaisesRegex(ValueError, "context file changed"):
+                    configure_project_context._append_merge(path, original, block)
+            finally:
+                configure_project_context._file_has_exact_bytes = real_check
+            self.assertEqual(original + external, path.read_bytes())
+
+    def test_same_size_owner_edit_after_observation_is_not_appended(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "AGENTS.md"
+            original, external = b"# Owner rules\n", b"# Other rules\n"
+            self.assertEqual(len(original), len(external))
+            path.write_bytes(original)
+            real_check = configure_project_context._file_has_exact_bytes
+
+            def owner_edits_after_check(target: Path, expected: bytes) -> bool:
+                matches = real_check(target, expected)
+                target.write_bytes(external)
+                return matches
+
+            configure_project_context._file_has_exact_bytes = owner_edits_after_check
+            try:
+                with self.assertRaisesRegex(ValueError, "context file changed"):
+                    configure_project_context._append_merge(path, original, b"\n## New Shared Rule\n")
+            finally:
+                configure_project_context._file_has_exact_bytes = real_check
+            self.assertEqual(external, path.read_bytes())
 
     def test_second_template_upgrade_appends_under_the_existing_heading(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

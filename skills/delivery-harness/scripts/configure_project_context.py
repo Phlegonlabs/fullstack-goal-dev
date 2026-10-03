@@ -131,7 +131,7 @@ def _append_merge(path: Path, original: bytes, block: bytes) -> None:
 
     if not _file_has_exact_bytes(path, original):
         raise ValueError(f"context file changed since the reviewed plan: {path}")
-    open_flags = os.O_WRONLY | os.O_APPEND | getattr(os, "O_BINARY", 0)
+    open_flags = os.O_RDWR | os.O_APPEND | getattr(os, "O_BINARY", 0)
     if hasattr(os, "O_NOFOLLOW"):
         open_flags |= os.O_NOFOLLOW
     descriptor = os.open(path, open_flags)
@@ -142,6 +142,9 @@ def _append_merge(path: Path, original: bytes, block: bytes) -> None:
             raise ValueError(f"context merge target is not a regular file: {path}")
         if (opened_stat.st_dev, opened_stat.st_ino) != (path_stat.st_dev, path_stat.st_ino):
             raise ValueError(f"context target changed during merge: {path}")
+        os.lseek(descriptor, 0, os.SEEK_SET)
+        if opened_stat.st_size != len(original) or os.read(descriptor, len(original) + 1) != original:
+            raise ValueError(f"context file changed since the reviewed plan: {path}")
         written = 0
         while written < len(block):
             count = os.write(descriptor, block[written:])
@@ -152,7 +155,7 @@ def _append_merge(path: Path, original: bytes, block: bytes) -> None:
     finally:
         os.close(descriptor)
     final = path.read_bytes()
-    if not final.startswith(original) or block not in final:
+    if final != original + block:
         raise ValueError(f"context append could not be verified; no bytes were replaced: {path}")
 
 
