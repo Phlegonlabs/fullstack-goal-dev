@@ -57,6 +57,11 @@ def text(value, label):
         fail(f"{label}: concrete text required")
 
 
+def data_text(value, label):
+    if not isinstance(value, str) or not value.strip() or len(value) > MAX_BYTES:
+        fail(f"{label}: nonempty bounded text required")
+
+
 def integer(value, label, minimum=0, maximum=10**12):
     if type(value) is not int or not minimum <= value <= maximum:
         fail(f"{label}: integer out of range")
@@ -176,7 +181,7 @@ def validate_policy_shape(policy):
     if policy["schema"] != "eval-policy/1" or policy["applicability"] not in {"required", "not_required"}:
         fail("unsupported evaluation schema or applicability")
     text(policy["reason"], "reason")
-    if not is_human_owner(policy["owner"]):
+    if not isinstance(policy["owner"], str) or not is_human_owner(policy["owner"]):
         fail("evaluation decision needs a human owner")
     if policy["applicability"] == "not_required":
         return
@@ -225,7 +230,7 @@ def validate_policy_shape(policy):
         if not isinstance(argv, list) or not argv:
             fail("setup/full argv must be nonempty arrays")
         for arg in argv:
-            text(arg, "command argument")
+            data_text(arg, "command argument")
     if policy["delivery"]["runner"] not in policy["delivery"]["full_argv"]:
         fail("full argv must invoke the delivered runner")
 
@@ -264,8 +269,8 @@ def parse_inputs(policy, reader):
         if (not isinstance(case["slices"], list) or any(not isinstance(x, str) for x in case["slices"])
                 or len(set(case["slices"])) != len(case["slices"]) or not set(case["slices"]) <= declared):
             fail("case slices must be unique declared IDs")
-        text(case["input"], "case input")
-        text(case["expected"], "case expected")
+        data_text(case["input"], "case input")
+        data_text(case["expected"], "case expected")
     for row in policy["slices"]:
         if sum(row["id"] in c["slices"] for c in cases) < row["minimum_cases"]:
             fail("slice has fewer cases than approved minimum")
@@ -287,25 +292,26 @@ def parse_inputs(policy, reader):
         if not isinstance(anchors, dict) or set(anchors) != {str(i) for i in range(dimension["minimum"], dimension["maximum"] + 1)}:
             fail("rubric requires an anchor for every integer score")
         for anchor in anchors.values():
-            text(anchor, "rubric anchor")
+            data_text(anchor, "rubric anchor")
     assertions = rubric["prohibited_assertions"]
     if not isinstance(assertions, dict) or not assertions:
         fail("rubric requires prohibited-outcome assertions")
     for name, signal in assertions.items():
         identifier(name, "assertion")
-        text(signal, "prohibited assertion")
+        data_text(signal, "prohibited assertion")
     grader = values["grader"]
     keys(grader, "schema kind identity instructions calibration", "grader definition")
     if grader["schema"] != "eval-grader/1" or grader["kind"] not in {"deterministic", "human", "model"}:
         fail("unsupported grader definition")
-    for name in ("identity", "instructions", "calibration"):
-        text(grader[name], name)
+    text(grader["identity"], "grader identity")
+    for name in ("instructions", "calibration"):
+        data_text(grader[name], name)
     subject = values["subject"]
     keys(subject, "schema identity configuration", "subject")
     if subject["schema"] != "eval-subject/1":
         fail("unsupported subject definition")
     text(subject["identity"], "subject identity")
-    text(subject["configuration"], "subject configuration")
+    data_text(subject["configuration"], "subject configuration")
     return values
 
 

@@ -74,6 +74,11 @@ The existing large source-join module retains Product/UI authority. Eval source,
 command and graph validation are isolated in one new module under 500 lines;
 the public wrapper joins both checks, so early returns cannot bypass eval.
 
+2026-10-03 EVAL-I-01 content repair, baseline `be4f36e`, working-tree:
+approved data/argv accepts JSON, markup, TODO task text and long prompts;
+decision prose retains placeholder checks. Non-string owners return validation
+errors. All 13 policy tests PASS. Fresh review and broad suites pending.
+
 The large existing Product checker remains the package validation entrypoint;
 eval parsing and input validation live in their own module (under 500 lines).
 No new responsibility is added to its existing table/approval code.

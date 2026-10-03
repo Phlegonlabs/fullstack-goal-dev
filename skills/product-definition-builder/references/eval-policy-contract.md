@@ -44,6 +44,8 @@ expected are concrete redacted text. Every row counts in acceptance. v1 limits
 the population to 100,000 planned trials. Keep non-acceptance development data
 in a separate file. Review data rights and representativeness; heldout answers
 never enter the evaluated subject's context.
+Approved content and command arguments may contain JSON, markup and long prompts;
+placeholder checks apply to decision prose, not the data being evaluated.
 
 Rubric has exactly `schema: eval-rubric/1`, `dimensions`, `prohibited_assertions`.
 Each dimension is `{id, minimum, maximum, passing_score, anchors}`: integer

@@ -1,5 +1,6 @@
 import copy
 import hashlib
+import json
 import re
 import sys
 import tempfile
@@ -118,6 +119,34 @@ class EvalPolicyTests(unittest.TestCase):
         for raw in ('{"schema": 1, "schema": 2}', '{"score": NaN}'):
             with self.assertRaises(ep.PolicyError):
                 ep.json_object(raw)
+
+    def test_content_accepts_json_markup_todo_and_long_prompts(self):
+        candidate, files = copy.deepcopy(self.policy), dict(self.files)
+        cases = [json.loads(line) for line in files[candidate["dataset"]["path"]].splitlines()]
+        cases[0].update(input="Add a TODO for Friday", expected='["<script>", "item"]')
+        files[candidate["dataset"]["path"]] = b"".join(encoded(row) for row in cases)
+        for name in ("rubric", "grader", "subject"):
+            path = candidate[name]["path"]
+            value = json.loads(files[path])
+            if name == "rubric":
+                value["dimensions"][0]["anchors"]["1"] = 'Returns the exact JSON array ["item"]'
+                value["prohibited_assertions"]["no-side-effect"] = "Never emits <script>"
+            elif name == "grader":
+                value["instructions"] = "<instructions>" + "x" * 9000 + "</instructions>"
+            else:
+                value["configuration"] = '{"context": ["approved"]}'
+            files[path] = encoded(value)
+        for name in ("dataset", "rubric", "grader", "subject"):
+            candidate[name]["sha256"] = hashlib.sha256(files[candidate[name]["path"]]).hexdigest()
+        ep.parse_inputs(candidate, files.__getitem__)
+        candidate["delivery"]["full_argv"] += ["--expected", '["item"]']
+        self.assertEqual([], ep.validate_eval_policy(prd(candidate)))
+        for value in ("", " ", None, 42):
+            with self.assertRaises(ep.PolicyError):
+                ep.data_text(value, "content")
+        for owner in (42, None, [], {}):
+            candidate["owner"] = owner
+            self.assertTrue(ep.validate_eval_policy(prd(candidate)))
 
     def test_changed_inputs_rejected_without_weakened_hashes(self):
         for name in self.files:
