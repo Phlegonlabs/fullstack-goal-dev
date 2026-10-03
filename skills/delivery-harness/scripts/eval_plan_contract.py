@@ -88,20 +88,28 @@ def validate_eval_plan(plan, repo_root, *, run=None, source_rows, resolve_source
     root = Path(repo_root).resolve()
     try:
         candidates = [row for row in plan.get("sources", []) if isinstance(row, dict)
-                      and (str(row.get("kind", "")).casefold() == "prd"
+                      and (" ".join(str(row.get("kind", "")).replace("_", " ").replace("-", " ").casefold().split())
+                           in {"prd", "product requirement", "product requirements"}
                            or str(row.get("location", "")).rsplit("/", 1)[-1].casefold() == "prd.md")]
-        if len(candidates) != 1:
+        if not candidates:
             return ["eval-plan: current run needs one frozen PRD applicability declaration"] if current else []
-        try:
-            raw = _read_bytes(_safe_file(root, str(candidates[0].get("location", ""))), "PRD", root)
-        except (OSError, AcceptanceError):
-            if not current:
-                return []  # Unavailable legacy authority is handled by its existing join.
-            raise
-        prd_text = raw.decode("utf-8")
-        policy = ep.parse_eval_policy(prd_text, required=current)
-        if policy is None:
+        adopted = []
+        for candidate in candidates:
+            try:
+                raw = _read_bytes(_safe_file(root, str(candidate.get("location", ""))), "PRD", root)
+            except (OSError, AcceptanceError):
+                if not current:
+                    continue  # Unavailable legacy authority is handled by its existing join.
+                raise
+            prd_text = raw.decode("utf-8")
+            policy = ep.parse_eval_policy(prd_text, required=current)
+            if policy is not None:
+                adopted.append((raw, prd_text, policy))
+        if not adopted:
             return []
+        if len(adopted) != 1:
+            ep.fail("ambiguous PRD eval-policy authority")
+        raw, prd_text, policy = adopted[0]
         policy_errors = ep.validate_eval_policy(prd_text, required=True, repo_root=root)
         if policy_errors:
             return policy_errors

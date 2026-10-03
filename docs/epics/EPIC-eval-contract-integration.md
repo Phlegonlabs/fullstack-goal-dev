@@ -74,6 +74,12 @@ The existing large source-join module retains Product/UI authority. Eval source,
 command and graph validation are isolated in one new module under 500 lines;
 the public wrapper joins both checks, so early returns cannot bypass eval.
 
+2026-10-03 EVAL-I-04 adoption repair, baseline `8126610`, working-tree:
+inspect every candidate PRD for opt-in policy before canonical source joins.
+Extra reference rows cannot turn evaluation off; ambiguous policies fail closed.
+All 11 readiness tests PASS, with 0.37/0.59/0.60 and plan-only coverage, legacy
+kind aliases and common-wrapper checks. Fresh review and full suites pending.
+
 2026-10-03 EVAL-I-01 content repair, baseline `be4f36e`, working-tree:
 approved data/argv accepts JSON, markup, TODO task text and long prompts;
 decision prose retains placeholder checks. Non-string owners return validation

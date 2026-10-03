@@ -82,6 +82,35 @@ class EvalPlanContractTests(unittest.TestCase):
         self.plan["final_gates"].pop(1)
         self.assertTrue(self.check())
 
+    def test_extra_prd_row_cannot_disable_marker_adoption(self):
+        for version in ("0.37.0", "0.59.0", "0.60.0", None):
+            plan = copy.deepcopy(self.plan)
+            plan["sources"].append({"id": "SRC-REFERENCE", "kind": "reference",
+                                   "location": "docs/archive/PRD.md", "status": "draft"})
+            plan["final_gates"].pop(1)
+            run = copy.deepcopy(self.run) if version else None
+            if run:
+                run["runtime_capabilities"]["runtime_adapter"]["version_gate"]["required_harness_version"] = version
+            errors = pc.validate_eval_plan(plan, self.root, run=run,
+                source_rows=join._strict_source_rows, resolve_source=join._resolve_source_bytes)
+            with self.subTest(version=version):
+                self.assertTrue(errors)
+                with patch.object(join, "_validate_product_frozen_contract_joins", return_value=[]):
+                    self.assertTrue(join.validate_frozen_contract_joins(plan, self.root, run=run))
+
+    def test_legacy_prd_kind_alias_and_ambiguous_marker_fail_closed(self):
+        self.run["runtime_capabilities"]["runtime_adapter"]["version_gate"]["required_harness_version"] = "0.37.0"
+        original = self.root / "docs/product/PRD.md"
+        alternate = self.root / "docs/product/requirements.md"
+        alternate.write_bytes(original.read_bytes())
+        plan = copy.deepcopy(self.plan)
+        plan["sources"][0].update(kind="product requirements", location="docs/product/requirements.md")
+        self.assertTrue(self.check(plan))
+        plan = copy.deepcopy(self.plan)
+        plan["sources"].append({**plan["sources"][0], "id": "SRC-OTHER", "kind": "product requirements",
+                                "location": "docs/product/requirements.md"})
+        self.assertTrue(any("ambiguous" in error for error in self.check(plan)))
+
     def test_non_ai_reasoned_exemption_needs_no_eval_gates(self):
         waived = {"schema": "eval-policy/1", "applicability": "not_required", "reason": "Deterministic software requires no AI quality sampling", "owner": "Jacky Chan"}
         raw = prd(waived).replace("Gate: required", "Gate: not_required").encode()

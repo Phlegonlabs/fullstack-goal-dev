@@ -100,6 +100,8 @@ RUN pins >=0.60.0 require an explicit PRD applicability declaration, including
 reasoned ordinary-product `not_required`. A present marker opts in under older
 pins and plan-only validation too. Absent markers in older pinned plans keep
 their historical checks. This is a new contract boundary, not an auto-migration.
+Extra reference rows or legacy PRD kind aliases cannot suppress marker adoption;
+multiple declared policies fail as ambiguous authority.
 
 Applicable PLANs freeze one canonical `eval contract` source at
 `docs/verification/eval-contract.json` and one `delivery acceptance` source at
