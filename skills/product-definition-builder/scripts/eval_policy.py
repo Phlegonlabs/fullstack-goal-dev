@@ -9,6 +9,7 @@ import re
 from pathlib import Path, PurePosixPath
 
 from markdown_contract import active_text, exact_marker_lines, is_human_owner
+from contract_utils import machine_block_span
 
 START = "<!-- eval-policy:start -->"
 END = "<!-- eval-policy:end -->"
@@ -134,6 +135,13 @@ def parse_eval_policy(prd_text, *, required=False):
             fail("eval policy requires an ordered active approval block when present")
         if starts[0] <= approval_ends[0] and approval_starts[0] <= ends[0]:
             fail("eval policy must not overlap the excluded approval block")
+    normalized = prd_text.replace("\r\n", "\n")
+    lines = normalized.splitlines(keepends=True)
+    policy_start, policy_end = sum(map(len, lines[:starts[0] - 1])), sum(map(len, lines[:ends[0]]))
+    excluded = machine_block_span(normalized, "<!-- product-definition-approval:start -->",
+                                  "<!-- product-definition-approval:end -->")
+    if excluded and policy_start < excluded[1] and excluded[0] < policy_end:
+        fail("eval policy overlaps the raw approval digest exclusion")
     prefix = active_text("\n".join(prd_text.splitlines()[:starts[0] - 1]))
     headings = re.findall(r"^## .+$", prefix, re.M)
     if not headings or headings[-1] != "## AI and Automation":

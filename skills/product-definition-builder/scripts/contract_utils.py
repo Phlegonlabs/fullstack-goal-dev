@@ -63,16 +63,22 @@ def release_area_requirements(targets: Iterable[object]) -> set[str]:
     return areas
 
 
+def machine_block_span(text: str, start: str, end: str) -> tuple[int, int] | None:
+    """Return the first raw digest-excluded span in LF-normalized text."""
+    match = re.search(
+        rf"(?ms)^\s*{re.escape(start)}\s*\n.*?^\s*{re.escape(end)}\s*\n?",
+        text.replace("\r\n", "\n"),
+    )
+    return match.span() if match else None
+
+
 def _without_machine_block(text: str, start: str, end: str) -> str:
     # Hash the raw text, including fences, indented lines and HTML comments.
     # Only the self-referential marker block is removed. CRLF becomes LF so a
     # checkout's line-ending setting does not change the digest.
-    return re.sub(
-        rf"(?ms)^\s*{re.escape(start)}\s*\n.*?^\s*{re.escape(end)}\s*\n?",
-        "",
-        text.replace("\r\n", "\n"),
-        count=1,
-    )
+    normalized = text.replace("\r\n", "\n")
+    span = machine_block_span(normalized, start, end)
+    return normalized[:span[0]] + normalized[span[1]:] if span else normalized
 
 
 def canonical_stack_bytes(stack_text: str) -> str:

@@ -10,6 +10,8 @@ object, optionally in a `json` fence. The existing product approval digest
 covers these bytes. Derived delivery contracts cannot replace this authority.
 Overlapping or malformed approval boundaries fail validation; approval-excluded
 bytes cannot carry policy authority.
+The parser checks the actual raw digest exclusion, including hidden markers;
+active Markdown placement alone cannot prove approval coverage.
 
 An ordinary product without eval needs records exactly `schema: eval-policy/1`,
 `applicability: not_required`, concrete `reason` and human `owner`. Required AI

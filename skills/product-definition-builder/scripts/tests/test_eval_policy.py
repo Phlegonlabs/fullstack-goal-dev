@@ -72,6 +72,31 @@ class EvalPolicyTests(unittest.TestCase):
             with self.subTest(candidate=candidate[:30]):
                 self.assertTrue(ep.validate_eval_policy(candidate, required=True))
 
+    def test_raw_digest_exclusion_matrix_cannot_hide_policy(self):
+        import check_product_package as package
+        from test_product_package_checker import valid_prd, valid_architecture, valid_stack, strictize_approved_package
+        start = "<!-- product-definition-approval:start -->"
+        block = ep.START + prd(self.policy).split(ep.START)[1].split(ep.END)[0] + ep.END
+        for prefix in ("```markdown\n" + start + "\n```\n", "    " + start + "\n",
+                       "<script>\n" + start + "\n</script>\n", "<!--\n" + start + "\n-->\n"):
+            for newline in ("\n", "\r\n"):
+                with self.subTest(prefix=prefix, newline=repr(newline)):
+                    source = valid_prd().replace("## Business Rules", block + "\n## Business Rules")
+                    source = source.replace("## AI and Automation", prefix + "## AI and Automation")
+                    source, architecture, stack = strictize_approved_package(source, valid_architecture(), valid_stack())
+                    source = source.replace("\n", newline)
+                    weakened = source.replace('"numerator": 3', '"numerator": 2')
+                    self.assertEqual(canonical_product_bytes(source, architecture, stack),
+                                     canonical_product_bytes(weakened, architecture, stack))
+                    errors = package.validate_texts(weakened, architecture, stack,
+                        require_filled=True, require_approved=True, eval_policy="eval-policy/1")
+                    self.assertTrue(any("eval-policy" in error for error in errors), errors)
+        # Python splitlines recognizes these separators; the digest regex uses LF.
+        for separator in ("\x0c", "\u2028", "\r"):
+            candidate = prd(self.policy).replace(ep.START, "prefix" + separator + start + "\n" + ep.START)
+            candidate += "\n<!-- product-definition-approval:end -->\n"
+            self.assertTrue(ep.validate_eval_policy(candidate, required=True))
+
     def test_ai_cannot_waive_and_tests_are_required_traced_and_distinct(self):
         waived = {"schema": "eval-policy/1", "applicability": "not_required",
                   "reason": "Ordinary deterministic product has no AI", "owner": "Jacky Chan"}
