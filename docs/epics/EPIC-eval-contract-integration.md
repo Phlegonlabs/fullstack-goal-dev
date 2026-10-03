@@ -113,6 +113,16 @@ No new responsibility is added to its existing table/approval code.
 
 ## Handoff
 
+2026-10-03 EVAL-I-02 resource repair, baseline `06e076f1`, working-tree:
+Report/A10 confirmed another full population scan per slice and a trial rescan
+for `trial_pass_rate`. Aggregate passing repeats per case, then visit each
+declared membership once for slice case/pass/total counters. Overall totals
+stay independent of overlap. The 5,000-case/slice regression measures membership
+visits deterministically, checks both metrics, overlapping membership, a failing
+repeat and slice threshold rejection. Encoded inputs and reports fit 16 MiB.
+All 26 report tests PASS in 0.690 seconds; focused pyflakes and diff checks PASS.
+H1 binding repair and fresh review remain.
+
 2026-10-03 A10 native review / EVAL-I-01 resource repair, baseline `450ec3f4`,
 working-tree: five disjoint scopes cover all 43 changed paths. Workflow and
 Digest code/security PASS; Policy, Report and Gate return fix_required for

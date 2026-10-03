@@ -1,5 +1,7 @@
 import copy
 import datetime as dt
+import hashlib
+import json
 import subprocess
 import sys
 import unittest
@@ -8,7 +10,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import eval_verification as ev
-from eval_delivery_fixtures import fixture
+from eval_delivery_fixtures import fixture, encoded, prd
 
 
 class EvalVerificationTests(unittest.TestCase):
@@ -50,6 +52,62 @@ class EvalVerificationTests(unittest.TestCase):
             if row["case_id"] == case:
                 row["scores"]["correctness"] = 0
                 row["failure"] = "Synthetic wrong answer retained"
+
+    def test_sparse_slice_aggregation_visits_declared_memberships_once(self):
+        count = 5000
+        self.policy, files, self.contract, _, self.report, self.now = fixture(count)
+        cases = [json.loads(line) for line in files[self.policy["dataset"]["path"]].splitlines()]
+        self.policy["slices"] = [{"id": f"slice-{index}", "minimum_cases": 1,
+                                 "minimum_rate": {"numerator": 0, "denominator": 1}} for index in range(count)]
+        self.policy["slices"].append({"id": "overlap", "minimum_cases": 2,
+                                      "minimum_rate": {"numerator": 1, "denominator": 2}})
+        for index, case in enumerate(cases):
+            case["slices"] = [f"slice-{index}"] + (["overlap"] if index in (0, count - 1) else [])
+        raw = b"".join(encoded(case) for case in cases)
+        self.policy["dataset"]["sha256"] = hashlib.sha256(raw).hexdigest()
+        files[self.policy["dataset"]["path"]] = raw
+        self.report["artifacts"][self.policy["dataset"]["path"]] = self.policy["dataset"]["sha256"]
+        self.approved = ev.ep.parse_inputs(self.policy, files.__getitem__)
+        visits = []
+
+        class Memberships(list):
+            def __iter__(self):
+                visits.append(len(self))
+                return super().__iter__()
+
+            def __contains__(self, value):
+                visits.append(len(self))
+                return super().__contains__(value)
+
+        for case in self.approved["dataset"]:
+            case["slices"] = Memberships(case["slices"])
+        self.assertTrue(all(len(value) < 16 * 1024 * 1024 for value in files.values()))
+        for metric in ("case_all_trials", "trial_pass_rate"):
+            with self.subTest(metric=metric):
+                self.policy["metric"] = metric
+                self.policy["slices"][-2]["minimum_rate"] = {"numerator": 0, "denominator": 1}
+                self.contract.update(prd_sha256=hashlib.sha256(prd(self.policy).encode()).hexdigest(),
+                                     policy_sha256=ev.ep.policy_digest(self.policy))
+                self.report.update(prd_sha256=self.contract["prd_sha256"],
+                                   contract_sha256=hashlib.sha256(encoded(self.contract)).hexdigest())
+                failed = self.report["trials"][-2]
+                failed.update(scores={"correctness": 1}, failure="")
+                self.assertLess(len(encoded(self.report)), 16 * 1024 * 1024)
+                visits.clear()
+                result = self.check()
+                total = count if metric == "case_all_trials" else count * 2
+                self.assertEqual((total, total), (result["passing"], result["total"]))
+                self.assertLessEqual(sum(visits), 2 * (count + 2))
+                failed.update(scores={"correctness": 0}, failure="Wrong first repeat retained")
+                visits.clear()
+                result = self.check()
+                self.assertEqual((total - 1, total), (result["passing"], result["total"]))
+                expected = {"passing": 1, "total": 2} if metric == "case_all_trials" else {"passing": 3, "total": 4}
+                self.assertEqual(expected, result["slices"]["overlap"])
+                self.assertLessEqual(sum(visits), 2 * (count + 2))
+                self.policy["slices"][-2]["minimum_rate"] = {"numerator": 1, "denominator": 1}
+                with self.assertRaisesRegex(ev.ep.PolicyError, "slice below"):
+                    self.check()
 
     def reject_frozen_mutations(self, mutations):
         """Keep accepted inputs fixed while changing one untrusted report field."""

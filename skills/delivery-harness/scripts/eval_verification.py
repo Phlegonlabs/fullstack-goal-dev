@@ -126,7 +126,8 @@ def validate_report(report, policy, approved, *, purpose, candidate_sha, contrac
     trials = report["trials"]
     if not isinstance(trials, list) or len(trials) != len(expected):
         ep.fail("missing or extra planned trials")
-    seen, passed = set(), {}
+    seen = set()
+    trial_pass_counts = dict.fromkeys(cases, 0)
     calls, cost = 0, 0
     for row in trials:
         ep.keys(row, "case_id trial_index status scores assertion_results observed_subject observed_grader "
@@ -166,29 +167,31 @@ def validate_report(report, policy, approved, *, purpose, candidate_sha, contrac
             ep.fail("critical trial failure overrides aggregate threshold")
         if not trial_pass and not row["failure"].strip():
             ep.fail("quality failure needs retained failure observation")
-        passed[key] = trial_pass
+        trial_pass_counts[key[0]] += trial_pass
     if seen != expected:
         ep.fail("incomplete trial population")
     usage(report["usage"], policy["limits"]["currency"])
     if (report["usage"]["calls"] != calls or report["usage"]["cost_microunits"] != cost
             or calls > policy["limits"]["max_calls"] or cost > policy["limits"]["max_cost_microunits"]):
         ep.fail("usage does not recompute or exceeds approved budget")
-    case_passes = {case: all(passed[(case, index)] for index in range(1, policy["trials_per_case"] + 1)) for case in cases}
-
-    def population(ids):
-        if policy["metric"] == "case_all_trials":
-            return sum(case_passes[case] for case in ids), len(ids)
-        values = [value for (case, _), value in passed.items() if case in ids]
-        return sum(values), len(values)
-
-    passing, total = population(set(cases))
+    repeats = policy["trials_per_case"]
+    counts = {case: (int(count == repeats), 1) if policy["metric"] == "case_all_trials" else (count, repeats)
+              for case, count in trial_pass_counts.items()}
+    passing = sum(count[0] for count in counts.values())
+    total = sum(count[1] for count in counts.values())
     if not passes(passing, total, policy["minimum_rate"]):
         ep.fail("aggregate pass rate below approved threshold")
+    slice_counts = {row["id"]: [0, 0, 0] for row in policy["slices"]}
+    for name, case in cases.items():
+        for slice_id in case["slices"]:
+            count = slice_counts[slice_id]
+            count[0] += 1
+            count[1] += counts[name][0]
+            count[2] += counts[name][1]
     slice_results = {}
     for row in policy["slices"]:
-        members = {name for name, case in cases.items() if row["id"] in case["slices"]}
-        slice_pass, slice_total = population(members)
-        if len(members) < row["minimum_cases"] or not passes(slice_pass, slice_total, row["minimum_rate"]):
+        members, slice_pass, slice_total = slice_counts[row["id"]]
+        if members < row["minimum_cases"] or not passes(slice_pass, slice_total, row["minimum_rate"]):
             ep.fail("slice below approved coverage or pass threshold")
         slice_results[row["id"]] = {"passing": slice_pass, "total": slice_total}
     return {"passing": passing, "total": total, "slices": slice_results,
