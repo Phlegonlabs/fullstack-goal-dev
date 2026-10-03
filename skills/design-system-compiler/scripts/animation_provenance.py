@@ -37,6 +37,8 @@ def _split(value, separator):
 def _rules(css):
     rules, keyframes, cursor = [], set(), 0
     css = re.sub(r"/\*[\s\S]*?\*/", "", css)
+    if "\\" in css:
+        raise ValueError("escaped CSS")
     while cursor < len(css):
         start = css.find("{", cursor)
         if start < 0:
@@ -92,6 +94,8 @@ def _cascade(rules, node):
             sources.append(((0, *max(ranks)), body))
     sources.append(((1, 0, 0, 0), node["map"].get("style") or ""))
     for order, (specificity, body) in enumerate(sources):
+        if "\\" in body:
+            raise ValueError("escaped inline CSS")
         for position, declaration in enumerate(body.split(";")):
             if ":" not in declaration:
                 continue
@@ -219,7 +223,8 @@ def _names(value, shorthand):
                     name = token
                 else:
                     raise ValueError("unsupported animation value")
-            if none_count > (2 if name is None else 1):
+            allowed_none = (1 if name is None else 0) if 3 in groups else (2 if name is None else 1)
+            if none_count > allowed_none:
                 raise ValueError("duplicate animation none")
             name = name or "none"
         if name.lower() in {"initial", "inherit", "unset", "revert", "revert-layer"}:

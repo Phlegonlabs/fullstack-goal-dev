@@ -184,6 +184,11 @@ class ShowcaseCoverageTests(unittest.TestCase):
             (".dot{animation:pulse 1s;all:initial}", False),
             (".dot{animation:pulse 1s;-webkit-animation:none!important}", False),
             (".dot{animation:pulse 1s none none}", False),
+            (".dot{animation:pulse 1s none}", True),
+            (".dot{animation:pulse 1s none forwards}", False),
+            (".dot{animation:pulse 1s forwards none}", False),
+            (".dot{animation:none 1s forwards}", False),
+            (r".dot{animation:pulse 1s}.dot{\61 nimation:none}", False),
             (".dot{animation:var(--missing,pulse 1s steps(2,jump-none))}", True),
             (".dot{animation:pulse 1s}@media(min-width:1px){.dot{animation:none}}", False),
             (".dot{animation:pulse 1s}.dot:hover{animation:none}", False),
@@ -199,6 +204,8 @@ class ShowcaseCoverageTests(unittest.TestCase):
                 self.assertEqual(expected, showcase.animation_source_backed(keyframes, node))
         node["map"]["style"] = "animation:pulse 1s"
         self.assertFalse(showcase.animation_source_backed(keyframes + ".dot{animation:none!important}", node))
+        node["map"]["style"] = r"animation:pulse 1s;\61 nimation:none"
+        self.assertFalse(showcase.animation_source_backed(keyframes, node))
         node["map"]["style"] = ""
         self.assertFalse(showcase.animation_source_backed("@keyframes NONE{to{opacity:0}}.dot{animation-name:NONE}", node))
 
@@ -212,6 +219,8 @@ class ShowcaseCoverageTests(unittest.TestCase):
             (original, ":root{--alias:var(--ease-out)}.tide-dot{--ease-out:var(--alias)}", True),
             ("animation:tide-pulse 1.6s var(--ease-out,linear) infinite", ".tide-dot{--ease-out:initial}", True),
             (original, ".tide-dot{--ease-out:initial}", False),
+            (original, r".tide-dot{\61 nimation:none}", False),
+            ("animation:tide-pulse 1.6s linear none forwards", "", False),
         )
         for declaration, extra, expected in cases:
             with self.subTest(declaration=declaration, extra=extra):
