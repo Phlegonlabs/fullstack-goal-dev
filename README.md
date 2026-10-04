@@ -19,7 +19,7 @@ The workflow's template map names where every existing template is used, includi
 
 CI regression parses the complete source workflow and consumer CI template as YAML, including multiline candidate and diff-base expressions. Text assertions alone do not prove GitHub can load a workflow.
 
-For the 0.59 workflow, `development` and `main` are permanent protected branches and cannot be deleted. Author on isolated work branches, retain task commits, freeze a verified development SHA for release, and authorize main promotion separately. Historical pinned runs keep their original execution meaning. The source-repository migration is being prepared on `codex/harness-flow-modernization`; local policy changes do not prove remote protection or publication.
+Consumer workflows keep their approved branch policy. This skills source repository is maintained for our own use: temporary work branches target main through reviewed PRs. It needs no development branch. Historical consumer runs keep their pinned contracts.
 
 The [step-by-step workflow](docs/WORKFLOW.zh-TW.md) maps every applicable stage to its owner, existing templates and verification boundary. A section may have several isolated frontend/backend writers after shared interfaces are frozen; each executable task retains its atomic commit. Use observed host capacity, bounded packets and completion events, streaming review and serial integration. Do not remove precondition or postcondition validation as duplicate work, or claim rolling writer scheduling before it is implemented.
 
@@ -696,7 +696,7 @@ Every flow that lands on `main` is one release, and the version bump rides in th
 3. The RUNBOOK `required_harness_version` default in `skills/delivery-harness/assets/templates/MISSION_RUNBOOK.template.md`.
 4. No test literals: `skills/delivery-harness/scripts/tests/test_skill_contract.py` reads `VERSION` and fails when any surface above differs from it.
 
-Then run the full verification above, review the entire diff, and land through `branch-promotion-contract.md`. Use a PR when repository protection requires it. If the provider creates a new main SHA, require tree equality with the verified candidate and immediately rerun the full suite plus security review on that exact main SHA before tagging or claiming release completion. After landing, tag the release commit on `main` with the matching `v<version>` tag (for example `v0.30.0`); the tag is part of the release, not an optional extra. Every released version has its tag — `git tag` and `package.json` must tell the same story.
+Then run the full verification above, review the entire diff, and land this source candidate through a reviewed PR directly to `main`. Consumer promotions still follow `branch-promotion-contract.md`. Use a PR when repository protection requires it. If the provider creates a new main SHA, require tree equality with the verified candidate and immediately rerun the full suite plus security review on that exact main SHA before tagging or claiming release completion. After landing, tag the release commit on `main` with the matching `v<version>` tag (for example `v0.30.0`); the tag is part of the release, not an optional extra. Every released version has its tag — `git tag` and `package.json` must tell the same story.
 
 ## Security and data safety
 

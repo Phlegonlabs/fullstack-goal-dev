@@ -19,7 +19,7 @@ La tabla de plantillas del flujo indica cuándo usar cada plantilla existente, i
 
 Las pruebas de CI analizan el YAML completo del workflow fuente y de la plantilla CI del consumidor, incluidas las expresiones multilínea del candidato y la base del diff. Las comprobaciones de texto no demuestran que GitHub pueda cargar el workflow.
 
-El flujo 0.59 mantiene `development` y `main` como ramas protegidas permanentes que no se pueden borrar. Trabaja en ramas aisladas, conserva los commits por tarea, fija un SHA verificado de development para el release y autoriza por separado su promoción a main. Los RUN históricos conservan su significado original. La migración del repositorio se prepara en `codex/harness-flow-modernization`; cambiar reglas locales no demuestra protección remota ni publicación.
+Los proyectos consumidores conservan su política de ramas aprobada. Mantenemos este repositorio de skills para nuestro propio uso. Los cambios usan ramas temporales y PR revisados directamente a main. No requiere una rama development. Los RUN históricos de consumidores conservan sus contratos.
 
 El [flujo paso a paso](docs/WORKFLOW.zh-TW.md) identifica responsables, plantillas existentes y verificaciones de cada etapa aplicable. Una sección admite varios autores frontend/backend aislados después de fijar las interfaces comunes; cada tarea ejecutable conserva su commit atómico. Usa capacidad observada, paquetes acotados, eventos de finalización, revisión al terminar cada misión e integración serial. No elimines verificaciones previas o posteriores como si fueran duplicadas ni declares un planificador continuo de autores que aún no existe.
 
@@ -695,7 +695,7 @@ Cada flujo que aterriza en `main` es un release, y el bump de versión va en el 
 3. El default de `required_harness_version` del RUNBOOK en `skills/delivery-harness/assets/templates/MISSION_RUNBOOK.template.md`.
 4. Sin literales de test: `skills/delivery-harness/scripts/tests/test_skill_contract.py` lee `VERSION` y falla si cualquier superficie anterior no coincide.
 
-Luego ejecuta la verificación completa de arriba, revisa el diff entero y aterriza mediante `branch-promotion-contract.md`. Usa un PR cuando la protección del repositorio lo exija. Si el proveedor crea un SHA nuevo en main, exige igualdad de tree con el candidate verificado y repite inmediatamente la suite completa y la revisión de seguridad sobre ese exact main SHA antes de etiquetar o declarar completo el release. Después de aterrizar, etiqueta el commit de release en `main` con el tag `v<version>` correspondiente (por ejemplo `v0.30.0`); el tag es parte del release, no un extra opcional. Cada versión publicada tiene su tag — `git tag` y `package.json` deben contar la misma historia.
+Luego ejecuta la verificación completa de arriba, revisa el diff entero y lleva este candidato de fuentes directamente a `main` mediante un PR revisado. Los consumidores mantienen `branch-promotion-contract.md`. Usa un PR cuando la protección del repositorio lo exija. Si el proveedor crea un SHA nuevo en main, exige igualdad de tree con el candidate verificado y repite inmediatamente la suite completa y la revisión de seguridad sobre ese exact main SHA antes de etiquetar o declarar completo el release. Después de aterrizar, etiqueta el commit de release en `main` con el tag `v<version>` correspondiente (por ejemplo `v0.30.0`); el tag es parte del release, no un extra opcional. Cada versión publicada tiene su tag — `git tag` y `package.json` deben contar la misma historia.
 
 ## Seguridad y protección de datos
 

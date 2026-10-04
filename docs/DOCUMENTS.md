@@ -4,6 +4,7 @@ The four READMEs remain the documentation of record for the skill bundle.
 
 | Document | Purpose | Status |
 | --- | --- | --- |
+| `docs/epics/EPIC-skills-source-main-only.md` | Source maintenance directly through main PRs; consumer policy retained | Source governance synchronized; 60 local contracts passed |
 | `docs/epics/EPIC-release-0.61.md` | Publish the completed source changes as 0.61.0 directly to main under the owner's exception | Source candidate CI and independent review passed; publication tracked by PR #136 |
 | `docs/epics/EPIC-document-writing-policy.md` | STE core writing rules for new or changed project documents | Source guideline verified locally; formal release and installation pending |
 | `docs/epics/EPIC-architecture-loop-remote-execution.md` | Accepted architecture methods, bounded loops and remote Cloud Agent integration | T2/T3 source methods implemented and focused checks passed; remote work pending |

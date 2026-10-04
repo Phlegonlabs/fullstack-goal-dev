@@ -19,7 +19,7 @@
 
 CI 回歸會完整解析來源 workflow 與 consumer CI 模板的 YAML，包含多行 candidate 與 diff-base 表達式。只有文字斷言，不能證明 GitHub 能載入 workflow。
 
-0.59 流程以 `development` 與 `main` 為永久保護分支，兩者均不得刪除。實作在隔離工作分支，保留各 task commits，固定已驗證的 development SHA 作 release，另行授權 main promotion。舊 pinned RUN 保留原執行語意。本來源庫正在 `codex/harness-flow-modernization` 準備遷移；本地規則變更不代表已完成遠端保護或發布。
+使用 skills 的專案保留各自核准的分支政策。這個 skills 來源倉庫供我們自己使用：修改在臨時工作分支完成，透過已審查的 PR 直接合併到 main，不需要 development 分支。歷史 consumer RUN 保留原有契約。
 
 [逐步流程](docs/WORKFLOW.zh-TW.md) 列出每個適用階段的角色、既有模板及驗證邊界。同一 section 可在共享接口凍結後分給多位隔離的 frontend／backend writer；每個 executable task 保留自己的 atomic commit。依實際 host 容量派工，使用有界 packet、完成事件、streaming review 與序列整合。不把修改前／後驗證當作重複工作刪除，也不宣稱已有未實作的 rolling writer scheduler。
 
@@ -696,7 +696,7 @@ HiFi 範例以固定 LF 換行維持跨平台位元組雜湊。Wireframe 的 Nod
 3. `skills/delivery-harness/assets/templates/MISSION_RUNBOOK.template.md` 的 RUNBOOK `required_harness_version` 預設值。
 4. 不需修改測試字面值：`skills/delivery-harness/scripts/tests/test_skill_contract.py` 會讀取 `VERSION`，上述任何位置不一致時就失敗。
 
-接著跑完上面的完整驗證、檢視整份 diff，並依 `branch-promotion-contract.md` 落地。Repository protection 要求時使用 PR；若 provider 產生新的 main SHA，必須先證明其 tree 與 verified candidate 相同，並立即在該 exact main SHA 上重跑完整 suite 與 security review，才能 tag 或宣告 release 完成。落地之後，在 `main` 的 release commit 上打上對應的 `v<版本>` tag（例如 `v0.30.0`）；tag 是 release 的一部分，不是可有可無的附加動作。每個釋出的版本都要有它的 tag——`git tag` 和 `package.json` 必須說同一個故事。
+接著跑完上面的完整驗證、檢視整份 diff，並將這個來源候選透過已審查的 PR 直接合併到 `main`。Consumer 的 promotion 仍遵守 `branch-promotion-contract.md`。Repository protection 要求時使用 PR；若 provider 產生新的 main SHA，必須先證明其 tree 與 verified candidate 相同，並立即在該 exact main SHA 上重跑完整 suite 與 security review，才能 tag 或宣告 release 完成。落地之後，在 `main` 的 release commit 上打上對應的 `v<版本>` tag（例如 `v0.30.0`）；tag 是 release 的一部分，不是可有可無的附加動作。每個釋出的版本都要有它的 tag——`git tag` 和 `package.json` 必須說同一個故事。
 
 ## 安全性與資料安全
 
