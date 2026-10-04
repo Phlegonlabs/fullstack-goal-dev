@@ -18,6 +18,10 @@ Keep the source README canonical unless the project already maintains a package-
 
 For npm, inspect the [package README guidance](https://docs.npmjs.com/about-package-readme-files). For Python, reconcile `readme` metadata and content type with the [packaging tutorial](https://packaging.python.org/en/latest/tutorials/packaging-projects/). For Rust, inspect the [`readme` manifest field](https://doc.rust-lang.org/cargo/reference/manifest.html#the-readme-field). Each registry needs its own observed result; do not claim identical rendering from GitHub alone.
 
+Including an image in a package does not prove that the registry serves its relative URL. Use an approved stable absolute HTTPS image URL or a destination-specific route verified in the actual renderer. Keep image hosting and package inclusion as separate checks; do not add assets to a package solely on that assumption.
+
+For a Node package, after reviewing build/hooks, inspect `npm pack --dry-run --ignore-scripts --json` and the real tarball for the README and any promised assets. For Rust, use the existing `cargo metadata --no-deps --format-version 1` and `cargo package --list` routes to confirm package/readme identity, then check the real crate. For Python, inspect wheel/sdist metadata and the selected README content type. These checks validate distribution facts; the destination renderer remains a separate check.
+
 ## Media And Claims
 
 Prefer real product captures and existing licensed brand assets. A concept illustration can support the brand, but label it when it could be mistaken for implemented UI. Ask for missing required screenshots instead of substituting unrelated imagery. Do not fabricate users, endorsements, benchmark results or release availability.
