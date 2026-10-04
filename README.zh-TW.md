@@ -345,6 +345,8 @@ flowchart TB
 
 Product Definition Approval、UI Visual Approval 與合併到 `main` 是分開的人工閘門。Publication authorization 也獨立存在；接受產品內容不代表授權覆寫或移動檔案。
 
+Product Definition 與 UI 的批准／交接回覆，要在對話中逐份列出全部現行文件，附上已驗證的絕對 Markdown 連結、用途與狀態。包括中文審閱副本和英文來源、研究、方向稿、全部 HiFi 頁面、審查證據、必要的 design-system Markdown／JSON／HTML，以及適用的專案／營運文件。兩套完成後，合併成一份清單，在實作前進行整體 review。沿用既有批准，明確標示缺少或稍後階段才產生的文件；預覽面板或文件索引連結不能取代這份清單。
+
 每個可部署版本都以 `docs/DEPLOYMENT.md` 作為操作交接文件。Product Definition 先定義 typed `Surface class` 與 `Public discoverability`；Delivery Harness 再把每個 development/production target 精確 join 到 provider/channel、endpoint 或 typed native disposition、Expected/Deployed SHA、artifact identity、availability evidence 與 checked time。Production 使用不帶 `-prod` 的 `<product-slug>-<surface-suffix>`，development 加 `-dev`。文件只記 secret/variable 名稱與外部 console 任務，永遠不保存 secret 值。
 
 Production deployment 之後，`product-activation` 會從 typed release targets 衍生 profiles，只透過最安全可用路線執行精確授權的動作。Capability、read-back、behavior evidence、measurement sources 與 readiness 都綁定 target、environment、SHA、artifact、provider/channel 和 action digest。後續 strict Outcome Review 會逐字重複 PRD metric 或 TEST definition、baseline、target、window、production release 與相符的 verified `MS-*` evidence。
