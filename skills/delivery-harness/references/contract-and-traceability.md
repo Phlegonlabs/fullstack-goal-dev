@@ -146,6 +146,32 @@ Rules:
 - A task with no upstream trace ID is scope drift unless it is harness, test, cleanup, or explicitly approved.
 - Executable missions/tasks reference only traces with `disposition: planned`. `deferred` and `out_of_scope` traces require rationale and do not count as uncovered executable work until reclassified in a new plan revision. A requirement touching an executable security boundary may not be silently deferred; only an unrelated enhancement scope may use those existing disposition rules.
 
+## Platform Delivery And Feature Acceptance
+
+The canonical architecture may declare `platform-delivery/1`. The parser owns marker visibility, release surfaces, decision status, shared ARCH IDs, and required TEST IDs. PLAN may add:
+
+```json
+{
+  "platform_delivery": {
+    "protocol": "platform-delivery/1",
+    "stages": [
+      {
+        "id": "web",
+        "mission_ids": ["M1"],
+        "completion_mission_id": "M1",
+        "integration_verifier_ids": ["integrate-m1"]
+      }
+    ]
+  }
+}
+```
+
+Architecture order is authoritative; PLAN stage-list order is not. Map every mission that owns a PLAN `release_surface` to exactly one architecture stage. Establish every shared ARCH ID in first-stage mission traces. Later missions may touch a shared ARCH when their path includes the earlier platform regression.
+
+Use pass-only dependency paths from every stage contributor to its completion mission and from that completion mission to every next-stage mission. A route is not a handoff, and `worker_passed` never satisfies one. The completion mission's selected integration verifiers must be fresh, disable reuse, and annotate the full upstream platform TEST set. A retained exact-`integrated_sha` `mission_integration` PASS is historical handoff evidence; every new candidate integration resets batch and final gates.
+
+Fresh final gates must cover every platform TEST ID. Extra required shared-regression TEST IDs are allowed. Every planned `PRD-*` must trace declares existing final gates in `acceptance_gate_ids`, with or without platform stages. Those gates are deterministic, always-run, and covered by every carrying mission through dependency paths. Their `acceptance_test_ids` cover the canonical Required-Yes TEST obligations for that trace; duplicate-free IDs may add other required regressions.
+
 ## Mission And Task Identity
 
 Use opaque, immutable IDs for references and separate aliases for readable labels:

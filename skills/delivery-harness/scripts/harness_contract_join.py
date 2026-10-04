@@ -21,7 +21,9 @@ from harness_design_contract import compare_design_system_pair
 from harness_git import GitMetadataError, _path_has_reparse_or_link, reject_object_substitution, run_git
 from harness_schema import run_required_harness_version, version_at_least
 from harness_ui_evidence import validate_ui_surface_design_registry
+from delivery_acceptance_io import AcceptanceError, parse_required_prd_test_authority
 from branch_policy import validate_branch_policy_join
+from platform_delivery_contract import planned_prd_must_ids, validate_platform_delivery
 
 
 FROZEN_SOURCE_STATUSES = {"frozen", "delta_accepted", "delta accepted"}
@@ -1426,6 +1428,7 @@ _FULL_DESIGN_SYSTEM_CHECKERS: dict[Path, Any] = {}
 _UI_CONTRACT_VIEWS: dict[Path, Any] = {}
 _PRD_UI_CONTRACT_PARSERS: dict[Path, Any] = {}
 _RELEASE_SOURCE_CONTRACTS: dict[Path, Any] = {}
+_PLATFORM_DELIVERY_PARSERS: dict[Path, Any] = {}
 
 
 def sibling_builder_scripts_dir() -> Path:
@@ -1534,6 +1537,65 @@ def _load_canonical_prd_ui_contract_parser(sibling_scripts: Path) -> Any:
             sys.modules.pop(markdown_name, None)
             sys.modules.pop(parser_name, None)
     _PRD_UI_CONTRACT_PARSERS[key] = parser
+    return parser
+
+
+def _load_platform_delivery_parser(sibling_scripts: Path) -> Any:
+    """Load Product Definition's canonical platform-delivery parser safely."""
+
+    key = sibling_scripts.resolve()
+    if key in _PLATFORM_DELIVERY_PARSERS:
+        return _PLATFORM_DELIVERY_PARSERS[key]
+    parser: Any = None
+    parser_path = key / "platform_delivery.py"
+    markdown_path = key / "markdown_contract.py"
+    release_path = key / "release_targets.py"
+    if parser_path.is_file() and markdown_path.is_file() and release_path.is_file():
+        tag = hashlib.sha256(str(key).encode("utf-8")).hexdigest()[:16]
+        markdown_name = f"_harness_platform_markdown_contract_{tag}"
+        release_name = f"_harness_platform_release_targets_{tag}"
+        parser_name = f"_harness_platform_delivery_{tag}"
+        previous_markdown = sys.modules.get("markdown_contract")
+        previous_release = sys.modules.get("release_targets")
+        try:
+            markdown_spec = importlib.util.spec_from_file_location(markdown_name, markdown_path)
+            release_spec = importlib.util.spec_from_file_location(release_name, release_path)
+            parser_spec = importlib.util.spec_from_file_location(parser_name, parser_path)
+            if any(
+                spec is None or spec.loader is None
+                for spec in (markdown_spec, release_spec, parser_spec)
+            ):
+                raise ImportError("canonical platform-delivery module spec is unavailable")
+            markdown_module = importlib.util.module_from_spec(markdown_spec)
+            release_module = importlib.util.module_from_spec(release_spec)
+            parser_module = importlib.util.module_from_spec(parser_spec)
+            sys.modules[markdown_name] = markdown_module
+            sys.modules["markdown_contract"] = markdown_module
+            sys.modules[release_name] = release_module
+            sys.modules["release_targets"] = release_module
+            markdown_spec.loader.exec_module(markdown_module)
+            release_spec.loader.exec_module(release_module)
+            sys.modules[parser_name] = parser_module
+            parser_spec.loader.exec_module(parser_module)
+            loaded_path = Path(str(getattr(parser_module, "__file__", ""))).resolve()
+            if loaded_path != parser_path.resolve():
+                raise ImportError("canonical platform-delivery parser path does not match sibling source")
+            parser = parser_module
+        except Exception:
+            parser = None
+        finally:
+            if previous_markdown is None:
+                sys.modules.pop("markdown_contract", None)
+            else:
+                sys.modules["markdown_contract"] = previous_markdown
+            if previous_release is None:
+                sys.modules.pop("release_targets", None)
+            else:
+                sys.modules["release_targets"] = previous_release
+            sys.modules.pop(markdown_name, None)
+            sys.modules.pop(release_name, None)
+            sys.modules.pop(parser_name, None)
+    _PLATFORM_DELIVERY_PARSERS[key] = parser
     return parser
 
 
@@ -2194,6 +2256,48 @@ def _validate_strict_frozen_contract_joins(
         errors.append(f"product package: core artifact is not valid UTF-8 ({exc})")
         return sorted(set(errors))
 
+    platform_module = _load_platform_delivery_parser(
+        sibling_builder_scripts_dir()
+    )
+    feature_ids = planned_prd_must_ids(plan)
+    if feature_ids or plan.get("platform_delivery") is not None:
+        try:
+            feature_test_authority = parse_required_prd_test_authority(
+                resolved["prd"]
+            )
+        except AcceptanceError as exc:
+            feature_test_authority = None
+            errors.append(f"prd: canonical feature TEST authority failed safely: {exc}")
+    if platform_module is None:
+        errors.append(
+            "platform delivery: canonical parser is unavailable — install "
+            "product-definition-builder next to delivery-harness"
+        )
+    else:
+        try:
+            required_test_ids = (
+                set().union(*feature_test_authority.values())
+                if feature_test_authority
+                else set()
+            )
+            platform_contract, platform_findings = platform_module.parse_platform_delivery(
+                resolved["architecture"].decode("utf-8"),
+                prd_text,
+                require=plan.get("platform_delivery") is not None,
+            )
+            errors.extend(platform_findings)
+            errors.extend(validate_platform_delivery(
+                plan,
+                platform_contract,
+                required_test_ids=required_test_ids,
+                feature_test_authority=feature_test_authority,
+            ))
+        except Exception as exc:
+            errors.append(
+                "platform delivery: canonical parser failed safely: "
+                f"{type(exc).__name__}: {exc}"
+            )
+
     release_contract = _load_release_source_contract(sibling_builder_scripts_dir())
     if release_contract is None or not callable(getattr(release_contract, "active_text", None)):
         errors.append(
@@ -2388,6 +2492,40 @@ def _validate_strict_frozen_contract_joins(
     return sorted(set(errors))
 
 
+def _standalone_feature_acceptance_errors(
+    plan: dict[str, Any], repo_root: str | Path
+) -> list[str]:
+    """Validate PRD feature gates before any current/legacy source branch."""
+
+    if plan.get("schema_version") != 6:
+        return []
+    if not planned_prd_must_ids(plan):
+        return []
+    rows = frozen_sources(plan, kinds=PRD_SOURCE_KINDS, filenames={"prd.md"})
+    if len(rows) > 1:
+        return ["plan.sources: a joined current PLAN requires exactly one frozen PRD source"]
+    errors: list[str] = []
+    if not rows:
+        return ["plan.sources: a planned PRD feature requires one frozen PRD source"]
+    if len(rows) != 1:
+        return errors
+    payload, source_errors = _resolve_source_bytes(
+        rows[0], repo_root, label="PRD"
+    )
+    errors.extend(source_errors)
+    if payload is None:
+        return errors
+    try:
+        feature_test_authority = parse_required_prd_test_authority(payload)
+    except AcceptanceError as exc:
+        return errors + [f"prd: canonical feature TEST authority failed safely: {exc}"]
+    return errors + validate_platform_delivery(
+        plan,
+        None,
+        feature_test_authority=feature_test_authority,
+    )
+
+
 def validate_frozen_contract_joins(plan, repo_root, *, run=None):
     """Join eval authority before any legacy/current Product/UI early return."""
     try:
@@ -2396,6 +2534,7 @@ def validate_frozen_contract_joins(plan, repo_root, *, run=None):
         return ["eval-plan: installed sibling eval policy parser unavailable"]
     errors = validate_eval_plan(plan, repo_root, run=run,
         source_rows=_strict_source_rows, resolve_source=_resolve_source_bytes)
+    errors.extend(_standalone_feature_acceptance_errors(plan, repo_root))
     return sorted(set(errors + _validate_product_frozen_contract_joins(plan, repo_root, run=run)))
 
 

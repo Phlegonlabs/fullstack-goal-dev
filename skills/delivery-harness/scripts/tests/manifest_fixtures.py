@@ -328,9 +328,21 @@ def carry_security_requirement(
             "requirement": "Carry the frozen security obligation",
             "disposition": "planned",
             "rationale": None,
+            "acceptance_gate_ids": ["final"],
         }
     )
     mission = plan["missions"][0]
+    plan["final_gates"][0]["acceptance_test_ids"] = [test_id]
+    plan["graph"]["edges"].append(
+        {
+            "id": "E-M1-SECURITY-FINAL",
+            "kind": "dependency",
+            "from": "N-M1",
+            "to": "N-FINAL",
+            "on_outcomes": ["pass"],
+            "max_traversals": None,
+        }
+    )
     task = mission["tasks"][0]
     mission["trace_ids"].append(prd_id)
     task["trace_ids"].append(prd_id)
@@ -1408,6 +1420,10 @@ def retained_gate_execution(
         "execution": declaration["execution"],
         "cache": declared_cache,
     }
+    if "acceptance_test_ids" in declaration:
+        normalized_verifier["acceptance_test_ids"] = sorted(
+            declaration["acceptance_test_ids"]
+        )
     protocol = (
         "harness-verifier-execution-v2"
         if strict_runtime

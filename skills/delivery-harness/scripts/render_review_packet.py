@@ -44,6 +44,55 @@ def _git(repo: Path, *args: str) -> str:
     return result.stdout
 
 
+def _relevant_acceptance_mappings(
+    plan: dict[str, Any], missions: list[dict[str, Any]]
+) -> tuple[list[dict[str, Any]], bool]:
+    """Return a bounded gate-to-TEST map for the reviewed mission slice."""
+
+    reviewed_tests = {
+        row.get("test_id")
+        for mission in missions
+        for task in mission.get("tasks", [])
+        if isinstance(task, dict)
+        for row in task.get("acceptance_matrix", [])
+        if isinstance(row, dict) and isinstance(row.get("test_id"), str)
+    }
+    candidates: list[dict[str, Any]] = []
+    for gate in plan.get("final_gates", []):
+        if not isinstance(gate, dict):
+            continue
+        test_ids = gate.get("acceptance_test_ids", [])
+        if isinstance(test_ids, list) and reviewed_tests.intersection(test_ids):
+            candidates.append(
+                {
+                    "layer": "final",
+                    "verifier_id": gate.get("id"),
+                    "acceptance_test_ids": sorted(
+                        item for item in test_ids if isinstance(item, str)
+                    ),
+                }
+            )
+    for mission in plan.get("missions", []):
+        if not isinstance(mission, dict):
+            continue
+        for verifier in mission.get("integration_verifiers", []):
+            if not isinstance(verifier, dict):
+                continue
+            test_ids = verifier.get("acceptance_test_ids", [])
+            if isinstance(test_ids, list) and reviewed_tests.intersection(test_ids):
+                candidates.append(
+                    {
+                        "layer": "mission_integration",
+                        "mission_id": mission.get("id"),
+                        "verifier_id": verifier.get("id"),
+                        "acceptance_test_ids": sorted(
+                            item for item in test_ids if isinstance(item, str)
+                        ),
+                    }
+                )
+    return candidates[:100], len(candidates) > 100
+
+
 def render_packet(
     plan: dict[str, Any],
     run: dict[str, Any],
@@ -119,6 +168,9 @@ def render_packet(
         for mission in missions
         for task in mission["tasks"]
     ]
+    acceptance_mappings, mappings_truncated = _relevant_acceptance_mappings(
+        plan, missions
+    )
     version_gate = (
         run.get("runtime_capabilities", {}).get("runtime_adapter", {}).get("version_gate")
     )
@@ -240,6 +292,8 @@ def render_packet(
                 },
                 "contract_adoption": contract_adoption,
                 "acceptance": acceptance,
+                "acceptance_mappings": acceptance_mappings,
+                "acceptance_mappings_truncated": mappings_truncated,
                 "failure_families": lineage["failure_families"],
                 "owner_decisions": lineage["owner_decisions"],
             },
