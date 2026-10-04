@@ -4,7 +4,7 @@ The four READMEs remain the documentation of record for the skill bundle.
 
 | Document | Purpose | Status |
 | --- | --- | --- |
-| `docs/epics/EPIC-readme-release-skills.md` | Standalone brand-first README writing and runtime-specific release artifact preparation | Accepted; implementation and independent validation in progress |
+| `docs/epics/EPIC-readme-release-skills.md` | Standalone brand-first README writing and runtime-specific release artifact preparation | Source complete; reviewed candidate `8e2a0fe8`, validators and 60 contracts passed; native fixtures and scenario limits recorded; no install/release |
 | `docs/epics/EPIC-worktree-consolidation.md` | Publish all worktree heads and reconcile the current Eval/modernization sources | All 16 heads published; local source merged; unified candidate checks and exact main decision pending |
 | `docs/epics/EPIC-viteplus-evaluation.md` | Vite+/VoidZero frontend tooling and AI/skill evaluation assessment | Research complete; integration and eval pilot proposed, not implemented |
 | `docs/epics/EPIC-eval-contract-integration.md` | Approved eval policy, deterministic quality gate and reproducible handoff integration | 0.60.0 local candidate `882dda69` verified on Windows; independent code/security review PASS; release/install pending |
