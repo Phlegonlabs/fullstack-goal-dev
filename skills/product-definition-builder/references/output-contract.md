@@ -674,6 +674,22 @@ Expected deployable surfaces: [stable surface IDs, for example `web-app`, `publi
 
 A successful build, upload, submission, deployment command, notarization, or store approval is not availability by itself. Hosted availability requires the deployed route or API to answer the named smoke checks. Store and signed-installer availability requires the approved artifact to be actually installable or downloadable through the named channel and to pass its release smoke check. Native recovery may require halting a phased or staged rollout and shipping a signed forward-fix; do not promise web-style rollback when the channel cannot perform it.
 
+For an owner-selected whole-platform sequence, add this opt-in section after Release Targets. It orders implementation only after the PRD records every platform's requirements, UI surfaces, and tests. A shared API or interface appears in the stage that first makes it available; shared ARCH IDs must be authority rows. The stage surfaces cover the expected inventory exactly once. `not_required` is valid only for one user-facing surface class, with a concrete reason. Draft and blocked statuses stay non-executable.
+
+## Platform Delivery Sequence
+Platform delivery contract: platform-delivery/1
+Delivery mode: whole_platform_sequential
+Decision owner: [Human owner]
+Decision status: approved
+Shared surfaces: [Expected surface IDs or leave empty]
+Shared interface ARCH IDs: [ARCH-* authority IDs or leave empty]
+
+| Order | Stage | Release surfaces | Required TEST IDs | Completion signal |
+| --- | --- | --- | --- | --- |
+| 1 | [Stage ID] | [Expected surface IDs] | [Required TEST IDs] | [Observable completion signal] |
+
+Keep this section absent for legacy packages. A visible contract marker always validates. Malformed fields, unsupported protocols, duplicate stages or surfaces, omitted inventory, unknown references, hidden example markers, and non-required TEST IDs fail closed.
+
 ## Observability
 [Logs, metrics, traces, alerts, dashboards, audit events.]
 
@@ -970,6 +986,7 @@ Before archiving earlier documents or publishing the staged package, verify:
 - An enhancement package records the complete Enhancement Impact Record across product behavior, UI structure/style, data/integrations, architecture/stack, data trust/AI, security, monetization/partner, and release/operations. Each changed row names affected IDs/decisions, refreshed artifacts, and rerun gates. UI keeps the `none` / `structure` / `style` / `both` classification and the affected design consequences.
 - UI preference is not presented as user validation. `ui-design-builder` later records those choices and keeps conflicts with user evidence or accessibility requirements explicit.
 - For every deployable web, API, mobile, desktop, or browser-extension surface, `architecture.md` has a provider-neutral `## Release Targets` section with an explicit expected deployable-surface inventory and at least one development-stage and one production-stage target for every expected surface. A missing expected surface fails validation. Every target has a stable ID, an explicit lowercase kebab-case surface suffix and release name, separate stable surface and stage-specific provider fields, a source policy naming the exact branch or ref, artifact kind, signing requirement, exact channel/track, submission/promotion/review or manual-approval path, actual availability signal, rollout, and rollback or forward-fix path. Production uses the canonical `<product-slug>-<surface-suffix>` name without `-prod`; development uses that exact name plus `-dev`; release names are globally unique across surface IDs. Different providers by stage are valid for the same surface. The section has at most one active source-policy marker, and no unknown marker.
+- For new authoring with an owner-selected whole-platform order, `architecture.md` records `platform-delivery/1` after Release Targets. Its active contract names a human owner and approved status, covers the release inventory once, uses canonical Required-Yes TEST IDs, and resolves shared ARCH IDs from authority rows. A single user-facing class may use reasoned `not_required`; draft, blocked, malformed, hidden, duplicate, omitted, unknown, or shared-label bypass contracts fail.
 - Upload, submission, deployment-command success, notarization, or store approval alone is not accepted as availability. Hosted targets prove the route/API is serving and passes smoke checks; store or signed-installer targets prove the intended audience can actually install/download the artifact and that its release smoke check passes.
 - For a deployable hosted web, API, or backend target, `architecture.md` records the platform resolved during interview (via `AskUserQuestion` unless the user or repository already named one — never a silent default) and defines one codebase with separate development and production environments (named Workers when the platform is Cloudflare).
 - The hosted environment contract names the exact candidate run branch/ref as the internally tested development source during managed execution and remote `main` as production. Under the dual-branch marker, internal release comes from the verified protected-development SHA and is promoted separately to `main`; without the marker, the legacy flow fast-forwards the exact candidate to `main`. Managed execution still starts from PLAN's frozen ordinary `development` or hotfix `main` base. The contract also names distinct deployment units, isolated resources/secrets/data/auth/payment modes, migration order, evidence, and recovery. Development never uses production customer data, sessions, or live payment mutations. Native targets remain provider-neutral.
@@ -994,7 +1011,7 @@ Before archiving earlier documents or publishing the staged package, verify:
 - When the pass was skipped or blocked, `PRD.md`'s `## Assumptions` records that the market context is unvalidated.
 - Findings that changed the package cite their `MR-*` IDs in the sections they changed, and `PRD.md` states conclusions rather than restating the competitor table, sources, or retrieval dates. Findings that would widen product scope are recorded as open questions or recommendations, not applied silently.
 - When the read-only agent work graph was used, every required role has an explicit result, failed agents are retained as blocked lanes, and trace/consistency verifier findings are resolved or recorded before finalization. Agent output is treated as a candidate; the parent still owns staging and publication.
-- Run `python "<product-definition-builder-skill-root>/scripts/check_product_package.py" --prd <staged PRD.md> --architecture <staged architecture.md> --stack-decisions <staged stack-decisions.md> --repo-root <repository-root> --require-filled --require-approved` before publication; new packages add `--eval-policy eval-policy/1`. It validates substantive core sections, complete UI surfaces, Must/NFR-to-TEST coverage, Security Requirements traces, release-target identity, metrics, decision tables, both approval markers, executable stack statuses, live `Selected` evidence, and blocked trust/AI/security/commercial gates.
+- Run `python "<product-definition-builder-skill-root>/scripts/check_product_package.py" --prd <staged PRD.md> --architecture <staged architecture.md> --stack-decisions <staged stack-decisions.md> --repo-root <repository-root> --require-filled --require-approved` before publication; new packages add `--eval-policy eval-policy/1`, and new whole-platform authoring adds `--platform-delivery platform-delivery/1`. It validates substantive core sections, complete UI surfaces, Must/NFR-to-TEST coverage, Security Requirements traces, release-target identity, metrics, decision tables, both approval markers, executable stack statuses, live `Selected` evidence, and blocked trust/AI/security/commercial gates.
 
 ### Publication
 

@@ -402,6 +402,8 @@ Full-stack 依完整流程實作畫面、API、權限、資料保存與回饋。
 
 [Eval policy](skills/product-definition-builder/references/eval-policy-contract.md) 在已批准 PRD 凍結 rubric、樣本分母、重跑次數、pass rate、slice、critical 規則及 judge 輸入。必須使用 `json` code fence，讓 review 畫面顯示每個欄位；前綴的換行及空白行須符合 Markdown 規則。已批准輸入在 staging／發布時保持原路徑，舊版本保留。新 package 的批准及發布檢查使用 `--repo-root <root> --eval-policy eval-policy/1` 驗證已批准輸入的 bytes；一般產品填寫有理由的豁免。必要功能 TEST 仍須全部通過。Legacy package 沒有 marker 沿用原檢查；已加入 marker 就會驗證。
 
+新授權 whole-platform 順序的 authoring 會加入 `--platform-delivery platform-delivery/1`。Checker 讀取 active architecture sequence、精確 release inventory、shared API/interface ARCH authority rows、human decision 及 Required-Yes PRD tests；只有 approved status 可以執行。Draft、duplicate、hidden、malformed、omitted 或 shared-label bypass 一律失敗。沒有 section 的 legacy package 維持原讀法。
+
 [Eval 驗收契約](skills/delivery-harness/references/eval-acceptance-contract.md) 從 policy 推導執行契約，再重算每個已規劃 trial。品質失敗留在分母，prohibited 或 critical 失敗直接阻擋驗收。兩份 full report 保留 output、judge／tool 觀測、身分、時間和用量；handoff report 在乾淨 checkout 重跑。
 
 `check_eval_acceptance.py` 在乾淨 H2 將兩份 report 接上現有 delivery register，驗證凍結 hash 及 H1 等價，再執行 delivery acceptance。凍結契約、已批准輸入及交付檔案必須已存在，內容、類型及 Git mode 符合 H1，即使同時登記為 evidence。交付的 [eval runbook](skills/delivery-harness/assets/templates/EVAL_RUNBOOK.template.md) 記錄 setup、full／quick 指令、限額、失敗案例重跑和自有 fixture 清理。Checker 不執行 runner 指令；review 仍核對證據來源。

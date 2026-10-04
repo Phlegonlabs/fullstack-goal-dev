@@ -70,8 +70,15 @@ owns the index, integration checkpoint and final independent source/security rev
 | Observation | Scope and evidence | Verification and remaining work |
 | --- | --- | --- |
 | 2026-10-04 entry | Clean baseline above; branch codex/loop-engineering. Independent loop and platform explorers plus read-only architecture assignment dispatched. | Design underway; no implementation verified. Installed skill 0.61.0 observed previously; loaded identity remains unknown. |
+| 2026-10-04 P1 | Product parser `platform_delivery.py`, package checker opt-in integration, focused regressions, Product guidance, and four README behavior notes on branch `codex/loop-engineering`, based on `74d401a6a13d8ecb2f99f4417ffdb87fec8372b6` and the approved architecture contract. | Working-tree verification: 13 `test_platform_delivery.py` tests PASS; 80 `test_product_package_checker.py` tests PASS; `pyflakes`, `docs_weight.py`, and `git diff --check` PASS. Logs stay under the task-owned external check directory. Commit pending in this change; PLAN sequence mapping remains for the Harness writer. |
 
 ## Results And Remaining Work
 
 Implementation, focused regressions, unified checks and independent review pending.
 No push, PR merge, release tag or local skill installation is part of this task.
+
+P1 adds the exported `parse_platform_delivery(architecture_text, prd_text, *, require=False)`
+API. It returns a contract with `protocol`, `mode`, owner/status, ordered stages,
+stage IDs/surfaces/test IDs, shared surfaces, and shared ARCH IDs, or `None` for
+an absent active legacy section. The opt-in checker flag requires the contract and
+approved status. PLAN mapping, full source suite, unified review, and release remain pending.

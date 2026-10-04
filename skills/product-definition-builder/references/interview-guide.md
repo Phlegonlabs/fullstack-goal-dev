@@ -66,6 +66,7 @@ Ask the unresolved parts of these short prompts:
 
 - What is in or out of v1, and which timeline, team, stack, hosting, cost, license, lock-in, or existing-system constraints matter?
 - What must be released for development and production, through which channels, and what proves each release is actually available and recoverable?
+- For more than one user-facing platform, which owner-selected implementation order applies, and which required tests complete each stage? A single platform may record a concrete not-required reason.
 - Which launch metrics, measurable quality targets, and release-blocking tests define success?
 - Which risks, unknowns, observability needs, background work, or operational concerns should be investigated first?
 
@@ -141,6 +142,7 @@ Ask only questions that are not already answered. Route unresolved details into 
    - What is explicitly out of scope?
    - What timeline, milestone, or team constraint should shape the implementation plan?
    - What is the complete inventory of expected deployable web, API, mobile, desktop, or browser-extension surfaces? Give each surface a stable ID, then name the exact development and production targets for every expected surface. Give each target its own stable ID, explicit lowercase kebab-case surface suffix, and lowercase kebab-case release name. Production uses the unqualified canonical `<product-slug>-<surface-suffix>` name with no `-prod`; development uses that exact name plus `-dev`; distinct surfaces never share a release name. Record `surface` separately from the stage-specific `provider`, and allow providers to differ between stages.
+   - For a multi-platform product, ask the human owner whether to sequence whole-platform delivery. Record the order, stage completion tests, shared API/interface ARCH IDs, and owner decision. Do not infer the order or use a shared label to evade separate platform evidence.
    - Decide and record whether release sources use the legacy candidate protocol or the explicit `dual-branch/1` marker. For each target, record the exact candidate run branch/ref, or under dual-branch semantics the verified protected-development source. Production is closed to `refs/heads/main` after candidate verification and separate protected-branch authorization; ordinary managed work freezes remote `development`, while a hotfix freezes remote `main`. A signed tag or different production source is not an accepted alternative.
    - What artifact kind is released, what signing or notarization is required, and what exact environment, store channel, testing track, update feed, or distribution channel receives it?
    - What submission, promotion, review, or manual-approval path must complete? What signal proves the release is actually available to its intended audience? Upload, submission, review approval, or a successful deployment command alone is not availability.
