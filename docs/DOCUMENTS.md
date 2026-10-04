@@ -4,6 +4,8 @@ The four READMEs remain the documentation of record for the skill bundle.
 
 | Document | Purpose | Status |
 | --- | --- | --- |
+| `docs/epics/EPIC-architecture-loop-remote-execution.md` | Accepted architecture methods, bounded loops and remote Cloud Agent integration | Direction recorded; source implementation and Mac Mini pilot pending |
+| `docs/research/architecture-loop-remote-execution.md` | Ownership, remote task/evidence boundary and ordered pilot acceptance | Accepted direction; connection, capabilities and implementation unverified |
 | `docs/epics/EPIC-worktree-consolidation.md` | Publish all worktree heads and reconcile the current Eval/modernization sources | All 16 heads published; local source merged; unified candidate checks and exact main decision pending |
 | `docs/epics/EPIC-viteplus-evaluation.md` | Vite+/VoidZero frontend tooling and AI/skill evaluation assessment | Research complete; integration and eval pilot proposed, not implemented |
 | `docs/epics/EPIC-eval-contract-integration.md` | Approved eval policy, deterministic quality gate and reproducible handoff integration | 0.60.0 local candidate `882dda69` verified on Windows; independent code/security review PASS; release/install pending |
