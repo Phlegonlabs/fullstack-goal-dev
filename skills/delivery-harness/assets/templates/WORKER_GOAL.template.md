@@ -59,9 +59,10 @@ Repair context (omit for an initial implementation):
 ## Work
 
 - Make the smallest coherent change inside the write scope.
+- For architecture-bearing work, apply `references/delegation-contract.md#architecture-method`; start with a caller example before deriving interfaces and types.
 - Never edit PLAN/RUN, create another worker/task/branch/worktree/lease, or delegate.
 - Do not pull, rebase, merge, integrate, push, archive, remove a worktree, or delete a branch.
-- Create commits only when `create_local_commits` is authorized. For each executable task: implement only that outcome, run its focused verifier, create its atomic task commit, confirm the task is checkpointed, and only then begin the next task. Each commit names exactly one task; a repair is a separate atomic follow-up for that task. Report every SHA once in Git order; the last commit equals the reported head.
+- With `create_local_commits` authorized, run the focused verifier and create the atomic task commit. Confirm its checkpoint; only then begin the next task. Each commit names one task; commit repairs separately for that task. Report each SHA once in Git order; the last commit equals the reported head.
 - Before a task commit or `worker_passed`, implement each touched boundary's control and negative test proving denial and no unauthorized side effects. Keep a scaffolded protected route fail-closed until this is true.
 - For a repair handoff, fix the named root-cause family rather than applying the findings as independent patches. If another adjacent variant shows that the proposed mechanism is not closed, stop before adding another special case and return `REFINEMENT_REQUEST` or `contract_gap` with the structural strategy and missing acceptance classes.
 - If the remaining work no longer fits this bounded slice, stop before the next independent mutation and return `REFINEMENT_REQUEST`.

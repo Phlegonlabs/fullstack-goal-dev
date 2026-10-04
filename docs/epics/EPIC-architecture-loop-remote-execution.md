@@ -1,6 +1,6 @@
 # EPIC-architecture-loop-remote-execution: Integrate architecture and remote execution methods
 
-Status: accepted (direction recorded; source implementation and Mac Mini pilot pending)
+Status: in progress (T2 source verification; T3 and remote execution pending)
 
 ## Problem And Baseline
 
@@ -31,12 +31,26 @@ commits; there is no push, branch creation, installation or remote mutation here
 The document is a derived implementation proposal. It does not grant actions,
 replace product approvals, add RUN fields or change installed skill behavior.
 
+On 2026-10-04, the owner authorized source implementation:
+"依整合方案修改 skills，受影響文件採用新準則（建議）".
+T2 and T3 now proceed as separate direct tasks in this checkout.
+The parent remains the sole writer. UI impact remains `none`.
+Affected prose follows the accepted STE core writing rules.
+
+T2 updates the shared architecture method, worker template, Product Definition
+guidance and technical packets, code-review packets, focused tests and four READMEs.
+T3 updates the bounded-loop method and four READMEs after T2 verification and commit.
+Both update this Epic, its index and the proposal's current status.
+Acceptance uses packet-routing tests, existing authority negatives, specification
+and documentation checks, plus independent review of the fixed candidate.
+Runtime schemas, release version, installed skills and remote capabilities stay unchanged.
+
 ## Acceptance And Dependencies
 
 | Scope | Expected outcome | Verification | Dependency |
 | --- | --- | --- | --- |
 | T1: Decision record | Separate product architecture, implementation design, execution, loop and remote responsibilities | Source references, Markdown links, diff and independent document review | Existing source/review evidence |
-| Core integration | Caller-first design and scoped review methods in existing packets | Focused initial/enhancement/small-repair and approval-boundary checks | T2 in the linked proposal; source edits pending |
+| Core integration | Caller-first design and scoped review methods in existing packets | Technical-role and code-review routing; accepted repair and approval boundaries | T2 source implemented; final focused verification and review pending |
 | Loop methods | Finite metrics, budgets, reconciliation and retained rejected experiments | Pause, uncertainty, exhaustion and candidate-change negatives | T3; no schedule created |
 | Remote boundary | Versioned host/workspace/transport/result identity | Capability, duplicate, mismatch, disconnect and provenance negatives | T4; current schema remains unchanged |
 | Mac Mini pilot | Fixed task with verifiable result/evidence return | Actual transport and platform checks, then technical acceptance | Tailscale peer observed online; execution channel, capabilities and target case pending |
@@ -54,6 +68,8 @@ replace product approvals, add RUN fields or change installed skill behavior.
 | Change / request | Reason and affected scope | Commit / evidence | Verification and remaining work |
 | --- | --- | --- | --- |
 | 2026-10-04 owner acceptance, Mac Mini and Tailscale choice | Preserve the agreed architecture/loop/remote split; T1 documents only | `working-tree` at baseline `1782fa000b107396fd36787c7df7fad8a2141c82`; linked proposal | Seven local Markdown links and whitespace checks passed. Native Sol/xhigh document review DR-1 attempt 1 found no blockers. Source implementation and remote execution remain pending. |
+| 2026-10-04 implementation entry | T1 landed as `4cef4f4`; writing rules landed as `f717221`. Owner authorized T2/T3 source changes. | Clean `codex/harness-flow-modernization` at `f717221368bb81afc4061c621c88559505f9ca3b`; scoped history observed | INT-E1 and INT-E2 returned separate read-only source assessments. Loaded identity remains unknown. Document sync reports `review_required` for loaded identity and first baseline. T4-T7 need the versioned remote contract and actual execution channel. |
+| 2026-10-04 T2 architecture method | Add caller-first conceptual and implementation methods, state/side-effect checks and conditional alternatives. Route guidance to technical analysis and code reviews. | `working-tree` against `f717221`; scoped diff; existing packet/result schemas preserved | 193 tests passed: Product graph identity 7, review packets 9, Product contract 100, cross-skill 17 and Harness contract 60. Node syntax, focused pyflakes, skill specification, docs weight and diff checks passed. Initial fixture-name and context-length failures were corrected. Independent exact-SHA review pending. T3 and T4-T7 remain pending. |
 
 ## Results And Remaining Work
 
@@ -64,8 +80,8 @@ DR-1 reviewed the proposal at SHA-256
 the index at `8aefbeddb77181acbbbe49165594614d7ef54bae6e1b233dd0a276cd248b88cf`,
 and the pre-results-update Epic at
 `e7c854684688c7216b12920acd4a3a3c97714a35258fb6ca956cd35c8239d549`.
-The proposal and index remain byte-identical; this Epic update records that
-review and the actual checks. It is not a new runtime or release verdict.
+At T1 closeout, the proposal and index remained byte-identical to that review.
+The hashes above identify historical evidence, not later source changes.
 
 Document sync returned `review_required` for unobserved loaded identity and
 the first-observation baseline. No snapshot or loaded digest was invented.
@@ -83,3 +99,8 @@ documentation checkpoint or treat a transport smoke as feature acceptance.
 
 No new artifact class requires an ignore rule. The proposal and Epic are tracked
 source documents; no credentials, logs, caches or temporary process records are added.
+
+T2 retains `product_agent_graph.cjs` above 500 lines because it owns one Product
+graph facade. This prompt change adds no new module responsibility.
+Test logs stay in a unique temporary directory outside the checkout.
+Existing Python cache patterns apply; no new ignore rule is needed.

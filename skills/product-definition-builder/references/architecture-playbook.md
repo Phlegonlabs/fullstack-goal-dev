@@ -2,6 +2,17 @@
 
 Use this playbook to make architecture sections implementation-ready. The overall architecture may remain stack-neutral where requirements do not justify a named choice. Browser products use `references/frontend-stack-selection.md`; backend, persistent-data, or auth products use `references/backend-stack-selection.md`; mobile products use `references/mobile-stack-selection.md`. Technology proposals remain non-executable until the Stack Decision Checkpoint and Product Definition Approval are both approved.
 
+## Caller And State Method
+
+Apply [Architecture Method](../../delivery-harness/references/delegation-contract.md#architecture-method) to the accepted journeys.
+Start with a concrete caller example before defining components and conceptual interfaces.
+Name mutable-state owners, readers, invariants, invalid states and trust boundaries.
+Connect repeated side effects and failure recovery to existing `TEST-*` obligations.
+Keep implementation signatures and types in the downstream implementation-design assignment.
+Compare structural alternatives only when coupling, durability, trust or migration remains unresolved.
+Reuse valid enhancement decisions and small-repair designs.
+These methods add no approval gate or mandatory package field.
+
 ## Baseline Architecture Coverage
 
 Write the canonical `architecture.md` in English and draft its complete `architecture.zh-TW.md` review copy alongside it under `bilingual-review.md`. Preserve architecture IDs, interfaces, numeric constraints and literal code in both. Implementers and downstream skills reference the approved English architecture.

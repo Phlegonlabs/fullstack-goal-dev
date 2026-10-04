@@ -151,6 +151,7 @@ Skills 更新後及實作前，執行[設計有效性檢查](skills/ui-design-bu
 
 - 小型工作維持直接執行，不建立 PLAN/RUN，但先解析必要角色。UI 作者使用 host 綁定的 frontend worker，不由 parent 代寫；唯讀委派本身不要求受管 RUN。
 - [Parent 派工契約](skills/delivery-harness/references/delegation-contract.md) 適用於 Product Definition、UI Design 與交付。有兩個獨立實質研究／探索問題且具備授權與能力時，必須派出不同的 researcher／explorer 實例；容量不足就分批。純資料 API `readonly-assignments/1` 依 assignment、attempt 與凍結輸入身分匯合，允許結果重排，拒絕缺漏、重複、過期或重用 worker 的結果。Parent 的啟動觀察與子代理宣稱分開驗證。啟動前檢查必要角色及外部執行授權，缺少必要 delegate 不得默默交回 parent。Fallback 僅依 host 的可用性錯誤規則，確認終止並保留部分成果。每個 checkout 同時只有一個 writer，包含 parent；獨立審查仍須具備實際所需工具。
+- 架構任務先展示呼叫例，再定義狀態 ownership 與失敗恢復。程式審查將這個方法用於受影響邊界；局部修正沿用已接受的決策。
 - 大型工作進入受管規劃。它可以用 `PLAN.md` 加 `RUN.md` 走受管循序交付，或處理多任務與可持久的交棒；`new_run.py` 在帶 `--out` 與 `--repo-root` 時寫出初始 `docs/tasks.md`，帶 `--repo-root` 的受管 `accept-wave`、`record-worker-result`、`reject-worker-result`、`record-integration`、`reconcile-candidate-head`、`reconcile-coordination-head`、`reconcile-interrupted`、`reconcile-interrupted-reviews`、`close-wave` 轉換會刷新它並保留 Update Log。Projection 失敗不會回滾 RUN；獨立的 `render_tasks_view.py` 負責修復或檢查這份非權威視圖。本原始碼儲存庫不再另外維護根目錄 `Tasks.md` 流程記錄。
 
 每個必要的整合或 wave 收尾 checkpoint，可先以一個普通直接子提交提交精確 coordination 檔，再新觀察並用 `reconcile-coordination-head` 綁定該 head。守衛只接受支援的精確 coordination/generated-view 路徑，排除產品與凍結設計來源，檢查 live/observed 身分與乾淨產品位元組，保留舊證據並重開目前精確 head 的 review/gate；隔離 mission worker 可繼續，但 parent 端 reviewer 與檢查必須靜止。

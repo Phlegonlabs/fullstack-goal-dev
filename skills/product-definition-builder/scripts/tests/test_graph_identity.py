@@ -86,6 +86,30 @@ assert.throws(() => createProductAgentGraph({...args, research_question_inventor
 assert.throws(() => createProductAgentGraph({...args, research_delegation_required: true}));
 ''')
 
+    def test_caller_and_state_method_routes_to_technical_roles_only(self):
+        self.scenario(r'''
+args.role_bindings["frontend-platform"] = clone(args.role_bindings.architecture);
+args.browser_frontend = true;
+const graph = createProductAgentGraph(args);
+const tasks = graph.analyze();
+const technical = ["architecture", "backend", "frontend-platform"];
+assert.equal(tasks.filter(t => technical.includes(t.assignment.business_role)).length, 3);
+for (const task of tasks) {
+  const applies = technical.includes(task.assignment.business_role);
+  assert.equal(task.prompt.includes("#caller-and-state-method"), applies);
+  assert.ok(task.prompt.includes("Read only"));
+  if (applies) {
+    assert.ok(task.prompt.indexOf("concrete caller example") < task.prompt.indexOf("conceptual interfaces"));
+    assert.ok(task.prompt.includes("Keep implementation signatures and types downstream"));
+    assert.ok(task.prompt.includes("Reuse accepted local-repair designs and existing approval checkpoints"));
+  }
+}
+const s = setup();
+const result = finish(s);
+assert.equal(result.status, "candidate_ready");
+assert.equal(result.readonly_assignment_mode, "readonly-assignments/1");
+''')
+
     def test_full_graph_accepts_reordering_and_blocks_missing_or_stale_identities(self):
         self.scenario(r'''
 const s = setup();
