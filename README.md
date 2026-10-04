@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.60.0-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.61.0-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -151,6 +151,7 @@ The delivery core makes one size decision before it invokes managed orchestratio
 
 - Small work stays direct without PLAN/RUN, but resolves required roles before choosing its executor. UI authoring uses the host-bound frontend worker, not the parent. Read-only delegation alone does not require a managed run.
 - The [parent-owned delegation contract](skills/delivery-harness/references/delegation-contract.md) applies across Product Definition, UI Design and delivery. Two independent substantive research/exploration questions require distinct researcher/explorer instances when authorized and capable. Capacity limits use bounded waves. The pure `readonly-assignments/1` API joins by assignment, attempt and frozen input identity, accepts reordered results, and rejects missing, duplicate, stale or reused-worker results. Parent launch evidence remains separate from child claims. Required role bindings and external-runtime grants must be checked before launch; a missing mandatory delegate never silently becomes parent work. Availability-only fallback preserves host policy, termination checks and partial work. One writer owns each checkout, including the parent; independent review still requires its actual tools.
+- Architecture assignments start with a caller example, then define state ownership and failure recovery. Code reviews apply this method to affected boundaries. Local repairs reuse accepted decisions.
 - Large work enters managed planning. It may use `PLAN.md` and `RUN.md` for a managed-sequential delivery or for multiple missions and durable handoff; `new_run.py` writes the initial `docs/tasks.md` with `--out` and `--repo-root`, and guarded `accept-wave`, `record-worker-result`, `reject-worker-result`, `record-integration`, `reconcile-candidate-head`, `reconcile-coordination-head`, `reconcile-interrupted`, `reconcile-interrupted-reviews`, and `close-wave` transitions with `--repo-root` refresh it while preserving the Update Log. Projection failure never rolls back RUN; the standalone `render_tasks_view.py` repairs or checks that non-canonical view. This source repository does not keep a separate root `Tasks.md` flow log.
 
 Each required integration or wave-close checkpoint can commit its exact coordination files as one ordinary direct child, then freshly observe and bind that head with `reconcile-coordination-head`. The guard accepts only supported exact coordination/generated-view paths, keeps product and frozen design sources out, checks live/observed identity and clean product bytes, preserves old evidence, and re-arms current exact-head reviews and gates; isolated mission workers may continue while parent-side reviewers and checks are quiescent.
@@ -345,6 +346,8 @@ flowchart TB
 
 Product Definition Approval, UI Visual Approval, and the merge to `main` are separate human gates. Publication authorization is also separate: accepting product content never authorizes overwriting or moving files.
 
+Product Definition and UI approval/handoff responses list every current document individually in chat, with a verified absolute Markdown link, purpose and status. Include Chinese review copies and English sources, research, direction studies, all HiFi pages, review evidence, required design-system Markdown/JSON/HTML and applicable project/operational documents. Once both packages are complete, present one combined list for whole-package review before implementation. Keep existing approvals and mark missing or later-stage outputs explicitly; a preview panel or document-index link does not replace this list.
+
 For every deployable release, `docs/DEPLOYMENT.md` is the operator handoff. Product Definition seeds typed `Surface class` and `Public discoverability` fields; Delivery Harness joins every development/production target to those fields, its exact provider/channel, endpoint or typed native disposition, expected/deployed SHA, artifact identity, availability evidence, and checked time. Production uses canonical `<product-slug>-<surface-suffix>` with no `-prod`; development adds `-dev`. The record lists secret and variable names plus external-console tasks, never secret values.
 
 After production deployment, `product-activation` creates or reconciles `docs/ACTIVATION.md`, derives profiles from typed release targets, and performs only exact authorized actions through the safest available route. Capabilities, read-back, behavior evidence, measurement sources, and readiness bind to the exact target, environment, SHA, artifact, provider/channel, and action digest. The later strict Outcome Review repeats the PRD metric or TEST definition, baseline, target, window, exact production release, and matching verified `MS-*` evidence.
@@ -377,6 +380,8 @@ Choose the record before implementation: a new accepted outcome gets an Epic; sa
 
 Project AGENTS keeps entry, reading, ownership, routing, synchronization, authorization and completion rules. Conditional commerce, activation and managed-run details live in a required reference. The consumer AGENTS template requires KISS, first-principles reasoning, responsibility-based module splitting and no speculative compatibility code. New consumer code/test modules have a 500-physical-line hard cap; this does not impose a cap or a refactor on Harness source.
 
+New or changed documentation uses core [ASD-STE100 Issue 9](https://www.asd-ste100.org/about_STE.html) writing rules: active voice, one idea per sentence and consistent terms. Procedures use one instruction per step, with necessary conditions first. English procedural sentences have at most 20 words; descriptive sentences have at most 25. Code and literal strings are outside prose counts. Other languages use natural phrasing and consistent terms without English word limits. Preserve technical meaning, requirement strength, approvals and history. This STE-informed guideline uses existing document review; it adds no delivery gate or full-conformity claim.
+
 HiFi review starts on the primary product page. The sidebar opens Overview, every page and design specifications. Product interactions, reviewer navigation and source-derived tokens need separate evidence. Historical bundles remain readable.
 
 HiFi keeps one product canvas visible, sets actual review widths and retains applicable inputs and state. Product controls and state variants are verified in the browser; token specimens stay bound to their source pages.
@@ -390,6 +395,8 @@ Full-stack delivery follows complete user flows through UI, API, permissions, pe
 Upgrade to 0.50.0 with the canonical installer after active skill-using sessions reach a safe boundary. Keep its backup and start a fresh session; installed bytes do not update a loaded worker. Review the document-sync impact report, preserve local AGENTS rules and historical evidence, and patch only affected live sources. Existing document-sync/1 and ui-hifi/2 files remain inspectable. A fresh HiFi approval adds the reviewer shell and page-bound ui-output/2 reviewer observations; regenerate only affected evidence, not old approvals. Small fixes reuse a matching Epic without PLAN/RUN; create a bounded Epic only when none fits. Re-run the affected owner gates plus mandatory final verification. For 0.49.0, inspect design freshness before implementation and supply region-bound motionSpec in strict schema-5 authoring checks; preserve historical approvals. For 0.50.0, retain existing product layouts and approved artifacts. New wireframes open with annotations. Add a supported data-token-preview property and a matching source consumer for each HiFi token, then regenerate affected reviewer observations; preserve historical approvals.
 
 Every skill invocation starts with the shared [document-sync contract](skills/delivery-harness/references/document-sync-contract.md): review changed live instructions, skill/runtime identity and product documents, without rewriting historical approvals or runs. The current PRD stays the next enhancement's baseline; superseded PRDs remain linked references. [Bounded enhancement](skills/delivery-harness/references/bounded-enhancement.md) reuses one accepted scope for repairs, same-scope module replacement and retesting instead of repeated approval prompts. Stop at the repair budget and hand unresolved requirements to the next round; ending a round is not a delivery PASS or permission to publish.
+
+The [bounded-loop method](skills/delivery-harness/references/graph-orchestration.md#bounded-loop-method) fixes measurements and budgets before experiments. It preserves rejected results and uses existing attempts and outcomes. A wake reconciles state; it grants no retry, task or schedule.
 
 The [delivery-acceptance contract](skills/delivery-harness/references/delivery-acceptance-contract.md) joins required PRD TEST IDs to a frozen scenario/platform matrix and exact-version evidence. Prepare isolated synthetic accounts and owned test data only under the declared test-environment authority. Mock login proves mocked behavior, not real authentication; Web, native iOS and agent-tool outcomes need their own evidence. No production login bypass, secret-bearing fixture, skipped required test, stale build or deferred blocker can count as PASS. The checkers validate retained evidence and coverage, not whether a human attestation or external observation is truthful.
 
@@ -476,6 +483,16 @@ The runtime performance path removes repeated work without moving a gate. `docs_
 Workers and reviewers never delegate. The parent keeps one writer per isolated worktree, integrates serially, and dispatches fresh reviewers for exact-head review. Read-only and write scopes stay separate; profile labels never prove permission-level tool removal. A PLAN host mismatch defers with `runtime_unavailable` and never launches another runtime.
 
 One run has one active host. A same-repository handoff is allowed only after Host A closes its wave and `RUN.active_wave.status` is neither `active` nor `proposed`; the `active_wave` object remains in RUN, so its absence is not a handoff signal. Host B preserves PLAN/RUN and graph state, re-probes its runtime, and reviews the current exact SHA before selecting the next wave. A repair routes back to Host A and invalidates the old review; cross-machine handoff is unsupported until a future schema adds portable repository/state identity.
+
+## Standalone skills
+
+[README Studio](standalone-skills/readme-studio/SKILL.md) helps other projects write a distinctive, brand-first GitHub README with real demonstrations, a useful quickstart and renderer-specific checks. Its [dated case library](standalone-skills/readme-studio/references/case-library.md) draws on Starship, Bruno, Transformers, tldraw and Vite. Visual work follows the target project's frontend route and includes before/after evidence.
+
+Registry images need a working destination URL; including an image in a package alone does not prove that it renders there.
+
+[Release Packager](standalone-skills/release-packager/SKILL.md) prepares applicable artifacts for Node/Bun, Python, Go/Rust, containers and desktop/mobile apps using the project's native tooling. It tests actual package contents and consumer paths, then reconciles README/release facts. Builds, signatures, installation tests and publication retain separate evidence; missing runners or signing material remain explicit gaps. It adds no automatic CI pipeline.
+
+These sources are independent of the seven-skill bundle and are not installed by `install.sh` or `install.ps1`. Open the linked `SKILL.md` with its references in your host, or register the complete skill directory using that host's supported discovery mechanism. Registration is a separate local action; this repository does not automatically install it. Once available, invoke `$readme-studio` to improve a README or `$release-packager` when preparing a release. Keep the project's language, license and supported channels; publishing follows its existing authorization.
 
 ## Install
 
@@ -693,6 +710,8 @@ Then run the full verification above, review the entire diff, and land through `
 This repository is licensed under the MIT License — see [LICENSE](LICENSE).
 
 ## Version history
+
+- **0.61.0** — Require complete Product Definition and UI document links in chat, add STE core writing rules, caller/state architecture methods and finite experiment loops. Add standalone README and runtime packaging skills outside the seven-skill bundle. Preserve existing approvals and action grants; remote execution remains pending.
 
 - **0.60.0** — Freeze eval rubric, population, repeats, pass rate and judge inputs in approved PRD eval-policy/1. Recompute quality and independent clean-checkout reports, deliver runner/grader/lockfile/runbook, and join exact H1/H2 evidence. Applicable >=0.60 plans require frozen sources and always-run eval/acceptance gates; legacy absent markers retain their contract. Includes the unreleased 0.59 workflow modernization.
 

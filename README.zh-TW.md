@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.60.0-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.61.0-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -151,6 +151,7 @@ Skills 更新後及實作前，執行[設計有效性檢查](skills/ui-design-bu
 
 - 小型工作維持直接執行，不建立 PLAN/RUN，但先解析必要角色。UI 作者使用 host 綁定的 frontend worker，不由 parent 代寫；唯讀委派本身不要求受管 RUN。
 - [Parent 派工契約](skills/delivery-harness/references/delegation-contract.md) 適用於 Product Definition、UI Design 與交付。有兩個獨立實質研究／探索問題且具備授權與能力時，必須派出不同的 researcher／explorer 實例；容量不足就分批。純資料 API `readonly-assignments/1` 依 assignment、attempt 與凍結輸入身分匯合，允許結果重排，拒絕缺漏、重複、過期或重用 worker 的結果。Parent 的啟動觀察與子代理宣稱分開驗證。啟動前檢查必要角色及外部執行授權，缺少必要 delegate 不得默默交回 parent。Fallback 僅依 host 的可用性錯誤規則，確認終止並保留部分成果。每個 checkout 同時只有一個 writer，包含 parent；獨立審查仍須具備實際所需工具。
+- 架構任務先展示呼叫例，再定義狀態 ownership 與失敗恢復。程式審查將這個方法用於受影響邊界；局部修正沿用已接受的決策。
 - 大型工作進入受管規劃。它可以用 `PLAN.md` 加 `RUN.md` 走受管循序交付，或處理多任務與可持久的交棒；`new_run.py` 在帶 `--out` 與 `--repo-root` 時寫出初始 `docs/tasks.md`，帶 `--repo-root` 的受管 `accept-wave`、`record-worker-result`、`reject-worker-result`、`record-integration`、`reconcile-candidate-head`、`reconcile-coordination-head`、`reconcile-interrupted`、`reconcile-interrupted-reviews`、`close-wave` 轉換會刷新它並保留 Update Log。Projection 失敗不會回滾 RUN；獨立的 `render_tasks_view.py` 負責修復或檢查這份非權威視圖。本原始碼儲存庫不再另外維護根目錄 `Tasks.md` 流程記錄。
 
 每個必要的整合或 wave 收尾 checkpoint，可先以一個普通直接子提交提交精確 coordination 檔，再新觀察並用 `reconcile-coordination-head` 綁定該 head。守衛只接受支援的精確 coordination/generated-view 路徑，排除產品與凍結設計來源，檢查 live/observed 身分與乾淨產品位元組，保留舊證據並重開目前精確 head 的 review/gate；隔離 mission worker 可繼續，但 parent 端 reviewer 與檢查必須靜止。
@@ -345,6 +346,8 @@ flowchart TB
 
 Product Definition Approval、UI Visual Approval 與合併到 `main` 是分開的人工閘門。Publication authorization 也獨立存在；接受產品內容不代表授權覆寫或移動檔案。
 
+Product Definition 與 UI 的批准／交接回覆，要在對話中逐份列出全部現行文件，附上已驗證的絕對 Markdown 連結、用途與狀態。包括中文審閱副本和英文來源、研究、方向稿、全部 HiFi 頁面、審查證據、必要的 design-system Markdown／JSON／HTML，以及適用的專案／營運文件。兩套完成後，合併成一份清單，在實作前進行整體 review。沿用既有批准，明確標示缺少或稍後階段才產生的文件；預覽面板或文件索引連結不能取代這份清單。
+
 每個可部署版本都以 `docs/DEPLOYMENT.md` 作為操作交接文件。Product Definition 先定義 typed `Surface class` 與 `Public discoverability`；Delivery Harness 再把每個 development/production target 精確 join 到 provider/channel、endpoint 或 typed native disposition、Expected/Deployed SHA、artifact identity、availability evidence 與 checked time。Production 使用不帶 `-prod` 的 `<product-slug>-<surface-suffix>`，development 加 `-dev`。文件只記 secret/variable 名稱與外部 console 任務，永遠不保存 secret 值。
 
 Production deployment 之後，`product-activation` 會從 typed release targets 衍生 profiles，只透過最安全可用路線執行精確授權的動作。Capability、read-back、behavior evidence、measurement sources 與 readiness 都綁定 target、environment、SHA、artifact、provider/channel 和 action digest。後續 strict Outcome Review 會逐字重複 PRD metric 或 TEST definition、baseline、target、window、production release 與相符的 verified `MS-*` evidence。
@@ -377,6 +380,8 @@ Gitignore 衛生同時適用於 direct 與 managed 工作。scope scan 會記錄
 
 專案 AGENTS 保留入口、必讀、文件分工、分流、同步、授權與完成條件。商業、啟用與 managed RUN 細節移到按情境必讀的參考文件。供使用專案套用的 AGENTS 模板要求 KISS、第一性原理、依職責拆分模組，以及不寫推測性的相容程式碼。使用專案的新程式碼／測試模組採 500 實體行硬上限；此限制不套用至 Harness 原始碼，也不要求重構 Harness。
 
+新寫或修改的文件採用 [ASD-STE100 Issue 9](https://www.asd-ste100.org/about_STE.html) 的核心寫作規則：主動語態、一句一個重點，以及一致的術語。程序每步寫一個指令，必要條件放在指令前。英文程序句最多 20 詞，說明句最多 25 詞；程式碼與原樣字串不計入一般文字的詞數。其他語言使用自然表達與一致術語，不套用英文詞數限制。保留技術含義、需求強度、批准與歷史。這是 STE-informed 專案準則，沿用既有文件審查，不新增交付 gate，也不宣稱完整符合標準。
+
 HiFi 審閱從主要產品頁開始，側欄可前往 Overview、各頁與設計規格。產品互動、審閱導航及來源綁定 tokens 分別保留證據。歷史包件保持可讀。
 
 HiFi 一次顯示一個產品畫布，設定實際審閱寬度並保留適用輸入與狀態。瀏覽器驗證產品控件及狀態變體，token specimens 綁定來源頁。
@@ -390,6 +395,8 @@ Full-stack 依完整流程實作畫面、API、權限、資料保存與回饋。
 升級至 0.50.0 時，先讓使用 skills 的工作到達安全停止點，再執行 canonical installer，保留備份並開新 session；不可熱更新已載入的 worker。依文件同步影響清單局部更新現行文件，保留自訂 AGENTS 規則與歷史證據。既有 document-sync/1 與 ui-hifi/2 仍可檢查；新的 HiFi 批准須補左側審閱介面及綁定各頁的 ui-output/2 reviewer 觀察，只重做受影響證據，不改寫舊批准。小修正沿用對應 Epic，不建立 PLAN／RUN；沒有適合的 Epic 才建立精簡紀錄。重跑受影響的 owner gates 與必需最終驗證。 0.49.0 在實作前檢查設計有效性，嚴格 schema-5 編製檢查須提供綁定區域的 motionSpec；保留歷史批准。 0.50.0 保留既有產品排版與已批准產物；新 Wireframe 預設顯示註解。每個 HiFi token 須加上支援的 data-token-preview 屬性及對應來源用法，再重建受影響的 reviewer 觀察；保留歷史批准。
 
 每次調用 skill 都先套用共用的[文件同步契約](skills/delivery-harness/references/document-sync-contract.md)，檢查現行指引、skill/runtime 身分與產品文件的變動，不改寫歷史批准或 RUN。現行 PRD 持續作為下一輪 enhancement 的基準，被取代的 PRD 保留連結供參考。[有界 enhancement](skills/delivery-harness/references/bounded-enhancement.md) 沿用一次確認的範圍，執行修復、範圍內 module 重寫與重測，不反覆要求批准。達修復上限就把未解決需求移交下一輪；本輪結束不等於交付 PASS，也不授權發布。
+
+[有界 loop 方法](skills/delivery-harness/references/graph-orchestration.md#bounded-loop-method) 在實驗前固定量測與預算，保留被拒絕的結果，沿用現有 attempt 與 outcome。喚醒後先核對狀態；喚醒不授權重試、新任務或排程。
 
 [交付驗收契約](skills/delivery-harness/references/delivery-acceptance-contract.md) 把必要 PRD TEST ID、凍結的情境／平台矩陣與精確版本證據串起來。只在已授權的隔離測試環境準備合成帳號與本輪擁有的資料。Mock 登入不能證明真實認證通過；Web、原生 iOS 與 agent 工具結果各需自己的證據。Production 登入後門、含祕密的 fixture、跳過必要測試、過期 build 或延後處理的阻塞問題，都不能算 PASS。檢查器驗證覆蓋與保留證據，不宣稱能證明人工聲明或外部觀測的真實性。
 
@@ -476,6 +483,16 @@ Runtime 提速路徑只移除重複工作，不搬動 gate。`docs_weight.py` �
 Worker 與 reviewer 不能再次分派。Parent 保持每個隔離 worktree 只有一個 writer、串行整合，再派發 fresh reviewers 執行 exact-head review。唯讀與寫入範圍保持分離；profile 名稱不能證明 permission-level tool removal。PLAN 的 host 不符時以 `runtime_unavailable` 延後，不會啟動另一個 runtime。
 
 一次執行只有一個 active host。same-repository handoff 只有在 Host A 關閉 wave、且 `RUN.active_wave.status` 既不是 `active` 也不是 `proposed` 後才允許；`active_wave` 物件仍保留在 RUN 中，不能把物件缺失當成交接訊號：Host B 保留 PLAN/RUN 與 graph state，重新探測 runtime，並在選取下一波前審查目前的 exact SHA。若需要修復，路由回 Host A 且舊 review 立即失效；除非未來 schema 增加可攜式的儲存庫／狀態身分，否則不支援 cross-machine handoff。
+
+## 獨立 skills
+
+[README Studio](standalone-skills/readme-studio/SKILL.md) 協助其他專案撰寫有品牌特色的 GitHub README，包含真實示範、可用的快速上手及各呈現平台的檢查。[附日期的案例庫](standalone-skills/readme-studio/references/case-library.md) 參考 Starship、Bruno、Transformers、tldraw 與 Vite。視覺工作沿用目標專案的 frontend 路由，交付前後對照證據。
+
+Registry 圖片需要可用的目的地 URL；只把圖片放進 package，不能證明它能在該平台呈現。
+
+[Release Packager](standalone-skills/release-packager/SKILL.md) 沿用專案原生工具，為 Node/Bun、Python、Go/Rust、容器及桌面／行動 App 準備適用產物。它檢查實際包內容和使用者安裝／使用路徑，再核對 README 與 release 資訊。建包、簽署、安裝測試和發布分別保留證據；缺少 runner 或簽署資料會明確列為缺口，不會加入自動 CI 流程。
+
+這些來源獨立於七個 skills 的 bundle，`install.sh` 和 `install.ps1` 不會安裝它們。可在 host 中開啟連結的 `SKILL.md` 與 references，或按 host 支援的探索方式註冊完整 skill 目錄。註冊是另一項本機操作，本 repo 不會自動安裝。可用後，以 `$readme-studio` 改善 README，或在準備 release 時使用 `$release-packager`。保留專案語言、授權與已支援渠道；發布沿用原有授權。
 
 ## 安裝
 
@@ -693,6 +710,8 @@ HiFi 範例以固定 LF 換行維持跨平台位元組雜湊。Wireframe 的 Nod
 本儲存庫採用 MIT 授權，全文見 [LICENSE](LICENSE)。
 
 ## 版本紀錄
+
+- **0.61.0** — 要求在對話列出完整 Product Definition 與 UI 文件連結，加入 STE 核心寫作規則、先看呼叫例與狀態的架構方法，以及有限次實驗迴圈。新增獨立 README 與 runtime 打包 skills，維持在七技能套件之外。保留既有批准與操作授權；遠端執行仍待完成。
 
 - **0.60.0** — 以 PRD eval-policy/1 凍結 rubric、樣本分母、重跑次數、pass rate 及 judge 輸入。重算品質與獨立乾淨 checkout 報告，交付 runner／grader／lockfile／runbook，並接上精確 H1/H2 證據。適用的 >=0.60 plan 強制凍結 source 與 always-run eval／acceptance gate；舊版沒有 marker 保留原契約。 包含尚未發布的 0.59 流程更新。
 

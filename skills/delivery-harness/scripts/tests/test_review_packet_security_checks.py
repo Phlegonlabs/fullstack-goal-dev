@@ -142,6 +142,23 @@ class SecurityPacketCheckTests(unittest.TestCase):
         self.assertIn("fresh full-scope review", packet)
         self.assertNotIn("Focus this pass on what combination", packet)
 
+    def test_architecture_guidance_routes_only_to_code_reviews(self) -> None:
+        node = next(n for n in self.plan["graph"]["nodes"] if n["id"] == "N-REVIEW-M1")
+        packets = {}
+        for review_type in ("frontend_code", "backend_code", "visual", "security"):
+            with self.subTest(review_type=review_type):
+                node["review"]["type"] = review_type
+                packets[review_type] = render_packet(self.plan, self.run, "N-REVIEW-M1", self.root)
+                contract = _contract(packets[review_type])
+                self.assertEqual(review_type, contract["review_type"])
+                self.assertEqual(self.plan["missions"][0]["tasks"][0]["acceptance_matrix"],
+                                 contract["acceptance"][0]["acceptance_matrix"])
+                self.assertEqual(set(_contract(packets["frontend_code"])), set(contract))
+                self.assertEqual(review_type in {"frontend_code", "backend_code"},
+                                 "## Architecture review" in packets[review_type])
+        self.assertIn("For unchanged boundaries, reuse the accepted design", packets["backend_code"])
+        self.assertIn("do not reset repair budgets", packets["frontend_code"])
+
     def test_truncated_packet_retains_complete_external_binary_diff(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             (self.root / "file.txt").write_text("large tail\n" * 10000, encoding="utf-8")

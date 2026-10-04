@@ -451,7 +451,8 @@ function createProductAgentGraph(args) {
             : "This product has no shipped UI. Trace caller or operator journeys to observable value; do not invent screens, login or visual-design work.\n")
           : "") +
         (["architecture", "backend", "frontend-platform"].includes(role.key)
-          ? "Apply the technical completeness lens: follow the same journeys through data ownership and lifecycle, permissions, integration contracts, retries and duplicate effects, migrations, release availability, monitoring and recovery ownership, and testability. Flag gaps at component boundaries; do not invent scope or select an unapproved stack.\n"
+          ? "Apply the technical completeness lens: follow the same journeys through data ownership and lifecycle, permissions, integration contracts, retries and duplicate effects, migrations, release availability, monitoring and recovery ownership, and testability. Flag gaps at component boundaries; do not invent scope or select an unapproved stack.\n" +
+            "Apply references/architecture-playbook.md#caller-and-state-method. Start with a concrete caller example before defining conceptual interfaces. Name mutable-state owners, readers, invariants, invalid states and trust boundaries. Link repeat-call behavior and failure recovery to existing TEST obligations. Compare structural alternatives only when coupling, durability, trust or migration remains unresolved. Keep implementation signatures and types downstream. Reuse accepted local-repair designs and existing approval checkpoints.\n"
           : "") +
         `Frozen task context: ${sourceContext}\n\n` +
         "Read the supplied sources, including research-assessment.md when available, before drafting. Use its sourced market baseline and preserve RA-* evidence and unresolved gaps. Read only. Do not edit, create, move, or publish files. Preserve supplied facts, label assumptions, and return only the structured role result.",

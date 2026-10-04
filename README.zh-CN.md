@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.60.0-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.61.0-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -151,6 +151,7 @@ Skills 更新后及实现前，执行[设计有效性检查](skills/ui-design-bu
 
 - 小型工作保持直接执行，不建立 PLAN/RUN，但先解析必要角色。UI 作者使用 host 绑定的 frontend worker，不由 parent 代写；只读委派本身不要求托管 RUN。
 - [Parent 派工契约](skills/delivery-harness/references/delegation-contract.md) 适用于 Product Definition、UI Design 和交付。有两个独立实质研究／探索问题且具备授权与能力时，必须派出不同的 researcher／explorer 实例；容量不足就分批。纯数据 API `readonly-assignments/1` 按 assignment、attempt 和冻结输入身份汇合，允许结果重排，拒绝缺漏、重复、过期或重用 worker 的结果。Parent 的启动观察与子代理声明分开验证。启动前检查必要角色及外部执行授权，缺少必要 delegate 不得默默交回 parent。Fallback 仅按 host 的可用性错误规则，确认终止并保留部分成果。每个 checkout 同时只有一个 writer，包括 parent；独立审查仍须具备实际所需工具。
+- 架构任务先展示调用示例，再定义状态 ownership 与失败恢复。代码审查将这个方法用于受影响边界；局部修正沿用已接受的决策。
 - 大型工作进入托管规划。它可以用 `PLAN.md` 和 `RUN.md` 完成一次受管顺序交付，或者处理多个任务并实现可持久的移交；`new_run.py` 在带 `--out` 和 `--repo-root` 时写出初始 `docs/tasks.md`，带 `--repo-root` 的受管 `accept-wave`、`record-worker-result`、`reject-worker-result`、`record-integration`、`reconcile-candidate-head`、`reconcile-coordination-head`、`reconcile-interrupted`、`reconcile-interrupted-reviews`、`close-wave` 转换会刷新它并保留 Update Log。Projection 失败不会回滚 RUN；独立的 `render_tasks_view.py` 负责修复或检查这份非权威视图。本源码仓库不再另外维护根目录 `Tasks.md` 流程记录。
 
 每个必要的集成或 wave 收尾 checkpoint，可先以一个普通直接子提交提交精确 coordination 文件，再新观察并用 `reconcile-coordination-head` 绑定该 head。守卫只接受支持的精确 coordination/generated-view 路径，排除产品与冻结设计来源，检查 live/observed 身份与干净产品字节，保留旧证据并重开当前精确 head 的 review/gate；隔离 mission worker 可继续，但 parent 端 reviewer 与检查必须静止。
@@ -345,6 +346,8 @@ flowchart TB
 
 Product Definition Approval、UI Visual Approval 与合并到 `main` 是分开的人工闸门。Publication authorization 也独立存在；接受产品内容不代表授权覆盖或移动文件。
 
+Product Definition 与 UI 的批准／交接回复，要在对话中逐份列出全部现行文档，附上已验证的绝对 Markdown 链接、用途与状态。包括中文审阅副本和英文来源、研究、方向稿、全部 HiFi 页面、审查证据、必要的 design-system Markdown／JSON／HTML，以及适用的项目／运营文档。两套完成后，合并成一份清单，在实现前进行整体 review。沿用既有批准，明确标示缺少或稍后阶段才产生的文档；预览面板或文档索引链接不能取代这份清单。
+
 每个可部署版本都以 `docs/DEPLOYMENT.md` 作为操作交接文档。Product Definition 先定义 typed `Surface class` 与 `Public discoverability`；Delivery Harness 再把每个 development/production target 精确 join 到 provider/channel、endpoint 或 typed native disposition、Expected/Deployed SHA、artifact identity、availability evidence 与 checked time。Production 使用不带 `-prod` 的 `<product-slug>-<surface-suffix>`，development 加 `-dev`。文档只记录 secret/variable 名称与外部 console 任务，永远不保存 secret 值。
 
 Production deployment 之后，`product-activation` 从 typed release targets 派生 profiles，只通过最安全可用路线执行精确授权的动作。Capability、read-back、behavior evidence、measurement sources 与 readiness 都绑定 target、environment、SHA、artifact、provider/channel 和 action digest。后续 strict Outcome Review 会逐字重复 PRD metric 或 TEST definition、baseline、target、window、production release 与相符 verified `MS-*` evidence。
@@ -377,6 +380,8 @@ Gitignore 管理同时适用于 direct 与 managed 工作。scope scan 会记录
 
 项目 AGENTS 保留入口、必读、文档分工、分流、同步、授权与完成条件。商业、启用与 managed RUN 细节移到按情境必读的参考文档。供使用项目套用的 AGENTS 模板要求 KISS、第一性原理、按职责拆分模块，以及不写推测性的兼容代码。使用项目的新代码／测试模块采用 500 物理行硬上限；此限制不适用于 Harness 源码，也不要求重构 Harness。
 
+新写或修改的文档采用 [ASD-STE100 Issue 9](https://www.asd-ste100.org/about_STE.html) 的核心写作规则：主动语态、一句一个重点，以及一致的术语。程序每步写一个指令，必要条件放在指令前。英文程序句最多 20 词，说明句最多 25 词；代码与原样字符串不计入一般文本的词数。其他语言使用自然表达与一致术语，不套用英文词数限制。保留技术含义、需求强度、批准与历史。这是 STE-informed 项目准则，沿用现有文档审查，不新增交付 gate，也不宣称完整符合标准。
+
 HiFi 审阅从主要产品页开始，侧栏可前往 Overview、各页与设计规格。产品交互、审阅导航及来源绑定 tokens 分别保留证据。历史包件保持可读。
 
 HiFi 一次显示一个产品画布，设置实际审阅宽度并保留适用输入与状态。浏览器验证产品控件及状态变体，token specimens 绑定来源页。
@@ -390,6 +395,8 @@ Full-stack 按完整流程实现页面、API、权限、数据保存与反馈。
 升级至 0.50.0 时，先让使用 skills 的工作到达安全停止点，再执行 canonical installer，保留备份并开新 session；不可热更新已加载的 worker。按文档同步影响清单局部更新当前文档，保留自定义 AGENTS 规则与历史证据。现有 document-sync/1 与 ui-hifi/2 仍可检查；新的 HiFi 批准须补左侧审阅界面及绑定各页的 ui-output/2 reviewer 观察，只重做受影响证据，不改写旧批准。小修正沿用对应 Epic，不建立 PLAN／RUN；没有合适的 Epic 才建立精简记录。重跑受影响的 owner gates 与必需最终验证。 0.49.0 在实现前检查设计有效性，严格 schema-5 编制检查须提供绑定区域的 motionSpec；保留历史批准。 0.50.0 保留现有产品排版与已批准产物；新 Wireframe 默认显示注释。每个 HiFi token 须加上支持的 data-token-preview 属性及对应来源用法，再重建受影响的 reviewer 观察；保留历史批准。
 
 每次调用 skill 都先应用共享的[文档同步契约](skills/delivery-harness/references/document-sync-contract.md)，检查当前指引、skill/runtime 身份与产品文档的变化，不改写历史批准或 RUN。当前 PRD 持续作为下一轮 enhancement 的基准，被替代的 PRD 保留链接供参考。[有界 enhancement](skills/delivery-harness/references/bounded-enhancement.md) 沿用一次确认的范围，执行修复、范围内 module 重写与重测，不反复要求批准。达到修复上限就把未解决需求移交下一轮；本轮结束不等于交付 PASS，也不授权发布。
+
+[有界 loop 方法](skills/delivery-harness/references/graph-orchestration.md#bounded-loop-method) 在实验前固定测量与预算，保留被拒绝的结果，沿用现有 attempt 与 outcome。唤醒后先核对状态；唤醒不授权重试、新任务或排程。
 
 [交付验收契约](skills/delivery-harness/references/delivery-acceptance-contract.md) 串联必要 PRD TEST ID、冻结的场景／平台矩阵与精确版本证据。只在已授权的隔离测试环境准备合成账户与本轮拥有的数据。Mock 登录不能证明真实认证通过；Web、原生 iOS 与 agent 工具结果各需自己的证据。Production 登录后门、含秘密的 fixture、跳过必要测试、过期 build 或延后处理的阻塞问题，都不能算 PASS。检查器验证覆盖与保留证据，不声称能证明人工声明或外部观察的真实性。
 
@@ -476,6 +483,16 @@ Runtime 提速路径只移除重复工作，不移动 gate。`docs_weight.py` �
 Worker 与 reviewer 不能再次分派。Parent 保持每个隔离 worktree 只有一个 writer、串行整合，再派发 fresh reviewers 执行 exact-head review。只读与写入范围保持分离；profile 名称不能证明 permission-level tool removal。PLAN 的 host 不符时以 `runtime_unavailable` 延后，不会启动另一个 runtime。
 
 一次运行只有一个 active host。same-repository handoff 只有在 Host A 关闭 wave、且 `RUN.active_wave.status` 既不是 `active` 也不是 `proposed` 后才允许；`active_wave` 对象仍保留在 RUN 中，不能把对象缺失当作交接信号：Host B 保留 PLAN/RUN 和 graph state，重新探测 runtime，并在选取下一波前审查当前 exact SHA。若需修复，路由回 Host A 且旧 review 立即失效；除非未来 schema 增加可携带的仓库/状态身份，否则不支持 cross-machine handoff。
+
+## 独立 skills
+
+[README Studio](standalone-skills/readme-studio/SKILL.md) 帮助其他项目编写有品牌特色的 GitHub README，包含真实演示、可用的快速上手及各展示平台的检查。[附日期的案例库](standalone-skills/readme-studio/references/case-library.md) 参考 Starship、Bruno、Transformers、tldraw 和 Vite。视觉工作沿用目标项目的 frontend 路由，交付前后对照证据。
+
+Registry 图片需要可用的目标 URL；只把图片放进 package，不能证明它能在该平台展示。
+
+[Release Packager](standalone-skills/release-packager/SKILL.md) 沿用项目原生工具，为 Node/Bun、Python、Go/Rust、容器及桌面／移动 App 准备适用产物。它检查实际包内容和用户安装／使用路径，再核对 README 与 release 信息。构建、签名、安装测试和发布分别保留证据；缺少 runner 或签名资料会明确列为缺口，不会添加自动 CI 流程。
+
+这些来源独立于七个 skills 的 bundle，`install.sh` 和 `install.ps1` 不会安装它们。可在 host 中打开链接的 `SKILL.md` 与 references，或按 host 支持的发现方式注册完整 skill 目录。注册是另一项本地操作，本 repo 不会自动安装。可用后，以 `$readme-studio` 改善 README，或在准备 release 时使用 `$release-packager`。保留项目语言、许可与已支持渠道；发布沿用原有授权。
 
 ## 安装
 
@@ -693,6 +710,8 @@ HiFi 示例以固定 LF 换行维持跨平台字节哈希。Wireframe 的 Node �
 本仓库采用 MIT 许可证，全文见 [LICENSE](LICENSE)。
 
 ## 版本历史
+
+- **0.61.0** — 要求在对话列出完整 Product Definition 与 UI 文件链接，加入 STE 核心写作规则、先看调用示例与状态的架构方法，以及有限次实验循环。新增独立 README 与 runtime 打包 skills，保持在七技能套件之外。保留现有批准与操作授权；远程执行仍待完成。
 
 - **0.60.0** — 以 PRD eval-policy/1 冻结 rubric、样本分母、重复次数、pass rate 及 judge 输入。重算质量与独立干净 checkout 报告，交付 runner／grader／lockfile／runbook，并接上精确 H1/H2 证据。适用的 >=0.60 plan 强制冻结 source 与 always-run eval／acceptance gate；旧版没有 marker 保留原契约。 包含尚未发布的 0.59 流程更新。
 

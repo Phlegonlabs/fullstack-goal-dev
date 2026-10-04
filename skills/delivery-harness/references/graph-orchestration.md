@@ -205,6 +205,39 @@ Never reuse:
 
 Do not retry the same failed approach more than twice. A runtime review is stricter: `max_attempts` cannot exceed 2 and attempts count cumulatively per the Root-Cause Repair Escalation section above. After the bound is exhausted, stop at `blocked` and identify the required decision; apply that section's owner gate before authoring any successor review node.
 
+### Bounded Loop Method
+
+Before the first iteration, freeze the scope, permitted actions and input versions.
+Record the measurement command, baseline, success predicate and regression gate.
+Set time, attempt and cost limits in existing task stop conditions.
+For managed work, use existing PLAN acceptance and verifier declarations.
+For direct work, keep this information in the existing task record.
+Validate that the measurement can distinguish the intended change before comparing candidates.
+Use supported execution deadlines and check required spending evidence before another iteration.
+An unavailable required measurement blocks continuation.
+
+Run one hypothesis per iteration:
+
+1. Observe current state and reconcile the active attempt.
+2. Make the change within the accepted write scope.
+3. Run the fixed measurement and regression gate.
+4. Record the candidate SHA, input versions, result and evidence in the existing task or RUN record.
+
+Before continuing, check the remaining budget and existing route or repair authority.
+Retain rejected candidates, measurements and failure history.
+Rejection grants no reset, rollback, cleanup, deletion or new attempt budget.
+Once acceptance passes, stop; do not require a minimum iteration count.
+Never lower a gate to make an experiment pass.
+
+After a wake, honor pause, cancellation and completion first.
+Reconcile live attempts and Git before dispatch.
+Observe capabilities and contract identity.
+Recheck action grants and use the current selector for managed work.
+If an operation's effect is unknown, inspect and reconcile it before another mutation.
+The parent records success, exhaustion, invalid measurement or a contract gap through existing outcomes and evidence.
+A wake does not authorize a retry, task or schedule.
+This method adds no scheduler, state store, runtime field or remote transport.
+
 ## Validation And Integration
 
 Use this order:

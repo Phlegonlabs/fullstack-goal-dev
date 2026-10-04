@@ -4,6 +4,12 @@ The four READMEs remain the documentation of record for the skill bundle.
 
 | Document | Purpose | Status |
 | --- | --- | --- |
+| `docs/epics/EPIC-release-0.61.md` | Publish the completed source changes as 0.61.0 directly to main under the owner's exception | Source candidate CI and independent review passed; publication tracked by PR #136 |
+| `docs/epics/EPIC-document-writing-policy.md` | STE core writing rules for new or changed project documents | Source guideline verified locally; formal release and installation pending |
+| `docs/epics/EPIC-architecture-loop-remote-execution.md` | Accepted architecture methods, bounded loops and remote Cloud Agent integration | T2/T3 source methods implemented and focused checks passed; remote work pending |
+| `docs/research/architecture-loop-remote-execution.md` | Ownership, remote task/evidence boundary and ordered pilot acceptance | T2/T3 integrated; remote contract, execution and pilot unverified |
+| `docs/epics/EPIC-document-review-handoff.md` | Complete Product Definition and UI document links in chat for whole-package review | Local source complete; 112 contract tests and source checks passed; release/install not performed |
+| `docs/epics/EPIC-readme-release-skills.md` | Standalone brand-first README writing and runtime-specific release artifact preparation | Source complete; reviewed candidate `8e2a0fe8`, validators and 60 contracts passed; native fixtures and scenario limits recorded; no install/release |
 | `docs/epics/EPIC-worktree-consolidation.md` | Publish all worktree heads and reconcile the current Eval/modernization sources | All 16 heads published; local source merged; unified candidate checks and exact main decision pending |
 | `docs/epics/EPIC-viteplus-evaluation.md` | Vite+/VoidZero frontend tooling and AI/skill evaluation assessment | Research complete; integration and eval pilot proposed, not implemented |
 | `docs/epics/EPIC-eval-contract-integration.md` | Approved eval policy, deterministic quality gate and reproducible handoff integration | 0.60.0 local candidate `882dda69` verified on Windows; independent code/security review PASS; release/install pending |
@@ -33,7 +39,7 @@ The four READMEs remain the documentation of record for the skill bundle.
 | `docs/epics/EPIC-design-authoring-flow.md` | PRD-bound style and playable-motion authoring across skills | Released in v0.54.2 |
 | `docs/epics/EPIC-prd-continuous-completeness.md` | First-delivery UI/technical completeness and ongoing evidence-based PRD refinement | Released in v0.54.1 |
 | `docs/epics/EPIC-design-brief-reference-intake.md` | Explicit reference questions and a concise Design Brief in existing UI intake | Released in v0.54.1 |
-| `README.md`, `README.zh-TW.md`, `README.zh-CN.md`, `README.es.md` | Skill behavior and release instructions | Unified 0.60.0 eval and modernization candidate; main remains 0.58.0; final checks and release pending |
+| `README.md`, `README.zh-TW.md`, `README.zh-CN.md`, `README.es.md` | Skill behavior and release instructions | 0.61.0 source changes; observed release baseline v0.60.0; current publication tracked in EPIC-release-0.61 and PR #136 |
 | `docs/epics/EPIC-runtime-and-verification-reliability.md` | Browser CI, lifecycle, runtime metrics, document review and same-RUN recovery | Released in v0.54.1 |
 | `docs/epics/EPIC-ui-reviewer-integration.md` | Unified Wireframe/HiFi review, evidence, and lifecycle integration | Released in v0.54.1 |
 | `docs/epics/EPIC-001-incremental-design-review.md` | Incremental UI authoring and interactive review repair | Work released through v0.50.0; Epic status still `in_progress` |

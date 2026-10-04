@@ -126,7 +126,7 @@ Read only what the current decision needs:
 
 - `references/contract-and-traceability.md`: frozen sources, traces, permissions, and file placement.
 - `references/execution-state-model.md`: PLAN/RUN creation, resume reconciliation, authorization, state transitions, and host handoff.
-- `references/graph-orchestration.md`: typed graph, provider policy, retries, and correction loops.
+- `references/graph-orchestration.md`: typed graph, provider policy, bounded experiments, retries and correction loops.
 - `references/execution-task-decomposition.md`: mission/task split rules.
 - `references/parallel-mission-selection.md`: parallel write-wave selection.
 - `references/runtime-adapters.md`: the general capability and dispatch contract, applied only when managed execution needs it.

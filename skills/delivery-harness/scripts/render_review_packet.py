@@ -184,6 +184,20 @@ def render_packet(
             " changed: merge seams, conflict resolutions, cross-mission"
             " interaction, and shared-contract boundaries.",
         ]
+    if review["type"] in {"frontend_code", "backend_code"}:
+        packet_lines += [
+            "",
+            "## Architecture review",
+            "",
+            "Apply references/delegation-contract.md#architecture-method to affected state, trust, integration or migration boundaries.",
+            "Check the concrete caller example before the derived interfaces and types.",
+            "Check mutable-state ownership, readers, invariants, invalid states and trust boundaries.",
+            "Check repeat-call behavior and recovery after failure between steps against existing acceptance and TEST obligations.",
+            "Compare structural alternatives only when coupling, durability, trust or migration remains unresolved.",
+            "For unchanged boundaries, reuse the accepted design and verify the local repair.",
+            "Classify tool and environment failures separately from design failures.",
+            "Use existing review outcomes; do not reset repair budgets or approve new scope or stack decisions.",
+        ]
     if truncated:
         # The untruncated diff already carries every path. Keep an explicit
         # path list only when byte truncation could hide the tail.

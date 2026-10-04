@@ -50,6 +50,9 @@ For `runtime_capabilities.reviewer_tools.chrome_devtools`, launch a read-only pr
 
 Give each reviewer one bounded packet: scoped diff, acceptance, evidence, tool capability and unresolved findings. Refer to PLAN/RUN by path. A changed SHA invalidates the review PASS.
 
+For `frontend_code` and `backend_code`, apply [Architecture Method](delegation-contract.md#architecture-method) to the affected boundaries.
+The rendered packet carries this guidance without adding review types, result fields or approval authority.
+
 ## Version, Handoff And Failure
 
 Recover an unchanged PLAN in its existing RUN. Reconcile the current candidate and relevant workspaces before dispatch; do not replay integrated missions or create a new RUN merely because a repair invalidated a gate. Retain old attempts and verifier contexts at their original identities. Current PASS coverage must use the current exact SHA and applicable lease. Candidate reconciliation grants no Git action or extra attempt, and a provider change still follows the separate replanning boundary below.
