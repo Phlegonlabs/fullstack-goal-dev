@@ -5,8 +5,8 @@ The four READMEs remain the documentation of record for the skill bundle.
 | Document | Purpose | Status |
 | --- | --- | --- |
 | `docs/epics/EPIC-document-writing-policy.md` | STE core writing rules for new or changed project documents | Source guideline verified locally; formal release and installation pending |
-| `docs/epics/EPIC-architecture-loop-remote-execution.md` | Accepted architecture methods, bounded loops and remote Cloud Agent integration | T2 source verification; loop integration and Mac Mini execution pending |
-| `docs/research/architecture-loop-remote-execution.md` | Ownership, remote task/evidence boundary and ordered pilot acceptance | T2/T3 implementation authorized; remote contract and execution unverified |
+| `docs/epics/EPIC-architecture-loop-remote-execution.md` | Accepted architecture methods, bounded loops and remote Cloud Agent integration | T2/T3 source methods implemented and focused checks passed; remote work pending |
+| `docs/research/architecture-loop-remote-execution.md` | Ownership, remote task/evidence boundary and ordered pilot acceptance | T2/T3 integrated; remote contract, execution and pilot unverified |
 | `docs/epics/EPIC-worktree-consolidation.md` | Publish all worktree heads and reconcile the current Eval/modernization sources | All 16 heads published; local source merged; unified candidate checks and exact main decision pending |
 | `docs/epics/EPIC-viteplus-evaluation.md` | Vite+/VoidZero frontend tooling and AI/skill evaluation assessment | Research complete; integration and eval pilot proposed, not implemented |
 | `docs/epics/EPIC-eval-contract-integration.md` | Approved eval policy, deterministic quality gate and reproducible handoff integration | 0.60.0 local candidate `882dda69` verified on Windows; independent code/security review PASS; release/install pending |

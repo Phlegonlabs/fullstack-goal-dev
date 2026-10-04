@@ -1,6 +1,6 @@
 # EPIC-architecture-loop-remote-execution: Integrate architecture and remote execution methods
 
-Status: in progress (T2 source verification; T3 and remote execution pending)
+Status: in progress (T2/T3 source methods implemented and focused checks passed; remote execution pending)
 
 ## Problem And Baseline
 
@@ -50,8 +50,8 @@ Runtime schemas, release version, installed skills and remote capabilities stay 
 | Scope | Expected outcome | Verification | Dependency |
 | --- | --- | --- | --- |
 | T1: Decision record | Separate product architecture, implementation design, execution, loop and remote responsibilities | Source references, Markdown links, diff and independent document review | Existing source/review evidence |
-| Core integration | Caller-first design and scoped review methods in existing packets | Technical-role and code-review routing; accepted repair and approval boundaries | T2 source implemented; final focused verification and review pending |
-| Loop methods | Finite metrics, budgets, reconciliation and retained rejected experiments | Pause, uncertainty, exhaustion and candidate-change negatives | T3; no schedule created |
+| Core integration | Caller-first design and scoped review methods in existing packets | Technical-role and code-review routing; accepted repair and approval boundaries | T2 implemented, 193 focused tests passed, independent source/security review passed at `2e34d526` |
+| Loop methods | Finite metrics, budgets, reconciliation and retained rejected experiments | Pause, uncertainty, exhaustion and candidate-change negatives | T3 implemented; 68 focused tests passed; no schedule created |
 | Remote boundary | Versioned host/workspace/transport/result identity | Capability, duplicate, mismatch, disconnect and provenance negatives | T4; current schema remains unchanged |
 | Mac Mini pilot | Fixed task with verifiable result/evidence return | Actual transport and platform checks, then technical acceptance | Tailscale peer observed online; execution channel, capabilities and target case pending |
 
@@ -70,10 +70,20 @@ Runtime schemas, release version, installed skills and remote capabilities stay 
 | 2026-10-04 owner acceptance, Mac Mini and Tailscale choice | Preserve the agreed architecture/loop/remote split; T1 documents only | `working-tree` at baseline `1782fa000b107396fd36787c7df7fad8a2141c82`; linked proposal | Seven local Markdown links and whitespace checks passed. Native Sol/xhigh document review DR-1 attempt 1 found no blockers. Source implementation and remote execution remain pending. |
 | 2026-10-04 implementation entry | T1 landed as `4cef4f4`; writing rules landed as `f717221`. Owner authorized T2/T3 source changes. | Clean `codex/harness-flow-modernization` at `f717221368bb81afc4061c621c88559505f9ca3b`; scoped history observed | INT-E1 and INT-E2 returned separate read-only source assessments. Loaded identity remains unknown. Document sync reports `review_required` for loaded identity and first baseline. T4-T7 need the versioned remote contract and actual execution channel. |
 | 2026-10-04 T2 architecture method | Add caller-first conceptual and implementation methods, state/side-effect checks and conditional alternatives. Route guidance to technical analysis and code reviews. | `working-tree` against `f717221`; scoped diff; existing packet/result schemas preserved | 193 tests passed: Product graph identity 7, review packets 9, Product contract 100, cross-skill 17 and Harness contract 60. Node syntax, focused pyflakes, skill specification, docs weight and diff checks passed. Initial fixture-name and context-length failures were corrected. Independent exact-SHA review pending. T3 and T4-T7 remain pending. |
+| 2026-10-04 T2 review checkpoint | Fixed source candidate and clean checkout; clarify historical T1 observations in the live documents | `2e34d526398e2fe801d8cf34d653f29eb4d27d23`; INT-R1 attempt 1 | Independent source/security review passed with no blockers or exclusions. Manual source review covered all 16 changed files and required dependencies. Configured native reviewer binding: Sol/xhigh; actual model/session identity unobserved. T3 proceeds; remote and release work remain pending. |
+| 2026-10-04 T3 bounded-loop method | Fixed measurements, one hypothesis, finite limits, retained rejected work and reconciled wake behavior; four-language descriptions | `working-tree` against `2e34d526`; graph reference and SKILL routing; runtime schemas unchanged | 68 tests passed: Harness contract 60 and eight existing authority negatives. Skill specification, docs weight and diff checks passed. No prose-mirroring test or new engine added. The final handoff supplies the fixed-candidate review verdict. T4-T7 remain pending. |
 
 ## Results And Remaining Work
 
 Detailed scope and ordered tasks: [integration proposal](../research/architecture-loop-remote-execution.md).
+
+T2/T3 source methods are implemented and locally verified.
+The task handoff names their atomic commits and final exact-candidate review.
+The Epic remains open for T4-T7; no release, installation or remote acceptance is claimed.
+
+T3's source diff against `2e34d526`, excluding this Epic and its index, has SHA-256
+`dc37a93b56366ed6bb0022d009d2b7da05f1fa5d21b54ea26f99f1742355597f`.
+It covers SKILL routing, the graph method, four READMEs and the proposal update.
 
 DR-1 reviewed the proposal at SHA-256
 `ab9a2d7d37be11508891f33da011b76d926929e0c0abe3a27b5b16570977705b`,
@@ -85,9 +95,15 @@ The hashes above identify historical evidence, not later source changes.
 
 Document sync returned `review_required` for unobserved loaded identity and
 the first-observation baseline. No snapshot or loaded digest was invented.
-Observed installed template 0.60.0 matches the source template hash
+At T1, observed installed template 0.60.0 matched the source template hash
 `0d5064d94c0072ad2d1f06f3b516dab328d425be79454df10b50ce6f44b2470e`;
 shared rules are current by meaning with the repository's explicit overrides.
+
+At the T2 checkpoint, installed template 0.60.0 retained that hash.
+The source template is now
+`feed8dcc70b3691d9822a1b05641d4502dae452fd1926954f09db3fc78fff62f`.
+The difference is the accepted writing guideline in `f717221`.
+Existing shared rules remain current by meaning; release and installation remain pending.
 
 Codex project inventory observed only local projects. The owner selected
 Tailscale, whose local status is Running and whose peer inventory shows one

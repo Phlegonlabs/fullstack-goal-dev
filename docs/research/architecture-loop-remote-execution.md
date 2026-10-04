@@ -1,13 +1,13 @@
 # 架構方法、Loop 與遠端執行整合
 
-狀態：T2/T3 原始碼修改已授權；T2 驗證中，loop 整合與遠端試點待完成。
+狀態：T2/T3 方法已接入原始碼並通過 focused checks；遠端 contract 與試點待完成。
 
 Owner 已確認「依整合方案修改 skills，受影響文件採用新準則（建議）」。
 本輪先依序交付 T2 與 T3；遠端 contract、執行通道及試點保留各自依賴。
 
 2026-10-04，owner 同意前述整合方向，並選擇 Mac Mini 作為第一個遠端試點。這份文件記錄該決定及後續工作；它不取代產品 PRD、architecture、PLAN/RUN 或 action grants。
 
-## 基準與本輪範圍
+## T1 歷史基準與範圍
 
 - Repository：`product-delivery-harness`。
 - 分支：`codex/harness-flow-modernization`。
@@ -15,7 +15,11 @@ Owner 已確認「依整合方案修改 skills，受影響文件採用新準則�
 - 觀察時間：2026-10-04 02:39 UTC-7。
 - 原始碼與觀察到的 installed Harness：`0.60.0`；session 載入身份未知。
 - pstack 參考固定在 [cursor/plugins@e43c7ee2](https://github.com/cursor/plugins/commit/e43c7ee26e0038c6c1fa8380dd34ce86ff94cb2a)。這是參考來源，不是待安裝套件。
-- 本輪寫入僅限這份文件、配套 Epic 和 `docs/DOCUMENTS.md`。UI impact：`none`；直接工作，不建立 PLAN/RUN。
+- T1 寫入僅限這份文件、配套 Epic 和 `docs/DOCUMENTS.md`。UI impact：`none`；直接工作，不建立 PLAN/RUN。
+
+T2 已接入架構任務與審查提示；T3 已接入有界 loop 方法。
+本輪原始碼修改及驗證見[同一份 Epic](../epics/EPIC-architecture-loop-remote-execution.md)。
+實作不新增 scheduler、remote transport 或 RUN 欄位。
 
 ## 責任分工
 
