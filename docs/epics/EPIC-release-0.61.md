@@ -57,18 +57,28 @@ Loaded skill identity is unobserved. Installed baseline is 0.60.0, digest
 | 2026-10-04 source candidate | `088165eaad209868d7923ced2ea3b0cb963dbafe`; [complete platform run](https://github.com/Phlegonlabs/product-delivery-harness/actions/runs/37203732054); independent REL-061-R1 review | All 20 CI jobs, including required browser, golden path, Linux/macOS/Windows suites and validate passed. Fresh full-diff source/security review passed with no exclusions. Native reviewer binding is Sol/xhigh; independent provider attestation unavailable. |
 | 2026-10-04 local verifier cleanup | Exact-candidate hosted matrix completed while the duplicate local matrix was still running | Local broad attempt deliberately cancelled, not PASS. Captured runner PID/start/command and descendants in `local-matrix-stop.json`; every captured task process exited. Focused local results remain separate. |
 | 2026-10-04 owner confirmation and handoff audit | Owner confirmed all three groups and `codex/release-0.61.0`; inherited index incorrectly described main as 0.58.0 | Correct only the live index status and this record. No skill/source bytes changed. Final bookkeeping SHA requires fresh complete CI and independent review before merge. Installed template 0.60.0 remains current by meaning; its missing STE section is the accepted source addition pending installation. |
+| 2026-10-04 publication-state correction | REL-061-R2 reviewed `956540c1ee1473fa327500e7a7318367a104eb08`; complete source-security PASS, one release-record finding | Present tense overstated future publication artifacts. Separate observed source verification from pending final-head, main, tag and installation gates below. No code, skill or configuration changes. Fresh final-candidate review and CI required. |
 
 ## Publication Evidence
 
 The exact source-verification results above remain bound to their original SHA.
-The final bookkeeping commit changes only this record and the Documents index.
-Its fresh review and complete CI are retained on
-[PR #136](https://github.com/Phlegonlabs/product-delivery-harness/pull/136).
-The PR merge commit and its exact-main CI record the protected-branch result;
-the remote `v0.61.0` tag records the verified release commit.
-The final installation and branch read-back receipt is retained at
+Release bookkeeping changes only this record and the Documents index.
+At this source-record freeze, final-head verification, main promotion, tagging
+and installation remain pending. The table separates observations from expected
+destinations. An expected path, tag name or link does not prove completion.
+
+| Gate at this source-record freeze | Observed state | Destination for later results |
+| --- | --- | --- |
+| Source candidate `088165ea` | Complete platform CI and independent source/security review passed | Original exact-SHA run and review above |
+| Final corrected PR head | Fresh complete CI and source/security review pending | [PR #136](https://github.com/Phlegonlabs/product-delivery-harness/pull/136) checks and external reviewer result |
+| Main promotion and release tag | No merge or tag performed | PR merge SHA, exact-main CI/security result, then verified remote `v0.61.0` tag |
+| Local installation and branch read-back | Installed 0.60.0 observed; no release installation performed | Official installer backup/receipt and external `release-outcome.json` |
+
+After verified publication, the parent will write the installation and branch
+read-back receipt to
 `C:/Users/mps19/AppData/Local/Temp/pdh-release-20261004-cmvxqzgi/release-outcome.json`.
-These external results do not rewrite the frozen candidate's historical evidence.
+The PR, verified tag and receipt will retain later outcomes without rewriting
+this frozen candidate's historical observations.
 Remote execution remains pending in its source Epic.
 
 Related source records: [architecture and loops](EPIC-architecture-loop-remote-execution.md),
