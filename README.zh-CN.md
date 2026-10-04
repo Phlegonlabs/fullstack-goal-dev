@@ -484,6 +484,16 @@ Worker 与 reviewer 不能再次分派。Parent 保持每个隔离 worktree 只�
 
 一次运行只有一个 active host。same-repository handoff 只有在 Host A 关闭 wave、且 `RUN.active_wave.status` 既不是 `active` 也不是 `proposed` 后才允许；`active_wave` 对象仍保留在 RUN 中，不能把对象缺失当作交接信号：Host B 保留 PLAN/RUN 和 graph state，重新探测 runtime，并在选取下一波前审查当前 exact SHA。若需修复，路由回 Host A 且旧 review 立即失效；除非未来 schema 增加可携带的仓库/状态身份，否则不支持 cross-machine handoff。
 
+## 独立 skills
+
+[README Studio](standalone-skills/readme-studio/SKILL.md) 帮助其他项目编写有品牌特色的 GitHub README，包含真实演示、可用的快速上手及各展示平台的检查。[附日期的案例库](standalone-skills/readme-studio/references/case-library.md) 参考 Starship、Bruno、Transformers、tldraw 和 Vite。视觉工作沿用目标项目的 frontend 路由，交付前后对照证据。
+
+Registry 图片需要可用的目标 URL；只把图片放进 package，不能证明它能在该平台展示。
+
+[Release Packager](standalone-skills/release-packager/SKILL.md) 沿用项目原生工具，为 Node/Bun、Python、Go/Rust、容器及桌面／移动 App 准备适用产物。它检查实际包内容和用户安装／使用路径，再核对 README 与 release 信息。构建、签名、安装测试和发布分别保留证据；缺少 runner 或签名资料会明确列为缺口，不会添加自动 CI 流程。
+
+这些来源独立于七个 skills 的 bundle，`install.sh` 和 `install.ps1` 不会安装它们。可在 host 中打开链接的 `SKILL.md` 与 references，或按 host 支持的发现方式注册完整 skill 目录。注册是另一项本地操作，本 repo 不会自动安装。可用后，以 `$readme-studio` 改善 README，或在准备 release 时使用 `$release-packager`。保留项目语言、许可与已支持渠道；发布沿用原有授权。
+
 ## 安装
 
 这是公开仓库，不需要访问权限。你需要 Python 3.10 以上、Git，以及至少一个会发现 `~/.agents/skills/` 的宿主。验证前先安装含 Pillow 的固定 Python 依赖：
