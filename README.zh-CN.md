@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.60.0-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.61.0-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -710,6 +710,8 @@ HiFi 示例以固定 LF 换行维持跨平台字节哈希。Wireframe 的 Node �
 本仓库采用 MIT 许可证，全文见 [LICENSE](LICENSE)。
 
 ## 版本历史
+
+- **0.61.0** — 要求在对话列出完整 Product Definition 与 UI 文件链接，加入 STE 核心写作规则、先看调用示例与状态的架构方法，以及有限次实验循环。新增独立 README 与 runtime 打包 skills，保持在七技能套件之外。保留现有批准与操作授权；远程执行仍待完成。
 
 - **0.60.0** — 以 PRD eval-policy/1 冻结 rubric、样本分母、重复次数、pass rate 及 judge 输入。重算质量与独立干净 checkout 报告，交付 runner／grader／lockfile／runbook，并接上精确 H1/H2 证据。适用的 >=0.60 plan 强制冻结 source 与 always-run eval／acceptance gate；旧版没有 marker 保留原契约。 包含尚未发布的 0.59 流程更新。
 

@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.60.0-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.61.0-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -710,6 +710,8 @@ HiFi 範例以固定 LF 換行維持跨平台位元組雜湊。Wireframe 的 Nod
 本儲存庫採用 MIT 授權，全文見 [LICENSE](LICENSE)。
 
 ## 版本紀錄
+
+- **0.61.0** — 要求在對話列出完整 Product Definition 與 UI 文件連結，加入 STE 核心寫作規則、先看呼叫例與狀態的架構方法，以及有限次實驗迴圈。新增獨立 README 與 runtime 打包 skills，維持在七技能套件之外。保留既有批准與操作授權；遠端執行仍待完成。
 
 - **0.60.0** — 以 PRD eval-policy/1 凍結 rubric、樣本分母、重跑次數、pass rate 及 judge 輸入。重算品質與獨立乾淨 checkout 報告，交付 runner／grader／lockfile／runbook，並接上精確 H1/H2 證據。適用的 >=0.60 plan 強制凍結 source 與 always-run eval／acceptance gate；舊版沒有 marker 保留原契約。 包含尚未發布的 0.59 流程更新。
 

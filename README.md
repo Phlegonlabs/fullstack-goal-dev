@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.60.0-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.61.0-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -710,6 +710,8 @@ Then run the full verification above, review the entire diff, and land through `
 This repository is licensed under the MIT License — see [LICENSE](LICENSE).
 
 ## Version history
+
+- **0.61.0** — Require complete Product Definition and UI document links in chat, add STE core writing rules, caller/state architecture methods and finite experiment loops. Add standalone README and runtime packaging skills outside the seven-skill bundle. Preserve existing approvals and action grants; remote execution remains pending.
 
 - **0.60.0** — Freeze eval rubric, population, repeats, pass rate and judge inputs in approved PRD eval-policy/1. Recompute quality and independent clean-checkout reports, deliver runner/grader/lockfile/runbook, and join exact H1/H2 evidence. Applicable >=0.60 plans require frozen sources and always-run eval/acceptance gates; legacy absent markers retain their contract. Includes the unreleased 0.59 workflow modernization.
 
