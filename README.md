@@ -404,9 +404,9 @@ The [eval policy](skills/product-definition-builder/references/eval-policy-contr
 
 New authoring with an owner-selected whole-platform order adds `--platform-delivery platform-delivery/1`. The checker reads the active architecture sequence, exact release inventory, shared API/interface ARCH rows, human decision, and Required-Yes PRD tests; only approved status is executable. Draft, duplicate, hidden, malformed, omitted, or shared-label bypass cases fail. Absent legacy sections stay readable.
 
-Harness joins that contract to PLAN v6. Architecture order defines stage sequence. Missions map once, shared ARCH work starts first, and pass-only dependencies reach each completion mission and next platform. Fresh completion integration and final gates cover platform TESTs; retained integration PASS is historical handoff only. Unmarked plans stay legacy.
+Harness joins that contract to PLAN v6. Architecture order defines stage sequence. Explicit UI owners map once by release surface, shared ARCH work starts first, and pass-only dependencies reach each completion mission and next platform. Fresh completion integration and final gates cover platform TESTs; retained integration PASS is historical handoff only. Unmarked plans stay legacy.
 
-Separately, every planned `PRD-*` must trace names fresh acceptance gates. Their TEST IDs come from canonical Required-Yes PRD obligations and may include extra required regressions.
+In a marked flow, every planned `PRD-*` must trace names fresh acceptance gates. Their TEST IDs come from canonical Required-Yes PRD obligations and may include extra required regressions; unmarked legacy plans stay optional.
 
 The [eval acceptance contract](skills/delivery-harness/references/eval-acceptance-contract.md) derives its execution contract from that policy and recomputes every planned trial. Quality failures remain in the denominator; prohibited or critical failures override the rate. Two full reports retain output, judge/tool observations, identity, timing and usage; the handoff report repeats the run from a clean checkout.
 

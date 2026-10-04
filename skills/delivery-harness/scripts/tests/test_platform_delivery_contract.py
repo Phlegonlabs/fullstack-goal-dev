@@ -18,6 +18,7 @@ if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
 from harness_core import _validate_verifier  # noqa: E402
+from harness_manifest import validate_plan  # noqa: E402
 from harness_manifest import _validate_verifier_executions  # noqa: E402
 from manifest_fixtures import valid_plan  # noqa: E402
 from manifest_fixtures import (  # noqa: E402
@@ -27,9 +28,11 @@ from manifest_fixtures import (  # noqa: E402
 )
 from platform_delivery_contract import (  # noqa: E402
     platform_delivery_shape_errors,
+    validate_feature_acceptance,
     validate_platform_delivery,
 )
 from harness_contract_join import validate_frozen_contract_joins  # noqa: E402
+import harness_contract_join as harness_contract_join_module  # noqa: E402
 from select_ready_nodes import _incoming, _logical_reasons  # noqa: E402
 from verifier_runtime import _validated_inputs  # noqa: E402
 from render_review_packet import _relevant_acceptance_mappings  # noqa: E402
@@ -107,8 +110,18 @@ def add_feature_gate(plan: dict[str, object]) -> None:
     """Give REQ-001 a dependency-only path from both carrying missions."""
 
     for index, mission in enumerate(plan["missions"]):
+        if "REQ-001" not in mission["trace_ids"]:
+            mission["trace_ids"].append("REQ-001")
+        if "ARCH-001" not in mission["trace_ids"]:
+            mission["trace_ids"].append("ARCH-001")
         task = mission["tasks"][0]
-        task["trace_ids"].append("REQ-001")
+        if "REQ-001" not in task["trace_ids"]:
+            task["trace_ids"].append("REQ-001")
+        if "ARCH-001" not in task["trace_ids"]:
+            task["trace_ids"].append("ARCH-001")
+            for row in task["acceptance_matrix"]:
+                if "ARCH-001" not in row["trace_ids"]:
+                    row["trace_ids"].append("ARCH-001")
         task["acceptance_matrix"].append(
             {
                 "test_id": "TEST-001",
@@ -210,6 +223,32 @@ def three_stage_contract() -> SimpleNamespace:
     )
 
 
+def add_ui_surface(
+    plan: dict[str, object],
+    *,
+    surface_id: str,
+    release_surface: str,
+    owner_mission: str,
+) -> dict[str, object]:
+    """Add one PLAN surface and an explicit owner trace to mission and task."""
+
+    surface = {
+        "id": surface_id,
+        "trace_ids": [f"REQ-{owner_mission[-1]}"],
+        "route": f"/{surface_id.lower()}",
+        "breakpoints": ["390", "768"],
+        "states": ["ready"],
+        "evidence_gate": "required",
+        "release_surface": release_surface,
+    }
+    plan["ui_surfaces"].append(surface)
+    mission = plan["missions"][int(owner_mission[-1]) - 1]
+    mission["trace_ids"].append(surface_id)
+    for task in mission["tasks"]:
+        task["trace_ids"].append(surface_id)
+    return surface
+
+
 class PlatformPlanShapeTests(unittest.TestCase):
     def test_optional_shape_is_empty_and_malformed_shapes_fail(self) -> None:
         self.assertEqual([], platform_delivery_shape_errors(valid_plan()))
@@ -277,6 +316,8 @@ class PlatformMappingTests(unittest.TestCase):
                 ),
             ),
         )
+
+
         self.assertEqual(
             [],
             validate_platform_delivery(reversed_plan, reversed_contract),
@@ -587,12 +628,20 @@ class FeatureGateTests(unittest.TestCase):
             task_entry["trace_ids"][0] = "PRD-001"
             for row in task_entry["acceptance_matrix"]:
                 row["trace_ids"][0] = "PRD-001"
-        errors = validate_platform_delivery(
+        errors = validate_feature_acceptance(
             plan,
-            None,
             feature_test_authority={"PRD-001": {"TEST-001", "TEST-REGRESSION"}},
         )
-        self.assertTrue(any("requires acceptance gates" in item for item in errors))
+        self.assertEqual([], errors)
+        plan["traces"][0]["acceptance_gate_ids"] = []
+        errors = validate_feature_acceptance(
+            plan,
+            feature_test_authority={"PRD-001": {"TEST-001", "TEST-REGRESSION"}},
+        )
+        self.assertTrue(
+            any("must not be empty" in item for item in errors),
+            errors,
+        )
 
         mapped = copy.deepcopy(plan)
         for task_entry in mapped["missions"][0]["tasks"]:
@@ -621,9 +670,8 @@ class FeatureGateTests(unittest.TestCase):
             "TEST-002",
             "TEST-REGRESSION",
         ]
-        errors = validate_platform_delivery(
+        errors = validate_feature_acceptance(
             mapped,
-            None,
             feature_test_authority={
                 "PRD-001": {"TEST-001", "TEST-002", "TEST-REGRESSION"}
             },
@@ -632,9 +680,8 @@ class FeatureGateTests(unittest.TestCase):
 
         omitted = copy.deepcopy(mapped)
         omitted["final_gates"][0]["acceptance_test_ids"] = ["TEST-001", "TEST-002"]
-        errors = validate_platform_delivery(
+        errors = validate_feature_acceptance(
             omitted,
-            None,
             feature_test_authority={
                 "PRD-001": {"TEST-001", "TEST-002", "TEST-REGRESSION"}
             },
@@ -643,14 +690,157 @@ class FeatureGateTests(unittest.TestCase):
 
         invalid = copy.deepcopy(mapped)
         invalid["final_gates"][0]["acceptance_test_ids"].append("TEST-UNLISTED")
-        errors = validate_platform_delivery(
+        errors = validate_feature_acceptance(
             invalid,
-            None,
             feature_test_authority={
                 "PRD-001": {"TEST-001", "TEST-002", "TEST-REGRESSION"}
             },
         )
         self.assertTrue(any("TEST-UNLISTED" in item for item in errors), errors)
+
+    def test_combined_feature_and_platform_metadata_is_not_rejected(self) -> None:
+        plan = platform_plan()
+        add_feature_gate(plan)
+        self.assertEqual([], validate_plan(plan))
+        self.assertEqual(
+            [],
+            validate_feature_acceptance(
+                plan,
+                feature_test_authority={
+                    "REQ-001": {
+                        "TEST-001",
+                        "TEST-002",
+                        "TEST-M1-01",
+                        "TEST-M1-02",
+                    }
+                },
+            ),
+        )
+
+    def test_marked_not_required_contract_requires_feature_gates(self) -> None:
+        plan = platform_plan()
+        plan["traces"][0]["id"] = "PRD-001"
+        plan["missions"][0]["trace_ids"][0] = "PRD-001"
+        for task_entry in plan["missions"][0]["tasks"]:
+            task_entry["trace_ids"][0] = "PRD-001"
+            for row in task_entry["acceptance_matrix"]:
+                row["trace_ids"][0] = "PRD-001"
+        plan.pop("platform_delivery")
+        errors = validate_platform_delivery(plan, contract(mode="not_required"))
+        self.assertTrue(
+            any("requires acceptance gates" in item for item in errors),
+            errors,
+        )
+
+    def test_unmarked_historical_prd_feature_remains_compatible(self) -> None:
+        plan = platform_plan()
+        plan["traces"][0]["id"] = "PRD-001"
+        plan["missions"][0]["trace_ids"][0] = "PRD-001"
+        for task_entry in plan["missions"][0]["tasks"]:
+            task_entry["trace_ids"][0] = "PRD-001"
+            for row in task_entry["acceptance_matrix"]:
+                row["trace_ids"][0] = "PRD-001"
+        plan.pop("platform_delivery")
+        self.assertEqual(
+            [],
+            validate_feature_acceptance(
+                plan,
+                feature_test_authority={"PRD-001": {"TEST-001"}},
+            ),
+        )
+
+class UiStageOwnershipTests(unittest.TestCase):
+    def assert_error(self, plan: dict[str, object], fragment: str) -> None:
+        errors = validate_platform_delivery(plan, contract())
+        self.assertTrue(
+            any(fragment in item for item in errors),
+            f"expected {fragment!r} in {errors!r}",
+        )
+
+    def test_explicit_ui_owner_must_match_its_stage(self) -> None:
+        plan = platform_plan()
+        add_ui_surface(
+            plan,
+            surface_id="UI-WEB",
+            release_surface="web-app",
+            owner_mission="M1",
+        )
+        add_ui_surface(
+            plan,
+            surface_id="UI-IOS",
+            release_surface="ios-app",
+            owner_mission="M2",
+        )
+        self.assertEqual([], validate_platform_delivery(plan, contract()))
+
+        wrong = platform_plan()
+        add_ui_surface(
+            wrong,
+            surface_id="UI-WEB",
+            release_surface="web-app",
+            owner_mission="M2",
+        )
+        self.assert_error(wrong, "wrong platform stage")
+
+    def test_omitted_and_cross_stage_ui_owners_fail(self) -> None:
+        omitted = platform_plan()
+        surface = add_ui_surface(
+            omitted,
+            surface_id="UI-WEB",
+            release_surface="web-app",
+            owner_mission="M1",
+        )
+        for mission in omitted["missions"]:
+            if "UI-WEB" in mission["trace_ids"]:
+                mission["trace_ids"].remove("UI-WEB")
+            for task in mission["tasks"]:
+                if "UI-WEB" in task["trace_ids"]:
+                    task["trace_ids"].remove("UI-WEB")
+        surface["trace_ids"] = ["REQ-001"]
+        self.assert_error(omitted, "no mission or effective-task trace owner")
+
+        cross = platform_plan()
+        add_ui_surface(
+            cross,
+            surface_id="UI-SHARED",
+            release_surface="web-app",
+            owner_mission="M1",
+        )
+        cross["missions"][1]["trace_ids"].append("UI-SHARED")
+        cross["missions"][1]["tasks"][0]["trace_ids"].append("UI-SHARED")
+        self.assert_error(cross, "cross platform stages")
+
+    def test_superseded_task_trace_does_not_own_surface(self) -> None:
+        plan = platform_plan()
+        add_ui_surface(
+            plan,
+            surface_id="UI-WEB",
+            release_surface="web-app",
+            owner_mission="M1",
+        )
+        parent = plan["missions"][0]["tasks"][0]
+        replacement = copy.deepcopy(parent)
+        replacement["id"] = "M1/T03"
+        replacement["parent_task"] = "M1/T01"
+        parent["replaced_by"] = ["M1/T03"]
+        plan["missions"][0]["tasks"].append(replacement)
+        parent["trace_ids"].remove("UI-WEB")
+        self.assertEqual([], validate_platform_delivery(plan, contract()))
+
+    def test_shared_requirement_traces_do_not_infer_ui_ownership(self) -> None:
+        plan = platform_plan()
+        plan["ui_surfaces"].append(
+            {
+                "id": "UI-WEB",
+                "trace_ids": ["REQ-001"],
+                "route": "/web",
+                "breakpoints": ["390", "768"],
+                "states": ["ready"],
+                "evidence_gate": "required",
+                "release_surface": "web-app",
+            }
+        )
+        self.assert_error(plan, "no mission or effective-task trace owner")
 
 
 class PlatformCompatibilityTests(unittest.TestCase):
@@ -982,8 +1172,227 @@ class FrozenSourceJoinTests(unittest.TestCase):
         with self.assertRaises(AcceptanceError):
             parse_required_prd_test_authority(b"# PRD\n")
 
-    def test_headless_prd_feature_gate_is_checked_before_legacy_return(self) -> None:
-        plan, run = self.join_plan()
+    def product_fixtures(self) -> tuple[str, str]:
+        pdb_tests = (
+            Path(__file__).resolve().parents[3]
+            / "product-definition-builder" / "scripts" / "tests"
+        )
+        original_path = list(sys.path)
+        if str(pdb_tests) not in sys.path:
+            sys.path.insert(0, str(pdb_tests))
+        try:
+            from test_platform_delivery import (  # noqa: E402
+                architecture as platform_architecture,
+                prd as platform_prd,
+                sequence,
+            )
+        finally:
+            sys.path[:] = original_path
+        return (
+            platform_architecture(platform=sequence()),
+            platform_prd(required=("TEST-001", "TEST-002")),
+        )
+
+    def materialized_platform_plan(
+        self,
+        root: Path,
+        *,
+        architecture: str,
+        prd: str,
+    ) -> dict[str, object]:
+        plan = platform_plan()
+        plan["sources"] = [
+            {
+                "id": "SRC-001",
+                "kind": "prd",
+                "location": "docs/product/PRD.md",
+                "owner": "owner",
+                "status": "frozen",
+                "content_sha256": "a" * 64,
+                "source_revision": None,
+                "staged_revision": None,
+                "notes": "platform fixture",
+            },
+            {
+                "id": "SRC-002",
+                "kind": "architecture",
+                "location": "docs/product/architecture.md",
+                "owner": "owner",
+                "status": "frozen",
+                "content_sha256": "b" * 64,
+                "source_revision": None,
+                "staged_revision": None,
+                "notes": "platform fixture",
+            },
+            {
+                "id": "SRC-003",
+                "kind": "stack decisions",
+                "location": "docs/product/stack-decisions.md",
+                "owner": "owner",
+                "status": "frozen",
+                "content_sha256": "c" * 64,
+                "source_revision": None,
+                "staged_revision": None,
+                "notes": "platform fixture",
+            },
+        ]
+        texts = {
+            "docs/product/PRD.md": prd,
+            "docs/product/architecture.md": architecture,
+            "docs/product/stack-decisions.md": "# Stack\n",
+        }
+        for location, text in texts.items():
+            path = root / location
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text, encoding="utf-8", newline="\n")
+            source = next(
+                item for item in plan["sources"] if item["location"] == location
+            )
+            source["content_sha256"] = hashlib.sha256(
+                path.read_bytes()
+            ).hexdigest()
+        return plan
+
+    def test_run_none_marked_platform_join_and_exact_byte_reuse(self) -> None:
+        architecture, prd = self.product_fixtures()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            plan = self.materialized_platform_plan(
+                root,
+                architecture=architecture,
+                prd=prd,
+            )
+            real_loader = harness_contract_join_module._load_platform_delivery_parser
+            real_module = real_loader(
+                harness_contract_join_module.sibling_builder_scripts_dir()
+            )
+            parser_calls: list[tuple[str, str, bool]] = []
+
+            def parse(architecture_text: str, prd_text: str, *, require: bool):
+                parser_calls.append((architecture_text, prd_text, require))
+                return real_module.parse_platform_delivery(
+                    architecture_text,
+                    prd_text,
+                    require=require,
+                )
+
+            spy_module = SimpleNamespace(parse_platform_delivery=parse)
+            with patch(
+                "harness_contract_join._load_platform_delivery_parser",
+                return_value=spy_module,
+            ):
+                errors = validate_frozen_contract_joins(plan, root, run=None)
+        self.assertEqual(1, len(parser_calls), errors)
+        self.assertEqual(architecture, parser_calls[0][0])
+        self.assertEqual(prd, parser_calls[0][1])
+        self.assertTrue(parser_calls[0][2])
+        self.assertFalse(
+            any("unknown PLAN stage ID" in item for item in errors),
+            errors,
+        )
+        self.assertFalse(
+            any("is not reachable from previous platform completion" in item for item in errors),
+            errors,
+        )
+        self.assertLessEqual(len(errors), 8, errors)
+
+    def test_run_none_marked_unknown_stage_and_missing_handoff_fail(self) -> None:
+        architecture, prd = self.product_fixtures()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            plan = self.materialized_platform_plan(
+                root,
+                architecture=architecture,
+                prd=prd,
+            )
+            plan["platform_delivery"]["stages"][0]["id"] = "desktop"
+            errors = validate_frozen_contract_joins(plan, root, run=None)
+
+            plan = self.materialized_platform_plan(
+                root,
+                architecture=architecture,
+                prd=prd,
+            )
+            plan["graph"]["edges"] = [
+                edge
+                for edge in plan["graph"]["edges"]
+                if not (
+                    edge["kind"] == "dependency"
+                    and edge["from"] == "N-M1"
+                    and edge["to"] == "N-M2"
+                )
+            ]
+            errors.extend(validate_frozen_contract_joins(plan, root, run=None))
+        self.assertTrue(
+            any("unknown PLAN stage ID 'desktop'" in item for item in errors),
+            errors,
+        )
+        self.assertTrue(
+            any("is not reachable from previous platform completion" in item for item in errors),
+            errors,
+        )
+
+    def test_legacy_pin_marked_platform_join_executes(self) -> None:
+        architecture, prd = self.product_fixtures()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            plan = self.materialized_platform_plan(
+                root,
+                architecture=architecture,
+                prd=prd,
+            )
+            _run = valid_run(plan)
+            _run["runtime_capabilities"]["runtime_adapter"]["version_gate"][
+                "required_harness_version"
+            ] = "0.37.0"
+            plan["graph"]["edges"] = [
+                edge
+                for edge in plan["graph"]["edges"]
+                if not (
+                    edge["kind"] == "dependency"
+                    and edge["from"] == "N-M1"
+                    and edge["to"] == "N-M2"
+                )
+            ]
+            errors = validate_frozen_contract_joins(plan, root, run=_run)
+        self.assertTrue(
+            any("is not reachable from previous platform completion" in item for item in errors),
+            errors,
+        )
+
+    def test_declared_mapping_missing_marker_and_drift_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            plan = self.materialized_platform_plan(
+                root,
+                architecture="# Architecture\n",
+                prd="# PRD\n",
+            )
+            errors = validate_frozen_contract_joins(plan, root, run=None)
+
+            architecture_path = root / "docs/product/architecture.md"
+            expected_hash = next(
+                source["content_sha256"]
+                for source in plan["sources"]
+                if source["location"] == "docs/product/architecture.md"
+            )
+            architecture_path.write_text("# Drift\n", encoding="utf-8")
+            errors.extend(validate_frozen_contract_joins(plan, root, run=None))
+        self.assertTrue(
+            any("requires platform-delivery/1" in item for item in errors),
+            errors,
+        )
+        self.assertTrue(
+            any(
+                expected_hash in item
+                and "frozen architecture bytes do not match content_sha256" in item
+                for item in errors
+            ),
+            errors,
+        )
+
+    def test_unmarked_feature_metadata_is_optional_but_explicit_fields_join(self) -> None:
+        plan, _run = self.join_plan()
         plan["traces"].append(
             {
                 "id": "PRD-FEATURE",
@@ -1014,18 +1423,20 @@ class FrozenSourceJoinTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "docs/product").mkdir(parents=True)
-            architecture = root / "docs/product/architecture.md"
-            architecture.write_text("# Architecture\n", encoding="utf-8")
-            stack = root / "docs/product/stack-decisions.md"
-            stack.write_text("# Stack\n", encoding="utf-8")
-            prd_path = root / "docs/product/PRD.md"
-            prd_path.write_bytes(prd)
+            (root / "docs/product/PRD.md").write_bytes(prd)
             source = plan["sources"][0]
             source["content_sha256"] = hashlib.sha256(prd).hexdigest()
-            errors = validate_frozen_contract_joins(plan, root, run=run)
+            legacy_errors = validate_frozen_contract_joins(plan, root, run=None)
+
+            plan["traces"][-1]["acceptance_gate_ids"] = []
+            explicit_errors = validate_frozen_contract_joins(plan, root, run=None)
+        self.assertFalse(
+            any("requires acceptance gates" in item for item in legacy_errors),
+            legacy_errors,
+        )
         self.assertTrue(
-            any("requires acceptance gates" in item for item in errors),
-            errors,
+            any("must not be empty" in item for item in explicit_errors),
+            explicit_errors,
         )
 
 

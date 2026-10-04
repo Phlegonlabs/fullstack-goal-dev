@@ -185,6 +185,8 @@ def _feature_gate_errors(
     plan: dict[str, Any],
     platform_tests: set[str],
     feature_test_authority: dict[str, set[str]] | None = None,
+    *,
+    require_feature_gates: bool = False,
 ) -> list[str]:
     errors: list[str] = []
     trace_tests: dict[str, set[str]] = {}
@@ -230,7 +232,7 @@ def _feature_gate_errors(
             if feature_test_authority is not None
             else related_tests
         )
-        if is_feature and not gates:
+        if require_feature_gates and is_feature and not gates:
             _add(
                 errors,
                 f"plan.traces[{trace_id}].acceptance_gate_ids",
@@ -242,13 +244,20 @@ def _feature_gate_errors(
                 f"plan.traces[{trace_id}].acceptance_gate_ids",
                 "canonical PRD authority has no Required-Yes TEST for the feature",
             )
-        if (trace_id in platform_tests or is_feature) and not gates:
+        if require_feature_gates and trace_id in platform_tests and not gates:
             _add(
                 errors,
                 f"plan.traces[{trace_id}].acceptance_gate_ids",
                 "a platform TEST obligation on a planned must trace requires a feature gate",
             )
         if not gates:
+            if "acceptance_gate_ids" in trace:
+                _strings(
+                    errors,
+                    f"plan.traces[{trace_id}].acceptance_gate_ids",
+                    gates,
+                    nonempty=True,
+                )
             continue
         gate_ids = _strings(
             errors,
@@ -350,6 +359,21 @@ def _feature_gate_errors(
     return errors
 
 
+def validate_feature_acceptance(
+    plan: dict[str, Any],
+    *,
+    feature_test_authority: dict[str, set[str]] | None = None,
+) -> list[str]:
+    """Validate declared feature-gate metadata without a platform contract."""
+
+    return _feature_gate_errors(
+        plan,
+        set(),
+        feature_test_authority,
+        require_feature_gates=False,
+    )
+
+
 def _dependency_path_exists(plan: dict[str, Any], source_node: str, target_node: str) -> bool:
     graph = plan.get("graph", {}) if isinstance(plan.get("graph"), dict) else {}
     adjacency: dict[str, set[str]] = {}
@@ -382,6 +406,7 @@ def validate_platform_delivery(
     """Validate the PLAN join against a canonical parsed architecture contract."""
 
     errors = platform_delivery_shape_errors(plan)
+    declared = plan.get("platform_delivery") is not None
     platform_stage_tests = (
         {test_id for stage in contract.stages for test_id in stage.test_ids}
         if contract is not None
@@ -391,8 +416,8 @@ def validate_platform_delivery(
         plan,
         platform_stage_tests,
         feature_test_authority,
+        require_feature_gates=contract is not None or declared,
     ))
-    declared = plan.get("platform_delivery") is not None
     if contract is None:
         if declared:
             _add(
@@ -519,6 +544,78 @@ def validate_platform_delivery(
             "plan.ui_surfaces",
             "release surfaces absent from platform stages: " + ", ".join(missing_surfaces),
         )
+
+    surface_stages = {
+        surface: position
+        for position, stage in enumerate(contract.stages)
+        for surface in stage.surfaces
+    }
+    effective_traces: dict[str, set[str]] = {}
+    for mission_id, mission in missions.items():
+        mission_traces = {
+            trace_id
+            for trace_id in mission.get("trace_ids", [])
+            if isinstance(trace_id, str)
+        }
+        for task in mission.get("tasks", []):
+            if not isinstance(task, dict) or task.get("replaced_by"):
+                continue
+            mission_traces.update(
+                trace_id
+                for trace_id in task.get("trace_ids", [])
+                if isinstance(trace_id, str)
+            )
+        effective_traces[mission_id] = mission_traces
+    for index, surface in enumerate(plan.get("ui_surfaces", [])):
+        if not isinstance(surface, dict):
+            continue
+        release_surface = surface.get("release_surface")
+        if release_surface not in surface_stages:
+            continue
+        ui_ids = {
+            value
+            for value in (surface.get("id"), *surface.get("trace_ids", []))
+            if isinstance(value, str) and value.startswith("UI-")
+        }
+        owners = [
+            mission_id
+            for mission_id, trace_ids in effective_traces.items()
+            if ui_ids and ui_ids & trace_ids
+        ]
+        if not owners:
+            _add(
+                errors,
+                f"plan.ui_surfaces[{index}]",
+                "explicit UI IDs have no mission or effective-task trace owner",
+            )
+            continue
+        wrong_owners = [
+            mission_id
+            for mission_id in owners
+            if mission_id not in assigned
+            or assigned[mission_id] != surface_stages[release_surface]
+        ]
+        if wrong_owners:
+            owner_stages = sorted(
+                {
+                    stages[assigned[mission_id]].get("id")
+                    for mission_id in wrong_owners
+                    if mission_id in assigned
+                }
+            )
+            _add(
+                errors,
+                f"plan.ui_surfaces[{index}]",
+                "UI owners are absent from or assigned to the wrong platform stage: "
+                + ", ".join(sorted(map(str, wrong_owners)))
+                + (f" ({', '.join(map(str, owner_stages))})" if owner_stages else ""),
+            )
+        if len({assigned.get(mission_id) for mission_id in owners}) > 1:
+            _add(
+                errors,
+                f"plan.ui_surfaces[{index}]",
+                "UI IDs cross platform stages: " + ", ".join(sorted(owners)),
+            )
 
     dependencies, _node_missions = _dependency_adjacency(plan)
     missing_foundation = [

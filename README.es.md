@@ -404,9 +404,9 @@ La [política eval](skills/product-definition-builder/references/eval-policy-con
 
 La nueva autoría con un orden whole-platform elegido por el owner añade `--platform-delivery platform-delivery/1`. El checker lee la secuencia active de architecture, el inventario exacto de release, las filas ARCH compartidas de API/interface, la decisión humana y los TEST Required-Yes del PRD; solo el estado approved es ejecutable. Los casos draft, duplicate, hidden, malformed, omitted o shared-label bypass fallan. Las secciones legacy ausentes siguen siendo legibles.
 
-Harness une ese contrato a PLAN v6. El orden de architecture define la secuencia de stages; cada mission con surface se mapea una vez, el ARCH compartido empieza primero, y las dependencies pass-only llegan al completion mission y a la siguiente platform. La integration y los final gates fresh cubren los TEST de platform; un integration PASS retained es solo handoff histórico. Los PLAN sin marcador siguen siendo legacy.
+Harness une ese contrato a PLAN v6. El orden de architecture define la secuencia de stages; cada owner UI explícito se mapea una vez por release surface, el ARCH compartido empieza primero, y las dependencies pass-only llegan al completion mission y a la siguiente platform. La integration y los final gates fresh cubren los TEST de platform; un integration PASS retained es solo handoff histórico. Los PLAN sin marcador siguen siendo legacy.
 
-Por separado, cada trace `PRD-*` planned y must nombra acceptance gates fresh. Sus TEST provienen de obligations Required-Yes canónicas del PRD y pueden añadir regressions required adicionales.
+En un flujo marcado, cada trace `PRD-*` planned y must nombra acceptance gates fresh. Sus TEST provienen de obligations Required-Yes canónicas del PRD y pueden añadir regressions required adicionales; los PLAN legacy sin marcador siguen siendo opcionales.
 
 El [contrato de aceptación eval](skills/delivery-harness/references/eval-acceptance-contract.md) deriva la ejecución de esa política y recalcula cada trial previsto. Los fallos de calidad siguen en el denominador; los resultados prohibidos o críticos bloquean la aceptación. Dos informes completos retienen salidas, observaciones del juez/herramientas, identidad, tiempos y uso; el de entrega repite la ejecución desde un checkout limpio.
 

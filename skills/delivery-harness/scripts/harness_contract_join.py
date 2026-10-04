@@ -23,7 +23,7 @@ from harness_schema import run_required_harness_version, version_at_least
 from harness_ui_evidence import validate_ui_surface_design_registry
 from delivery_acceptance_io import AcceptanceError, parse_required_prd_test_authority
 from branch_policy import validate_branch_policy_join
-from platform_delivery_contract import planned_prd_must_ids, validate_platform_delivery
+from platform_delivery_contract import validate_feature_acceptance, validate_platform_delivery
 
 
 FROZEN_SOURCE_STATUSES = {"frozen", "delta_accepted", "delta accepted"}
@@ -1229,16 +1229,30 @@ def required_contract_source_errors(plan: dict[str, Any]) -> list[str]:
         return []
     errors: list[str] = []
     has_ui = bool(plan.get("ui_surfaces"))
+    platform_mapping = plan.get("platform_delivery") is not None
+    declared_acceptance = any(
+        isinstance(trace, dict) and "acceptance_gate_ids" in trace
+        for trace in plan.get("traces", [])
+    )
     prd_sources = frozen_sources(
         plan, kinds=PRD_SOURCE_KINDS, filenames={"prd.md"}
     )
     wireframe_sources = frozen_sources(
         plan, kinds=WIREFRAME_SOURCE_KINDS, filenames={"wireframes.html"}
     )
-    if (has_ui or prd_sources) and len(prd_sources) != 1:
+    if (has_ui or prd_sources or platform_mapping or declared_acceptance) and len(prd_sources) != 1:
         errors.append(
             "plan.sources: a joined current PLAN requires exactly one frozen PRD source"
         )
+    if platform_mapping:
+        architecture_sources = frozen_sources(
+            plan, kinds=ARCHITECTURE_SOURCE_KINDS, filenames={"architecture.md"}
+        )
+        if len(architecture_sources) != 1:
+            errors.append(
+                "plan.sources: declared platform delivery requires exactly one "
+                "frozen architecture.md source"
+            )
     if (has_ui or wireframe_sources) and len(wireframe_sources) != 1:
         errors.append(
             "plan.sources: UI-bearing or wireframe-backed current PLAN requires exactly "
@@ -2179,6 +2193,100 @@ def _frozen_ui_contract_version(rows: list[dict[str, Any]], root: Path) -> str |
     return view.get("contract_version") if isinstance(view, dict) else None
 
 
+def _platform_and_feature_acceptance_errors(
+    plan: dict[str, Any],
+    prd_bytes: bytes | None,
+    architecture_bytes: bytes | None,
+) -> list[str]:
+    """Join one exact PRD/architecture pair to platform and feature gates."""
+
+    errors: list[str] = []
+    declared_mapping = plan.get("platform_delivery") is not None
+    declared_acceptance = any(
+        isinstance(trace, dict) and "acceptance_gate_ids" in trace
+        for trace in plan.get("traces", [])
+    )
+    if prd_bytes is None:
+        if declared_mapping or declared_acceptance:
+            errors.append(
+                "prd: adopted platform or feature authority requires frozen PRD bytes"
+            )
+        prd_text = ""
+    else:
+        try:
+            prd_text = prd_bytes.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            errors.append(f"prd: is not valid UTF-8 ({exc})")
+            prd_text = ""
+    if architecture_bytes is None:
+        if declared_mapping:
+            errors.append(
+                "plan.sources: declared platform delivery requires frozen architecture bytes"
+            )
+        architecture_text = ""
+    else:
+        try:
+            architecture_text = architecture_bytes.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            errors.append(f"architecture: is not valid UTF-8 ({exc})")
+            architecture_text = ""
+
+    platform_module = _load_platform_delivery_parser(sibling_builder_scripts_dir())
+    platform_contract: Any | None = None
+    platform_findings: list[str] = []
+    if platform_module is None:
+        if declared_mapping or architecture_bytes is not None:
+            errors.append(
+                "platform delivery: canonical parser is unavailable — install "
+                "product-definition-builder next to delivery-harness"
+            )
+    else:
+        try:
+            platform_contract, platform_findings = platform_module.parse_platform_delivery(
+                architecture_text,
+                prd_text,
+                require=declared_mapping,
+            )
+        except Exception as exc:
+            errors.append(
+                "platform delivery: canonical parser failed safely: "
+                f"{type(exc).__name__}: {exc}"
+            )
+    errors.extend(platform_findings)
+
+    feature_test_authority: dict[str, set[str]] | None = None
+    adopted_authority = (
+        platform_contract is not None
+        or declared_mapping
+        or declared_acceptance
+    )
+    if adopted_authority and prd_bytes is not None:
+        try:
+            feature_test_authority = parse_required_prd_test_authority(prd_bytes)
+        except AcceptanceError as exc:
+            feature_test_authority = None
+            errors.append(f"prd: canonical feature TEST authority failed safely: {exc}")
+
+    required_test_ids = (
+        set().union(*feature_test_authority.values())
+        if feature_test_authority
+        else set()
+    )
+    if platform_contract is not None or declared_mapping:
+        errors.extend(validate_platform_delivery(
+            plan,
+            platform_contract,
+            required_test_ids=required_test_ids,
+            feature_test_authority=feature_test_authority,
+        ))
+    else:
+        errors.extend(validate_feature_acceptance(
+            plan,
+            feature_test_authority=feature_test_authority,
+        ))
+    return errors
+
+
 def _validate_strict_frozen_contract_joins(
     plan: dict[str, Any], repo_root: str | Path, *, run: dict[str, Any] | None,
     current_ui: bool = False,
@@ -2256,47 +2364,11 @@ def _validate_strict_frozen_contract_joins(
         errors.append(f"product package: core artifact is not valid UTF-8 ({exc})")
         return sorted(set(errors))
 
-    platform_module = _load_platform_delivery_parser(
-        sibling_builder_scripts_dir()
-    )
-    feature_ids = planned_prd_must_ids(plan)
-    if feature_ids or plan.get("platform_delivery") is not None:
-        try:
-            feature_test_authority = parse_required_prd_test_authority(
-                resolved["prd"]
-            )
-        except AcceptanceError as exc:
-            feature_test_authority = None
-            errors.append(f"prd: canonical feature TEST authority failed safely: {exc}")
-    if platform_module is None:
-        errors.append(
-            "platform delivery: canonical parser is unavailable — install "
-            "product-definition-builder next to delivery-harness"
-        )
-    else:
-        try:
-            required_test_ids = (
-                set().union(*feature_test_authority.values())
-                if feature_test_authority
-                else set()
-            )
-            platform_contract, platform_findings = platform_module.parse_platform_delivery(
-                resolved["architecture"].decode("utf-8"),
-                prd_text,
-                require=plan.get("platform_delivery") is not None,
-            )
-            errors.extend(platform_findings)
-            errors.extend(validate_platform_delivery(
-                plan,
-                platform_contract,
-                required_test_ids=required_test_ids,
-                feature_test_authority=feature_test_authority,
-            ))
-        except Exception as exc:
-            errors.append(
-                "platform delivery: canonical parser failed safely: "
-                f"{type(exc).__name__}: {exc}"
-            )
+    errors.extend(_platform_and_feature_acceptance_errors(
+        plan,
+        resolved["prd"],
+        resolved["architecture"],
+    ))
 
     release_contract = _load_release_source_contract(sibling_builder_scripts_dir())
     if release_contract is None or not callable(getattr(release_contract, "active_text", None)):
@@ -2492,40 +2564,6 @@ def _validate_strict_frozen_contract_joins(
     return sorted(set(errors))
 
 
-def _standalone_feature_acceptance_errors(
-    plan: dict[str, Any], repo_root: str | Path
-) -> list[str]:
-    """Validate PRD feature gates before any current/legacy source branch."""
-
-    if plan.get("schema_version") != 6:
-        return []
-    if not planned_prd_must_ids(plan):
-        return []
-    rows = frozen_sources(plan, kinds=PRD_SOURCE_KINDS, filenames={"prd.md"})
-    if len(rows) > 1:
-        return ["plan.sources: a joined current PLAN requires exactly one frozen PRD source"]
-    errors: list[str] = []
-    if not rows:
-        return ["plan.sources: a planned PRD feature requires one frozen PRD source"]
-    if len(rows) != 1:
-        return errors
-    payload, source_errors = _resolve_source_bytes(
-        rows[0], repo_root, label="PRD"
-    )
-    errors.extend(source_errors)
-    if payload is None:
-        return errors
-    try:
-        feature_test_authority = parse_required_prd_test_authority(payload)
-    except AcceptanceError as exc:
-        return errors + [f"prd: canonical feature TEST authority failed safely: {exc}"]
-    return errors + validate_platform_delivery(
-        plan,
-        None,
-        feature_test_authority=feature_test_authority,
-    )
-
-
 def validate_frozen_contract_joins(plan, repo_root, *, run=None):
     """Join eval authority before any legacy/current Product/UI early return."""
     try:
@@ -2534,7 +2572,6 @@ def validate_frozen_contract_joins(plan, repo_root, *, run=None):
         return ["eval-plan: installed sibling eval policy parser unavailable"]
     errors = validate_eval_plan(plan, repo_root, run=run,
         source_rows=_strict_source_rows, resolve_source=_resolve_source_bytes)
-    errors.extend(_standalone_feature_acceptance_errors(plan, repo_root))
     return sorted(set(errors + _validate_product_frozen_contract_joins(plan, repo_root, run=run)))
 
 
@@ -2605,6 +2642,11 @@ def _validate_product_frozen_contract_joins(
         and trace["id"].startswith("DS-")
         for trace in (plan.get("traces") or [])
     )
+    platform_mapping = plan.get("platform_delivery") is not None
+    declared_acceptance = any(
+        isinstance(trace, dict) and "acceptance_gate_ids" in trace
+        for trace in plan.get("traces", [])
+    )
     required_version = run_required_harness_version(run) if run is not None else None
     ui_design_required = bool(
         has_ui
@@ -2617,7 +2659,7 @@ def _validate_product_frozen_contract_joins(
             "frozen ui-design.md source"
         )
     families: list[tuple[str, list[dict[str, Any]]]] = []
-    if has_ui or prd_sources:
+    if has_ui or prd_sources or platform_mapping or declared_acceptance:
         families.append(("PRD", prd_sources))
     if has_ui or wireframe_sources:
         families.append(("wireframes", wireframe_sources))
@@ -2630,6 +2672,8 @@ def _validate_product_frozen_contract_joins(
                 ("design-system.json", design_json_sources),
             ]
         )
+    if plan.get("schema_version") == 6 and platform_mapping and len(architecture_sources) == 1:
+        families.append(("architecture", architecture_sources))
     resolved: dict[str, bytes] = {}
     for label, sources in families:
         if len(sources) != 1:
@@ -2674,7 +2718,7 @@ def _validate_product_frozen_contract_joins(
                         "plan.sources: an approved Product Definition package requires "
                         "exactly one frozen stack-decisions.md source"
                     )
-                if len(architecture_sources) == 1:
+                if len(architecture_sources) == 1 and "architecture" not in resolved:
                     contents, source_errors = _resolve_source_bytes(
                         architecture_sources[0], repo_root, label="architecture"
                     )
@@ -2697,6 +2741,12 @@ def _validate_product_frozen_contract_joins(
                             repo_root=repo_root,
                         )
                     )
+    if "architecture" in resolved or platform_mapping or declared_acceptance:
+        errors.extend(_platform_and_feature_acceptance_errors(
+            plan,
+            resolved["PRD"],
+            resolved.get("architecture"),
+        ))
     if "wireframes" in resolved:
         try:
             wireframe_text = resolved["wireframes"].decode("utf-8")

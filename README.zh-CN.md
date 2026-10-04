@@ -404,9 +404,9 @@ Full-stack 按完整流程实现页面、API、权限、数据保存与反馈。
 
 新授权 whole-platform 顺序的 authoring 会加入 `--platform-delivery platform-delivery/1`。Checker 读取 active architecture sequence、精确 release inventory、shared API/interface ARCH authority rows、human decision 及 Required-Yes PRD tests；只有 approved status 可以执行。Draft、duplicate、hidden、malformed、omitted 或 shared-label bypass 一律失败。没有 section 的 legacy package 保持原读法。
 
-Harness 会把该契约接到 PLAN v6。Architecture order 决定 stage 顺序；surface mission 只映射一次，shared ARCH 先行，并用 pass-only dependency 到达 completion mission 和下一平台。Fresh completion integration 与 final gates 覆盖 platform TEST；retained integration PASS 只是历史 handoff。没有 marker 的 PLAN 保持 legacy。
+Harness 会把该契约接到 PLAN v6。Architecture order 决定 stage 顺序；显式 UI owner 按 release surface 只映射一次，shared ARCH 先行，并用 pass-only dependency 到达 completion mission 和下一平台。Fresh completion integration 与 final gates 覆盖 platform TEST；retained integration PASS 只是历史 handoff。没有 marker 的 PLAN 保持 legacy。
 
-另外，每个 planned `PRD-*` must trace 都要指定 fresh acceptance gates。其 TEST ID 来自 canonical Required-Yes PRD obligations，可加入其他必要 regression。
+在已标记流程中，每个 planned `PRD-*` must trace 都要指定 fresh acceptance gates。其 TEST ID 来自 canonical Required-Yes PRD obligations，可加入其他必要 regression；无 marker 的 legacy PLAN 保持可选。
 
 [Eval 验收契约](skills/delivery-harness/references/eval-acceptance-contract.md) 从 policy 推导执行契约，再重算每个已规划 trial。质量失败留在分母，prohibited 或 critical 失败直接阻挡验收。两份 full report 保留 output、judge／tool 观测、身份、时间和用量；handoff report 在干净 checkout 重跑。
 

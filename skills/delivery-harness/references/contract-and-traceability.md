@@ -166,11 +166,11 @@ The canonical architecture may declare `platform-delivery/1`. The parser owns ma
 }
 ```
 
-Architecture order is authoritative; PLAN stage-list order is not. Map every mission that owns a PLAN `release_surface` to exactly one architecture stage. Establish every shared ARCH ID in first-stage mission traces. Later missions may touch a shared ARCH when their path includes the earlier platform regression.
+Architecture order is authoritative; PLAN stage-list order is not. Bind each surface through its explicit `UI-*` IDs and `release_surface` to one stage. A mission or effective task must carry that UI ID, and all owners must belong to that stage; shared PRD/ARCH/UX traces do not prove UI ownership. Establish every shared ARCH ID in first-stage mission traces. Later missions may touch a shared ARCH when their path includes the earlier platform regression.
 
 Use pass-only dependency paths from every stage contributor to its completion mission and from that completion mission to every next-stage mission. A route is not a handoff, and `worker_passed` never satisfies one. The completion mission's selected integration verifiers must be fresh, disable reuse, and annotate the full upstream platform TEST set. A retained exact-`integrated_sha` `mission_integration` PASS is historical handoff evidence; every new candidate integration resets batch and final gates.
 
-Fresh final gates must cover every platform TEST ID. Extra required shared-regression TEST IDs are allowed. Every planned `PRD-*` must trace declares existing final gates in `acceptance_gate_ids`, with or without platform stages. Those gates are deterministic, always-run, and covered by every carrying mission through dependency paths. Their `acceptance_test_ids` cover the canonical Required-Yes TEST obligations for that trace; duplicate-free IDs may add other required regressions.
+Fresh final gates must cover every platform TEST ID. Extra required shared-regression TEST IDs are allowed. A marked `platform-delivery/1` contract, including `not_required`, requires every planned `PRD-*` must trace to declare existing final gates in `acceptance_gate_ids`. Unmarked legacy PLANs keep their old optional behavior. Those gates are deterministic, always-run, and covered by every carrying mission through dependency paths. Their `acceptance_test_ids` cover the canonical Required-Yes TEST obligations for that trace; duplicate-free IDs may add other required regressions.
 
 ## Mission And Task Identity
 
