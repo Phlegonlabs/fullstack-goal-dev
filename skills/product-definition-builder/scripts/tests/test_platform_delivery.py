@@ -228,6 +228,18 @@ class PlatformDeliveryTests(unittest.TestCase):
                 _, findings = parse(architecture_text=candidate, require=True)
                 self.assertTrue(findings)
 
+    def test_active_duplicate_protocol_marker_outside_section_fails(self) -> None:
+        candidate = architecture(platform=sequence()) + (
+            "\nPlatform delivery contract: platform-delivery/1\n"
+        )
+        _, findings = parse(architecture_text=candidate)
+        self.assertTrue(
+            any(
+                "Platform delivery contract must occur exactly once" in item
+                for item in findings
+            )
+        )
+
     def test_stage_topology_and_coverage_failures_are_visible(self) -> None:
         cases = {
             "duplicate surface": sequence(rows=(
@@ -248,6 +260,14 @@ class PlatformDeliveryTests(unittest.TestCase):
                 "| 3 | web | web-app,public-api | TEST-001 | web smoke passes |"
             )),
             "missing table": sequence(rows=""),
+            "uppercase stage": sequence(rows=(
+                "| 1 | Web | web-app,public-api | TEST-001 | web smoke passes |\n"
+                "| 2 | ios | ios-app | TEST-002 | ios smoke passes |"
+            )),
+            "space stage": sequence(rows=(
+                "| 1 | web first | web-app,public-api | TEST-001 | web smoke passes |\n"
+                "| 2 | ios | ios-app | TEST-002 | ios smoke passes |"
+            )),
         }
         for label, candidate in cases.items():
             with self.subTest(case=label):

@@ -7,7 +7,7 @@ import re
 from dataclasses import dataclass
 
 from markdown_contract import active_text, is_human_owner
-from release_targets import PLACEHOLDER_RE, parse_release_targets
+from release_targets import KEBAB_RE, PLACEHOLDER_RE, parse_release_targets
 
 
 PROTOCOL = "platform-delivery/1"
@@ -254,6 +254,7 @@ def _required_prd_tests(prd_text: str) -> set[str]:
 def _validate_marker(text: str, section: str | None, findings: list[str]) -> None:
     active = active_text(text)
     markers = MARKER_RE.findall(active)
+    section_markers = MARKER_RE.findall(section or "")
     if not markers and section is None:
         return
     for marker in markers:
@@ -261,6 +262,15 @@ def _validate_marker(text: str, section: str | None, findings: list[str]) -> Non
             findings.append(
                 "architecture: Platform delivery contract supports only platform-delivery/1"
             )
+    if len(markers) != 1:
+        findings.append(
+            "architecture: Platform delivery contract must occur exactly once"
+        )
+    elif len(section_markers) != 1:
+        findings.append(
+            "architecture: the Platform delivery contract must be inside "
+            "Platform Delivery Sequence"
+        )
     if section is None:
         findings.append(
             "architecture: a Platform delivery contract requires an active "
@@ -352,9 +362,10 @@ def parse_platform_delivery(
                     f"architecture: platform delivery stage order {order} is not contiguous"
                 )
             expected_order = order + 1
-            if not _meaningful(stage_id, minimum=3):
+            if KEBAB_RE.fullmatch(stage_id) is None:
                 findings.append(
-                    "architecture: platform delivery stage ID is missing or uses placeholder text"
+                    f"architecture: platform delivery stage ID {stage_id!r} "
+                    "must use lowercase kebab-case"
                 )
             stage_key = stage_id.casefold()
             if stage_key in stage_ids:
