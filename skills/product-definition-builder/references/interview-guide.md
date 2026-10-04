@@ -65,12 +65,11 @@ Capture internally: top workflows, triggers, end states, data lifecycle, integra
 Ask the unresolved parts of these short prompts:
 
 - What is in or out of v1, and which timeline, team, stack, hosting, cost, license, lock-in, or existing-system constraints matter?
-- What must be released for development and production, through which channels, and what proves each release is actually available and recoverable?
-- For more than one user-facing platform, which owner-selected implementation order applies, and which required tests complete each stage? A single platform may record a concrete not-required reason.
+- What releases through each development/production channel, in which owner-selected platform order with stage tests, and what proves availability and recovery?
 - Which launch metrics, measurable quality targets, and release-blocking tests define success?
 - Which risks, unknowns, observability needs, background work, or operational concerns should be investigated first?
 
-Capture internally: scope and non-goals; architecture and build-versus-buy constraints; cost, licensing, and lock-in tolerances; expected deployable surfaces; stable development and production targets; source refs; artifacts and signing; channels; release gates; availability signals; rollout and recovery; success metrics with baseline, window, source, and owner; measurable NFRs; test obligations; risks; observability; audit; jobs; and queues. Ask concise targeted follow-ups rather than exposing this entire capture list to the user.
+Capture internally: scope and non-goals; architecture and build-versus-buy constraints; cost, licensing, and lock-in tolerances; expected deployable surfaces; stable development and production targets; source refs; artifacts and signing; channels; release gates; availability signals; rollout and recovery; success metrics with baseline, window, source, and owner; measurable NFRs; test obligations; risks; observability; audit; jobs; and queues. For multiple platforms, record the owner-selected whole-platform order and each required stage-completion TEST; a single platform may record a concrete not-required reason. Ask concise targeted follow-ups rather than exposing this entire capture list to the user.
 
 After segment 3, compare the aggregate answers with **Completeness Criteria**. If a material item is still missing and the user did not authorize assumptions, ask one compact targeted free-text follow-up containing only the missing items. This follow-up is an exception, not a fourth planned segment. Begin the closed `AskUserQuestion` phase only after the coverage check passes.
 
