@@ -477,6 +477,12 @@ Worker 與 reviewer 不能再次分派。Parent 保持每個隔離 worktree 只�
 
 一次執行只有一個 active host。same-repository handoff 只有在 Host A 關閉 wave、且 `RUN.active_wave.status` 既不是 `active` 也不是 `proposed` 後才允許；`active_wave` 物件仍保留在 RUN 中，不能把物件缺失當成交接訊號：Host B 保留 PLAN/RUN 與 graph state，重新探測 runtime，並在選取下一波前審查目前的 exact SHA。若需要修復，路由回 Host A 且舊 review 立即失效；除非未來 schema 增加可攜式的儲存庫／狀態身分，否則不支援 cross-machine handoff。
 
+## 獨立 skills
+
+[README Studio](standalone-skills/readme-studio/SKILL.md) 協助其他專案撰寫有品牌特色的 GitHub README，包含真實示範、可用的快速上手及各呈現平台的檢查。[附日期的案例庫](standalone-skills/readme-studio/references/case-library.md) 參考 Starship、Bruno、Transformers、tldraw 與 Vite。視覺工作沿用目標專案的 frontend 路由，交付前後對照證據。
+
+這些來源獨立於七個 skills 的 bundle，`install.sh` 和 `install.ps1` 不會安裝它們。可在 host 中開啟連結的 `SKILL.md` 與 references，或按 host 支援的探索方式註冊完整 skill 目錄。註冊是另一項本機操作，本 repo 不會自動安裝。可用後，以 `$readme-studio` 改善 README，保留專案語言、授權與已支援的安裝渠道。
+
 ## 安裝
 
 這是公開儲存庫，不需要存取權。你需要 Python 3.10 以上、Git，以及至少一個會探索 `~/.agents/skills/` 的 host。驗證前先安裝含 Pillow 的固定 Python 依賴：

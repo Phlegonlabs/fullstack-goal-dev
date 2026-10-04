@@ -476,6 +476,12 @@ Workers y reviewers nunca delegan. El parent mantiene un writer por worktree ais
 
 Un run tiene un solo active host a la vez. Un handoff en el mismo repositorio (same-repository) solo se permite después de que el Host A cierre su wave y `RUN.active_wave.status` no sea ni `active` ni `proposed`; el objeto `active_wave` permanece en RUN, así que su ausencia no es una señal de handoff. El Host B preserva PLAN/RUN y el estado del graph, vuelve a probar su runtime y revisa el SHA exacto actual (exact SHA) antes de seleccionar la siguiente wave. Una reparación regresa al Host A e invalida la revisión vieja; el handoff cross-machine no está soportado hasta que un schema futuro agregue identidad portable de repositorio/estado.
 
+## Skills independientes
+
+[README Studio](standalone-skills/readme-studio/SKILL.md) ayuda a otros proyectos a escribir un README de GitHub con identidad de marca, demostraciones reales, un inicio rápido útil y comprobaciones para cada plataforma de presentación. Su [biblioteca de casos fechados](standalone-skills/readme-studio/references/case-library.md) incluye Starship, Bruno, Transformers, tldraw y Vite. El trabajo visual sigue la ruta frontend del proyecto y entrega evidencia antes/después.
+
+Estas fuentes son independientes del bundle de siete skills; `install.sh` e `install.ps1` no las instalan. Abre el `SKILL.md` enlazado y sus referencias en tu host, o registra el directorio completo mediante el mecanismo de descubrimiento que admite ese host. El registro es una acción local separada; este repositorio no lo instala automáticamente. Una vez disponible, usa `$readme-studio` para mejorar un README y conserva el idioma, la licencia y los canales de instalación del proyecto.
+
 ## Instalación
 
 El repositorio es público. Necesitas Python 3.10 o posterior, Git y al menos un host que descubra `~/.agents/skills/`. Instala antes de validar las dependencias Python fijadas, incluido Pillow:
