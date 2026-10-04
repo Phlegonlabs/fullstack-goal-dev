@@ -1240,19 +1240,18 @@ def required_contract_source_errors(plan: dict[str, Any]) -> list[str]:
     wireframe_sources = frozen_sources(
         plan, kinds=WIREFRAME_SOURCE_KINDS, filenames={"wireframes.html"}
     )
+    architecture_sources = frozen_sources(
+        plan, kinds=ARCHITECTURE_SOURCE_KINDS, filenames={"architecture.md"}
+    )
     if (has_ui or prd_sources or platform_mapping or declared_acceptance) and len(prd_sources) != 1:
         errors.append(
             "plan.sources: a joined current PLAN requires exactly one frozen PRD source"
         )
-    if platform_mapping:
-        architecture_sources = frozen_sources(
-            plan, kinds=ARCHITECTURE_SOURCE_KINDS, filenames={"architecture.md"}
+    if architecture_sources and len(architecture_sources) != 1:
+        errors.append(
+            "plan.sources: a declared frozen architecture requires exactly one "
+            "frozen architecture.md source"
         )
-        if len(architecture_sources) != 1:
-            errors.append(
-                "plan.sources: declared platform delivery requires exactly one "
-                "frozen architecture.md source"
-            )
     if (has_ui or wireframe_sources) and len(wireframe_sources) != 1:
         errors.append(
             "plan.sources: UI-bearing or wireframe-backed current PLAN requires exactly "
@@ -2197,6 +2196,8 @@ def _platform_and_feature_acceptance_errors(
     plan: dict[str, Any],
     prd_bytes: bytes | None,
     architecture_bytes: bytes | None,
+    *,
+    architecture_declared: bool = False,
 ) -> list[str]:
     """Join one exact PRD/architecture pair to platform and feature gates."""
 
@@ -2206,6 +2207,7 @@ def _platform_and_feature_acceptance_errors(
         isinstance(trace, dict) and "acceptance_gate_ids" in trace
         for trace in plan.get("traces", [])
     )
+    prd_text_valid = False
     if prd_bytes is None:
         if declared_mapping or declared_acceptance:
             errors.append(
@@ -2215,13 +2217,14 @@ def _platform_and_feature_acceptance_errors(
     else:
         try:
             prd_text = prd_bytes.decode("utf-8")
+            prd_text_valid = True
         except UnicodeDecodeError as exc:
             errors.append(f"prd: is not valid UTF-8 ({exc})")
             prd_text = ""
     if architecture_bytes is None:
-        if declared_mapping:
+        if declared_mapping or architecture_declared:
             errors.append(
-                "plan.sources: declared platform delivery requires frozen architecture bytes"
+                "plan.sources: declared frozen architecture requires readable bytes"
             )
         architecture_text = ""
     else:
@@ -2235,7 +2238,7 @@ def _platform_and_feature_acceptance_errors(
     platform_contract: Any | None = None
     platform_findings: list[str] = []
     if platform_module is None:
-        if declared_mapping or architecture_bytes is not None:
+        if declared_mapping or architecture_bytes is not None or architecture_declared:
             errors.append(
                 "platform delivery: canonical parser is unavailable — install "
                 "product-definition-builder next to delivery-harness"
@@ -2260,12 +2263,21 @@ def _platform_and_feature_acceptance_errors(
         or declared_mapping
         or declared_acceptance
     )
-    if adopted_authority and prd_bytes is not None:
+    if adopted_authority:
+        if prd_bytes is None or not prd_text_valid:
+            errors.append(
+                "prd: adopted platform or feature authority requires readable frozen PRD bytes"
+            )
+            return errors
         try:
             feature_test_authority = parse_required_prd_test_authority(prd_bytes)
         except AcceptanceError as exc:
-            feature_test_authority = None
             errors.append(f"prd: canonical feature TEST authority failed safely: {exc}")
+            return errors
+    if platform_contract is not None and platform_contract.decision_status != "approved":
+        errors.append(
+            "architecture: adopted platform-delivery/1 requires an approved decision"
+        )
 
     required_test_ids = (
         set().union(*feature_test_authority.values())
@@ -2672,7 +2684,7 @@ def _validate_product_frozen_contract_joins(
                 ("design-system.json", design_json_sources),
             ]
         )
-    if plan.get("schema_version") == 6 and platform_mapping and len(architecture_sources) == 1:
+    if plan.get("schema_version") == 6 and len(architecture_sources) == 1:
         families.append(("architecture", architecture_sources))
     resolved: dict[str, bytes] = {}
     for label, sources in families:
@@ -2718,13 +2730,6 @@ def _validate_product_frozen_contract_joins(
                         "plan.sources: an approved Product Definition package requires "
                         "exactly one frozen stack-decisions.md source"
                     )
-                if len(architecture_sources) == 1 and "architecture" not in resolved:
-                    contents, source_errors = _resolve_source_bytes(
-                        architecture_sources[0], repo_root, label="architecture"
-                    )
-                    errors.extend(source_errors)
-                    if contents is not None:
-                        resolved["architecture"] = contents
                 if len(stack_sources) == 1:
                     contents, source_errors = _resolve_source_bytes(
                         stack_sources[0], repo_root, label="stack-decisions"
@@ -2741,11 +2746,12 @@ def _validate_product_frozen_contract_joins(
                             repo_root=repo_root,
                         )
                     )
-    if "architecture" in resolved or platform_mapping or declared_acceptance:
+    if "architecture" in resolved or architecture_sources or platform_mapping or declared_acceptance:
         errors.extend(_platform_and_feature_acceptance_errors(
             plan,
-            resolved["PRD"],
+            resolved.get("PRD"),
             resolved.get("architecture"),
+            architecture_declared=bool(architecture_sources),
         ))
     if "wireframes" in resolved:
         try:

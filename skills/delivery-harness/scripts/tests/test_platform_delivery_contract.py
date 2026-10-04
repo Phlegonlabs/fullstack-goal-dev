@@ -22,6 +22,7 @@ from harness_manifest import validate_plan  # noqa: E402
 from harness_manifest import _validate_verifier_executions  # noqa: E402
 from manifest_fixtures import valid_plan  # noqa: E402
 from manifest_fixtures import (  # noqa: E402
+    manifest_markdown,
     retained_gate_execution,
     task as task_fixture,
     valid_run,
@@ -36,6 +37,7 @@ import harness_contract_join as harness_contract_join_module  # noqa: E402
 from select_ready_nodes import _incoming, _logical_reasons  # noqa: E402
 from verifier_runtime import _validated_inputs  # noqa: E402
 from render_review_packet import _relevant_acceptance_mappings  # noqa: E402
+from validate_harness_plan import main as validate_plan_cli  # noqa: E402
 from delivery_acceptance_io import (  # noqa: E402
     AcceptanceError,
     parse_required_prd_test_authority,
@@ -1193,6 +1195,93 @@ class FrozenSourceJoinTests(unittest.TestCase):
             platform_prd(required=("TEST-001", "TEST-002")),
         )
 
+    def not_required_architecture(self, status: str = "approved") -> str:
+        pdb_tests = (
+            Path(__file__).resolve().parents[3]
+            / "product-definition-builder" / "scripts" / "tests"
+        )
+        original_path = list(sys.path)
+        if str(pdb_tests) not in sys.path:
+            sys.path.insert(0, str(pdb_tests))
+        try:
+            from test_platform_delivery import (  # noqa: E402
+                architecture as platform_architecture,
+                sequence,
+            )
+        finally:
+            sys.path[:] = original_path
+        stage_header = (
+            "| Order | Stage | Release surfaces | Required TEST IDs | "
+            "Completion signal |\n"
+            "| --- | --- | --- | --- | --- |\n"
+        )
+        return platform_architecture(
+            specifications=(("web-app", "hosted_web", "web"),),
+            platform=sequence(
+                mode="not_required — Fixture ships exactly one hosted surface",
+                rows=stage_header,
+                status=status,
+            ),
+        )
+
+    def unmarked_architecture(self) -> str:
+        pdb_tests = (
+            Path(__file__).resolve().parents[3]
+            / "product-definition-builder" / "scripts" / "tests"
+        )
+        original_path = list(sys.path)
+        if str(pdb_tests) not in sys.path:
+            sys.path.insert(0, str(pdb_tests))
+        try:
+            from test_platform_delivery import architecture as platform_architecture
+        finally:
+            sys.path[:] = original_path
+        return platform_architecture()
+
+    def add_planned_feature(self, plan: dict[str, object], prd: str) -> str:
+        feature = {
+            "id": "PRD-FEATURE",
+            "source_ids": ["SRC-001"],
+            "priority": "must",
+            "requirement": "Complete the platform feature",
+            "disposition": "planned",
+            "rationale": None,
+            "acceptance_gate_ids": ["final"],
+        }
+        plan["traces"].append(feature)
+        plan["missions"][0]["trace_ids"].append("PRD-FEATURE")
+        feature_task = plan["missions"][0]["tasks"][0]
+        feature_task["trace_ids"].append("PRD-FEATURE")
+        feature_task["acceptance_matrix"].append(
+            {
+                "test_id": "TEST-FEATURE",
+                "trace_ids": ["PRD-FEATURE"],
+                "criterion": "The feature result is observable",
+            }
+        )
+        plan["graph"]["edges"].append(
+            {
+                "id": "E-M1-REPAIR-FINAL",
+                "kind": "dependency",
+                "from": "N-M1",
+                "to": "N-FINAL",
+                "on_outcomes": ["pass"],
+                "max_traversals": None,
+            }
+        )
+        gate = plan["final_gates"][0]
+        gate["acceptance_test_ids"] = sorted(
+            set(gate["acceptance_test_ids"]) | {"TEST-FEATURE"}
+        )
+        return prd.replace(
+            "| TEST-002 | Fixture obligation | integration | Yes | PRD-001 | "
+            "Fixture signal passes |",
+            "| TEST-002 | Fixture obligation | integration | Yes | PRD-001 | "
+            "Fixture signal passes |\n"
+            "| TEST-FEATURE | Feature works | integration | Yes | PRD-FEATURE | "
+            "Feature passes |",
+        )
+
     def materialized_platform_plan(
         self,
         root: Path,
@@ -1388,6 +1477,330 @@ class FrozenSourceJoinTests(unittest.TestCase):
                 and "frozen architecture bytes do not match content_sha256" in item
                 for item in errors
             ),
+            errors,
+        )
+
+    def test_public_combined_feature_and_platform_join_passes(self) -> None:
+        architecture, prd = self.product_fixtures()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            plan = self.materialized_platform_plan(
+                root,
+                architecture=architecture,
+                prd=self.add_planned_feature(platform_plan(), prd),
+            )
+            errors = validate_frozen_contract_joins(plan, root, run=None)
+        self.assertFalse(any("platform delivery" in item for item in errors), errors)
+        self.assertFalse(any("acceptance_gate_ids" in item for item in errors), errors)
+
+    def test_marker_only_contract_is_adopted_without_mapping(self) -> None:
+        architecture, prd = self.product_fixtures()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            plan = self.materialized_platform_plan(root, architecture=architecture, prd=prd)
+            plan.pop("platform_delivery")
+            errors = validate_frozen_contract_joins(plan, root, run=None)
+        self.assertTrue(
+            any(
+                "platform-delivery/1 requires PLAN platform_delivery stage mappings" in item
+                for item in errors
+            ),
+            errors,
+        )
+
+    def test_adopted_contract_requires_approved_decision(self) -> None:
+        architecture, prd = self.product_fixtures()
+        draft_architecture = architecture.replace(
+            "Decision status: approved", "Decision status: draft"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            mapped = self.materialized_platform_plan(
+                root,
+                architecture=draft_architecture,
+                prd=prd,
+            )
+            mapped_errors = validate_frozen_contract_joins(mapped, root, run=None)
+
+            marker_only = self.materialized_platform_plan(
+                root,
+                architecture=draft_architecture,
+                prd=prd,
+            )
+            marker_only.pop("platform_delivery")
+            marker_errors = validate_frozen_contract_joins(marker_only, root, run=None)
+
+            unresolved = self.materialized_platform_plan(
+                root,
+                architecture=self.not_required_architecture("blocked"),
+                prd=prd,
+            )
+            unresolved.pop("platform_delivery")
+            unresolved_errors = validate_frozen_contract_joins(
+                unresolved,
+                root,
+                run=None,
+            )
+        self.assertTrue(
+            any("requires an approved platform contract" in item for item in mapped_errors),
+            mapped_errors,
+        )
+        self.assertTrue(
+            any("requires an approved decision" in item for item in marker_errors),
+            marker_errors,
+        )
+        self.assertTrue(
+            any("requires an approved decision" in item for item in unresolved_errors),
+            unresolved_errors,
+        )
+
+    def test_commented_and_fenced_markers_remain_unmarked_legacy(self) -> None:
+        _, prd = self.product_fixtures()
+        architecture = (
+            "<!-- Platform delivery contract: platform-delivery/1 -->\n\n"
+            "```markdown\n"
+            "## Platform Delivery Sequence\n"
+            "Platform delivery contract: platform-delivery/1\n"
+            "```\n\n"
+            + self.unmarked_architecture()
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            plan = self.materialized_platform_plan(root, architecture=architecture, prd=prd)
+            plan.pop("platform_delivery")
+            errors = validate_frozen_contract_joins(plan, root, run=None)
+        self.assertFalse(
+            any("platform-delivery/1 requires PLAN platform_delivery" in item for item in errors),
+            errors,
+        )
+
+    def test_declared_prd_failures_return_structured_diagnostics(self) -> None:
+        architecture, valid_prd = self.product_fixtures()
+        invalid_utf8 = b"# PRD\n\xff\n\n## Test Obligations\n"
+        cases = (
+            ("omitted", "requires readable frozen PRD bytes"),
+            ("duplicate", "requires exactly one frozen PRD source"),
+            ("missing", "cannot read frozen PRD source"),
+            ("hash mismatch", "bytes do not match content_sha256"),
+            ("revision invalid", "source_revision must be a full Git SHA"),
+            ("utf8 invalid", "adopted platform or feature authority requires readable"),
+        )
+        for case, fragment in cases:
+            with self.subTest(case=case):
+                with tempfile.TemporaryDirectory() as directory:
+                    root = Path(directory)
+                    if case == "utf8 invalid":
+                        prd_path = root / "docs/product/PRD.md"
+                        prd_path.parent.mkdir(parents=True)
+                        prd_path.write_bytes(invalid_utf8)
+                        plan = self.materialized_platform_plan(
+                            root,
+                            architecture=architecture,
+                            prd=valid_prd,
+                        )
+                        source = plan["sources"][0]
+                        source["content_sha256"] = hashlib.sha256(invalid_utf8).hexdigest()
+                        prd_path.write_bytes(invalid_utf8)
+                    else:
+                        plan = self.materialized_platform_plan(
+                            root,
+                            architecture=architecture,
+                            prd=valid_prd,
+                        )
+                    if case == "omitted":
+                        plan["sources"] = [
+                            source for source in plan["sources"]
+                            if source["kind"] != "prd"
+                        ]
+                    elif case == "duplicate":
+                        duplicate = copy.deepcopy(plan["sources"][0])
+                        duplicate["id"] = "SRC-DUPLICATE"
+                        plan["sources"].append(duplicate)
+                    elif case == "missing":
+                        (root / "docs/product/PRD.md").unlink()
+                    elif case == "hash mismatch":
+                        (root / "docs/product/PRD.md").write_text("# Changed\n", encoding="utf-8")
+                    elif case == "revision invalid":
+                        plan["sources"][0]["source_revision"] = "short"
+                    plan.pop("platform_delivery")
+                    errors = validate_frozen_contract_joins(plan, root, run=None)
+                self.assertTrue(any(fragment in item for item in errors), errors)
+
+    def test_declared_architecture_failures_return_structured_diagnostics(self) -> None:
+        architecture, prd = self.product_fixtures()
+        invalid_utf8 = b"# Architecture\n\xff\n"
+        cases = (
+            ("duplicate", "requires exactly one frozen architecture.md source"),
+            ("missing", "cannot read frozen architecture source"),
+            ("hash mismatch", "frozen architecture bytes do not match content_sha256"),
+            ("revision invalid", "source_revision must be a full Git SHA"),
+            ("utf8 invalid", "architecture: is not valid UTF-8"),
+        )
+        for case, fragment in cases:
+            with self.subTest(case=case):
+                with tempfile.TemporaryDirectory() as directory:
+                    root = Path(directory)
+                    plan = self.materialized_platform_plan(
+                        root,
+                        architecture=architecture,
+                        prd=prd,
+                    )
+                    if case == "duplicate":
+                        duplicate = copy.deepcopy(plan["sources"][1])
+                        duplicate["id"] = "SRC-ARCH-DUPLICATE"
+                        plan["sources"].append(duplicate)
+                    elif case == "missing":
+                        (root / "docs/product/architecture.md").unlink()
+                    elif case == "hash mismatch":
+                        (root / "docs/product/architecture.md").write_text(
+                            "# Changed\n",
+                            encoding="utf-8",
+                        )
+                    elif case == "revision invalid":
+                        plan["sources"][1]["source_revision"] = "short"
+                    elif case == "utf8 invalid":
+                        architecture_path = root / "docs/product/architecture.md"
+                        plan["sources"][1]["content_sha256"] = hashlib.sha256(
+                            invalid_utf8
+                        ).hexdigest()
+                        architecture_path.write_bytes(invalid_utf8)
+                    errors = validate_frozen_contract_joins(plan, root, run=None)
+                self.assertTrue(any(fragment in item for item in errors), errors)
+
+    def test_malformed_test_authority_fails_before_semantic_join(self) -> None:
+        architecture, _prd = self.product_fixtures()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            mapped = self.materialized_platform_plan(
+                root,
+                architecture=architecture,
+                prd="# PRD\n",
+            )
+            mapped_errors = validate_frozen_contract_joins(mapped, root, run=None)
+
+            marker_only = self.materialized_platform_plan(
+                root,
+                architecture=architecture,
+                prd="# PRD\n",
+            )
+            marker_only.pop("platform_delivery")
+            marker_errors = validate_frozen_contract_joins(marker_only, root, run=None)
+        self.assertTrue(
+            any(
+                "canonical feature TEST authority failed safely" in item
+                for item in mapped_errors
+            ),
+            mapped_errors,
+        )
+        self.assertTrue(
+            any(
+                "canonical feature TEST authority failed safely" in item
+                for item in marker_errors
+            ),
+            marker_errors,
+        )
+
+    def test_platform_shape_failure_stops_before_semantic_traversal(self) -> None:
+        for value in ("desktop", None, 7, []):
+            with self.subTest(value=value):
+                plan = platform_plan()
+                plan["platform_delivery"]["stages"] = value
+                shape_errors = platform_delivery_shape_errors(plan)
+                self.assertTrue(shape_errors)
+                semantic_errors = validate_platform_delivery(plan, contract())
+                self.assertEqual(shape_errors, semantic_errors)
+
+    def test_public_and_paired_routes_handle_invalid_platform_shape(self) -> None:
+        architecture, prd = self.product_fixtures()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            plan = self.materialized_platform_plan(
+                root,
+                architecture=architecture,
+                prd=prd,
+            )
+            plan["platform_delivery"]["stages"] = [None]
+            public_errors = validate_frozen_contract_joins(plan, root, run=None)
+
+            paired = self.materialized_platform_plan(
+                root,
+                architecture=architecture,
+                prd=prd,
+            )
+            paired["platform_delivery"]["stages"] = ["desktop"]
+            paired_run = valid_run(paired)
+            paired_run["runtime_capabilities"]["runtime_adapter"]["version_gate"][
+                "required_harness_version"
+            ] = "0.62.0"
+            paired_errors = validate_frozen_contract_joins(
+                paired,
+                root,
+                run=paired_run,
+            )
+
+            cli_plan_path = root / "PLAN.md"
+            cli_plan = self.materialized_platform_plan(
+                root,
+                architecture=architecture,
+                prd=prd,
+            )
+            cli_plan["platform_delivery"]["stages"] = [None]
+            cli_plan_path.write_text(
+                manifest_markdown(
+                    "## Harness Plan Manifest",
+                    "harness_plan",
+                    cli_plan,
+                ),
+                encoding="utf-8",
+            )
+            exit_code = validate_plan_cli([
+                "--repo-root",
+                str(root),
+                "--plan",
+                str(cli_plan_path),
+            ])
+        self.assertTrue(
+            any("must contain exactly id" in item for item in public_errors),
+            public_errors,
+        )
+        self.assertTrue(
+            any("must contain exactly id" in item for item in paired_errors),
+            paired_errors,
+        )
+        self.assertEqual(1, exit_code)
+
+    def test_declared_architecture_materializes_once_on_failure(self) -> None:
+        architecture, prd = self.product_fixtures()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            plan = self.materialized_platform_plan(
+                root,
+                architecture=architecture,
+                prd=prd,
+            )
+            architecture_path = root / "docs/product/architecture.md"
+            architecture_path.write_text("# Changed\n", encoding="utf-8")
+            real_resolver = harness_contract_join_module._resolve_source_bytes
+            calls: list[str] = []
+
+            def resolve(source, repo_root, *, label, strict=False):
+                if label == "architecture":
+                    calls.append(label)
+                return real_resolver(
+                    source,
+                    repo_root,
+                    label=label,
+                    strict=strict,
+                )
+
+            with patch(
+                "harness_contract_join._resolve_source_bytes",
+                side_effect=resolve,
+            ):
+                errors = validate_frozen_contract_joins(plan, root, run=None)
+        self.assertEqual(1, len(calls), errors)
+        self.assertTrue(
+            any("frozen architecture bytes do not match content_sha256" in item for item in errors),
             errors,
         )
 

@@ -406,6 +406,8 @@ def validate_platform_delivery(
     """Validate the PLAN join against a canonical parsed architecture contract."""
 
     errors = platform_delivery_shape_errors(plan)
+    if errors:
+        return errors
     declared = plan.get("platform_delivery") is not None
     platform_stage_tests = (
         {test_id for stage in contract.stages for test_id in stage.test_ids}
