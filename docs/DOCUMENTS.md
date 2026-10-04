@@ -4,6 +4,7 @@ The four READMEs remain the documentation of record for the skill bundle.
 
 | Document | Purpose | Status |
 | --- | --- | --- |
+| `docs/epics/EPIC-document-writing-policy.md` | STE core writing rules for new or changed project documents | Source guideline verified locally; formal release and installation pending |
 | `docs/epics/EPIC-architecture-loop-remote-execution.md` | Accepted architecture methods, bounded loops and remote Cloud Agent integration | Direction recorded; source implementation and Mac Mini pilot pending |
 | `docs/research/architecture-loop-remote-execution.md` | Ownership, remote task/evidence boundary and ordered pilot acceptance | Accepted direction; connection, capabilities and implementation unverified |
 | `docs/epics/EPIC-worktree-consolidation.md` | Publish all worktree heads and reconcile the current Eval/modernization sources | All 16 heads published; local source merged; unified candidate checks and exact main decision pending |

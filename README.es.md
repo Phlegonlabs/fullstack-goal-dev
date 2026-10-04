@@ -377,6 +377,8 @@ Elige el registro antes de implementar: un resultado nuevo aceptado necesita un 
 
 AGENTS conserva entrada, lectura, responsabilidades, sincronización, autorización y cierre. Comercio, activación y ejecución gestionada pasan a una referencia obligatoria según el caso. La plantilla AGENTS para proyectos consumidores exige KISS, primeros principios, módulos separados por responsabilidad y ninguna compatibilidad especulativa. Sus módulos nuevos, incluidos tests, tienen un límite estricto de 500 líneas físicas; esto no impone un límite ni una refactorización al código de Harness.
 
+La documentación nueva o modificada usa reglas centrales de [ASD-STE100 Issue 9](https://www.asd-ste100.org/about_STE.html): voz activa, una idea por frase y términos consistentes. Cada paso incluye una instrucción, con las condiciones necesarias primero. En inglés, las frases de procedimiento tienen como máximo 20 palabras; las descriptivas, 25. El código y las cadenas literales quedan fuera del recuento. Otros idiomas usan expresiones naturales y términos consistentes, sin límites de palabras ingleses. Conserva el significado técnico, la fuerza de los requisitos, las aprobaciones y el historial. Esta guía inspirada en STE usa la revisión documental existente; no añade gates ni declara conformidad completa.
+
 La revisión HiFi abre la página principal; la barra lateral ofrece Overview, páginas y especificaciones. Interacciones, navegación del visor y tokens necesitan evidencias separadas. Los paquetes históricos siguen legibles.
 
 HiFi muestra un lienzo, aplica anchos reales y conserva los valores y estados aplicables. El navegador verifica controles y variantes; las muestras de tokens se vinculan a sus páginas fuente.

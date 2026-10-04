@@ -77,6 +77,19 @@ For work consuming a Product Definition package, apply `delivery-harness/referen
 - Prefer the simplest thing that works. Don't over-engineer.
 - Don't "improve" code you weren't asked to touch.
 
+### Document Writing
+
+Use the core writing rules of [ASD-STE100 Issue 9](https://www.asd-ste100.org/assets/files/ASD-STE100_ISSUE9.pdf) for new or changed project documentation. This is a STE-informed guideline, not a claim of full conformity.
+
+- Give each sentence one main idea. Use active voice and name the actor when ownership matters.
+- Give each procedure step one instruction, using the imperative form. Put necessary conditions before the instruction and state the expected result when needed.
+- In English prose, use at most 20 words per procedural sentence and 25 per descriptive sentence. Split long sentences without removing necessary information.
+- Use the same term for the same concept. Define new technical terms and reuse established project terminology.
+- Preserve literal code, commands, paths, identifiers, error messages and quoted source text. Code blocks, structured examples and literal strings are outside this guideline's prose counts.
+- Preserve requirement strength, technical meaning, approvals and history. PRDs and specifications still include all required details and edge cases.
+- Apply clarity and consistent terminology to other languages, using natural local phrasing. English word-count and dictionary rules do not apply to them.
+- Use the existing document review to check clarity and meaning. Style preferences alone do not block delivery or replace behavior checks.
+
 ### First Principles
 
 - Reason from the problem's actual constraints, not from habit, inherited patterns, or how another project solved it.
