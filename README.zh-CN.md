@@ -396,7 +396,7 @@ Full-stack 按完整流程实现页面、API、权限、数据保存与反馈。
 
 每次调用 skill 都先应用共享的[文档同步契约](skills/delivery-harness/references/document-sync-contract.md)，检查当前指引、skill/runtime 身份与产品文档的变化，不改写历史批准或 RUN。当前 PRD 持续作为下一轮 enhancement 的基准，被替代的 PRD 保留链接供参考。[有界 enhancement](skills/delivery-harness/references/bounded-enhancement.md) 沿用一次确认的范围，执行修复、范围内 module 重写与重测，不反复要求批准。达到修复上限就把未解决需求移交下一轮；本轮结束不等于交付 PASS，也不授权发布。
 
-[有界 loop 方法](skills/delivery-harness/references/graph-orchestration.md#bounded-loop-method) 在实验前固定测量与预算，保留被拒绝的结果，沿用现有 attempt 与 outcome。唤醒后先核对状态；唤醒不授权重试、新任务或排程。
+[Generate、Verify、Correct 指引](skills/delivery-harness/references/gen-verify-correct.md) 把每个 stage 对应到 author、verifier 与 corrector。先用最短有效 focused check，到 mission、feature、platform 与 integration 才扩大，PASS 即停止。只读 finding 带着 expected／actual evidence 回到 owning flow；精确候选证据与既有 budget 继续有效。
 
 [交付验收契约](skills/delivery-harness/references/delivery-acceptance-contract.md) 串联必要 PRD TEST ID、冻结的场景／平台矩阵与精确版本证据。只在已授权的隔离测试环境准备合成账户与本轮拥有的数据。Mock 登录不能证明真实认证通过；Web、原生 iOS 与 agent 工具结果各需自己的证据。Production 登录后门、含秘密的 fixture、跳过必要测试、过期 build 或延后处理的阻塞问题，都不能算 PASS。检查器验证覆盖与保留证据，不声称能证明人工声明或外部观察的真实性。
 

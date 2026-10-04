@@ -17,6 +17,8 @@ Review the completed code candidate, not the implementation process. Bind every 
 
 This skill owns repository code-security review. It does not own product requirements, implementation, deployment controls, operational hardening in external consoles, vulnerability remediation, or issue tracking.
 
+Apply [Generate, Verify And Correct](../delivery-harness/references/gen-verify-correct.md) only to review routing. Return validated findings to the implementation owner; the reviewer never remediates the candidate.
+
 ## When To Run
 
 Run after all implementation missions are integrated and the candidate SHA is fixed, before delivery closeout. If a security finding changes code, the new SHA invalidates the earlier result and requires a fresh review.

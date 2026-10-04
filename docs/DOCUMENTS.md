@@ -4,7 +4,7 @@ The four READMEs remain the documentation of record for the skill bundle.
 
 | Document | Purpose | Status |
 | --- | --- | --- |
-| docs/epics/EPIC-gen-verify-platform-delivery.md | Bounded Generate/Verify/Correct, feature acceptance and approved platform order | Accepted; implementation and verification pending |
+| docs/epics/EPIC-gen-verify-platform-delivery.md | Bounded Generate/Verify/Correct, feature acceptance and approved platform order | Accepted; P1/H1 and G1 local source changes committed; focused checks recorded; final unified checks/review external report pending |
 | `docs/epics/EPIC-skills-source-main-only.md` | Source maintenance directly through main PRs; consumer policy retained | Source governance synchronized; 60 local contracts passed |
 | `docs/epics/EPIC-release-0.61.md` | Publish the completed source changes as 0.61.0 directly to main under the owner's exception | Source candidate CI and independent review passed; publication tracked by PR #136 |
 | `docs/epics/EPIC-document-writing-policy.md` | STE core writing rules for new or changed project documents | Source guideline verified locally; formal release and installation pending |
@@ -22,7 +22,7 @@ The four READMEs remain the documentation of record for the skill bundle.
 | `docs/epics/EPIC-design-showcase.md` | `ui-design/3` full packages, `design-system/4` source-derived HTML showcase and Harness 0.59 joins | Replay and native-width repairs verified locally; unified 0.60 candidate review/matrix tracked in consolidation |
 | `docs/epics/EPIC-branch-policy.md` | Dual-branch managed release policy, frozen bases, protected-branch landing and cleanup guards | Combined contract, golden and tasks-view fixture repairs integrated; final candidate verification and remote protection pending |
 | `docs/epics/EPIC-context-template-merge.md` | Safe authorized AGENTS bootstrap merge, explicit conflict reporting and host-neutral role/dependency guidance | Integrated locally through MOD-A idempotency repair; final verification pending |
-| `docs/WORKFLOW.zh-TW.md` | Numbered cross-host product delivery workflow and role/template handoffs | 0.60 merged-candidate guide; Eval and modernization steps reconciled; publication pending |
+| `docs/WORKFLOW.zh-TW.md` | Numbered cross-host product delivery workflow and role/template handoffs | Unreleased 0.61 source; Generate/Verify/Correct and platform guidance joined; publication pending |
 | `docs/epics/EPIC-harness-flow-modernization.md` | Template merge, dual protected branches, design showcase, Activation execution and validation efficiency | Joined with Eval as the 0.60.0 candidate; current checks and exact protected-branch decision tracked in consolidation |
 | `docs/epics/EPIC-activation-execution-closure.md` | Read-only fail-closed Activation closeout with explicit owner deferrals and blocked-vs-complete records | Execution-by-default and mandatory closeout integrated; parent 65-test suite passed at 97f2fae3; final candidate checks pending |
 | `docs/epics/EPIC-agent-delegation-contract.md` | Parent-owned role routing, multi-instance research/exploration and verified dispatch | Present in baseline main history at `bdae1d82`, matching local `v0.58.0`; later observation appended to Epic |
