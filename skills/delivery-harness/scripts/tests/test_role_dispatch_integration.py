@@ -50,7 +50,7 @@ def launch_arguments():
     return SimpleNamespace(
         assignment_kind="mission", assignment_id="lease-1", node_id="N-M1",
         worker_id="worker-1", attempt_id="attempt-1", model_provider="claude_code",
-        model="claude-opus-5-5", reasoning_effort="high", session_id="host-session-1",
+        model="claude-opus-5-5", reasoning_effort="high", worker_session_id="host-session-1",
         launch_observation="retained host start response", host_observation="parent host observation",
         fallback_record=None,
     )

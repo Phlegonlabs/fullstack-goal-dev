@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 import sys
 import tempfile
 import unittest
@@ -23,7 +24,7 @@ if str(PDB_TESTS_DIR) not in sys.path:
 import new_run  # noqa: E402
 import render_tasks_view  # noqa: E402
 from harness_manifest import load_plan  # noqa: E402
-from manifest_fixtures import carry_security_requirement, manifest_markdown  # noqa: E402
+from manifest_fixtures import carry_security_requirement, manifest_markdown, eval_exempt_prd  # noqa: E402
 from test_product_package_checker import (  # noqa: E402
     release_architecture,
     strictize_approved_package,
@@ -35,6 +36,24 @@ while str(PDB_TESTS_DIR) in sys.path:
     sys.path.remove(str(PDB_TESTS_DIR))
 
 PLAN_TEMPLATE = SCRIPTS_DIR.parent / "assets" / "templates" / "HARNESS_PLAN.template.md"
+
+
+def current_release_architecture() -> str:
+    """Package the renderer fixture with the installed release protocol."""
+
+    architecture = release_architecture().replace(
+        "## Release Targets",
+        "## Release Targets\n\nRelease source policy: dual-branch/1",
+        1,
+    )
+    return re.sub(
+        r"^- Source policy: stage=development; .*$",
+        "- Source policy: stage=development; ref=refs/heads/development; "
+        "sha=promotion.verified_development_sha",
+        architecture,
+        count=1,
+        flags=re.MULTILINE,
+    )
 
 
 def two_mission_plan() -> dict:
@@ -109,7 +128,7 @@ class RenderTasksViewTests(unittest.TestCase):
         self.dir = Path(self.tmp.name)
         self.plan = load_plan(PLAN_TEMPLATE)
         approved_prd, approved_architecture, approved_stack = strictize_approved_package(
-            valid_prd(), release_architecture(), valid_stack()
+            eval_exempt_prd(valid_prd()), current_release_architecture(), valid_stack()
         )
         product_sources = {
             "docs/product/PRD.md": approved_prd.encode("utf-8"),

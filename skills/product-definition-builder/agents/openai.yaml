@@ -71,10 +71,12 @@ interface:
     no -prod suffix, -dev development names,
     exact source refs, artifacts, signing, channels, availability proof,
     rollout and rollback or signed forward-fix. Upload is not availability.
-    Use one repository and one codebase under the main-only branch model:
-    development builds the exact candidate branch/SHA, and production uses the
-    same verified candidate only after separately authorized fast-forward to
-    main.
+    Use one repository and one codebase under the dual-branch governance:
+    ordinary work freezes remote development, a hotfix freezes remote main, and
+    the selected architecture marker determines whether managed development
+    uses the exact candidate branch/SHA or the verified protected-development
+    SHA. Production uses the same verified release SHA only after separately
+    authorized protected-branch promotion to main.
     Seed docs/DEPLOYMENT.md with names and external-console work but no values.
     For every release target with an activation scope, create
     docs/ACTIVATION.md only when absent, map every metric and required TEST

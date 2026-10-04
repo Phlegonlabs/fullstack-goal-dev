@@ -112,6 +112,7 @@ from harness_authorization import (
     is_protected_branch_target,
     wave_scope_matches_current,
 )
+from branch_policy import branch_policy_required, validate_branch_policy_shape
 from harness_graph import (
     _cycle_nodes,
     _validate_graph,
@@ -1967,7 +1968,12 @@ def validate_plan(
     # so an empty list was always legal and omitting it is the same thing --
     # actual review coverage comes from the per-mission singleton review nodes
     # described in `contract-and-traceability.md`, not from this field.
-    plan_optional_keys = {"risks", "required_reviews", "security_review"}
+    plan_optional_keys = {
+        "branch_policy",
+        "risks",
+        "required_reviews",
+        "security_review",
+    }
     if not _keys(errors, "plan", plan, top_keys, plan_optional_keys):
         return sorted(errors)
     if plan["schema_version"] not in {2, 3, 4, 5, 6}:
@@ -1997,6 +2003,8 @@ def validate_plan(
                 f"unsupported review types: {', '.join(unknown_reviews)}",
             )
     _validate_plan_security_review(errors, plan, required_reviews)
+    if schema_version == 6 and "branch_policy" in plan:
+        errors.extend(validate_branch_policy_shape(plan))
 
     sources = _validate_plan_sources(errors, plan, schema_version)
 
@@ -5679,6 +5687,12 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
         optional_run_keys.add("launch_records")
     if not _keys(errors, "run", run, run_keys, optional_run_keys):
         return sorted(errors)
+    if (
+        schema_version == 11
+        and plan.get("schema_version") == 6
+        and branch_policy_required(run)
+    ):
+        errors.extend(validate_branch_policy_shape(plan))
     # The 0.55.0 shape checks skip only a pin that parses below 0.55.0; a
     # null or malformed pin gets the strict checks.
     parsed_pin = parse_harness_version(required_harness_version)
@@ -7283,6 +7297,32 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                     worker.get("outcome") == "fix_required"
                 ):
                     current_reviewable_shas.update(integration_prior_heads)
+                # A detached terminal review remains evidence for its old
+                # candidate. It cannot provide current exact-head coverage.
+                retained_attempts = [
+                    attempt
+                    for attempt in run.get("attempt_log", [])
+                    if isinstance(attempt, dict)
+                    and attempt.get("attempt_id") == worker.get("attempt_id")
+                ]
+                historical_integration_review = (
+                    review_stage == "integration"
+                    and not is_current_review_worker
+                    and worker.get("reviewed_sha") in integration_prior_heads
+                    and (
+                        worker.get("phase") in {"worker_passed", "worker_failed"}
+                        or _is_reconciled_interrupted_review(
+                            worker, node, run.get("attempt_log")
+                        )
+                    )
+                    and len(retained_attempts) == 1
+                    and retained_attempts[0].get("kind") == "review"
+                    and retained_attempts[0].get("result") == worker.get("outcome")
+                    and retained_attempts[0].get("review_lineage_id")
+                    == node.get("review", {}).get("lineage_id")
+                )
+                if historical_integration_review:
+                    current_reviewable_shas.update(integration_prior_heads)
                 if worker["reviewed_sha"] not in current_reviewable_shas:
                     _add(
                         errors,
@@ -7398,7 +7438,7 @@ def validate_run(plan: dict[str, Any], run: dict[str, Any]) -> list[str]:
                 if worker["phase"] in {"worker_running", "worker_passed"} and (
                     state.get("bound_worker_id") != worker["worker_id"]
                     or state.get("last_attempt_id") != worker["attempt_id"]
-                ):
+                ) and not historical_integration_review:
                     _add(errors, path, "active review worker must match the bound graph attempt")
                 binding = worker["runtime_binding"]
                 if _keys(

@@ -45,6 +45,7 @@ if str(UI_BUILDER_SCRIPTS) not in sys.path:
 
 from markdown_contract import active_text, exact_marker_lines  # noqa: E402
 from ui_approval_digest import canonical_ui_approval_sha256  # noqa: E402
+import design_system_showcase  # noqa: E402
 
 
 BEGIN_MARKER = "<!-- BEGIN GENERATED DESIGN SYSTEM CONTRACT -->"
@@ -68,6 +69,7 @@ CONTRACT_FIELDS = (
     "signatureRules",
     "motionVariants",
     "stateMatrix",
+    "showcase",
 )
 GENERATED_BLOCK_RE = re.compile(
     rf"{re.escape(BEGIN_MARKER)}\s*```json\s*(.*?)\s*```\s*{re.escape(END_MARKER)}",
@@ -92,6 +94,16 @@ SOURCE_BINDING_KEYS = (
     "hifi",
 )
 CURRENT_SCHEMA = "design-system/3"
+# design-system/4 is the full ui-design/3 package: /3 fields plus a
+# source-bound showcase. /3 keeps its original meaning for ui-design/2.
+SHOWCASE_SCHEMA = "design-system/4"
+WIREFRAME_FREE_SCHEMAS = {CURRENT_SCHEMA, SHOWCASE_SCHEMA}
+BOUND_SCHEMAS = {"design-system/2"} | WIREFRAME_FREE_SCHEMAS
+UI_CONTRACT_BY_SCHEMA = {
+    "design-system/2": "legacy",
+    CURRENT_SCHEMA: "ui-design/2",
+    SHOWCASE_SCHEMA: "ui-design/3",
+}
 CURRENT_SOURCE_BINDING_KEYS = tuple(
     key for key in SOURCE_BINDING_KEYS if key != "wireframe"
 )
@@ -679,23 +691,24 @@ def validate_registry(registry: dict[str, Any]) -> list[str]:
     """Validate the structured fields the pair checker promises to mirror."""
     problems: list[str] = []
     schema = registry.get("schema")
-    if schema not in {"design-system/1", "design-system/2", CURRENT_SCHEMA}:
+    if schema not in {"design-system/1"} | BOUND_SCHEMAS:
         problems.append(
             "design-system.json schema must be 'design-system/1', "
-            "'design-system/2', or 'design-system/3'"
+            "'design-system/2', 'design-system/3', or 'design-system/4'"
         )
+    if schema == SHOWCASE_SCHEMA:
+        problems.extend(design_system_showcase.registry_findings(registry))
+    elif "showcase" in registry:
+        problems.append("design-system.json showcase requires design-system/4")
 
     hybrid_surface_contracts = registry.get("surfaceContracts")
-    if hybrid_surface_contracts is not None and schema not in {
-        "design-system/2",
-        CURRENT_SCHEMA,
-    }:
+    if hybrid_surface_contracts is not None and schema not in BOUND_SCHEMAS:
         problems.append(
             "design-system.json surfaceContracts requires design-system/2 or "
             "design-system/3"
         )
     hybrid = (
-        schema in {"design-system/2", CURRENT_SCHEMA}
+        schema in BOUND_SCHEMAS
         and hybrid_surface_contracts is not None
     )
     product = registry.get("product")
@@ -856,10 +869,10 @@ def validate_registry(registry: dict[str, Any]) -> list[str]:
                     f"design-system.json {key} entry {item!r} must be an exact repo-relative path"
                 )
 
-    if schema in {"design-system/2", CURRENT_SCHEMA}:
+    if schema in BOUND_SCHEMAS:
         expected_keys = set(
             CURRENT_SOURCE_BINDING_KEYS
-            if schema == CURRENT_SCHEMA
+            if schema in WIREFRAME_FREE_SCHEMAS
             else SOURCE_BINDING_KEYS
         )
         bindings = registry.get("sourceBindings")
@@ -867,7 +880,7 @@ def validate_registry(registry: dict[str, Any]) -> list[str]:
             problems.append(
                 "design-system.json sourceBindings must be an object with prd, "
                 "architecture, stack, uiDesign, "
-                + ("and hifi" if schema == CURRENT_SCHEMA else "wireframe, and hifi")
+                + ("and hifi" if schema in WIREFRAME_FREE_SCHEMAS else "wireframe, and hifi")
             )
         else:
             expected = expected_keys
@@ -911,7 +924,7 @@ def validate_registry(registry: dict[str, Any]) -> list[str]:
                 "stack": "stack-decisions.md",
                 "uiDesign": "ui-design.md",
             }
-            if schema != CURRENT_SCHEMA:
+            if schema not in WIREFRAME_FREE_SCHEMAS:
                 semantic_suffixes["wireframe"] = "wireframes.html"
             for key, suffix in semantic_suffixes.items():
                 binding = bindings.get(key)
@@ -1110,13 +1123,16 @@ def _ui_identity_bindings(
         problems.append("design-system.json sourceBindings.uiDesign requires an active Design System Need Gate Decision: required")
     if isinstance(gate, dict) and gate.get("replacement"):
         problems.append("design-system.json sourceBindings.uiDesign must not contain a not_required replacement for a required pair")
-    if schema == CURRENT_SCHEMA and view.get("contract_version") != "ui-design/2":
+    expected_contract = UI_CONTRACT_BY_SCHEMA.get(schema)
+    if expected_contract in {"ui-design/2", "ui-design/3"} and view.get("contract_version") != expected_contract:
         problems.append(
             "design-system.json sourceBindings.uiDesign must select UI contract "
-            "ui-design/2 for design-system/3"
+            f"{expected_contract} for {schema}"
         )
-    if schema != CURRENT_SCHEMA and view.get("contract_version") == "ui-design/2":
+    if expected_contract == "legacy" and view.get("contract_version") == "ui-design/2":
         problems.append("design-system/2 requires a legacy UI contract; ui-design/2 requires design-system/3")
+    elif expected_contract == "legacy" and view.get("contract_version") == "ui-design/3":
+        problems.append("design-system/2 requires a legacy UI contract; ui-design/3 requires design-system/4")
     identities = view.get("source_identities") if isinstance(view, dict) else {}
     target_scope = view.get("target_scope") if isinstance(view, dict) else None
     if surface_contracts is not None:
@@ -1150,7 +1166,7 @@ def _ui_identity_bindings(
         "architecture": "architecture",
         "stack": "stack",
     }
-    if schema != CURRENT_SCHEMA:
+    if schema not in WIREFRAME_FREE_SCHEMAS:
         mapping["wireframe"] = "wireframe"
     for key, view_key in mapping.items():
         binding = bindings.get(key)
@@ -1182,7 +1198,7 @@ def _ui_identity_bindings(
                 key: bindings.get(key)
                 for key in (
                     CURRENT_SOURCE_BINDING_KEYS
-                    if schema == CURRENT_SCHEMA
+                    if schema in WIREFRAME_FREE_SCHEMAS
                     else SOURCE_BINDING_KEYS
                 )
             }
@@ -1404,6 +1420,39 @@ def _validate_stack_semantics(
                 problems.append(f"design-system.json stackSemantics.{key} does not match approved Stack selection")
 
 
+def load_showcase_sources(
+    registry: dict[str, Any], root: Path
+) -> tuple[dict[str, str], dict[str, Any], dict[str, str], list[str]]:
+    """Read the bound HiFi entry and every hash-checked sibling page."""
+
+    bindings = registry.get("sourceBindings")
+    hifi = bindings.get("hifi") if isinstance(bindings, dict) else None
+    path = hifi.get("path") if isinstance(hifi, dict) else None
+    entry = _safe_repo_candidate(root, path) if isinstance(path, str) else None
+    if entry is None or not entry.is_file():
+        return {}, {}, {}, ["design-system/4 showcase requires a readable sourceBindings.hifi entry"]
+    entry_bytes = entry.read_bytes()
+    if hashlib.sha256(entry_bytes).hexdigest() != hifi.get("sha256"):
+        return {}, {}, {}, ["design-system/4 showcase HiFi entry does not match sourceBindings.hifi"]
+    folder = path.rsplit("/", 1)[0] + "/" if "/" in path else ""
+
+    def read_child(name: str) -> bytes | None:
+        candidate = _safe_repo_candidate(root, folder + name)
+        return candidate.read_bytes() if candidate is not None and candidate.is_file() else None
+
+    documents, manifest, problems = design_system_showcase.load_hifi_package(entry_bytes, read_child)
+    return documents, manifest, {"path": path, "sha256": hifi["sha256"]}, problems
+
+
+def showcase_source_findings(registry: dict[str, Any], root: Path) -> list[str]:
+    """Every design-system/4 specimen must resolve to approved HiFi source."""
+
+    documents, _manifest, _binding, problems = load_showcase_sources(registry, root)
+    if problems:
+        return problems
+    return design_system_showcase.resolve(registry, documents)[1]
+
+
 def compare(
     markdown_text: str,
     registry: dict[str, Any],
@@ -1420,9 +1469,10 @@ def compare(
 
     problems = validate_registry(registry)
     if require_filled:
-        if registry.get("schema") not in {"design-system/2", CURRENT_SCHEMA}:
+        if registry.get("schema") not in BOUND_SCHEMAS:
             problems.append(
-                "current publication requires design-system/2 or design-system/3; design-system/1 is inspection-only"
+                "current publication requires design-system/2, design-system/3 or design-system/4; "
+                "design-system/1 is inspection-only"
             )
         problems.extend(unfilled_placeholders(registry))
     generated, parse_problems = _extract_generated_contract(markdown_text)
@@ -1435,10 +1485,10 @@ def compare(
             problems,
         )
     registry_schema = registry.get("schema")
-    uses_bindings = registry_schema in {"design-system/2", CURRENT_SCHEMA}
+    uses_bindings = registry_schema in BOUND_SCHEMAS
     binding_keys = (
         CURRENT_SOURCE_BINDING_KEYS
-        if registry_schema == CURRENT_SCHEMA
+        if registry_schema in WIREFRAME_FREE_SCHEMAS
         else SOURCE_BINDING_KEYS
     )
     if uses_bindings and repo_root is None:
@@ -1518,6 +1568,10 @@ def compare(
                         ui_view=ui_view,
                         problems=problems,
                     )
+                # Source resolution needs a structurally complete showcase;
+                # validate_registry already reported any shape gap.
+                if registry_schema == SHOWCASE_SCHEMA and not design_system_showcase.registry_findings(registry):
+                    problems.extend(showcase_source_findings(registry, root))
 
     # Every DS-* id active Markdown names — prose or tables, never fences or
     # must resolve to a registered id: a product component dsId, a primitive

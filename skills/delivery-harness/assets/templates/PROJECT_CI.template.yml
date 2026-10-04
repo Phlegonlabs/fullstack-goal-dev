@@ -5,35 +5,145 @@ on:
   merge_group:
   push:
     branches:
-      # Do not assume a run-branch prefix; verify every pushed branch.
-      - '**'
+      # Replace these placeholders with protected integration/release branches.
+      # Do not add '**': a feature branch is verified once by its pull request.
+      - <protected-branch-1>
+      - <protected-branch-2>
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Full 40-character commit SHA to verify for release
+        required: true
+        type: string
+      base_sha:
+        description: Full 40-character ancestor commit from which the release changed
+        required: true
+        type: string
 
 permissions:
   contents: read
 
+concurrency:
+  group: >-
+    project-ci-${{
+    github.event_name == 'workflow_dispatch' && inputs.release_sha ||
+    github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) ||
+    github.ref
+    }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CANDIDATE_SHA: ${{ inputs.release_sha || github.event.pull_request.head.sha || github.sha }}
+
 jobs:
-  verify:
-    name: verify
+  checks:
+    name: checks
     runs-on: ubuntu-latest
+    env:
+      DIFF_BASE_SHA: >-
+        ${{
+        github.event_name == 'workflow_dispatch' && inputs.base_sha ||
+        github.event_name == 'pull_request' && github.event.pull_request.base.sha ||
+        github.event_name == 'merge_group' && github.event.merge_group.base_sha ||
+        github.event.before
+        }}
     steps:
-      - name: Check out repository
+      - name: Check out exact candidate
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.CANDIDATE_SHA }}
+
+      - name: Verify canonical checked-out candidate
+        run: |
+          if [[ ! "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "CANDIDATE_SHA must be a full lowercase commit SHA"
+            exit 1
+          fi
+          actual_sha="$(git rev-parse HEAD)"
+          test "$actual_sha" = "$CANDIDATE_SHA"
 
       # Add the repo-specific runtime setup steps here.
 
       - name: Run required verification
         run: <verification-command>
 
+      - name: Check candidate diff against a meaningful base
+        run: |
+          actual_sha="$(git rev-parse HEAD)"
+          # Inline Git checks keep this template usable in a consumer checkout
+          # with no bundled or installed Harness skills.
+          require_commit() {
+            if ! printf '%s' "$1" | grep -Eq '^[0-9a-f]{40}$'; then
+              echo "$2 must be a full lowercase commit SHA" >&2
+              return 1
+            fi
+            if ! resolved_sha="$(git rev-parse --verify "$1^{commit}")"; then
+              echo "$2 does not resolve to a commit" >&2
+              return 1
+            fi
+            if [ "$resolved_sha" != "$1" ]; then
+              echo "$2 resolved to $resolved_sha, not its exact bytes" >&2
+              return 1
+            fi
+            printf '%s\n' "$resolved_sha"
+          }
+
+          case "$GITHUB_EVENT_NAME" in
+            workflow_dispatch)
+              [ -n "$DIFF_BASE_SHA" ] || { echo "manual release requires base_sha" >&2; exit 1; }
+              diff_base="$(require_commit "$DIFF_BASE_SHA" base_sha)" || exit 1
+              [ "$diff_base" != "$actual_sha" ] || { echo "base_sha must differ from candidate_sha" >&2; exit 1; }
+              git merge-base --is-ancestor "$diff_base" "$actual_sha" || {
+                echo "base_sha is not an ancestor of candidate_sha" >&2
+                exit 1
+              }
+              ;;
+            pull_request|merge_group)
+              [ -n "$DIFF_BASE_SHA" ] || { echo "$GITHUB_EVENT_NAME did not provide a base SHA" >&2; exit 1; }
+              event_base="$(require_commit "$DIFF_BASE_SHA" base)" || exit 1
+              [ "$event_base" != "$actual_sha" ] || { echo "base equals the candidate" >&2; exit 1; }
+              diff_base="$(git merge-base "$event_base" "$actual_sha")" || {
+                echo "base and candidate have no merge base" >&2
+                exit 1
+              }
+              printf '%s' "$diff_base" | grep -Eq '^[0-9a-f]{40}$' || {
+                echo "merge base is not a full commit SHA" >&2
+                exit 1
+              }
+              ;;
+            push)
+              if [ -z "${DIFF_BASE_SHA:-}" ] ||
+                 printf '%s' "$DIFF_BASE_SHA" | grep -Eq '^0{40}$'; then
+                diff_base="$(git mktree </dev/null)" || exit 1
+                [ -n "$diff_base" ] || { echo "Git returned an empty tree value" >&2; exit 1; }
+              else
+                diff_base="$(require_commit "$DIFF_BASE_SHA" "push base")" || exit 1
+                [ "$diff_base" != "$actual_sha" ] || { echo "push base equals the candidate" >&2; exit 1; }
+                git merge-base --is-ancestor "$diff_base" "$actual_sha" || {
+                  echo "push base is not an ancestor of candidate_sha" >&2
+                  exit 1
+                }
+              fi
+              ;;
+            *)
+              echo "unsupported event: $GITHUB_EVENT_NAME" >&2
+              exit 1
+              ;;
+          esac
+          git diff --check "$diff_base" "$actual_sha"
+
   e2e:
     name: e2e
     runs-on: ubuntu-latest
-    env:
-      E2E_HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
     steps:
-      - name: Check out repository
+      - name: Check out exact candidate
         uses: actions/checkout@v4
         with:
-          ref: ${{ env.E2E_HEAD_SHA }}
+          ref: ${{ env.CANDIDATE_SHA }}
+
+      - name: Verify exact checked-out candidate
+        run: test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
 
       # Add the same repo-specific runtime and service setup used by the target environment.
 
@@ -44,6 +154,28 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-${{ env.E2E_HEAD_SHA }}
+          name: e2e-${{ env.CANDIDATE_SHA }}
           path: <e2e-artifact-path>
           if-no-files-found: error
+
+  verify:
+    # Keep this stable name for branch protection. It is the final aggregate,
+    # so skipped or cancelled dependencies cannot produce a green release gate.
+    name: verify
+    needs: [checks, e2e]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every result to succeed
+        env:
+          CHECKS_RESULT: ${{ needs.checks.result }}
+          E2E_RESULT: ${{ needs.e2e.result }}
+        run: |
+          failed=0
+          for result in "$CHECKS_RESULT" "$E2E_RESULT"; do
+            if [ "$result" != success ]; then
+              echo "required result: $result"
+              failed=1
+            fi
+          done
+          exit "$failed"

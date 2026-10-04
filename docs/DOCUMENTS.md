@@ -4,20 +4,36 @@ The four READMEs remain the documentation of record for the skill bundle.
 
 | Document | Purpose | Status |
 | --- | --- | --- |
-| `docs/epics/EPIC-agent-delegation-contract.md` | Parent-owned role routing, multi-instance research/exploration and verified dispatch | In progress on `codex/agent-delegation-contract`; local changes, not released |
-| `docs/epics/EPIC-pre-delivery-self-review.md` | PRD/market, UI direction and HiFi author self-review before Harness execution | 0.57.0 candidate on `codex/pre-delivery-self-review`; fixed-candidate verification pending; not released |
+| `docs/epics/EPIC-worktree-consolidation.md` | Publish all worktree heads and reconcile the current Eval/modernization sources | All 16 heads published; local source merged; unified candidate checks and exact main decision pending |
+| `docs/epics/EPIC-viteplus-evaluation.md` | Vite+/VoidZero frontend tooling and AI/skill evaluation assessment | Research complete; integration and eval pilot proposed, not implemented |
+| `docs/epics/EPIC-eval-contract-integration.md` | Approved eval policy, deterministic quality gate and reproducible handoff integration | 0.60.0 local candidate `882dda69` verified on Windows; independent code/security review PASS; release/install pending |
+| `docs/epics/EPIC-eval-contract-research.md` | Eval rubric, frozen pass rate and reproducible handoff research | Research complete; accepted implementation continues in EPIC-eval-contract-integration |
+| `docs/research/eval-contract-integration.md` | Integration proposal, eval gate rules and future-project handoff | Accepted on 2026-10-03; implementation tracked separately |
+| `docs/epics/EPIC-harness-recovery-review.md` | Launch identity, historical review recovery, frozen archive base, interrupted retry and complete review input | Six outcomes integrated in separate local commits; focused checks passed; fixed-candidate release review/matrix pending |
+| `docs/research/context-decomposition.md` | Measured stage and role content boundaries, load-set estimates and atomic migration tasks | Research proposal recorded; canonical reading rules unchanged |
+| `docs/epics/EPIC-design-showcase.md` | `ui-design/3` full packages, `design-system/4` source-derived HTML showcase and Harness 0.59 joins | Replay and native-width repairs verified locally; unified 0.60 candidate review/matrix tracked in consolidation |
+| `docs/epics/EPIC-branch-policy.md` | Dual-branch managed release policy, frozen bases, protected-branch landing and cleanup guards | Combined contract, golden and tasks-view fixture repairs integrated; final candidate verification and remote protection pending |
+| `docs/epics/EPIC-context-template-merge.md` | Safe authorized AGENTS bootstrap merge, explicit conflict reporting and host-neutral role/dependency guidance | Integrated locally through MOD-A idempotency repair; final verification pending |
+| `docs/WORKFLOW.zh-TW.md` | Numbered cross-host product delivery workflow and role/template handoffs | 0.60 merged-candidate guide; Eval and modernization steps reconciled; publication pending |
+| `docs/epics/EPIC-harness-flow-modernization.md` | Template merge, dual protected branches, design showcase, Activation execution and validation efficiency | Joined with Eval as the 0.60.0 candidate; current checks and exact protected-branch decision tracked in consolidation |
+| `docs/epics/EPIC-activation-execution-closure.md` | Read-only fail-closed Activation closeout with explicit owner deferrals and blocked-vs-complete records | Execution-by-default and mandatory closeout integrated; parent 65-test suite passed at 97f2fae3; final candidate checks pending |
+| `docs/epics/EPIC-agent-delegation-contract.md` | Parent-owned role routing, multi-instance research/exploration and verified dispatch | Present in baseline main history at `bdae1d82`, matching local `v0.58.0`; later observation appended to Epic |
+| `docs/epics/EPIC-pre-delivery-self-review.md` | PRD/market, UI direction and HiFi author self-review before Harness execution | Present in baseline main history at `b591a618`, matching local `v0.57.0`; later observation appended to Epic |
+| `docs/epics/EPIC-ci-candidate-efficiency.md` | Exact-candidate CI, no duplicate feature runs, strict aggregate and measured shard scheduling | Aggregate and real profile-deadline repairs verified; unified candidate checks tracked in consolidation |
 | `docs/audits/2026-09-28-contract-audit.md` | Dispositions for all 47 pasted audit items, including truncated and retained items | Integrated on `main` in the 0.56 release line |
 | `docs/epics/EPIC-macos-support.md` | Run the skill bundle and CI suites on macOS | Integrated on `main` in the 0.56 release line |
 | `docs/epics/EPIC-remove-wireframe-stage.md` | Remove the new-package Wireframe stage; move completeness and frozen-source checks to PRD and HiFi | Integrated on `main` in the 0.56 release line |
 | `docs/epics/EPIC-motion-media-quality.md` | Motion/Three.js routes, silent-owner motion proposal, HiFi media limits and reference captures | Committed on `codex/review-fixes` for 0.55.0 |
 | `docs/epics/EPIC-review-fixes-20260927.md` | Seven-skill review fixes, round-4 follow-ups, audit and 0.56.1 acceptance repair | Original fixes released in v0.55.0; follow-ups and audit integrated on `main`; 0.56.1 repair in PR #132 |
 | `docs/epics/EPIC-reference-flow-integration.md` | Optional 19-domain reference catalog, selection rule, and stage-local skill pointers | Released in v0.54.4 |
+| `docs/epics/EPIC-stack-design-catalog-expansion.md` | TanStack and architecture alternatives, Cloudflare coverage, component/design/motion sources and manual reference intake | Complete local source scope; focused checks and authorized Astra review passed; no release or installation |
+| `docs/epics/EPIC-architecture-catalog-extension.md` | Independent catalog repair and a modest extension of architecture compositions | Complete local source scope; exact-source focused checks and authorized Astra review passed at beec2066; no release or installation |
 | `docs/epics/EPIC-reviewer-sidebar-polish.md` | Shared Wireframe and HiFi reviewer sidebar styling | Released in v0.54.3 |
 | `docs/epics/EPIC-app-companion-web.md` | Technology-neutral one-PRD App/showcase-Web specifications | Released in v0.54.2 |
 | `docs/epics/EPIC-design-authoring-flow.md` | PRD-bound style and playable-motion authoring across skills | Released in v0.54.2 |
 | `docs/epics/EPIC-prd-continuous-completeness.md` | First-delivery UI/technical completeness and ongoing evidence-based PRD refinement | Released in v0.54.1 |
 | `docs/epics/EPIC-design-brief-reference-intake.md` | Explicit reference questions and a concise Design Brief in existing UI intake | Released in v0.54.1 |
-| `README.md`, `README.zh-TW.md`, `README.zh-CN.md`, `README.es.md` | Published skill behavior and release instructions | 0.56.1 integrated at `d7083fb3`; 0.57.0 self-review candidate under verification |
+| `README.md`, `README.zh-TW.md`, `README.zh-CN.md`, `README.es.md` | Skill behavior and release instructions | Unified 0.60.0 eval and modernization candidate; main remains 0.58.0; final checks and release pending |
 | `docs/epics/EPIC-runtime-and-verification-reliability.md` | Browser CI, lifecycle, runtime metrics, document review and same-RUN recovery | Released in v0.54.1 |
 | `docs/epics/EPIC-ui-reviewer-integration.md` | Unified Wireframe/HiFi review, evidence, and lifecycle integration | Released in v0.54.1 |
 | `docs/epics/EPIC-001-incremental-design-review.md` | Incremental UI authoring and interactive review repair | Work released through v0.50.0; Epic status still `in_progress` |

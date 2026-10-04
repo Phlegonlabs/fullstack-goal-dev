@@ -961,9 +961,9 @@ class ArchiveRunTests(unittest.TestCase):
         original = archive_run._live_head_problems
         calls = {"count": 0}
 
-        def drift_after_first_snapshot(run: dict[str, object], root: Path, expected_main: str, main_ref: str, moves: list[Path]) -> list[str]:
+        def drift_after_first_snapshot(run: dict[str, object], root: Path, expected_main: str, main_ref: str, moves: list[Path], plan=None) -> list[str]:
             calls["count"] += 1
-            problems = original(run, root, expected_main, main_ref, moves)
+            problems = original(run, root, expected_main, main_ref, moves, plan)
             if calls["count"] == 1:
                 mf.git(root, "commit", "--allow-empty", "-qm", "late HEAD drift")
             return problems
@@ -985,9 +985,9 @@ class ArchiveRunTests(unittest.TestCase):
         original = archive_run._live_head_problems
         calls = {"count": 0}
 
-        def dirty_after_first_snapshot(run: dict[str, object], root: Path, expected_main: str, main_ref: str, moves: list[Path]) -> list[str]:
+        def dirty_after_first_snapshot(run: dict[str, object], root: Path, expected_main: str, main_ref: str, moves: list[Path], plan=None) -> list[str]:
             calls["count"] += 1
-            problems = original(run, root, expected_main, main_ref, moves)
+            problems = original(run, root, expected_main, main_ref, moves, plan)
             if calls["count"] == 1:
                 (root / "late-unrelated.txt").write_text("late dirty path\n", encoding="utf-8")
             return problems

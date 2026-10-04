@@ -1,6 +1,4 @@
 import re
-import shutil
-import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -47,29 +45,29 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
             self.assertIn("Incremental UI Scope", content)
 
     @unittest.skipUnless(sys.platform == "win32" and REPO_ROOT is not None,
-                         "Windows CI command exit propagation")
-    def test_windows_ci_stops_at_each_failed_suite(self) -> None:
-        shell = shutil.which("pwsh") or shutil.which("powershell")
-        if shell is None:
-            self.skipTest("PowerShell unavailable")
+                         "Windows CI candidate identity")
+    def test_windows_ci_uses_exact_candidate_and_stops_at_each_failed_shard(self) -> None:
         workflow = (REPO_ROOT / ".github/workflows/harness-ci.yml").read_text(encoding="utf-8")
-        step = workflow.split("      - name: Run native runtime, Git, parity, transition and context tests\n", 1)[1]
+        job = workflow.split("\n  windows-native:\n", 1)[1].split("\n  windows-installer:\n", 1)[0]
+        self.assertIn("ref: ${{ env.CANDIDATE_SHA }}", job)
+        self.assertIn('-ne $env:CANDIDATE_SHA', job)
+        step = job.split("      - name: Run measured native Harness shard\n", 1)[1]
         step = step.split("      - name:", 1)[0].split("        run: |\n", 1)[1]
-        script = "\n".join(line[10:] for line in step.splitlines() if line.strip())
-        count = sum(line.startswith("python -m unittest ") for line in script.splitlines())
-        self.assertGreater(count, 1)
-        for failed_suite in range(1, count + 1):
-            with self.subTest(failed_suite=failed_suite):
-                stub = (
-                    "$global:Calls = 0\nfunction python {\n"
-                    "  $global:Calls++\n  Write-Output ('suite:' + $global:Calls)\n"
-                    f"  if ($global:Calls -eq {failed_suite}) {{ $global:LASTEXITCODE = 7 }}\n"
-                    "  else { $global:LASTEXITCODE = 0 }\n}\n"
-                )
-                result = subprocess.run([shell, "-NoProfile", "-NonInteractive", "-Command", stub + script],
-                                        capture_output=True, text=True, timeout=30)
-                self.assertEqual(7, result.returncode, result.stdout + result.stderr)
-                self.assertEqual(failed_suite, result.stdout.count("suite:"))
+        self.assertIn("--platform windows --shard-count 4", step)
+        self.assertIn("--shard-index '${{ matrix.shard }}'", step)
+        self.assertIn("shard: [0, 1, 2, 3]", job)
+        self.assertIn("$plannerStatus = $LASTEXITCODE", step)
+        self.assertIn("if ($plannerStatus -ne 0) {", step)
+        self.assertIn("exit $plannerStatus", step)
+        self.assertIn("$plan = $planJson | ConvertFrom-Json", step)
+        self.assertLess(
+            step.index("$plannerStatus = $LASTEXITCODE"),
+            step.index("$plan = $planJson | ConvertFrom-Json"),
+        )
+        self.assertIn("foreach ($testFile in $plan.files) {", step)
+        self.assertIn("$suiteStatus = $LASTEXITCODE", step)
+        self.assertIn("if ($suiteStatus -ne 0) {", step)
+        self.assertIn("exit $suiteStatus", step)
 
     @unittest.skipIf(REPO_ROOT is None, "brand contract requires a source checkout")
     def test_product_delivery_harness_brand_and_skill_ids_are_canonical(self) -> None:
@@ -771,7 +769,7 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         for phrase in (
             "Production tracks `main`",
             "isolated internal environment tracks the exact candidate run branch",
-            "There is no persistent integration branch",
+            "protected `refs/heads/development` at its verified landing SHA",
             "A development PASS never proves production",
             "adds no RUN authorization keys",
             "never triggers, rolls back, or reconfigures a deployment",
@@ -801,22 +799,22 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
             "Delivery Kind And Base",
             "Candidate Gate",
             "Promote To Main",
-            "Retired Development Branch",
+            "Protected Branches",
             "require its tree to equal the verified candidate tree",
-            "exact remote `main` SHA before tagging",
+            "exact SHA before promotion",
             "fast-forward to that exact SHA",
             "Every fetch, branch creation, ref update, merge, push, external test, and branch deletion",
             "The archived RUN grants nothing",
             "request, pre-side-effect attempt, and receipt outside the checkout",
-            "exact verified candidate at remote `main`",
+            "forward-integration SHA T and read-back",
         ):
             self.assertIn(phrase, promotion)
-        self.assertIn("both initial-delivery and enhancement run branches", orchestration)
-        self.assertIn("observed remote `main`", orchestration)
+        self.assertIn("initial-delivery and enhancement run branches", orchestration)
+        self.assertIn("frozen ordinary `development` or hotfix `main` remote head", orchestration)
         self.assertIn("## Deployment", project_agents)
         self.assertIn("deployment-contract.md", project_agents)
         self.assertIn("branch-promotion-contract.md", project_agents)
-        self.assertIn("fast-forward exact A to `main`", project_agents)
+        self.assertIn("exact-SHA promotion to protected `main`", project_agents)
         self.assertIn("Protected resources preview must never bind", project_agents)
         self.assertIn(
             "general runtime adapter reference", project_claude
@@ -878,9 +876,10 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("Capability never grants permission", project_agents)
         if REPO_ROOT is not None:
             root_agents = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
-            self.assertIn("An `initial_delivery` or `enhancement` completes", root_agents)
-            self.assertIn("permanently main-only", root_agents)
-            self.assertIn("never force-push", root_agents)
+            self.assertIn("permanently protects both `development` and `main`", root_agents)
+            self.assertIn("Never delete either local or remote branch", root_agents)
+            self.assertIn("separate authorization for each target", root_agents)
+            self.assertIn("never force-push", root_agents.casefold())
 
     def test_adding_a_binding_runbook_orders_resource_before_declaration(self) -> None:
         contract = self.read("references/deployment-contract.md")
@@ -889,7 +888,7 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         for phrase in (
             "create the non-production resource",
             "deploy the exact candidate branch/SHA",
-            "promote that exact verified SHA to `main`",
+            "land that exact verified SHA on protected `development`",
             "Development secrets stay fake or dedicated",
             "D1 migrations run against the non-production database first",
         ):
@@ -1047,6 +1046,11 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
             self.assertNotIn("frontend-design` in conformance mode", content)
             self.assertNotIn("`frontend-design` and `design-system-compiler`", content)
         self.assertIn("Harness—not the external skill—owns", worker_goal)
+        self.assertNotIn("a direct parent may author", worker_goal)
+        self.assertIn(
+            "UI authoring uses the host-bound frontend author",
+            worker_goal,
+        )
         self.assertIn("proposed design-input delta", design_updates)
         self.assertIn("return formal pair changes to `design-system-compiler`", design_updates)
 
@@ -1411,9 +1415,13 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("PROJECT_CLAUDE.template.md", skill)
         self.assertIn("## Repository Context Contract", skill)
         self.assertIn("scripts/configure_project_context.py --root <target-root>", skill)
-        self.assertIn("generated files are intentionally different", skill)
+        self.assertIn("generated files differ", skill)
         self.assertIn("current host's effective instruction precedence", skill)
-        self.assertIn("Never overwrite, merge, normalize, or silently copy", skill)
+        self.assertIn("never overwrite, normalize, silently copy", skill)
+        self.assertIn("--merge-agents", skill)
+        self.assertIn("reviewed plan", skill)
+        self.assertIn("original/template hashes", skill)
+        self.assertIn("unresolved semantic divergences", skill)
         self.assertIn("Host-specific repository context:", worker_goal)
         self.assertIn("Runtime-specific worker contract:", worker_goal)
         self.assertIn("Keep automatic context discovery enabled", worker_goal)
@@ -1548,23 +1556,38 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
             self.assertIn("never add a fixed prefix", content.lower())
         self.assertIn("does not own shared state", adapters)
         self.assertIn("ask before branch creation", skill.lower())
-        self.assertIn("- '**'", ci)
+        self.assertNotIn("- '**'", ci)
+        self.assertIn("<protected-branch-1>", ci)
+        self.assertIn("<protected-branch-2>", ci)
         self.assertNotIn("codex/**", ci)
 
     def test_repo_ci_workflow_verifies_every_pushed_branch(self) -> None:
-        # The template promises `'**'`; this pins the repository's own workflow
-        # to the same filter so a governance-legal branch push can never skip
-        # CI. Standalone installs (no repo checkout) have no workflow to read.
+        # Feature branches verify once through pull_request. Protected branch
+        # pushes and merge queue candidates still get dedicated CI runs.
         if REPO_ROOT is None:
             self.skipTest("no repository checkout around the skill")
         workflow = REPO_ROOT / ".github" / "workflows" / "harness-ci.yml"
         if not workflow.is_file():
             self.skipTest("repository has no harness-ci workflow")
         content = workflow.read_text(encoding="utf-8")
-        self.assertIn("- '**'", content)
+        self.assertIn("- main", content)
+        self.assertIn("- development", content)
         self.assertNotIn("codex/**", content)
+        self.assertNotIn("- '**'", content)
+        self.assertIn("merge_group:", content)
+        self.assertIn("workflow_dispatch:", content)
+        self.assertIn("github.event.pull_request.base.sha", content)
+        self.assertIn("github.event.merge_group.base_sha", content)
+        self.assertIn("ci_test_shards.py gate", content)
         self.assertIn('HARNESS_GOLDEN_PATH: "1"', content)
         self.assertIn('-p "test_golden_path.py" -v', content)
+        self.assertIn("PDH_REQUIRE_BROWSER_TESTS: \"1\"", content)
+        self.assertIn("npx playwright install --with-deps chromium", content)
+        for suite in ("product-definition-builder", "design-system-compiler", "product-activation", "seo-growth-review"):
+            self.assertIn(
+                f"unittest discover -s skills/{suite}/scripts/tests -v",
+                content,
+            )
         self.assertIn("skills/product-activation/scripts", content)
         self.assertIn(
             "unittest discover -s skills/product-activation/scripts/tests -v",

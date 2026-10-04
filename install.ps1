@@ -70,7 +70,7 @@ if ($CheckDependencies) {
         # though $ErrorActionPreference is Stop; otherwise the first Write-Error
         # terminates the script before every dependency is reported.
         $missing | ForEach-Object { Write-Error "dependency missing: $_" -ErrorAction Continue }
-        throw "install frontend-design through the Codex skill installer and Impeccable through 'npx impeccable install', then rerun with -CheckDependencies"
+        throw "install frontend-design through the host's skill installer and Impeccable through 'npx impeccable install', then rerun with -CheckDependencies"
     }
     exit 0
 }

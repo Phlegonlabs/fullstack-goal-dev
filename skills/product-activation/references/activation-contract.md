@@ -185,6 +185,10 @@ Every `Checked` and `Updated` time is timezone-bearing RFC3339. Capability probe
 
 An ambiguous mutation result stays `uncertain` and records matching `UNCERTAIN` write or manual evidence. A failed read-back becomes `blocked` or `stale`; it never triggers automatic rollback or remediation.
 
+Evidence is not transferable between release identities. Read-back that proves an unchanged external object does not prove the behavior of a new build, configuration, or release binding; those need fresh applicable read-back and behavior evidence bound to the new identity.
+
+When required execution work is blocked or deferred, keep the task `blocked`. An owner deferral uses this reason form: `owner-deferred by <human owner>: <specific work remaining>`. The owner and remaining work must be concrete, not blank or placeholder prose. A concrete non-human blocker may use the task's ordinary concrete reason. Either case leaves the record `blocked`; it does not become activation-complete.
+
 ## Target Readiness
 
 Readiness is per release target. A target is `ready` only when:
@@ -199,6 +203,10 @@ Readiness is per release target. A target is `ready` only when:
 `handoff_ready` means every target claimed in the current activation scope is ready. It does not mean the outcome window has closed or the product met its adoption target.
 
 The complete authority set is every target in the current architecture `## Release Targets` section. Each one needs exactly one Target Readiness row, either active or a concrete `n/a` disposition. The active set is the union of non-placeholder targets in ACT release bindings, measurement-source release bindings, Outcome Coverage, and non-`n/a` readiness rows. Every active target needs exactly one Target Readiness row. **Open Blockers** uses structured `BLOCK-*` rows; an `open` global blocker or blocker naming a target prevents that target and the overall record from becoming ready.
+
+Activation is execution by default. Inventory the current external state, calculate the real delta, and continue every ready authorized required action through mutation, independent read-back, and applicable behavior check. Reuse prior evidence only when the existing identity, digest, release-binding, and evidence-freshness rules still validate it. A seed, structural pass, or checker pass does not replace execution, and executable work is not converted into instructions. A documentation-only or planning stop is valid only when the owner explicitly requested that scope; otherwise a run ends only after closeout, as blocked, or as preparation with a concrete blocker.
+
+`--require-closeout` is the fail-closed terminal check. It requires every required ACT task to be `verified`, or `blocked` with a concrete blocker reason or the exact owner-deferral form above. `ready` is authorization to act, not completion; `configured` is not behavior proof. Any accepted blocked or owner-deferred required action forces the Record status to `blocked`; only a record with no such required actions may be `handoff_ready`. A genuine no-op may have no required ACT, even an empty task boundary, only when every architecture target has an explicit `n/a` readiness disposition; an active target still requires verified action evidence. Combining closeout with `--require-verified-sources` therefore keeps an owner deferral out of the verified handoff. The checker still performs no provider call.
 
 ## Gap Routing
 
@@ -217,7 +225,8 @@ python "<product-activation-skill-root>/scripts/check_activation.py" --activatio
 python "<product-activation-skill-root>/scripts/check_activation.py" --activation docs/ACTIVATION.md --prd docs/product/PRD.md
 python "<product-activation-skill-root>/scripts/check_activation.py" --activation docs/ACTIVATION.md --require-filled
 python "<product-activation-skill-root>/scripts/check_activation.py" --activation docs/ACTIVATION.md --prd docs/product/PRD.md --architecture docs/product/architecture.md --stack-decisions docs/product/stack-decisions.md --deployment docs/DEPLOYMENT.md --repo-root <repository-root> --require-verified-sources --require-ready <release-target-id>
+python "<product-activation-skill-root>/scripts/check_activation.py" --activation docs/ACTIVATION.md --prd docs/product/PRD.md --architecture docs/product/architecture.md --stack-decisions docs/product/stack-decisions.md --deployment docs/DEPLOYMENT.md --repo-root <repository-root> --require-closeout
 python "<product-activation-skill-root>/scripts/check_activation.py" --activation docs/ACTIVATION.md --show-action-digests
 ```
 
-The checker is read-only. Exit `0` means the requested contract checks pass, `1` means findings were printed, and `2` means the input could not be read or the CLI was invalid. It never calls a provider, executes a recorded command, reads a secret, or edits a document.
+The checker is read-only. Exit `0` means the requested contract checks pass, `1` means findings were printed, and `2` means the input could not be read or the CLI was invalid. It never calls a provider, executes a recorded command, reads a secret, or edits a document. The agent's execution pass is not complete until closeout has been run with the full source set; a failed closeout leaves the work pending or blocked.

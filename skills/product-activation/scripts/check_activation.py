@@ -209,6 +209,10 @@ EVIDENCE_KINDS = {"write", "readback", "behavior", "capability", "manual"}
 EVIDENCE_RESULTS = {"PASS", "FAIL", "BLOCKED", "UNCERTAIN"}
 AUTHORIZATIONS = {"not_required", "pending", "approved", "consumed", "denied", "expired", "handoff_complete", "prohibited"}
 OPERATIONS = {"read", "create", "update", "upload", "publish", "transmit", "delete", "rotate", "revoke", "execute"}
+OWNER_DEFER_RE = re.compile(
+    r"^owner-deferred by\s+(.+?):\s*(\S.*)$",
+    re.IGNORECASE,
+)
 RISK_CONFIRMATION = {
     "read_only": "read_only",
     "standard": "exact_preapproval",
@@ -232,6 +236,29 @@ HANDOFF_STATUSES = {"pending", "completed", "n/a"}
 BLOCKER_STATUSES = {"open", "resolved", "n/a"}
 ABSENT = {"", "none", "n/a", "pending", "unselected"}
 FORBIDDEN_HEADERS = {"value", "secret value", "token", "password", "credential"}
+GENERIC_REASON_WORDS = {
+    "action",
+    "blocked",
+    "blocker",
+    "deferred",
+    "done",
+    "error",
+    "external",
+    "issue",
+    "later",
+    "manual",
+    "needed",
+    "not",
+    "owner",
+    "pending",
+    "problem",
+    "todo",
+    "unclear",
+    "unknown",
+    "waiting",
+    "稍後處理",
+    "稍后处理",
+}
 
 
 def _placeholder(value: str) -> bool:
@@ -321,6 +348,28 @@ def _n_a_with_reason(value: str) -> bool:
     )
 
 
+def _concrete_reason(value: str) -> bool:
+    """Require a specific non-placeholder reason without judging its truth."""
+
+    normalized = unicodedata.normalize("NFC", value).strip()
+    if not normalized or _placeholder(normalized) or normalized.casefold() in ABSENT:
+        return False
+    words = re.findall(r"[^\W_]+", normalized.casefold())
+    if not words or all(word in GENERIC_REASON_WORDS for word in words):
+        return False
+    # Languages without spaces can express a concrete reason in one token.
+    unsegmented_prose = any(
+        len(word) >= 4 and any(character.isalpha() and not character.isascii() for character in word)
+        for word in words
+    )
+    return len(words) >= 2 or unsegmented_prose
+
+
+def _concrete_n_a_reason(value: str) -> bool:
+    match = re.fullmatch(r"n/a\s*(?::|-|—|–)\s*(\S.*)", value.strip(), re.IGNORECASE)
+    return match is not None and _concrete_reason(match.group(1))
+
+
 def _timestamp(value: str) -> datetime | None:
     if not RFC3339_RE.fullmatch(value):
         return None
@@ -372,7 +421,11 @@ def action_digest(
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
 
-def _tasks(text: str) -> tuple[dict[str, dict[str, str]], dict[str, str], list[str]]:
+def _tasks(
+    text: str,
+    *,
+    allow_no_tasks: bool = False,
+) -> tuple[dict[str, dict[str, str]], dict[str, str], list[str]]:
     findings: list[str] = []
     active = "\n".join(
         line
@@ -412,7 +465,7 @@ def _tasks(text: str) -> tuple[dict[str, dict[str, str]], dict[str, str], list[s
             if name in tasks[current]:
                 findings.append(f"{current}: duplicate field {name}")
             tasks[current][name] = value.strip()
-    if not tasks:
+    if not tasks and not allow_no_tasks:
         findings.append("Activation Tasks: no ACT task blocks found")
     for task_id, fields in tasks.items():
         unknown = sorted(set(fields) - set(TASK_FIELDS))
@@ -1328,6 +1381,92 @@ def _cycle_findings(tasks: dict[str, dict[str, str]]) -> list[str]:
     return findings
 
 
+def _closeout_findings(
+    record: dict[str, str],
+    tasks: dict[str, dict[str, str]],
+    readiness: dict[str, dict[str, object]],
+) -> list[str]:
+    """Check that required execution work is closed without provider access."""
+
+    findings: list[str] = []
+    required = {
+        task_id: task
+        for task_id, task in tasks.items()
+        if task.get("Required", "").lower() == "yes"
+    }
+    has_blocked_action = False
+    for task_id, task in sorted(required.items()):
+        status = task.get("Status", "")
+        if status == "verified":
+            continue
+        if status == "blocked":
+            reason = task.get("Blocker / N/A reason", "")
+            deferred = OWNER_DEFER_RE.fullmatch(reason.strip())
+            if deferred:
+                has_blocked_action = True
+                if not _concrete_reason(deferred.group(2)):
+                    findings.append(
+                        f"Activation closeout: {task_id} owner deferral needs concrete remaining work"
+                    )
+                if not _human(deferred.group(1)):
+                    findings.append(
+                        f"Activation closeout: {task_id} owner deferral must name a human owner"
+                    )
+                continue
+            has_blocked_action = True
+            if not _concrete_reason(reason):
+                findings.append(
+                    f"Activation closeout: {task_id} needs a concrete blocker reason"
+                )
+            continue
+        label = "unattempted" if status in {"pending", "ready"} else "not execution-verified"
+        findings.append(
+            f"Activation closeout: {task_id} is {label} with status {status!r}"
+        )
+
+    if not required:
+        if not readiness:
+            findings.append(
+                "Activation closeout: a no-op needs at least one target disposition"
+            )
+        for target, item in sorted(readiness.items()):
+            if item["status"] != "n/a":
+                findings.append(
+                    f"Activation closeout: no-op target {target} must have an explicit n/a disposition"
+                )
+            elif not _concrete_n_a_reason(str(item["na_reason"])):
+                findings.append(
+                    f"Activation closeout: no-op target {target} needs a concrete n/a reason"
+                )
+
+    expected_status = "blocked" if has_blocked_action else "handoff_ready"
+    if record.get("Status") != expected_status:
+        findings.append(
+            "Activation closeout: Record status must be "
+            f"{expected_status!r}; a structural pass is not activation completion"
+        )
+    return findings
+
+
+def _explicit_noop(
+    require_closeout: bool,
+    tasks: dict[str, dict[str, str]],
+    readiness: dict[str, dict[str, object]],
+) -> bool:
+    return bool(
+        require_closeout
+        and not any(
+            task.get("Required", "").lower() == "yes" for task in tasks.values()
+        )
+        and readiness
+        and all(
+            item["status"] == "n/a"
+            and _concrete_n_a_reason(str(item["na_reason"]))
+            for item in readiness.values()
+        )
+    )
+
+
 def _prd_signals(prd_text: str) -> tuple[set[str], list[str]]:
     findings: list[str] = []
     signals: set[str] = set()
@@ -1520,9 +1659,10 @@ def check_activation_text(
     require_filled: bool = False,
     require_verified_sources: bool = False,
     require_ready: tuple[str, ...] = (),
+    require_closeout: bool = False,
     package_validated: bool = False,
 ) -> list[str]:
-    authority_required = require_verified_sources or bool(require_ready)
+    authority_required = require_verified_sources or bool(require_ready) or require_closeout
     require_filled = require_filled or authority_required
     findings: list[str] = []
     # A caller that already validated the package and Deployment skips a rerun.
@@ -1677,7 +1817,7 @@ def check_activation_text(
         ):
             findings.append(f"Manual Handoff: {item_id} has unresolved fields")
 
-    tasks, titles, task_parse_findings = _tasks(text)
+    tasks, titles, task_parse_findings = _tasks(text, allow_no_tasks=require_closeout)
     findings.extend(task_parse_findings)
     task_bindings: dict[str, dict[str, dict[str, str]]] = {}
     for task_id, task in tasks.items():
@@ -1928,7 +2068,7 @@ def check_activation_text(
             findings.append(
                 f"Target Readiness: {target} has invalid availability state {availability!r}"
             )
-        if status == "n/a" and not _n_a_with_reason(na_reason):
+        if status == "n/a" and not _concrete_n_a_reason(na_reason):
             findings.append(
                 f"Target Readiness: n/a target {target} needs a concrete reason"
             )
@@ -2011,6 +2151,7 @@ def check_activation_text(
             "binding": f"{target}@{source_sha}#{artifact}",
             "status": status,
             "checked": checked,
+            "na_reason": na_reason,
             "blockers": blocker_refs,
             "availability": availability,
         }
@@ -2120,7 +2261,8 @@ def check_activation_text(
             findings.append("Record: verified-source handoff requires status handoff_ready")
         if not readiness:
             findings.append("Target Readiness: verified-source handoff needs at least one release target")
-        if not active_targets:
+        explicit_noop = _explicit_noop(require_closeout, tasks, readiness)
+        if not active_targets and not explicit_noop:
             findings.append("Target Readiness: verified-source handoff needs an active release target")
         for signal, item in coverage.items():
             if item["status"] not in {"verified", "n/a"}:
@@ -2138,10 +2280,16 @@ def check_activation_text(
         row["status"] not in {"ready", "n/a"} for row in readiness.values()
     ):
         findings.append("Record: handoff_ready requires every active target to be ready")
-    if record.get("Status") == "handoff_ready" and not active_targets:
+    if (
+        record.get("Status") == "handoff_ready"
+        and not active_targets
+        and not _explicit_noop(require_closeout, tasks, readiness)
+    ):
         findings.append("Record: handoff_ready requires at least one active release target")
     if record.get("Status") == "handoff_ready" and open_blockers:
         findings.append("Record: handoff_ready cannot have open blockers")
+    if require_closeout:
+        findings.extend(_closeout_findings(record, tasks, readiness))
     if authority_required and record.get("Measurement window starts"):
         window_start = _timestamp(record.get("Measurement window starts", ""))
         availability_times = [
@@ -2168,10 +2316,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--require-filled", action="store_true")
     parser.add_argument("--require-verified-sources", action="store_true")
     parser.add_argument("--require-ready", action="append", default=[])
+    parser.add_argument("--require-closeout", action="store_true")
     parser.add_argument("--show-action-digests", action="store_true")
     args = parser.parse_args(argv)
-    authority_required = args.require_verified_sources or bool(args.require_ready)
-    authority_flag = "--require-verified-sources/--require-ready"
+    authority_required = (
+        args.require_verified_sources or bool(args.require_ready) or args.require_closeout
+    )
+    authority_flag = "--require-verified-sources/--require-ready/--require-closeout"
     if authority_required and args.prd is None:
         print(f"{authority_flag} requires --prd", file=sys.stderr)
         return 2
@@ -2219,7 +2370,7 @@ def main(argv: list[str] | None = None) -> int:
     prd_text = loaded["prd"]
     architecture_text = loaded["architecture"]
     deployment_text = loaded["deployment"]
-    tasks, _titles, parse_findings = _tasks(text)
+    tasks, _titles, parse_findings = _tasks(text, allow_no_tasks=args.require_closeout)
     if args.show_action_digests:
         tables, _table_findings = _validate_tables(text, False)
         capabilities, _capability_findings = _validate_capabilities(
@@ -2246,6 +2397,7 @@ def main(argv: list[str] | None = None) -> int:
         require_filled=args.require_filled,
         require_verified_sources=args.require_verified_sources,
         require_ready=tuple(args.require_ready),
+        require_closeout=args.require_closeout,
     )
     for finding in findings:
         print(f"{args.activation}: {finding}")

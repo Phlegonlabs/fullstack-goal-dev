@@ -48,9 +48,10 @@ class PublicationTests(unittest.TestCase):
                 materialize_publication(source, required=required)
                 if required:
                     design = source / "docs/design"
-                    (design / "design-system-preview.html").write_bytes(publication.render_preview(
+                    (design / "design-system-preview.html").write_bytes(publication.render_view(
                         (design / "design-system.json").read_bytes(),
                         (design / "design-system.md").read_bytes(),
+                        source,
                     ).encode("utf-8"))
                     renderer = publication.COMPILER / "render_design_system_preview.py"
                     result = subprocess.run([sys.executable, str(renderer), "--repo-root", str(source),

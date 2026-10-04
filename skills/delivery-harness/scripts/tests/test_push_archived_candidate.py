@@ -7,6 +7,7 @@ import hashlib
 import copy
 import os
 import secrets
+import re
 import shutil
 import subprocess
 import tempfile
@@ -79,7 +80,7 @@ class ArchiveFirstPushTests(unittest.TestCase):
         for patcher in self._patchers:
             patcher.stop()
 
-    def _fixture(self) -> dict[str, Path | str]:
+    def _fixture(self, *, dual_branch: bool = False) -> dict[str, Path | str]:
         """Create one real archive A with a bare remote and closed receipt."""
         from manifest_fixtures import git as fixture_git, manifest_markdown, mark_complete, valid_plan, valid_run
         holder = tempfile.TemporaryDirectory()
@@ -90,9 +91,16 @@ class ArchiveFirstPushTests(unittest.TestCase):
         root.mkdir(exist_ok=True)
         product = root / "docs/product"
         product.mkdir(parents=True)
+        architecture = release_architecture()
+        if dual_branch:
+            architecture = architecture.replace("## Release Targets\n", "## Release Targets\n\nRelease source policy: dual-branch/1\n")
+            architecture = re.sub(r"^- Source policy: stage=development; .*$",
+                "- Source policy: stage=development; ref=refs/heads/development; sha=promotion.verified_development_sha",
+                architecture, count=1, flags=re.MULTILINE)
         approved_prd, approved_architecture, approved_stack = strictize_approved_package(
-            valid_prd(), release_architecture(), valid_stack()
+            valid_prd(), architecture, valid_stack()
         )
+        version = "0.59.0" if dual_branch else "0.38.0"
         files = {
             "PRD.md": approved_prd,
             "architecture.md": approved_architecture,
@@ -118,7 +126,7 @@ class ArchiveFirstPushTests(unittest.TestCase):
         run["plan"]["digest_sha256"] = fixture_plan_digest(plan)
         run["runtime_capabilities"]["runtime_adapter"]["version_gate"] = {
             "host_version": "test-current", "minimum_host_version": None,
-            "harness_version": "0.38.0", "required_harness_version": "0.38.0",
+            "harness_version": version, "required_harness_version": version,
             "session_id": "test-session", "loaded_contract_digest": "a" * 64,
             "installed_contract_digest": "a" * 64, "status": "current", "evidence": "fixture",
         }
@@ -131,6 +139,10 @@ class ArchiveFirstPushTests(unittest.TestCase):
         fixture_git(root, "add", "docs/product", "docs/DOCUMENTS.md")
         fixture_git(root, "commit", "-qm", "freeze sources")
         expected_main = fixture_git(root, "rev-parse", "HEAD")
+        if dual_branch:
+            plan["branch_policy"] = {"protocol": "dual-branch/1", "kind": "ordinary",
+                "base_ref": "refs/remotes/origin/development", "base_sha": expected_main}
+            run["plan"]["digest_sha256"] = fixture_plan_digest(plan)
         fixture_git(root, "branch", "codex/test", expected_main)
         fixture_git(root, "checkout", "-q", "codex/test")
         run["integration"].update({"branch": "codex/test", "batch_base_sha": expected_main, "integration_head_sha": expected_main})
@@ -138,12 +150,15 @@ class ArchiveFirstPushTests(unittest.TestCase):
         mark_complete(plan, run)
         run["runtime_capabilities"]["runtime_adapter"]["version_gate"] = {
             "host_version": "test-current", "minimum_host_version": None,
-            "harness_version": "0.38.0", "required_harness_version": "0.38.0",
+            "harness_version": version, "required_harness_version": version,
             "session_id": "test-session", "loaded_contract_digest": "a" * 64,
             "installed_contract_digest": "a" * 64, "status": "current", "evidence": "fixture",
         }
         run["integration"].update({"branch": "codex/test", "batch_base_sha": expected_main, "integration_head_sha": expected_main})
         run["landing"]["continuity"].update({"branch_ref": "refs/heads/codex/test", "head_sha": expected_main})
+        if dual_branch:
+            from role_contract_fixtures import native_reviewer_binding
+            run["runtime_capabilities"]["runtime_adapter"]["role_bindings"] = {"reviewer": native_reviewer_binding()}
         (docs / "goal" / "PLAN.md").write_text(manifest_markdown("## Harness Plan Manifest", "harness_plan", plan), encoding="utf-8")
         (docs / "goal" / "RUN.md").write_text(manifest_markdown("## Harness Run State", "harness_run", run), encoding="utf-8")
         anchor = root.parent / f"archive-anchor-{root.name}.json"
@@ -258,6 +273,81 @@ class ArchiveFirstPushTests(unittest.TestCase):
             Path(fixture["root"]),
             request_path=Path(fixture["request"]),
         )
+
+    def test_dual_branch_publication_retains_frozen_base_after_main_moves(self) -> None:
+        fixture = self._fixture(dual_branch=True)
+        root = Path(fixture["root"])
+        git(root, "checkout", "-q", "main")
+        git(root, "commit", "--allow-empty", "-qm", "unrelated main move")
+        git(root, "checkout", "-q", "codex/test")
+        evidence = subject.verify_archive_candidate(root, archive_path=Path(fixture["archive"]), candidate_a=str(fixture["candidate_a"]))
+        self.assertEqual(fixture["candidate_c"], evidence["expected_main"])
+        self.assertIsNone(evidence["replacement_base"])
+
+    def _next_dual_archive(self, fixture, *, ordinary=False, changed_policy=False):
+        from harness_core import load_plan
+        root = Path(fixture["root"])
+        prior_a = str(fixture["candidate_a"])
+        plan = load_plan(Path(fixture["archive"]) / "PLAN.md")
+        plan["plan_id"] = "PLAN-NEXT-DUAL"
+        if ordinary or changed_policy:
+            plan["branch_policy"]["base_sha"] = prior_a
+        if not ordinary:
+            receipt = Path(fixture["archive"]) / "ARCHIVE_RECEIPT.json"
+            plan["sources"].append({"id": "SRC-PRIOR-A", "kind": "prior archive candidate",
+                "location": receipt.relative_to(root).as_posix(), "owner": "fixture", "status": "frozen",
+                "content_sha256": hashlib.sha256(receipt.read_bytes()).hexdigest(), "source_revision": prior_a,
+                "staged_revision": None, "notes": "prior_publication_state=unpublished;prior_publication_receipt=none"})
+        git(root, "checkout", "-q", "main")
+        git(root, "commit", "--allow-empty", "-qm", "later main hotfix")
+        main = git(root, "rev-parse", "HEAD")
+        git(root, "checkout", "-q", "codex/test")
+        branch = "codex/test"
+        if ordinary:
+            branch = "codex/next"
+            git(root, "checkout", "-q", "-b", branch)
+            git(root, "update-ref", "refs/remotes/origin/development", prior_a)
+        git(root, "commit", "--allow-empty", "-qm", "next candidate")
+        candidate = git(root, "rev-parse", "HEAD")
+        run = mf.valid_run(plan)
+        run["run_id"] = "RUN-NEXT-DUAL"
+        run["runtime_capabilities"]["runtime_adapter"]["version_gate"].update(harness_version="0.59.0", required_harness_version="0.59.0")
+        run["integration"].update(branch=branch, batch_base_sha=prior_a, integration_head_sha=candidate)
+        mf.mark_complete(plan, run)
+        from role_contract_fixtures import native_reviewer_binding
+        run["runtime_capabilities"]["runtime_adapter"]["role_bindings"] = {"reviewer": native_reviewer_binding()}
+        run["observed"]["git"].update(parent_head_sha=candidate, parent_branch=branch, parent_dirty=False)
+        goal = root / "docs/goal"
+        (goal / "PLAN.md").write_text(mf.manifest_markdown("## Harness Plan Manifest", "harness_plan", plan), encoding="utf-8")
+        (goal / "RUN.md").write_text(mf.manifest_markdown("## Harness Run State", "harness_run", run), encoding="utf-8")
+        anchor = root.parent / ("next-dual-anchor-" + root.name + ".json")
+        self._anchors.append(anchor)
+        code = archive_run.archive(root, slug="next-dual", apply=True, stamp="20260913-000001", expected_main=main,
+            main_ref="refs/heads/main", anchor_out=anchor)
+        self.assertEqual(0, code)
+        archive = next(path for path in (goal / "archived").iterdir() if path.name.startswith("20260913-000001"))
+        git(root, "add", ".")
+        git(root, "commit", "-qm", "next archive A")
+        return root, archive, git(root, "rev-parse", "HEAD")
+
+    def test_dual_branch_landed_archive_is_outside_next_ordinary_lineage(self):
+        fixture = self._fixture(dual_branch=True)
+        root, archive, head = self._next_dual_archive(fixture, ordinary=True)
+        result = subject.verify_archive_candidate(root, archive_path=archive, candidate_a=head)
+        self.assertIsNone(result["replacement_base"])
+
+    def test_dual_branch_correction_allows_new_main_observation_with_same_frozen_policy(self):
+        fixture = self._fixture(dual_branch=True)
+        root, archive, head = self._next_dual_archive(fixture)
+        result = subject.verify_archive_candidate(root, archive_path=archive, candidate_a=head)
+        self.assertEqual(fixture["candidate_a"], result["replacement_base"])
+        self.assertEqual("unpublished", result["prior_publication_state"])
+
+    def test_dual_branch_correction_rejects_changed_frozen_policy(self):
+        fixture = self._fixture(dual_branch=True)
+        root, archive, head = self._next_dual_archive(fixture, changed_policy=True)
+        with self.assertRaisesRegex(ManifestError, "retain the prior frozen branch policy"):
+            subject.verify_archive_candidate(root, archive_path=archive, candidate_a=head)
 
     @unittest.skipUnless(sys.platform == "darwin", "macOS descriptor behavior")
     def test_darwin_unprotected_signature_verifier_fails_closed(self) -> None:

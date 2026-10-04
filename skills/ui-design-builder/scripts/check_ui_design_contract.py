@@ -43,14 +43,25 @@ from prd_ui_contract import parse_prd_ui_contract  # noqa: E402
 from ui_approval_digest import canonical_ui_approval_sha256  # noqa: E402
 from operation_coverage import coverage_findings  # noqa: E402
 from hifi_product_contract import hifi_prd_findings  # noqa: E402
+import ui_design_v3  # noqa: E402
+from ui_design_v3 import UI_CONTRACT_V3  # noqa: E402
 
 
 UI_CONTRACT_CURRENT = "ui-design/2"
+# Wireframe-free family. ui-design/3 adds the full-package policy in
+# ui_design_v3; ui-design/2 keeps its original meaning.
+UI_CONTRACTS_CURRENT = (UI_CONTRACT_CURRENT, UI_CONTRACT_V3)
 UI_CONTRACT_RE = re.compile(r"^UI contract:[ \t]*(?P<version>[^\r\n]*)$", re.MULTILINE)
 
 
+def expected_design_system_schema(contract_version: str | None) -> str:
+    """Return the only compiled-pair schema a UI contract may consume."""
+    return {UI_CONTRACT_V3: "design-system/4", UI_CONTRACT_CURRENT: "design-system/3"}.get(
+        contract_version or "", "design-system/2")
+
+
 def ui_contract_version(text: str) -> str:
-    """Return ``ui-design/2`` or ``legacy`` without guessing package age.
+    """Return ``ui-design/2``, ``ui-design/3`` or ``legacy`` without guessing package age.
 
     The marker is closed.  Missing means an existing package keeps its old
     checks.  More than one marker, or a claim other than the current contract,
@@ -64,7 +75,7 @@ def ui_contract_version(text: str) -> str:
     if len(markers) != 1:
         raise ValueError("UI contract marker must occur exactly once")
     version = markers[0].group("version").strip()
-    if version != UI_CONTRACT_CURRENT:
+    if version not in UI_CONTRACTS_CURRENT:
         raise ValueError(f"unknown UI contract marker: {version}")
     heading = re.search(r"^# UI Design Contract\s*$", active, re.MULTILINE)
     next_heading = re.search(r"^##\s+", active, re.MULTILINE)
@@ -445,7 +456,7 @@ def parse_ui_contract_view(text: str) -> tuple[dict[str, Any], list[str]]:
     else:
         parse_problems = []
     source_section = _section(active, "## Source Product Definition") or ""
-    wireframe_section = "" if contract_version == UI_CONTRACT_CURRENT else _section(active, wireframe_heading(active)) or ""
+    wireframe_section = "" if contract_version in UI_CONTRACTS_CURRENT else _section(active, wireframe_heading(active)) or ""
     style_section = _section(active, "## Style Integration") or ""
     visual_section = _section(active, "## Visual Approval") or ""
     gate_section = _section(active, "## Design System Need Gate") or ""
@@ -517,8 +528,12 @@ def parse_ui_contract_view(text: str) -> tuple[dict[str, Any], list[str]]:
     replacement = _replacement_parts(
         replacement_values[0] if replacement_values else None,
         parse_problems,
-        include_wireframe=contract_version != UI_CONTRACT_CURRENT,
+        include_wireframe=contract_version not in UI_CONTRACTS_CURRENT,
     ) if replacement_values else {}
+    package_action = (
+        ui_design_v3.package_action(_field_values(gate_section, "Package action"))
+        if contract_version == UI_CONTRACT_V3 else None
+    )
 
     view: dict[str, Any] = {
         "contract_version": contract_version,
@@ -540,6 +555,8 @@ def parse_ui_contract_view(text: str) -> tuple[dict[str, Any], list[str]]:
             "pending_pair": pending_pair,
             "existing_pair_disposition": disposition,
             "replacement": replacement,
+            # Only ui-design/3 has a Package action; older views keep their shape.
+            **({"package_action": package_action} if contract_version == UI_CONTRACT_V3 else {}),
         },
         "gate_decision": gate_decision or None,
         "design_system_pair": pair,
@@ -679,6 +696,56 @@ def _direction_comparison(
     image_sets = list(images.values())
     if any(left & right for i, left in enumerate(image_sets) for right in image_sets[i + 1:]):
         _add(problems, "Direction comparison cannot reuse an identical screenshot across directions")
+
+
+def _direction_study_identities(style: str, problems: list[str]) -> list[dict[str, str]]:
+    compared = {row[0] for row in _design_table(style, "### Direction comparison", [
+        "Direction", "UI surface", "State", "Target", "Scenario", "Content basis", "Screenshot", "Rationale",
+    ], [])}
+    rows = _design_table(style, "### Direction studies", ui_design_v3.DIRECTION_STUDY_COLUMNS, problems)
+    studies, findings = ui_design_v3.direction_study_rows(rows, compared)
+    for finding in findings:
+        _add(problems, finding)
+    return studies
+
+
+def _direction_studies(style: str, problems: list[str]) -> None:
+    """ui-design/3: each compared direction is a rendered study with self-check."""
+    _direction_study_identities(style, problems)
+
+
+def _resolve_direction_studies(style: str, repo_root: Path, problems: list[str]) -> None:
+    """Hash-check each rendered study and apply the self-contained HTML rules."""
+    for study in _direction_study_identities(style, []):
+        before = len(problems)
+        _resolve_source(f"{study['path']} @ sha256:{study['sha256']}", repo_root=repo_root,
+                        label="Direction study", problems=problems)
+        if len(problems) == before:
+            html = (repo_root / study["path"]).read_text(encoding="utf-8", errors="replace")
+            for finding in ui_design_v3.study_html_findings(html, study["path"]):
+                _add(problems, finding)
+
+
+def _intermediate_width_evidence(value: str | None, scope: dict[str, Any] | None, repo_root: Path,
+                                 problems: list[str], **evidence: Any) -> None:
+    """ui-design/3: an ordinary HiFi browser receipt observed at in-between widths."""
+    if (value or "").strip() == ui_design_v3.INTERMEDIATE_WIDTH_NOT_APPLICABLE:
+        if ui_design_v3.intermediate_width_required(scope):
+            _add(problems, "Intermediate width check requires PASS evidence for adjacent approved web widths")
+        return
+    before = len(problems)
+    _resolve_evidence(value, repo_root=repo_root, label="Intermediate width check", problems=problems,
+                      require_machine=True, **evidence)
+    parsed = EVIDENCE_RE.fullmatch((value or "").strip())
+    if len(problems) != before or parsed is None:
+        return
+    receipt = json.loads((repo_root / parsed.group("path")).read_text(encoding="utf-8"))["receipt"]
+    # Coverage comes from observed results; a declared but unobserved case counts for nothing.
+    observed = [{key: row[key] for key in ("surface", "state", "target")} for row in receipt["results"]]
+    if sorted(map(json.dumps, observed)) != sorted(map(json.dumps, receipt["matrix"]["cases"])):
+        _add(problems, "Intermediate width check results must observe exactly its matrix cases")
+    for finding in ui_design_v3.intermediate_width_findings(observed, scope):
+        _add(problems, finding)
 
 
 def _surface_platform(surface: dict[str, Any]) -> str:
@@ -2505,18 +2572,20 @@ def validate_text(
     text = active_text(text)
     problems: list[str] = []
     try:
-        current = ui_contract_version(text) == UI_CONTRACT_CURRENT
+        version = ui_contract_version(text)
     except ValueError as exc:
         return [f"UI contract marker: {exc}"]
+    current = version in UI_CONTRACTS_CURRENT
+    v3 = version == UI_CONTRACT_V3
     positions: list[int] = []
     sections: dict[str, str] = {}
     modern = is_structure_review(text)
     if current:
         modern = True
         if re.search(r"^## Wireframe (?:Approval|Validation)\s*$", text, re.MULTILINE):
-            _add(problems, "ui-design/2 must not contain a legacy Wireframe gate")
+            _add(problems, f"{version} must not contain a legacy Wireframe gate")
         if re.search(r"^\|\s*wireframe\s*\|", text, re.MULTILINE | re.IGNORECASE):
-            _add(problems, "ui-design/2 must not declare wireframe authoring usage")
+            _add(problems, f"{version} must not declare wireframe authoring usage")
     structural_gate = require_structure_validated or require_wireframe_approved or require_visual_approved
     if require_hifi_preflight:
         require_filled = True
@@ -2586,6 +2655,10 @@ def validate_text(
                 "UI Design Intake Direction mode must be one of "
                 + ", ".join(sorted(VALID_DIRECTION_MODES)),
             )
+        if (v3 and (require_filled or require_visual_approved) and direction_mode == "one recommended direction"
+                and not (_human_owner(values.get("Decision owner")) and _date(values.get("Decided on")))):
+            _add(problems, "ui-design/3 one recommended direction requires the owner's explicit intake decision: "
+                           "human Decision owner and Decided on")
 
     motion_intents: dict[str, dict[str, str]] = {}
     motion = sections.get("## Motion And Media Intent")
@@ -2739,7 +2812,9 @@ def validate_text(
             _add(problems, "Style Integration Design author must be frontend-design")
         if style_values.get("Review medium") != "HTML projection only":
             _add(problems, "Style Integration Review medium must be HTML projection only; it is not native verification")
-        if style_values.get("Direction decision", "").casefold() not in VALID_DIRECTION_DECISIONS:
+        if style_values.get("Direction decision", "").casefold() not in VALID_DIRECTION_DECISIONS | (
+            ui_design_v3.V3_DIRECTION_DECISIONS if v3 else set()
+        ):
             _add(problems, "Style Integration Direction decision is not approved")
         if not _human_owner(style_values.get("Direction decision owner")):
             _add(problems, "Style Integration Direction decision owner must be human")
@@ -2789,6 +2864,10 @@ def validate_text(
         _pass_evidence(
             review_values.get("HiFi surface check"), "HiFi surface check", problems
         )
+        if v3:
+            width_check = _field(review, "Intermediate width check")
+            if width_check != ui_design_v3.INTERMEDIATE_WIDTH_NOT_APPLICABLE:
+                _pass_evidence(width_check, "Intermediate width check", problems)
         for name, minimum in (
             ("HiFi score", 90),
             ("H2 score", 90),
@@ -2826,6 +2905,8 @@ def validate_text(
         scope = _target_scope(visual_values.get("Approved target"), "Approved target", problems)
         valid_scope = scope if len(problems) == scope_errors_before else None
         _direction_comparison(style, sections.get("## UI Design Intake", ""), valid_scope, problems)
+        if v3:
+            _direction_studies(style, problems)
         _motion_effect_evidence(style, motion_intents, problems)
         _platform_rules(style, valid_scope, problems)
         connected = SOURCE_RE.fullmatch(
@@ -2915,6 +2996,12 @@ def validate_text(
 
         disposition = gate_values.get("Existing design-system pair disposition", "")
         disposition_match = PAIR_DISPOSITION_RE.fullmatch(disposition.strip())
+        if v3:
+            for finding in ui_design_v3.package_gate_findings(
+                gate_decision, _field_values(gate, "Package action"),
+                disposition_match.group("decision").casefold() if disposition_match else None,
+            ):
+                _add(problems, finding)
         if disposition_match is None:
             _add(
                 problems,
@@ -2962,9 +3049,10 @@ def _validate_impl(
     except (OSError, UnicodeError) as exc:
         return [f"ui-design: cannot read UTF-8 file {ui_design_path}: {exc}"]
     try:
-        current = ui_contract_version(text) == UI_CONTRACT_CURRENT
+        version = ui_contract_version(text)
     except ValueError as exc:
         return [f"UI contract marker: {exc}"]
+    current = version in UI_CONTRACTS_CURRENT
     require_hifi_preflight = require_hifi_preflight or (current and require_visual_approved)
     problems = validate_text(
         text,
@@ -2978,7 +3066,7 @@ def _validate_impl(
 
     active = active_text(text)
     try:
-        current = ui_contract_version(active) == UI_CONTRACT_CURRENT
+        current = ui_contract_version(active) in UI_CONTRACTS_CURRENT
     except ValueError as exc:
         return problems + [f"UI contract marker: {exc}"]
     modern = current or is_structure_review(active)
@@ -3025,6 +3113,8 @@ def _validate_impl(
 
     if require_visual_approved:
         _direction_comparison(style, _section(active, "## UI Design Intake") or "", None, problems, repo_root=root)
+        if version == UI_CONTRACT_V3:
+            _resolve_direction_studies(style, root, problems)
 
     if approved_gate:
         product_matches = [
@@ -3040,7 +3130,7 @@ def _validate_impl(
                     require_filled=True,
                     require_approved=True,
                     repo_root=root,
-                    ui_contract=UI_CONTRACT_CURRENT if current else None,
+                    ui_contract=version if current else None,
                 )
                 problems.extend(f"product-definition: {item}" for item in product_problems)
             except (ImportError, OSError, UnicodeError) as exc:
@@ -3113,6 +3203,7 @@ def _validate_impl(
         review_section = _section(active, "## HiFi Review") or ""
         receipt_values = [
             *(_field(review_section, name) for name in ("Impeccable critique", "Impeccable audit", "UI grading", "HiFi surface check")),
+            *([_field(review_section, "Intermediate width check")] if version == UI_CONTRACT_V3 else []),
             *(f"PASS — evidence={item['path']} @ sha256:{item['sha256']}" for item in motion_effect_evidence.values()),
         ]
         receipt_dates = [
@@ -3209,6 +3300,16 @@ def _validate_impl(
                 require_machine=current_hifi,
                 required_inputs=[identity for value in [*source_values.values(), recorded_wireframe] if (identity := _source_identity(value)) is not None],
                 recorded_scores={name: _score(_field(_section(active, "## HiFi Review") or "", name)) for name in ("HiFi score", "HiFi lowest dimension", "H2 score", "H4 score", "H5 score", "H7 score", "H8 score", "H9 score")} if field_name == "UI grading" else None,
+            )
+        if version == UI_CONTRACT_V3:
+            target_path = TARGET_SOURCE_RE.fullmatch((recorded_target or "").strip())
+            _intermediate_width_evidence(
+                _field(_section(active, "## HiFi Review") or "", "Intermediate width check"),
+                target_scope_for_evidence, root, problems,
+                expected_artifact=target_path.group("path") if target_path else None,
+                expected_check=_evidence_check("HiFi surface check", capture_mode),
+                required_inputs=[identity for value in [*source_values.values(), recorded_wireframe]
+                                 if (identity := _source_identity(value)) is not None],
             )
         _resolve_motion_effect_evidence(
             motion_effect_evidence,
@@ -3353,7 +3454,7 @@ def _validate_impl(
                         _add(problems, f"cannot read compiled design system pair: {exc}")
                     else:
                         if isinstance(pair_registry, dict):
-                            expected_schema = "design-system/3" if current else "design-system/2"
+                            expected_schema = expected_design_system_schema(version)
                             if pair_registry.get("schema") != expected_schema:
                                 _add(problems, f"compiled pair must use {expected_schema} for this UI contract")
                             pair_problems = compare_pair(

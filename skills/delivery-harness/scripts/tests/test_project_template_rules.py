@@ -54,10 +54,15 @@ class ProjectTemplateRuleTests(unittest.TestCase):
         if not (agents.is_file() and (REPO_ROOT / "install.sh").is_file()):
             self.skipTest("no source repository checkout")
         text = agents.read_text(encoding="utf-8")
+        # Rollback is installer-owned: a bad copy is backed up by the previous
+        # release's installer, never restored by a manual move or deleted.
+        self.assertIn("A failed install rolls itself back.", text)
         self.assertIn(
-            "restore by re-running the installer from a checkout of the previous release tag",
+            "If post-install verification fails, rerun the installer from the "
+            "previous release tag so it backs up the bad copy first.",
             text,
         )
+        self.assertIn("never overwrite or delete prior copies or backups.", text)
         self.assertNotIn("Restore the backup if verification fails", text)
 
     def test_repo_instructions_cover_every_shared_template_section(self) -> None:

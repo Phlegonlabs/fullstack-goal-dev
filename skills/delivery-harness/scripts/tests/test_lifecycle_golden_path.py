@@ -42,21 +42,17 @@ for candidate in (
 
 from harness_core import load_run as _load_run  # noqa: E402
 from manifest_fixtures import (  # noqa: E402
+    eval_exempt_product_fixture,
     git,
-    init_repo,
     manifest_markdown,
 )
-from test_graph_orchestration import add_security_review as add_graph_security_review  # noqa: E402
-import test_harness_strict_authority as strict_authority_fixtures  # noqa: E402
+import contract_package_fixture  # noqa: E402
 if str(UI_TESTS_DIR) not in sys.path:
     sys.path.insert(0, str(UI_TESTS_DIR))
-from test_wireframe_free_publication import current_publication  # noqa: E402
 from test_check_activation import task_block, task_fields, valid_record_v2  # noqa: E402
 from test_check_seo_review import valid_review_v2  # noqa: E402
 import check_activation  # noqa: E402
 import check_deployment  # noqa: E402
-import check_ui_design_contract  # noqa: E402
-from check_design_system_pair import replace_generated_contract  # noqa: E402
 from release_targets import parse_release_targets  # noqa: E402
 from test_deployment_record import GOOD_DEPLOYMENT  # noqa: E402
 from test_validate_node_result import running_result  # noqa: E402
@@ -75,91 +71,6 @@ def run_cli(*arguments: str) -> subprocess.CompletedProcess[str]:
         text=True,
         timeout=45,
     )
-
-
-def sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
-def refresh_plan_source_rows(
-    plan: dict[str, object], paths: dict[str, Path], root: Path
-) -> None:
-    by_kind = {
-        "prd": paths["prd"],
-        "architecture": paths["architecture"],
-        "stack decisions": paths["stack"],
-        "ui design": paths["ui"],
-        "approved ui target": paths["target"],
-        "design system": paths["design_markdown"],
-        "design system json": paths["design_json"],
-    }
-    for row in plan["sources"]:
-        path = by_kind[row["kind"]]
-        row["location"] = path.relative_to(root).as_posix()
-        row["content_sha256"] = sha256(path)
-
-
-def refresh_required_pair(root: Path, paths: dict[str, Path]) -> None:
-    """Rebind the required compiler pair to the current HiFi publication."""
-
-    markdown_path = paths["design_markdown"]
-    registry_path = paths["design_json"]
-    data = json.loads(registry_path.read_text(encoding="utf-8"))
-    data["schema"] = "design-system/3"
-    data["stateMatrix"] = ["ready", "updated"]
-
-    ui_text = paths["ui"].read_text(encoding="utf-8")
-    start = ui_text.index("## Design System Need Gate")
-    head, gate = ui_text[:start], ui_text[start:]
-    gate = gate.replace("Decision: not_required", "Decision: required", 1)
-    gate = re.sub(
-        r"^Replacement visual contract when.?not_required:.*$",
-        "Compiled design system pair: "
-        "docs/design/design-system.md @ sha256:" + "0" * 64
-        + " and docs/design/design-system.json @ sha256:" + "0" * 64,
-        gate,
-        flags=re.MULTILINE,
-    )
-    ui_text = head + gate
-    ui_digest = check_ui_design_contract.canonical_ui_approval_sha256(ui_text)
-    data["sourceBindings"] = {
-        "prd": {
-            "path": paths["prd"].relative_to(root).as_posix(),
-            "sha256": sha256(paths["prd"]),
-        },
-        "architecture": {
-            "path": paths["architecture"].relative_to(root).as_posix(),
-            "sha256": sha256(paths["architecture"]),
-        },
-        "stack": {
-            "path": paths["stack"].relative_to(root).as_posix(),
-            "sha256": sha256(paths["stack"]),
-        },
-        "uiDesign": {
-            "path": paths["ui"].relative_to(root).as_posix(),
-            "sha256": ui_digest,
-        },
-        "hifi": {
-            "path": paths["target"].relative_to(root).as_posix(),
-            "sha256": sha256(paths["target"]),
-        },
-    }
-    registry_path.write_text(json.dumps(data), encoding="utf-8")
-    markdown_path.write_text(
-        replace_generated_contract("# Pair\n", data), encoding="utf-8"
-    )
-    pair_line = (
-        "Compiled design system pair: "
-        f"{markdown_path.relative_to(root).as_posix()} @ sha256:{sha256(markdown_path)} and "
-        f"{registry_path.relative_to(root).as_posix()} @ sha256:{sha256(registry_path)}"
-    )
-    ui_text = re.sub(
-        r"^Compiled design system pair:.*$",
-        pair_line,
-        ui_text,
-        flags=re.MULTILINE,
-    )
-    paths["ui"].write_text(ui_text, encoding="utf-8")
 
 
 def deployment_record(architecture: str, sha: str, artifact: str) -> str:
@@ -322,27 +233,17 @@ class SharedLifecycleGoldenPathTests(unittest.TestCase):
     def test_current_release_keeps_one_identity_through_harness_activation_and_seo(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            init_repo(root, "README.md")
-
-            plan, _seed_run, original_paths = strict_authority_fixtures.StrictAuthorityJoinTests._ui_fixture(
-                root, required=True
-            )
-            # Replace the legacy fixture with the same product's current HiFi
-            # contract, then freeze the required schema-3 compiler pair.
-            ui_path, prd_path, target_path = current_publication(root)
-            plan["sources"] = [row for row in plan["sources"] if row["kind"] != "wireframe"]
-            paths = {
-                "prd": prd_path,
-                "architecture": root / "docs/product/architecture.md",
-                "stack": root / "docs/product/stack-decisions.md",
-                "ui": ui_path,
-                "target": target_path,
-                "design_markdown": original_paths["design_markdown"],
-                "design_json": original_paths["design_json"],
-            }
-            self.assertIn("UI contract: ui-design/2", ui_path.read_text(encoding="utf-8"))
+            with eval_exempt_product_fixture():
+                package = contract_package_fixture.current_package(
+                    root, pin=(SCRIPTS_DIR.parent / "VERSION").read_text(encoding="utf-8").strip()
+                )
+            plan = package["plan"]
+            paths = package["paths"]
+            self.assertIn("UI contract: ui-design/3", paths["ui"].read_text(encoding="utf-8"))
             self.assertFalse((root / "docs/design/wireframes.html").exists())
-            refresh_required_pair(root, paths)
+            registry = json.loads(paths["design_json"].read_text(encoding="utf-8"))
+            self.assertEqual("design-system/4", registry["schema"])
+            self.assertTrue(paths["preview"].is_file())
 
             pair_check = run_cli(
                 str(DS_SCRIPTS_DIR / "check_design_system_pair.py"),
@@ -354,13 +255,14 @@ class SharedLifecycleGoldenPathTests(unittest.TestCase):
             self.assertEqual(0, pair_check.returncode, pair_check.stdout + pair_check.stderr)
 
             # This negative case corrupts one compiler source binding, then
-            # refreshes the pair. The separate enhancement workflow tests cover
-            # changed versus preserved path scope; this does not claim to do so.
+            # restores those exact bytes. The separate enhancement workflow
+            # tests cover changed versus preserved path scope.
             unaffected = {
                 key: paths[key].read_bytes()
                 for key in ("prd", "architecture", "stack", "target")
             }
-            registry = json.loads(paths["design_json"].read_text(encoding="utf-8"))
+            correct_registry = paths["design_json"].read_bytes()
+            registry = json.loads(correct_registry.decode("utf-8"))
             registry["sourceBindings"]["hifi"]["sha256"] = "0" * 64
             paths["design_json"].write_text(
                 json.dumps(registry), encoding="utf-8"
@@ -375,7 +277,7 @@ class SharedLifecycleGoldenPathTests(unittest.TestCase):
             self.assertNotEqual(0, stale_pair.returncode, stale_pair.stdout + stale_pair.stderr)
             self.assertIn("hifi", (stale_pair.stdout + stale_pair.stderr).lower())
 
-            refresh_required_pair(root, paths)
+            paths["design_json"].write_bytes(correct_registry)
             self.assertEqual(
                 unaffected,
                 {key: paths[key].read_bytes() for key in unaffected},
@@ -389,35 +291,6 @@ class SharedLifecycleGoldenPathTests(unittest.TestCase):
             )
             self.assertEqual(0, pair_check.returncode, pair_check.stdout + pair_check.stderr)
 
-            plan["security_review"] = {
-                "status": "required",
-                "skill_slot": "code_security_verification",
-                "reason": None,
-            }
-            add_graph_security_review(plan)
-            refresh_plan_source_rows(plan, paths, root)
-            for trace in plan["traces"]:
-                if trace["id"].startswith("DS-"):
-                    trace["source_ids"] = ["SRC-DS-JSON"]
-                else:
-                    trace["source_ids"] = ["SRC-PRD"]
-            for mission in plan.get("missions", []):
-                mission["write_scope"] = ["docs/README.md"]
-                if "DS-LAY-001" not in mission["trace_ids"]:
-                    mission["trace_ids"].append("DS-LAY-001")
-                for task in mission.get("tasks", []):
-                    task["write_scope"] = ["docs/README.md"]
-                    if "DS-LAY-001" not in task["trace_ids"]:
-                        task["trace_ids"].append("DS-LAY-001")
-                    for acceptance in task.get("acceptance_matrix", []):
-                        if "DS-LAY-001" not in acceptance["trace_ids"]:
-                            acceptance["trace_ids"].append("DS-LAY-001")
-            for node in plan["graph"]["nodes"]:
-                if isinstance(node.get("review"), dict):
-                    node["review"]["scope"] = ["docs/README.md"]
-
-            git(root, "add", "docs")
-            git(root, "commit", "-qm", "freeze current HiFi product package")
             release_sha = git(root, "rev-parse", "HEAD")
             plan_path = root / "PLAN.md"
             plan_path.write_text(

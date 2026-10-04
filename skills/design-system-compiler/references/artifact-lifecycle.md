@@ -1,6 +1,6 @@
 # Design System Artifact Lifecycle
 
-`sourceBindings.uiDesign.sha256` uses the canonical UI approval digest, not the raw file hash. Run `python "<ui-design-builder-skill-root>/scripts/ui_approval_digest.py" <ui-design.md>`; it excludes active derived pair/replacement linkage lines so linking the compiled pair does not invalidate its own input. All other source bindings use raw-file SHA-256.
+`sourceBindings.uiDesign.sha256` uses the canonical UI approval digest, not the raw file hash. Run `python "<ui-design-builder-skill-root>/scripts/ui_approval_digest.py" <ui-design.md>`; it excludes active derived pair/replacement linkage lines so linking the compiled pair does not invalidate its own input. For `ui-design/3` it also excludes the `Package action` and `Existing design-system pair disposition` lines, so switching to `reuse` keeps an unchanged package valid while any other approval edit makes it stale. All other source bindings use raw-file SHA-256.
 
 Current design sources live under `docs/design/`. Draft a pair in one run-specific directory under `docs/design/.ui-staging/<run-id>/` and publish to:
 
@@ -17,6 +17,6 @@ Generated Markdown writes preserve CAS bytes, file mode, and fsync durability. C
 
 UI references remain owned by `ui-design-builder`; Design System Compiler never republishes them. Product Definition artifacts remain under `docs/product/` and are never moved into design staging.
 
-The derived `docs/design/design-system-preview.html` follows the pair's authorized staging, publication and archive scope. Run `render_design_system_preview.py --check` before and after its transfer. The UI publication check with `--design-system-required` also requires the exact derived bytes. A missing or stale preview blocks completion for a new or revised pair. Preserve prior previews when superseding them under the same explicit archive rules. Never change validated schema-5 or approved legacy wireframe bytes to display formal tokens.
+The derived `docs/design/design-system-preview.html` follows the pair's authorized staging, publication and archive scope. For `design-system/4` it is also rendered from the bound HiFi bytes, so a HiFi change makes it stale too. Run `render_design_system_preview.py --check` before and after its transfer. The UI publication check with `--design-system-required` also requires the exact derived bytes. A missing or stale preview blocks completion for a new or revised pair. Preserve prior previews when superseding them under the same explicit archive rules. Never change validated schema-5 or approved legacy wireframe bytes to display formal tokens.
 
 Use the UI builder’s publication-checkout workflow in `../../ui-design-builder/references/artifact-lifecycle.md`: final logical paths inside an exact-source Git checkout, upstream byte comparison before publication, and exact-byte verification after publication. A `.ui-staging` draft is not an approval identity.

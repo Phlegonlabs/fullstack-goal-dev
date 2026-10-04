@@ -12,6 +12,12 @@ Use this template as `docs/goal/PLAN.md` for managed work that needs durable coo
     "revision": 1,
     "objective": "<one measurable outcome and stopping condition>",
     "max_parallel_workers": 1,
+    "branch_policy": {
+      "protocol": "dual-branch/1",
+      "kind": "ordinary",
+      "base_ref": "refs/remotes/origin/development",
+      "base_sha": "0000000000000000000000000000000000000000"
+    },
     "sources": [
       {
         "id": "SRC-001",
@@ -92,7 +98,7 @@ Use this template as `docs/goal/PLAN.md` for managed work that needs durable coo
         "id": "delivery-acceptance",
         "cwd": ".",
         "argv": [
-          "python",
+          "<absolute-observed-python-executable>",
           "<installed-delivery-harness>/scripts/check_delivery_acceptance.py",
           "--repo-root", ".",
           "--prd", "docs/product/PRD.md",
@@ -354,6 +360,8 @@ Use this template as `docs/goal/PLAN.md` for managed work that needs durable coo
 
 The exact fenced JSON block is the canonical plan. New plans use PLAN schema v6. Older PLAN schemas remain readable; their recorded schema decides which fields apply. Every runtime review has a stable `lineage_id` that survives node replacement and PLAN revision. The graph is the canonical source for mission dependencies and routing. Keep the JSON valid, increment `revision` after an accepted semantic plan or graph change, and calculate the run's digest with the normalization algorithm in `references/execution-state-model.md`. There is no `execution_route` PLAN field: the selector derives it from the chosen route and actually selected safe write missions.
 
+`branch_policy` freezes the release baseline before execution: `ordinary` uses the observed remote development head and `hotfix` uses the observed remote main head. Replace the zero SHA with that exact remote head; it does not advance as waves or integration heads advance. A 0.59+ current join requires this policy and the architecture's active `Release source policy: dual-branch/1` marker. The exact-A correction source remains the only exception for a continuation that does not cut a new branch. `new_run.py --branch` still names the current non-protected integration branch selected by repository governance; the generator never invents or mutates this base.
+
 Every new RUN records an explicit `security_review` policy. Use `required` for code delivery and include `security` in `required_reviews`; use `not_applicable` only with a concrete reason for a non-code delivery. `new_run.py` refuses an omitted policy. A required policy may add `required_checks`: batch or final verifier IDs whose single parent-run graph node must precede every security node and pass at the reviewed head before reservation; the review packet carries each with its `execution_key`. Existing PLAN-v6/RUN-v11 pairs remain readable and are never silently rewritten.
 
 Planned security requirements reuse upstream `PRD-*` traces and required `TEST-*` acceptance IDs. Give each trace an existing disposition (`planned`, `deferred`, or `out_of_scope`) under the current trace rules; an executable touched boundary must be `planned`. This template adds no security-specific schema or risk document.
@@ -364,7 +372,7 @@ For each `runtime_worker` node, record the actually allowed host identities in `
 
 Add logical `runtime.worker_role` when host policy binds a specialist or reviewer. UI authoring or implementation uses `frontend_worker`; independent review uses `reviewer`. Other portable or host-defined role IDs are allowed. The RUN maps the role to actual native or bridge execution and per-node axes; a missing mandatory binding defers the node instead of substituting the parent or another implementer.
 
-Harness 0.38+ always freezes the three exact rows shown above with current `content_sha256`; if `source_revision` is present, that full-SHA Git blob and current bytes must both match. Contract joins consume those immutable bytes. Harness 0.56+ UI work adds exact `ui design` (`ui-design/2`) and `approved ui target` rows; the target entry embeds the manifest and binds every sibling hash. Older pinned RUNs, and maintenance rounds on a legacy UI contract, retain their wireframe row. Current rows stay at their canonical `docs/design/` paths. A `required` Design System Need gate adds exact `design system` and `design system json` rows; `not_required` adds neither and permits no `DS-*` trace. Every UI surface records `capture_mode: hosted-browser | browser-extension | native | desktop`. URLs are never fetched or joined as authority. A `staged_revision` is not an executable publication. Publish the accepted revision to the canonical source location, clear staging, and increment PLAN revision/digest.
+Harness 0.38+ always freezes the three exact rows shown above with current `content_sha256`; if `source_revision` is present, that full-SHA Git blob and current bytes must both match. Contract joins consume those immutable bytes. Harness 0.59+ new full-UI work adds exact `ui design` (`ui-design/3`) and `approved ui target` rows; the target entry embeds the manifest and binds every sibling hash. A retained `ui-design/2` package uses its original contract; pins 0.56–0.58 require `ui-design/2`. Older pinned RUNs, and maintenance rounds on a legacy UI contract, retain their wireframe row. Current rows stay at their canonical `docs/design/` paths. A `required` Design System Need gate adds exact `design system` and `design system json` rows; `ui-design/3` also adds the frozen `design system preview` row. `not_required` adds neither and permits no `DS-*` trace. Every UI surface records `capture_mode: hosted-browser | browser-extension | native | desktop`. URLs are never fetched or joined as authority. A `staged_revision` is not an executable publication. Publish the accepted revision to the canonical source location, clear staging, and increment PLAN revision/digest.
 
 Every executable verifier declaration uses an explicit isolation mode. New templates default to `isolation: "host"`, `parallel_safe: false`, and disabled cache: the command runs in the exact checkout cwd with the project's local tools and environment, and host builds may create ignored artifacts but tracked source and protected Git state must remain unchanged. Host mode is not OS isolation and never reuses results. To use the legacy pinned container route instead, declare the full container policy explicitly and replace the example image reference with a locally observed immutable RepoDigest before readiness; zero or fabricated template digests are rejected, and omission never downgrades to host. External, network, browser, and mutable-environment checks use an external-wait, lifecycle, or browser route instead of a local candidate subprocess. Task and worker declarations may use the exact `selection.mode: "changed_files"` form shown by the machine manifest's `"mode": "changed_files"` value; targeted checks follow parent-observed changed files.
 
@@ -376,7 +384,7 @@ For each required security TEST, its acceptance `criterion` uses `denial: reject
 
 Plan one runtime reviewer per applicable surface, set `max_attempts` to at most 2, and add same-surface fan-out only for an explicit user request or a recorded high-impact risk. Every new code-delivery plan includes one integration-stage `security` review covering all missions and loads the skill bound to `code_security_verification`; it always runs fresh on the unified candidate and cannot use the byte-identical-tree skip. Group repair findings by root-cause failure family, freeze the family's acceptance matrix before another write, and carry consumed review attempts across PLAN revisions in the owner-decision source, mission stop conditions, and reviewer packet. A replan does not grant a fresh review budget. After exhaustion, only an explicit owner decision naming the structural strategy, failure-family matrix, and exact additional allowance may create one successor review node; set its `max_attempts` to that allowance, never the default two. Model and effort choices remain per-node and explicit. Null preserves the host defaults. The agent checks current support and preserves installed role/fallback policy; no provider-specific catalog or default applies. A non-null preferred provider records an explicit host preference and never authorizes a bridge. Keep final review tied to the unified SHA and do not add another same-scope review on an unchanged head.
 
-For UI work, load `references/ui-implementation-contract.md`. Freeze the approved UI contract, HiFi target, capture mode, and exactly one visual route. `design-system-compiler` owns a required schema-3 pair for `ui-design/2`; otherwise use the exact `not_required` replacement. UI implementation uses the owner-bound frontend-authoring skill under Harness conformance. A missing source is a design-input delta. Run platform-correct evidence after exact-SHA review and repair converge.
+For UI work, load `references/ui-implementation-contract.md`. Freeze the approved UI contract, HiFi target, capture mode, and exactly one visual route. `design-system-compiler` owns the required `design-system/4` package and frozen derived HTML for `ui-design/3`; a retained `ui-design/2` package owns its conditional schema-3 pair; otherwise use the exact `not_required` replacement. UI implementation uses the owner-bound frontend-authoring skill under Harness conformance. A missing source is a design-input delta. Run platform-correct evidence after exact-SHA review and repair converge.
 
 Use immutable flat task IDs such as `M1/T01`. Each task has a structured acceptance row exactly `{test_id, trace_ids, criterion}` and a verifier. Task dependencies are same-mission only; cross-mission ordering belongs in typed graph dependency edges. Scope entries are POSIX repository-relative paths or terminal `/**` subtrees. Workers never edit PLAN/RUN or frozen contract sources.
 
@@ -391,6 +399,7 @@ Use immutable flat task IDs such as `M1/T01`. Each task has a structured accepta
 | Architecture / API / data | <path> | <hash or revision> | draft / frozen / missing / n/a | <notes> |
 | Stack decisions | <stack-decisions.md path> | <hash or revision> | approved / revision_requested / blocked / n/a | <Required/Selected/Approved layers; delegation source if used> |
 | Design system pair | <path> | <hash or revision> | draft / frozen / missing / n/a | <required only when the Design System Need Gate is required> |
+| Design system preview (derived) | <design-system-preview.html path or n/a> | <hash or n/a> | frozen / missing / n/a | <required with `design-system/4`; derive from the frozen pair and bound HiFi> |
 
 ## Delivery Context
 
@@ -419,6 +428,21 @@ These are planning expectations, not authorization. Record explicit action autho
 
 ## Plan Readiness Gate
 
+For RUN pins >=0.60.0, require the PRD's explicit `eval-policy/1` applicability;
+older pins keep their checks unless a marker opts in. Applicable plans also
+freeze `SRC-EVAL` of kind `eval contract` at `docs/verification/eval-contract.json`.
+Follow `references/eval-acceptance-contract.md`: add the always-run final gate
+`eval-acceptance` invoking installed `check_eval_acceptance.py` with independently
+frozen PRD/eval/delivery hashes and default register. Both eval and delivery
+acceptance gates declare `execution.isolation: host` and absolute installed
+checker paths with the observed absolute Python executable; PATH or a project
+executable cannot substitute it. Containers cannot substitute their filesystem. Add its local-command node
+between every broad final check and delivery acceptance, using pass-only
+dependency edges. Keep `final-closeout` after delivery acceptance. Missing or
+substituted sources, checker argv, hashes or graph paths fail the common join.
+Declare runner/grader/lockfile/runbook task scope and two independent full-run
+reports before execution. PLAN/RUN store no duplicate eval state.
+
 For newly authored delivery work, also follow `references/delivery-acceptance-contract.md`. The example manifest above shows these entries; keep all of them before readiness:
 
 - a source `SRC-004` of kind `delivery acceptance` at `docs/verification/delivery-acceptance.json`, frozen like the other rows;
@@ -436,7 +460,11 @@ Use the parent's frozen contract hash, never a value derived from result writers
 
 For this, the last mission's `write_scope` lists `docs/verification/delivery-results.json` and `docs/verification/evidence/**`, as M1 shows, and so does the security review's `scope` (the validator requires it to cover every mission scope). Readiness review checks that the base already has byte-preserving `-text -filter` attributes for these paths; if not, put `.gitattributes` in an authorized pre-H1 task's `write_scope` and the security review scope, and commit it before H1. `record-integration` checks only that mission scope, so `N-ACCEPTANCE-GATE` is what refuses a product file committed with the register. Only the parent writes these paths, and every evidence file the register lists comes from its own run at H1. When the PLAN declares the acceptance gate, worker-result validation refuses a worker change to the register the gate names with `--results` or anything under its `evidence/` directory, whatever the task `write_scope` says. It also refuses any change no task `write_scope` covers, even when the register path cannot be read from the gate argv. Both checks run in every workspace mode, shared checkout included. They are not coordination paths, so a register commit after the recorded head leaves RUN stale. Any candidate repair after H2 changes files outside the register, so `N-ACCEPTANCE-GATE` fails at the repaired head. `reconcile-candidate-head` accepts only paths in the repair task's `write_scope`, which never lists the register, so rerunning acceptance after H2 needs a formal PLAN revision with fresh owner authorization: the new digest stops the old execution grants from covering anything. The revision adds a repair task whose `write_scope` lists only the register and evidence paths; that is safe then because the mission is already integrated. The parent commits that repair and records it with `reconcile-candidate-head`; a worker result cannot carry it. The template's neutral command placeholders must be replaced before execution.
 
-The manifest validator does not check that these entries exist, so the parent's readiness review must confirm them; passing schema validation alone is insufficient. Do not retrofit or silently migrate a running legacy PLAN/RUN. Direct work runs the acceptance CLI without these artifacts.
+Applicable eval policies require these entries through the common source join.
+For older plans without an eval marker, the parent's readiness review still
+confirms them; schema validation alone is insufficient. Do not retrofit or
+silently migrate a running legacy PLAN/RUN. Direct work runs the acceptance CLI
+without these artifacts.
 
 Implementation may start only after static validation passes, RUN records `plan_readiness: "ready"`, and required actions have explicit user authorization. Readiness never grants authorization.
 

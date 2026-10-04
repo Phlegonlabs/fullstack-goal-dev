@@ -11,9 +11,35 @@ SKILL_ROOT = Path(__file__).resolve().parents[2]
 UI_SKILL_ROOT = SKILL_ROOT.parent / "ui-design-builder"
 DEV_SOURCE_POLICY = "stage=development; ref=run.integration.branch; sha=run.integration.integration_head_sha"
 PROD_SOURCE_POLICY = "stage=production; ref=refs/heads/main; sha=promotion.verified_main_sha"
+DUAL_DEV_SOURCE_POLICY = (
+    "stage=development; ref=refs/heads/development; "
+    "sha=promotion.verified_development_sha"
+)
 
 
 class ProductDefinitionBuilderSkillContractTests(unittest.TestCase):
+    def test_eval_inputs_keep_durable_paths_and_separate_mutation_authority(self) -> None:
+        for path in ("references/eval-policy-contract.md", "references/artifact-lifecycle.md"):
+            text = self.read(path)
+            for required in ("evals/inputs/<revision>/", "outside", ".prd-staging", "creation authority",
+                             "Never overwrite", "publication", "mutation list", "Retain superseded"):
+                self.assertIn(required, text, (path, required))
+
+    def test_eval_approval_and_publication_invocations_keep_both_checks(self) -> None:
+        for path in ("SKILL.md", "references/eval-policy-contract.md",
+                     "references/output-contract.md", "references/artifact-lifecycle.md"):
+            text = self.read(path)
+            lines = [line for line in text.splitlines() if "--eval-policy eval-policy/1" in line]
+            self.assertTrue(lines, path)
+            for line in lines:
+                self.assertIn("--repo-root", line, (path, line))
+        output = self.read("references/output-contract.md")
+        completeness = output.split("### Completeness", 1)[1].split("### Publication", 1)[0]
+        self.assertIn("--eval-policy eval-policy/1", completeness)
+        lifecycle = self.read("references/artifact-lifecycle.md")
+        staging = lifecycle.split("## Stage and Validate", 1)[1].split("## Publication Authorization Gate", 1)[0]
+        self.assertIn("--eval-policy eval-policy/1", staging)
+
     def read(self, relative_path: str) -> str:
         path = SKILL_ROOT / relative_path
         if not path.is_file():
@@ -292,6 +318,33 @@ async function agent(_prompt, options) {
         self.assertIn("PROJECT_AGENTS.template.md` for `AGENTS.md`", skill)
         self.assertIn("PROJECT_CLAUDE.template.md` for `CLAUDE.md`", skill)
         self.assertIn("never copy one template to both files", skill)
+        self.assertIn("--check --merge-agents", skill)
+        self.assertIn("semantically review its proposal", skill)
+        self.assertIn("reviewed merge plan with the observed original/template hashes", skill)
+        self.assertIn("additions remain proposals until semantic review", skill)
+        self.assertIn("reconcile same-heading conflicts by meaning in place", skill)
+        self.assertIn("without overwriting intentional stricter local rules", skill)
+        self.assertIn(
+            "finish with `--check --require-resolved --stage product-definition`",
+            skill,
+        )
+        self.assertIn("not template byte equality", skill)
+        self.assertNotIn(
+            "`--check --merge-agents --require-resolved --stage product-definition`",
+            skill,
+        )
+        self.assertIn("entry bootstrap is the first source task for a new or existing target", skill)
+        self.assertIn("run only the context bootstrap moves", skill)
+        self.assertIn(
+            "`check_skill_bindings.py --stage ui-design` before directions/HiFi",
+            skill,
+        )
+        self.assertIn("`--stage design-compilation` before compilation", skill)
+        self.assertIn("`--stage backend` (or all slots for mixed scope) before execution/security", skill)
+        self.assertIn("Preserve confirmed pins", skill)
+        self.assertIn("future slots may remain pending", skill)
+        self.assertNotIn("Keep Skill Bindings pending here", skill)
+        self.assertNotIn("List locally installed binding candidates", skill)
         self.assertNotIn(
             "both files exist before any implementation run starts", skill
         )
@@ -939,20 +992,39 @@ async function agent(_prompt, options) {
         self.assertIn("AskUserQuestion", agent)
         self.assertIn("one repository and one codebase", architecture)
         self.assertIn("separately named development and production Workers", frontend)
-        self.assertIn("Exact candidate run branch/ref", contract)
-        self.assertIn("Exact remote `main` head", contract)
-        self.assertIn("same verified candidate SHA", contract)
-        self.assertIn("both initial delivery and enhancements start from observed remote `main`", skill)
+        self.assertIn("Candidate branch/ref", contract)
+        self.assertIn("Exact protected-development release SHA", contract)
+        self.assertIn("exact hotfix A at remote `main`", contract)
+        self.assertIn("Ordinary managed work freezes remote `development`", skill)
         self.assertIn("candidate run branch/SHA", architecture)
         self.assertIn(
             "Source policy: [`stage=development; ref=run.integration.branch; ",
             contract,
         )
-        self.assertIn("main-only branch model", agent)
+        self.assertIn("dual-branch governance", agent)
         for content in (skill, architecture, frontend, contract, agent):
             self.assertIn("development", content.lower())
             self.assertIn("production", content.lower())
             self.assertIn("cloudflare", content.lower())
+
+    def test_frontend_release_sources_follow_explicit_protocol(self) -> None:
+        frontend = self.read("references/frontend-stack-selection.md")
+        platform = frontend.split("### Any Platform", 1)[1].split("### Cloudflare", 1)[0]
+
+        self.assertIn("output-contract.md#release-targets", platform)
+        self.assertIn("Release source policy: dual-branch/1", platform)
+        self.assertIn("`refs/heads/development`", platform)
+        self.assertIn("`promotion.verified_development_sha`", platform)
+        self.assertIn("without that marker, legacy development", platform)
+        self.assertIn("exact candidate run branch/SHA", platform)
+        self.assertIn("`refs/heads/main`", platform)
+        self.assertIn("`promotion.verified_main_sha`", platform)
+        self.assertIn("separately authorized", platform)
+        self.assertIn("readback", platform)
+        self.assertNotIn(
+            "Development releases build from the exact candidate run branch/SHA and use",
+            platform,
+        )
 
     def test_interview_marks_closed_set_questions_for_askuserquestion(self) -> None:
         skill = self.read("SKILL.md")
@@ -1660,6 +1732,7 @@ async function agent(_prompt, options) {
         graph_doc = self.read("references/agent-work-graph.md")
         self.assertIn(PROD_SOURCE_POLICY, graph_doc)
         self.assertIn(DEV_SOURCE_POLICY, graph_doc)
+        self.assertIn(DUAL_DEV_SOURCE_POLICY, graph_doc)
         self.assertIn("Tags and alternative production refs are rejected", graph_doc)
         self.assertNotIn("other source rules remain explicit", graph_doc)
 
@@ -1680,6 +1753,25 @@ async function agent(_prompt, options) {
                 result = self.run_workflow(args)
                 self.assertFalse(result["ok"])
                 self.assertIn("source_policy must be", result["error"])
+
+    def test_graph_accepts_explicit_dual_branch_protocol_only(self) -> None:
+        args = self.base_workflow_args()
+        args["release_source_policy"] = "dual-branch/1"
+        args["release_targets"][0]["source_policy"] = DUAL_DEV_SOURCE_POLICY
+        result = self.run_workflow(args)
+        self.assertTrue(result["ok"], result)
+
+        mixed = self.base_workflow_args()
+        mixed["release_source_policy"] = "dual-branch/1"
+        result = self.run_workflow(mixed)
+        self.assertFalse(result["ok"])
+        self.assertIn(DUAL_DEV_SOURCE_POLICY, result["error"])
+
+        unknown = self.base_workflow_args()
+        unknown["release_source_policy"] = "dual-branch/2"
+        result = self.run_workflow(unknown)
+        self.assertFalse(result["ok"])
+        self.assertIn("candidate/1 or dual-branch/1", result["error"])
 
     def test_migration_order_drops_plan_v5_field_mapping(self) -> None:
         architecture = self.read("references/architecture-playbook.md")

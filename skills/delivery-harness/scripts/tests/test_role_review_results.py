@@ -42,7 +42,7 @@ class RoleReviewResultTests(unittest.TestCase):
             assignment_kind="review", assignment_id=node["id"], node_id=node["id"],
             worker_id=worker["worker_id"], attempt_id=worker["attempt_id"],
             model_provider="generic", model="review-model", reasoning_effort="xhigh",
-            session_id="review-session", launch_observation="actual launch", host_observation="parent host readback",
+            worker_session_id="review-session", launch_observation="actual launch", host_observation="parent host readback",
             fallback_record=None,
         ))
         # The established security-result fixture isolates a reserved review;

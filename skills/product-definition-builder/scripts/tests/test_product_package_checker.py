@@ -16,6 +16,7 @@ import check_product_package  # noqa: E402
 import contract_utils  # noqa: E402
 from git_evidence import GitEvidenceError, verify_revision_path  # noqa: E402
 from prd_ui_contract import validate_prd_wireframe_data  # noqa: E402
+from release_targets import parse_release_targets  # noqa: E402
 
 
 def valid_prd(*, mode: str = "new") -> str:
@@ -2573,6 +2574,63 @@ Security scope: executable
         )
         self.assertTrue(
             any("closed stage=<stage>" in item for item in self.validate(architecture=negated_production))
+        )
+
+    def test_release_source_marker_selects_dual_branch_protocol(self) -> None:
+        legacy, legacy_findings = parse_release_targets(release_architecture())
+        self.assertEqual([], legacy_findings)
+        self.assertEqual("candidate/1", legacy.source_policy_protocol)
+        self.assertEqual(
+            "run.integration.branch", legacy.targets[0].source_policy.split("ref=")[1].split(";")[0]
+        )
+
+        dual = release_architecture().replace(
+            "## Release Targets\n",
+            "## Release Targets\n\nRelease source policy: dual-branch/1\n",
+        )
+        dual = re.sub(
+            r"^- Source policy: stage=development; .*$",
+            "- Source policy: stage=development; ref=refs/heads/development; "
+            "sha=promotion.verified_development_sha",
+            dual,
+            count=1,
+            flags=re.MULTILINE,
+        )
+        parsed, findings = parse_release_targets(dual)
+        self.assertEqual([], findings)
+        self.assertEqual("dual-branch/1", parsed.source_policy_protocol)
+        self.assertEqual(
+            "refs/heads/development",
+            parsed.targets[0].source_policy.split("ref=")[1].split(";")[0],
+        )
+
+        forged = dual.replace(
+            "Release source policy: dual-branch/1",
+            "Release source policy: dual-branch/1 forged",
+            1,
+        )
+        legacy_for_marker, findings = parse_release_targets(forged)
+        self.assertTrue(
+            any(
+                "must be stage=development; ref=run.integration.branch" in item
+                for item in findings
+            )
+        )
+        self.assertEqual("candidate/1", legacy_for_marker.source_policy_protocol)
+        self.assertEqual(
+            "refs/heads/development",
+            legacy_for_marker.targets[0].source_policy.split("ref=")[1].split(";")[0],
+        )
+
+        duplicated = dual.replace(
+            "## Release Targets\n",
+            "## Release Targets\n\nRelease source policy: dual-branch/1\n",
+            1,
+        )
+        duplicated_contract, findings = parse_release_targets(duplicated)
+        self.assertEqual("candidate/1", duplicated_contract.source_policy_protocol)
+        self.assertTrue(
+            any("at most one active Release source policy marker" in item for item in findings)
         )
 
     def test_selected_stack_requires_repository_evidence_and_unique_sections(self) -> None:

@@ -17,7 +17,7 @@ REPO_ROOT = find_repo_root(Path(__file__).resolve().parent)
 
 
 def ui_design_prompt_problems(content: str) -> list[str]:
-    """Return why the README's ui-design-builder prompts miss the ui-design/2 flow."""
+    """Return why the README's ui-design-builder prompts miss the ui-design/3 flow."""
     prompts = [
         block
         for block in re.findall(r"```text\n(.*?)```", content, flags=re.DOTALL)
@@ -32,16 +32,23 @@ def ui_design_prompt_problems(content: str) -> list[str]:
     ]
     joined = "\n".join(prompts)
     for required in (
-        "`ui-design/2`",
+        "`ui-design/3`",
         "PRD UI Surface Contract",
         "$frontend-design",
         "$impeccable",
         "H1-H9",
         "Visual Approval",
         "$design-system-compiler",
+        "`design-system/4`",
     ):
         if required not in joined:
             problems.append(f"missing {required}")
+    derived_html_pattern = (
+        r"(?:frozen derived HTML|HTML derivado congelado|"
+        r"冻结的派生 HTML|凍結的衍生 HTML)"
+    )
+    if not re.search(derived_html_pattern, joined, flags=re.IGNORECASE):
+        problems.append(f"missing {derived_html_pattern}")
     for pattern in (r"\b(?:three|tres)\b", r"\b(?:completeness|completitud)\b"):
         if not re.search(pattern, joined):
             problems.append(f"missing {pattern}")
@@ -97,7 +104,7 @@ class ReadmeStructureTests(unittest.TestCase):
                 )
 
     @unittest.skipIf(REPO_ROOT is None, "README contract requires a source checkout")
-    def test_ui_design_prompts_use_the_ui_design_2_flow(self) -> None:
+    def test_ui_design_prompts_use_the_ui_design_3_flow(self) -> None:
         for filename in ("README.md", "README.zh-CN.md", "README.zh-TW.md", "README.es.md"):
             content = (REPO_ROOT / filename).read_text(encoding="utf-8")
             with self.subTest(readme=filename):
@@ -116,7 +123,7 @@ class ReadmeStructureTests(unittest.TestCase):
         )
         problems = ui_design_prompt_problems(legacy)
         self.assertTrue(any("Wireframe stage" in problem for problem in problems))
-        self.assertIn("missing `ui-design/2`", problems)
+        self.assertIn("missing `ui-design/3`", problems)
         self.assertIn(
             "expected 2 ui-design-builder prompts, found 0",
             ui_design_prompt_problems("no prompts"),

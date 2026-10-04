@@ -14,7 +14,7 @@ Apply `page-design-profiles.md` to each affected surface. Inspect the selected f
 
 ## Frozen Inputs
 
-For a current `ui-design/2` round, the Product Definition preflight uses the exact approved-package check with `--ui-contract ui-design/2`. A failed or unapproved product/stack identity blocks direction work; a missing UI-contract argument must not be treated as a current-package preflight.
+For a current round, the Product Definition preflight uses the exact approved-package check with `--ui-contract ui-design/3` (or `ui-design/2` for an existing ui-design/2 package). A failed or unapproved product/stack identity blocks direction work; a missing UI-contract argument must not be treated as a current-package preflight.
 
 For enhancements, apply `enhancement-recommendations.md#incremental-ui-scope` first. Reuse the approved direction and intake unless the accepted delta changes them. The complete matrix remains covered, but only added or changed screens and necessary entry/return controls are authored again. Keep unaffected product DOM, copy, layout, style, IDs and behavior; reviewer-shell migration alone is not a product redesign. Direction studies below apply to a new or changed direction, not automatically to every added feature.
 
@@ -63,7 +63,7 @@ If the owner supplies a reference, read `design-reference-guide.md` and inspect 
 
 Use the existing Design Brief to connect the page-purpose/profile mapping, typography/density/headline constraints, motion intent, owner answer, reference lessons and visual constraints to Style Integration and MM records as decisions mature. An explicit `no references` answer permits relevant research and recommendations under `design-reference-guide.md`; it is not direction approval. Unanswered optional references stay `not supplied`, and inaccessible material stays uninspected. Continue independent work and wait only for work that depends on the missing input. Preserve answered preferences and unchanged enhancement directions.
 
-When the owner explicitly instructs a single recommendation, produce one product-specific direction. Otherwise a new package gets exactly three materially different directions over the same approved surfaces, states and responsive targets. Continuing uncertainty does not convert into that single-direction instruction. Never substitute a fixed catalog of style names.
+When the owner explicitly instructs a single recommendation, produce one product-specific direction and record it as the intake's `Direction mode: one recommended direction` with that owner's `Decision owner` and `Decided on`; this applies to `ui-design/3` and `ui-design/2` alike. Otherwise a new package gets exactly three materially different directions over the same approved surfaces, states and responsive targets. Continuing uncertainty or silence never converts into that instruction. An enhancement keeps its package's contract and retains the accepted direction for unchanged scope: a `ui-design/3` package keeps its approved round's hash-bound studies and selection, and no enhancement restarts direction selection. Never substitute a fixed catalog of style names.
 
 Present the complete direction set to the human owner. End the turn and wait for `approve`, `select`, `mix`, or `reject`; even a one-direction set needs explicit approval. A mix or rejection creates one complete revised direction set and another explicit decision. Do not create the connected HiFi reference or invoke a generation provider before a direction is selected.
 
@@ -173,4 +173,6 @@ After Visual Approval, record exactly one Design System Need result:
 - `not_required`: the approved target, `ui-design.md`, and PRD are sufficient; or
 - `blocked`: a required decision or source is missing.
 
-When `required`, write `Compiled design system pair: pending — design-system-compiler` as the exact handoff marker, run the compiler preflight against the approved PRD/architecture/stack/UI/HiFi bytes, compile both files as `design-system/3`, and then replace the marker with both pair paths and hashes. The ordinary UI checker rejects a pending marker. When `not_required`, publish no placeholder pair and record the machine-bound existing-pair disposition.
+When `required`, write `Compiled design system pair: pending — design-system-compiler` as the exact handoff marker, run the compiler preflight against the approved PRD/architecture/stack/UI/HiFi bytes, compile both files (`design-system/4` plus its derived HTML for `ui-design/3`, `design-system/3` for `ui-design/2`), and then replace the marker with both pair paths and hashes. The ordinary UI checker rejects a pending marker. When `not_required`, publish no placeholder pair and record the machine-bound existing-pair disposition.
+
+A `ui-design/3` package never records `not_required`: it adds `Package action: compile|update|reuse` under the output contract. Its HiFi must carry `data-specimen-variant`/`data-specimen-state` on every product element the design system will display, because the compiled HTML derives component specimens only from those approved source elements.

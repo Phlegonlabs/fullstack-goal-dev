@@ -15,12 +15,8 @@ and `validate_result.py` validating a returned graph payload with `--repo-root`
 — so cross-skill contract drift surfaces here as one red test.
 """
 
-from __future__ import annotations
-
-import hashlib
 import json
 import os
-import re
 import subprocess
 import sys
 import tempfile
@@ -38,12 +34,11 @@ if str(SCRIPTS_DIR) not in sys.path:
 from harness_core import load_run  # noqa: E402
 from harness_contract_join import validate_frozen_contract_joins  # noqa: E402
 from manifest_fixtures import (  # noqa: E402
+    eval_exempt_product_fixture,
     git,
-    init_repo,
     manifest_markdown,
 )
-import test_harness_strict_authority as strict_authority_fixtures  # noqa: E402
-from test_graph_orchestration import add_security_review  # noqa: E402
+import contract_package_fixture  # noqa: E402
 from test_validate_node_result import running_result  # noqa: E402
 
 
@@ -56,234 +51,6 @@ def run_cli(*arguments: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-def frozen_source(
-    identifier: str, kind: str, location: str, path: Path
-) -> dict[str, object]:
-    return {
-        "id": identifier,
-        "kind": kind,
-        "location": location,
-        "owner": "product",
-        "status": "frozen",
-        "content_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
-        "source_revision": None,
-        "staged_revision": None,
-        "notes": "golden-path frozen source",
-    }
-
-
-def approved_prd() -> str:
-    headings = (
-        "At a Glance",
-        "Problem Statement",
-        "Goals",
-        "Non-Goals",
-        "Users and Personas",
-        "User Journeys",
-    )
-    text = "# PRD: Golden Path\n\n" + "\n".join(
-        f"## {heading}\nFilled." for heading in headings
-    )
-    return text + """
-## Functional Requirements
-| ID | Requirement | Priority | Acceptance Criteria |
-| --- | --- | --- | --- |
-| PRD-001 | Complete fixture | Must | Completion is observable |
-## Non-Functional Requirements
-| ID | Quality attribute | Scope / requirement | Measure | Target / threshold | TEST IDs |
-| --- | --- | --- | --- | --- | --- |
-| PRD-002 | Reliability | Fixture run | Passing executions | 100% | TEST-002 |
-## UX Requirements
-Filled.
-## Data and Integration Requirements
-Filled.
-## Data and Trust
-Data and Trust Gate: not_required — synthetic data only, decided by Owner
-## AI and Automation
-AI and Automation Gate: not_required — no AI, decided by Owner
-## Business Rules
-Filled.
-## Monetization and Partner Channels
-| Decision | Selection | Product rationale / evidence | Status | Trace IDs |
-| --- | --- | --- | --- | --- |
-| Monetization Infrastructure Gate | not_required | No commercial surface | approved | n/a |
-| Partner Channel Gate | not_required | No outside sellers | approved | n/a |
-## Metrics
-| Metric | Definition | Baseline | Target / guardrail | Measurement window | Source / method | Owner |
-| --- | --- | --- | --- | --- | --- | --- |
-| Completion | Completed | 0 | 1 | Test run | Test result | Owner |
-## Risks
-Filled.
-## Assumptions
-| Assumption | Impact if wrong | Validation | Owner | Decision date | Status |
-| --- | --- | --- | --- | --- | --- |
-## Open Questions
-| Question | Why it matters | Owner | Decision deadline | Blocks approval | Status / resolution |
-| --- | --- | --- | --- | --- | --- |
-## Test Obligations
-| TEST ID | Obligation | Test type | Required | Upstream trace IDs | Expected signal |
-| --- | --- | --- | --- | --- | --- |
-| TEST-001 | Complete fixture | integration | Yes | PRD-001 | Completion observed |
-| TEST-002 | Reliable fixture | reliability | Yes | PRD-002 | All runs pass |
-## UI Design Handoff Status
-UI design: pending explicit ui-design-builder request
-UI decision owner: Owner
-## Product Definition Decisions
-### Research Gate
-Research Gate: go — assessed 2026-09-12, decided by Owner
-<!-- product-definition-approval:start -->
-### Product Definition Approval
-- Package mode: new
-- Package revision: PD-R1
-- Decision: approved
-- Decision owner: Owner
-- Decided on: 2026-09-12
-- Approved artifacts: PRD.md, architecture.md, stack-decisions.md
-- Market research reconciliation: completed
-- Stack Decision Checkpoint: approved
-- Accepted assumptions and non-blocking questions: none
-- Blocking items: none
-<!-- product-definition-approval:end -->
-<!-- ui-surface-contract:start -->
-## UI Surface Contract
-
-### UI-001 — Home
-
-- `route`: /home
-- `states`: ready
-- `responsive`: viewports: 390, 768, 1200
-- `copy`: approved — static copy is implementation-bound
-<!-- ui-surface-contract:end -->
-"""
-
-
-def approved_architecture() -> str:
-    headings = (
-        "Architecture Summary",
-        "Product Archetype",
-        "System Context",
-        "Component Architecture",
-        "Data Model",
-        "API and Interface Contracts",
-        "Workflow and Data Flow",
-        "Auth, Permissions, and Security",
-        "Data and Trust Architecture",
-        "AI and Automation Architecture",
-        "Integrations",
-        "Deployment and Operations",
-        "Observability",
-        "Scaling and Reliability",
-        "Technical Risks and Tradeoffs",
-        "Architecture Trace Index",
-    )
-    return "# Architecture: Golden Path\n\n" + "\n".join(
-        f"## {heading}\nFilled." for heading in headings
-    )
-
-
-def approved_stack() -> str:
-    return """# Stack Decisions: Golden Path
-<!-- stack-decision-checkpoint:start -->
-## Stack Decision Checkpoint
-- Decision: approved
-- Decision owner: Owner
-- Decided on: 2026-09-12
-- Approved areas: frontend
-- Delegated choices: none
-- Open areas: none
-<!-- stack-decision-checkpoint:end -->
-### Coherent Options Presented
-| Option ID | Area | Complete bundle | Best fit | Tradeoffs / ownership | Disposition |
-| --- | --- | --- | --- | --- | --- |
-| OPT-FE-01 | Frontend | Fixture bundle | Synthetic test | Team ownership | approved |
-| OPT-FE-02 | Frontend | Alternate bundle | Synthetic alternative | Team ownership | rejected |
-## Frontend Technology Decision
-### Recorded or Approved Stack
-| Layer | Selection | Status | Authority / evidence | Why It Fits | Constraint / follow-up |
-| --- | --- | --- | --- | --- | --- |
-| Deployment / runtime | Fixture runtime | Approved | Owner | Synthetic test | None |
-| Rendering model | SPA | Approved | Owner | Synthetic test | None |
-| Language | TypeScript | Approved | Owner | Synthetic test | None |
-| Package manager | npm | Approved | Owner | Synthetic test | None |
-| Framework | Fixture | Approved | Owner | Synthetic test | None |
-| UI library | Fixture UI | Approved | Owner | Synthetic test | None |
-| Component foundation | Fixture components | Approved | Owner | Synthetic test | None |
-| Styling approach | Plain CSS | Approved | Owner | Synthetic test | None |
-| Build tool | Fixture build | Approved | Owner | Synthetic test | None |
-| Routing and data | Fixture router | Approved | Owner | Synthetic test | None |
-| Testing | Fixture tests | Approved | Owner | Synthetic test | None |
-"""
-
-
-def approved_ui_design() -> str:
-    return """# UI Design Contract
-
-## Source Product Definition
-PRD source: docs/product/PRD.md @ fixture
-Architecture source: docs/product/architecture.md @ fixture
-Stack source: docs/product/stack-decisions.md @ fixture
-Product Definition Approval: approved — Owner, 2026-09-13
-Stack Decision Checkpoint: approved — Owner, 2026-09-13
-## UI Design Intake
-Decision owner: Owner
-Decided on: 2026-09-13
-Visual Preference Brief: Plain synthetic fixture UI
-Direction mode: one recommended direction
-## Motion And Media Intent
-Motion direction: not_required — Owner
-| Intent ID | UI scope / region | Treatment | Purpose and trigger | Static / reduced-motion fallback | Generation route | Status |
-| --- | --- | --- | --- | --- | --- | --- |
-| MM-001 | UI-001 / main | none | Static fixture | Static fixture | none | approved |
-## Wireframe Approval
-Wireframe: docs/design/wireframes.html @ fixture
-Frozen PRD basis: docs/product/PRD.md @ fixture
-Copy Freeze: approved
-Copy owner: Owner
-Copy locale: en-US
-Copy approved on: 2026-09-13
-Responsive browser check: passed synthetic matrix
-UI grading: W1-W5 overall 90 with no block
-Wireframe score: 90
-W5 score: 90
-Wireframe lowest dimension: 90
-Wireframe blocks: none
-Decision: approved
-Decision owner: Owner
-Decided on: 2026-09-13
-## Style Integration
-Design author: frontend-design
-Selected direction: VD-R1-01 synthetic fixture
-Direction decision: approved
-Direction decision owner: Owner
-Direction decided on: 2026-09-13
-Candidate theme: plain fixture CSS
-Connected HiFi reference: docs/design/ui-references/golden/index.html @ fixture
-## HiFi Review
-Impeccable critique: passed synthetic review 40/40
-Impeccable audit: passed synthetic audit 20/20
-UI grading: H1-H9 overall 95; H2 95; H4 95; H8 95; no block
-HiFi score: 95
-H2 score: 95
-H4 score: 95
-H5 score: 95
-H7 score: 95
-H8 score: 95
-H9 score: 95
-HiFi lowest dimension: 90
-HiFi blocks or disputes: none
-## Visual Approval
-Decision: approved
-Decision owner: Owner
-Decided on: 2026-09-13
-Approved target: docs/design/ui-references/golden/index.html @ fixture; UI-001 ready; 390, 768, 1200
-## Design System Need Gate
-Decision: not_required
-Decision owner: Owner
-Reason: Synthetic single-surface target
-Replacement visual contract when not_required: ui-design.md, wireframes.html, PRD.md, approved target
-"""
-
-
 @unittest.skipUnless(
     os.environ.get("HARNESS_GOLDEN_PATH"),
     "set HARNESS_GOLDEN_PATH=1 to run the golden-path E2E",
@@ -292,62 +59,15 @@ class GoldenPathTests(unittest.TestCase):
     def test_frozen_package_walks_the_real_cli_spine(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            init_repo(root, "README.md")
-
-            plan, _seed_run, paths = (
-                strict_authority_fixtures.StrictAuthorityJoinTests._ui_fixture(
-                    root, required=True
+            with eval_exempt_product_fixture():
+                package = contract_package_fixture.current_package(
+                    root, pin=(SCRIPTS_DIR.parent / "VERSION").read_text(encoding="utf-8").strip()
                 )
-            )
-            # Exercise the current release contract, while strict-authority
-            # tests continue to cover the old pinned wireframe path.
-            sys.path.insert(0, str(strict_authority_fixtures.UI_TESTS_DIR))
-            from test_wireframe_free_publication import current_publication
-            from ui_approval_digest import canonical_ui_approval_sha256
-            ui_path, _, _ = current_publication(root)
-            ui_text = ui_path.read_text(encoding="utf-8").replace("Decision: not_required", "Decision: required")
-            ui_text = re.sub(r"^Replacement visual contract when_not_required:.*$",
-                            "Compiled design system pair: pending — design-system-compiler", ui_text, flags=re.M)
-            ui_path.write_text(ui_text, encoding="utf-8")
-            registry = json.loads(paths["design_json"].read_text(encoding="utf-8"))
-            registry["schema"] = "design-system/3"
-            registry["sourceBindings"].pop("wireframe")
-            for key, binding in registry["sourceBindings"].items():
-                source_path = root / binding["path"]
-                binding["sha256"] = (canonical_ui_approval_sha256(ui_text) if key == "uiDesign"
-                                     else hashlib.sha256(source_path.read_bytes()).hexdigest())
-            strict_authority_fixtures.StrictAuthorityJoinTests._refresh_pair(root, paths, registry)
-            plan["sources"] = [row for row in plan["sources"] if row["kind"] != "wireframe"]
-            for row in plan["sources"]:
-                row["content_sha256"] = hashlib.sha256((root / row["location"]).read_bytes()).hexdigest()
+            plan = package["plan"]
+            paths = package["paths"]
             prd_path = paths["prd"]
             design_markdown_path = paths["design_markdown"]
             design_json_path = paths["design_json"]
-            plan["security_review"] = {
-                "status": "required",
-                "skill_slot": "code_security_verification",
-                "reason": None,
-            }
-            add_security_review(plan)
-            for trace in plan["traces"]:
-                if not trace["id"].startswith("DS-"):
-                    trace["source_ids"] = ["SRC-PRD"]
-            for mission in plan.get("missions", []):
-                mission["write_scope"] = ["docs/README.md"]
-                if "DS-LAY-001" not in mission["trace_ids"]:
-                    mission["trace_ids"].append("DS-LAY-001")
-                for task in mission.get("tasks", []):
-                    task["write_scope"] = ["docs/README.md"]
-                    if "DS-LAY-001" not in task["trace_ids"]:
-                        task["trace_ids"].append("DS-LAY-001")
-                    for acceptance in task.get("acceptance_matrix", []):
-                        if "DS-LAY-001" not in acceptance["trace_ids"]:
-                            acceptance["trace_ids"].append("DS-LAY-001")
-            for node in plan["graph"]["nodes"]:
-                if isinstance(node.get("review"), dict):
-                    node["review"]["scope"] = ["docs/README.md"]
-            git(root, "add", "docs")
-            git(root, "commit", "-qm", "freeze product package")
             head = git(root, "rev-parse", "HEAD")
 
             plan_path = root / "PLAN.md"
@@ -400,14 +120,17 @@ class GoldenPathTests(unittest.TestCase):
             plan_only = run_cli(str(SCRIPTS_DIR / "validate_harness_plan.py"),
                 "--plan", str(plan_path), "--repo-root", str(root), "--prd", str(prd_path),
                 "--design-system-markdown", str(design_markdown_path), "--design-system", str(design_json_path))
-            self.assertEqual(0, plan_only.returncode, plan_only.stdout + plan_only.stderr)
+            # An explicit PLAN policy and architecture marker can be checked
+            # before a RUN exists; this grants no execution or promotion.
+            self.assertEqual(0, plan_only.returncode, plan_only.stdout)
+            self.assertEqual("PASS", json.loads(plan_only.stdout)["status"])
 
             run = load_run(run_path)
             missing_ui_design = json.loads(json.dumps(plan))
             missing_ui_design["sources"] = [
                 source
                 for source in missing_ui_design["sources"]
-                if source["id"] != "SRC-UI"
+                if source["kind"] != "ui design"
             ]
             self.assertTrue(
                 any(

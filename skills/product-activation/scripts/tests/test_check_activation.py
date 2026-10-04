@@ -94,6 +94,74 @@ APPROVED_PRD = VALID_PRD.replace(
     "| Activation rate | Users completing setup | 0% | 70% | 14 days | Analytics event | Product owner |",
 )
 
+NOOP_PRD = """# PRD: Example
+
+## Metrics
+| Metric | Definition | Target |
+| --- | --- | --- |
+
+## Test Obligations
+| TEST ID | Obligation | Test type | Required | Upstream trace IDs | Expected signal |
+| --- | --- | --- | --- | --- | --- |
+"""
+
+
+def valid_noop_record() -> str:
+    """A filled closeout record whose only release targets have no activation scope."""
+
+    return """# Product Activation
+
+## Record
+- Schema: product-activation/2
+- Product: Example
+- Activation owner: product owner
+- Release reference: v1.0.0
+- Status: handoff_ready
+- Updated: 2026-09-07T18:00:00Z
+- Measurement window starts: 2026-09-07T18:05:00Z
+
+## Applied Profiles
+| Profile | Applies | Reason | Owner |
+| --- | --- | --- | --- |
+| core | yes | shared release and ownership baseline | product owner |
+| web | yes | architecture contains hosted web targets | web owner |
+
+## Capability Observations
+| Observation ID | Route | Status | Supports | Target scope | Environment | Checked | Evidence |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| CAP-001 | browser | unavailable | n/a | no external activation target | production | 2026-09-07T17:55:00Z | architecture has no activation scope |
+
+## Outcome Coverage
+| Signal | Definition / obligation | Baseline | Target / guardrail | Measurement window | Expected signal | Release targets | Source / method | Owner | Source ID | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+
+## Measurement Sources
+| MS ID | Target | Environment | Retrieval | Source role | Route / capability | Release bindings | Owner | Status | Evidence IDs |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+
+## Activation Tasks
+<!-- activation-task-contract:start -->
+<!-- activation-task-contract:end -->
+
+## Verification Evidence
+| Evidence ID | Item ID | Kind | Route / action / release binding | Checked | Result | Reference |
+| --- | --- | --- | --- | --- | --- | --- |
+
+## Manual Handoff
+| Item ID | Owner | Exact step | Expected evidence | Status |
+| --- | --- | --- | --- | --- |
+
+## Target Readiness
+| Release target | Stage | Provider / channel | Source SHA | Artifact / build identity | Availability state | Status | Checked | N/A reason | Blockers |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| web-dev | development | Cloudflare;fixture-development-route | pending | pending | n/a | n/a | pending | n/a — development target has no activation scope | none |
+| web-prod | production | Cloudflare;fixture-production-route | pending | pending | n/a | n/a | pending | n/a — release has no external activation delta | none |
+
+## Open Blockers
+| Blocker ID | Release targets | Kind | Owner | Next step | Status | Notes |
+| --- | --- | --- | --- | --- | --- | --- |
+"""
+
 
 def task_fields(
     task_id: str = "ACT-001",
@@ -300,6 +368,22 @@ class ActivationCheckerTests(unittest.TestCase):
                 repo_root=Path.cwd(),
                 require_verified_sources=True,
                 require_ready=("web-prod",),
+            )
+        self.assertEqual([], findings)
+
+    def test_explicit_noop_can_pass_verified_source_handoff(self) -> None:
+        with patch("check_product_package.validate_texts", return_value=[]), patch(
+            "check_deployment.check_deployment_text", return_value=[]
+        ):
+            findings = check_activation.check_activation_text(
+                valid_noop_record(),
+                prd_text=NOOP_PRD,
+                architecture_text=ARCHITECTURE,
+                deployment_text=DEPLOYMENT,
+                stack_text="# Stack Decisions: Example",
+                repo_root=Path.cwd(),
+                require_closeout=True,
+                require_verified_sources=True,
             )
         self.assertEqual([], findings)
 
@@ -1015,6 +1099,254 @@ class ActivationCheckerTests(unittest.TestCase):
             "\n".join(check_activation.check_activation_text(record)),
         )
 
+    def test_closeout_rejects_ready_and_configured_required_actions(self) -> None:
+        for status, label in (
+            ("ready", "unattempted with status 'ready'"),
+            ("configured", "not execution-verified with status 'configured'"),
+        ):
+            with self.subTest(status=status):
+                fields = task_fields(status=status)
+                record = valid_record(task_blocks=[task_block("ACT-001", fields)])
+                with patch(
+                    "check_product_package.validate_texts", return_value=[]
+                ), patch("check_deployment.check_deployment_text", return_value=[]):
+                    findings = check_activation.check_activation_text(
+                        record,
+                        prd_text=VALID_PRD,
+                        architecture_text=ARCHITECTURE,
+                        deployment_text=DEPLOYMENT,
+                        stack_text="# Stack Decisions: Example",
+                        repo_root=Path.cwd(),
+                        require_closeout=True,
+                    )
+                self.assertIn(f"Activation closeout: ACT-001 is {label}", "\n".join(findings))
+
+    def test_closeout_does_not_infer_authorization_from_readiness(self) -> None:
+        fields = task_fields(status="ready")
+        fields["Authorization"] = "pending"
+        fields["Authorization source"] = "none"
+        record = valid_record_v2(task_blocks=[task_block("ACT-001", fields)])
+        with patch("check_product_package.validate_texts", return_value=[]), patch(
+            "check_deployment.check_deployment_text", return_value=[]
+        ):
+            findings = check_activation.check_activation_text(
+                record,
+                prd_text=APPROVED_PRD,
+                architecture_text=ARCHITECTURE,
+                deployment_text=DEPLOYMENT,
+                stack_text="# Stack Decisions: Example",
+                repo_root=Path.cwd(),
+                require_closeout=True,
+            )
+        joined = "\n".join(findings)
+        self.assertIn("ready write requires approved authorization", joined)
+        self.assertIn("Activation closeout: ACT-001 is unattempted", joined)
+
+    def test_closeout_accepts_explicit_owner_deferral_only_as_blocked(self) -> None:
+        fields = task_fields(status="blocked", evidence_ids="none")
+        fields["Authorization"] = "pending"
+        fields["Authorization source"] = "none"
+        fields["Blocker / N/A reason"] = (
+            "owner-deferred by product owner: connect the production measurement event next week"
+        )
+        record = valid_record_v2(task_blocks=[task_block("ACT-001", fields)])
+        record = "\n".join(
+            line
+            for line in record.splitlines()
+            if not line.startswith("| EVID-001 |")
+            and not line.startswith("| EVID-002 |")
+            and not line.startswith("| EVID-003 |")
+        )
+        record = record.replace("- Status: handoff_ready", "- Status: blocked", 1)
+        record = record.replace(
+            f"| web-prod | production | Cloudflare;fixture-production-route | {SHA} | {ARTIFACT} | deployed | ready |",
+            f"| web-prod | production | Cloudflare;fixture-production-route | {SHA} | {ARTIFACT} | pending | blocked |",
+            1,
+        )
+        with patch("check_product_package.validate_texts", return_value=[]), patch(
+            "check_deployment.check_deployment_text", return_value=[]
+        ):
+            findings = check_activation.check_activation_text(
+                record,
+                prd_text=APPROVED_PRD,
+                architecture_text=ARCHITECTURE,
+                deployment_text=DEPLOYMENT,
+                stack_text="# Stack Decisions: Example",
+                repo_root=Path.cwd(),
+                require_closeout=True,
+            )
+        self.assertEqual([], findings)
+
+    def test_closeout_owner_deferral_requires_a_human_and_blocked_record(self) -> None:
+        fields = task_fields(status="blocked", evidence_ids="none")
+        fields["Authorization"] = "pending"
+        fields["Authorization source"] = "none"
+        fields["Blocker / N/A reason"] = (
+            "owner-deferred by automation bot: production event setup remains"
+        )
+        record = valid_record_v2(task_blocks=[task_block("ACT-001", fields)]).replace(
+            "- Status: handoff_ready",
+            "- Status: blocked",
+            1,
+        )
+        with patch("check_product_package.validate_texts", return_value=[]), patch(
+            "check_deployment.check_deployment_text", return_value=[]
+        ):
+            findings = check_activation.check_activation_text(
+                record,
+                prd_text=APPROVED_PRD,
+                architecture_text=ARCHITECTURE,
+                deployment_text=DEPLOYMENT,
+                stack_text="# Stack Decisions: Example",
+                repo_root=Path.cwd(),
+                require_closeout=True,
+            )
+        joined = "\n".join(findings)
+        self.assertIn("owner deferral must name a human owner", joined)
+        self.assertNotIn("Record status must be", joined)
+
+    def test_closeout_rejects_vague_blockers_and_empty_deferral_work(self) -> None:
+        fields = task_fields(status="blocked", evidence_ids="none")
+        fields["Authorization"] = "pending"
+        fields["Authorization source"] = "none"
+        for reason in ("", "later", "TBD", "owner action later"):
+            with self.subTest(reason=reason):
+                fields["Blocker / N/A reason"] = reason
+                findings = check_activation._closeout_findings(
+                    {"Status": "blocked"},
+                    {"ACT-001": fields},
+                    {},
+                )
+                self.assertIn(
+                    "needs a concrete blocker reason",
+                    "\n".join(findings),
+                )
+
+        fields["Blocker / N/A reason"] = "owner-deferred by product owner: <fill>"
+        findings = check_activation._closeout_findings(
+            {"Status": "blocked"},
+            {"ACT-001": fields},
+            {},
+        )
+        self.assertIn(
+            "owner deferral needs concrete remaining work",
+            "\n".join(findings),
+        )
+
+    def test_closeout_treats_a_concrete_blocker_as_blocked_not_complete(self) -> None:
+        fields = task_fields(status="blocked", evidence_ids="none")
+        fields["Authorization"] = "pending"
+        fields["Authorization source"] = "none"
+        fields["Blocker / N/A reason"] = "production account login is unavailable"
+        findings = check_activation._closeout_findings(
+            {"Status": "blocked"},
+            {"ACT-001": fields},
+            {},
+        )
+        self.assertEqual([], findings)
+
+    def test_closeout_accepts_translated_blockers_and_owner_deferrals(self) -> None:
+        fields = task_fields(status="blocked", evidence_ids="none")
+        fields["Authorization"] = "pending"
+        fields["Authorization source"] = "none"
+        for reason in (
+            "正式環境帳戶無法登入",
+            "無法登入",
+            "owner-deferred by Alice: 等待店主完成正式環境登入",
+            "Le compte de production reste inaccessible",
+        ):
+            with self.subTest(reason=reason):
+                fields["Blocker / N/A reason"] = reason
+                self.assertEqual([], check_activation._closeout_findings(
+                    {"Status": "blocked"}, {"ACT-001": fields}, {}))
+                self.assertIn("Record status must be 'blocked'", "\n".join(
+                    check_activation._closeout_findings(
+                        {"Status": "handoff_ready"}, {"ACT-001": fields}, {})))
+        for reason in ("稍後", "待處理", "稍後處理", "owner-deferred by Alice: 稍後處理"):
+            with self.subTest(vague_reason=reason):
+                fields["Blocker / N/A reason"] = reason
+                self.assertTrue(check_activation._closeout_findings(
+                    {"Status": "blocked"}, {"ACT-001": fields}, {}))
+
+    def test_closeout_accepts_explicit_noop_without_a_synthetic_task(self) -> None:
+        tasks, _titles, parse_findings = check_activation._tasks(valid_noop_record())
+        self.assertIn("Activation Tasks: no ACT task blocks found", parse_findings)
+        tasks, _titles, parse_findings = check_activation._tasks(
+            valid_noop_record(),
+            allow_no_tasks=True,
+        )
+        self.assertEqual([], parse_findings)
+        self.assertEqual({}, tasks)
+        with patch("check_product_package.validate_texts", return_value=[]), patch(
+            "check_deployment.check_deployment_text", return_value=[]
+        ):
+            findings = check_activation.check_activation_text(
+                valid_noop_record(),
+                prd_text=NOOP_PRD,
+                architecture_text=ARCHITECTURE,
+                deployment_text=DEPLOYMENT,
+                stack_text="# Stack Decisions: Example",
+                repo_root=Path.cwd(),
+                require_closeout=True,
+            )
+        self.assertEqual([], findings)
+
+    def test_noop_target_dispositions_need_substantive_reason_suffixes(self) -> None:
+        for reason, accepted in (
+            ("n/a - x", False), ("n/a — pending", False), ("n/a: TBD", False),
+            ("n/a — 稍後處理", False), ("n/a", False),
+            ("n/a — release has no external activation delta", True),
+            ("n/a — 此版本不需要外部啟用設定", True),
+        ):
+            with self.subTest(reason=reason):
+                readiness = {"web-prod": {"status": "n/a", "na_reason": reason}}
+                self.assertEqual(accepted, check_activation._explicit_noop(True, {}, readiness))
+                closeout = check_activation._closeout_findings(
+                    {"Status": "handoff_ready"}, {}, readiness)
+                self.assertEqual(accepted, not closeout)
+                record = valid_noop_record().replace(
+                    "n/a — development target has no activation scope", reason
+                ).replace("n/a — release has no external activation delta", reason)
+                with patch("check_product_package.validate_texts", return_value=[]), patch(
+                    "check_deployment.check_deployment_text", return_value=[]
+                ):
+                    findings = check_activation.check_activation_text(
+                        record, prd_text=NOOP_PRD, architecture_text=ARCHITECTURE,
+                        deployment_text=DEPLOYMENT, stack_text="# Stack Decisions: Example",
+                        repo_root=Path.cwd(), require_closeout=True,
+                    )
+                if accepted:
+                    self.assertEqual([], findings)
+                else:
+                    self.assertIn("needs a concrete reason", "\n".join(findings))
+
+    def test_empty_task_boundary_cannot_bypass_an_active_target(self) -> None:
+        active = valid_noop_record().replace(
+            "| web-prod | production | Cloudflare;fixture-production-route | pending | pending | n/a | n/a | pending | n/a — release has no external activation delta | none |",
+            f"| web-prod | production | Cloudflare;fixture-production-route | {SHA} | {ARTIFACT} | deployed | ready | 2026-09-07T18:03:00Z | none | none |",
+        )
+        with patch("check_product_package.validate_texts", return_value=[]), patch(
+            "check_deployment.check_deployment_text", return_value=[]
+        ):
+            findings = check_activation.check_activation_text(
+                active,
+                prd_text=NOOP_PRD,
+                architecture_text=ARCHITECTURE,
+                deployment_text=DEPLOYMENT,
+                stack_text="# Stack Decisions: Example",
+                repo_root=Path.cwd(),
+                require_closeout=True,
+            )
+        joined = "\n".join(findings)
+        self.assertIn(
+            "no-op target web-prod must have an explicit n/a disposition",
+            joined,
+        )
+        self.assertIn(
+            "Target Readiness: ready target web-prod has no required ACT tasks",
+            joined,
+        )
+
     def test_cli_exit_codes_and_digest_output(self) -> None:
         script = SCRIPTS_DIR / "check_activation.py"
         with tempfile.TemporaryDirectory() as temp:
@@ -1049,6 +1381,20 @@ class ActivationCheckerTests(unittest.TestCase):
             )
             self.assertEqual(2, strict_without_prd.returncode)
             self.assertIn("requires --prd", strict_without_prd.stderr)
+            closeout_without_prd = subprocess.run(
+                [
+                    sys.executable,
+                    str(script),
+                    "--activation",
+                    str(path),
+                    "--require-closeout",
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(2, closeout_without_prd.returncode)
+            self.assertIn("requires --prd", closeout_without_prd.stderr)
 
 
 if __name__ == "__main__":

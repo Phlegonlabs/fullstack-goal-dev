@@ -16,7 +16,10 @@ import check_product_package as product  # noqa: E402
 
 COMPILER = Path(__file__).resolve().parents[2] / "design-system-compiler" / "scripts"
 sys.path.insert(0, str(COMPILER))
-from render_design_system_preview import render_preview  # noqa: E402
+from render_design_system_preview import render_view  # noqa: E402
+
+PACKAGE_FILES = ("docs/design/design-system.md", "docs/design/design-system.json",
+                 "docs/design/design-system-preview.html")
 
 
 def _git(root: Path, *args: str) -> str:
@@ -78,12 +81,19 @@ def validate(source: Path, root: Path, *, hifi: Path, required: bool = False,
         if hifi.is_absolute() or ".." in hifi.parts:
             raise ValueError("HiFi must name its final repository-relative path")
         ui_text = (root / "docs/design/ui-design.md").read_text(encoding="utf-8")
-        current = ui.ui_contract_version(ui_text) == "ui-design/2"
+        version = ui.ui_contract_version(ui_text)
+        current = version in ui.UI_CONTRACTS_CURRENT
+        # A full ui-design/3 package always ships the Markdown/JSON/HTML set.
+        required = required or version == ui.UI_CONTRACT_V3
         problems = product.validate(root / "docs/product/PRD.md",
                                     root / "docs/product/architecture.md",
                                     root / "docs/product/stack-decisions.md",
                                     repo_root=root, require_filled=True, require_approved=True,
-                                    ui_contract="ui-design/2" if current else None)
+                                    ui_contract=version if current else None)
+        if version == ui.UI_CONTRACT_V3 and ui.parse_ui_contract_view(ui_text)[0]["gate"].get("package_action") == "reuse":
+            for name in PACKAGE_FILES:
+                if name not in before or before.get(name) != candidate.get(name):
+                    problems.append(f"Package action reuse requires unchanged existing {name}")
         ui_text = (root / "docs/design/ui-design.md").read_text(encoding="utf-8")
         modern = ui.is_structure_review(ui_text)
         # Legacy ui-evidence/2 HiFi receipts stay valid only for a pre-0.55.0
@@ -106,9 +116,10 @@ def validate(source: Path, root: Path, *, hifi: Path, required: bool = False,
             # ui.validate above verifies the formal pair and its source bindings.
             # The view is derived; it must not drift or disappear during transfer.
             preview = root / "docs/design/design-system-preview.html"
-            expected = render_preview(
+            expected = render_view(
                 (root / "docs/design/design-system.json").read_bytes(),
                 (root / "docs/design/design-system.md").read_bytes(),
+                root,
             ).encode("utf-8") if not problems else None
             if not preview.is_file():
                 problems.append("required design-system preview is missing")

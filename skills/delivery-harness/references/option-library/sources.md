@@ -2,6 +2,8 @@
 
 Reference only · 查閱日期：2026-09-25
 
+2026-10-02 增補的來源按下方領域標示；原有條目不因本輪增補而取得新的查核日期。
+
 此處按領域列出最終稿引用的官方來源。連結支持其附近的能力敘述，不能擴大成整個產品已驗證。適配、成本、遷移與情境組合是研究判斷。
 
 本次以官方文件為主；沒有把搜尋排行當推薦順序。數值配額、價格、license、SDK/框架支援與帳號權限採用時再核對。
@@ -39,6 +41,19 @@ Reference only · 查閱日期：2026-09-25
 
 ## [architecture.md](architecture.md)
 
+2026-10-02 完整組合的官方定位來源：[TanStack Start](https://tanstack.com/start/latest)、[Next.js](https://nextjs.org/docs)、[Vercel Next.js](https://vercel.com/docs/frameworks/nextjs)、[Supabase](https://supabase.com/docs)、[React Router framework mode](https://reactrouter.com/start/framework/installation)、[Astro islands](https://docs.astro.build/en/concepts/islands/)、[Nuxt rendering](https://nuxt.com/docs/4.x/guide/concepts/rendering)、[SvelteKit](https://svelte.dev/docs/kit/introduction)、[Convex](https://docs.convex.dev/quickstarts)、[FastAPI](https://fastapi.tiangolo.com/features/)、[Rails](https://rubyonrails.org/)、[Django](https://docs.djangoproject.com/en/stable/intro/overview/)、[Laravel](https://laravel.com/docs)。組合本身與產品適配是研究判斷，未在本輪建立或部署。
+
+2026-10-02 架構能力增補：
+
+- [htmx](https://htmx.org/docs/)：HTML request／response 與局部 DOM 更新；backend、auth、樣式與 fallback 義務由專案決定。
+- [PowerSync overview](https://docs.powersync.com/intro/powersync-overview)：client SQLite、sync service、資料分配和 SDK。嘗試的 `/architecture/overview` 入口取回失敗，已改讀此官方 overview；未核對完整 SDK／DB／host 版本矩陣。
+- [Temporal workflow execution](https://docs.temporal.io/workflow-execution)：event history／replay；不以此證明外部副作用 exactly-once。
+- [Microsoft multitenant storage](https://learn.microsoft.com/en-us/azure/architecture/guide/multitenant/approaches/storage-data)：共用／獨立／混合資料拓撲、restore 和 migration 取捨；Azure 實作另行核對。
+- [Payload Live Preview](https://payloadcms.com/docs/live-preview/overview) 與 [Shopify cart/checkout](https://shopify.dev/docs/storefronts/headless/building-with-the-storefront-api/cart/manage)：frontend preview 與 cart／checkout 邊界；沒有驗證兩者的組合或商務方案。
+- [Hono RPC](https://hono.dev/docs/guides/rpc)：TypeScript input/output type sharing 與 validator；跨語言公開 API 仍需其明確契約。
+
+來源支持各工具定位；需求適配、組合、negative cases 和退出成本是本輪研究判斷。未做安裝、帳號、benchmark、價格、license、完整相容矩陣或部署驗證。
+
 - [官方來源：learn.microsoft.com — en-gb/azure/architecture/guide/architecture-styles/](https://learn.microsoft.com/en-gb/azure/architecture/guide/architecture-styles/)
 - [官方來源：learn.microsoft.com — en-us/azure/architecture/guide/architecture-styles/event-driven](https://learn.microsoft.com/en-us/azure/architecture/guide/architecture-styles/event-driven)
 - [官方來源：learn.microsoft.com — en-us/azure/architecture/guide/architecture-styles/web-queue-worker](https://learn.microsoft.com/en-us/azure/architecture/guide/architecture-styles/web-queue-worker)
@@ -72,6 +87,8 @@ Reference only · 查閱日期：2026-09-25
 - [官方來源：learn.microsoft.com — en-us/aspnet/core/overview?view=aspnetcore-10.0](https://learn.microsoft.com/en-us/aspnet/core/overview?view=aspnetcore-10.0)
 
 ## [components-icons.md](components-icons.md)
+
+2026-10-02 增補：[React Aria](https://react-aria.adobe.com/getting-started)、[Mantine](https://mantine.dev/getting-started/)、[Nuxt UI](https://ui.nuxt.com/)、[shadcn-svelte](https://www.shadcn-svelte.com/docs/installation)。新項目只核對基本定位與官方入口；實際 peer dependencies、授權、樣式、SSR 與 framework 版本在採納時驗證。
 
 - [官方來源：21st.dev — ](https://21st.dev/)
 - [官方來源：ant.design — docs/react/introduce/](https://ant.design/docs/react/introduce/)
@@ -115,6 +132,8 @@ Reference only · 查閱日期：2026-09-25
 
 ## [design.md](design.md)
 
+2026-10-02 發布者入口：[Mobbin](https://mobbin.com/)、[Dribbble](https://dribbble.com/)、[Awwwards](https://www.awwwards.com/websites/)、[Refero](https://refero.design/)、[MotionSites](https://motionsites.ai/)。這次核對來源用途，沒有替任何個別作品做視覺／操作驗收。MotionSites 網址由名稱暫定，沒有宣稱 owner 已確認。制度型設計參考：[Material 3](https://m3.material.io/)、[Fluent 2](https://fluent2.microsoft.design/)、[Carbon](https://carbondesignsystem.com/)。八種方向為本輪研究判斷，不是官方分類。
+
 - [官方來源：base-ui.com — react/overview/about](https://base-ui.com/react/overview/about)
 - [官方來源：base-ui.com — react/overview/accessibility](https://base-ui.com/react/overview/accessibility)
 - [官方來源：developer.android.com — develop/adaptive-apps/guides/canonical-layouts?hl=en](https://developer.android.com/develop/adaptive-apps/guides/canonical-layouts?hl=en)
@@ -128,6 +147,8 @@ Reference only · 查閱日期：2026-09-25
 - [官方來源：www.w3.org — WAI/WCAG22/Understanding/target-size-minimum](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum)
 
 ## [frontend.md](frontend.md)
+
+2026-10-02：TanStack 的 [Start 及官方 library 導覽](https://tanstack.com/start/latest) 支持 18 項 library 與 Starter／Builder 的目錄觀察。各項細節、成熟度與安裝入口直接連在 frontend 矩陣，採納時逐項回查；不將一項已核對的能力擴大成整套已驗證。另見 [React Router framework mode](https://reactrouter.com/start/framework/installation)。
 
 - [官方來源：docs.astro.build — en/concepts/islands/](https://docs.astro.build/en/concepts/islands/)
 - [官方來源：nextjs.org — docs](https://nextjs.org/docs)
@@ -147,6 +168,8 @@ Reference only · 查閱日期：2026-09-25
 - [官方來源：resend.com — docs/introduction](https://resend.com/docs/introduction)
 
 ## [motion.md](motion.md)
+
+2026-10-02 增補：[React Bits index](https://www.reactbits.dev/get-started/index)、[Anime.js](https://animejs.com/) 及 [官方文件](https://animejs.com/documentation)、[MotionSites](https://motionsites.ai/)。分開動效元件、動畫引擎與案例／prompt；本輪不核准元件 license、下載、安裝或個別示範品質。
 
 - [官方來源：developer.mozilla.org — en-US/docs/Web/API/Web_Animations_API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API)
 - [官方來源：developers.lottiefiles.com — ](https://developers.lottiefiles.com/)
@@ -225,6 +248,10 @@ Reference only · 查閱日期：2026-09-25
 - [lucide.dev — 官方文件](https://lucide.dev/guide/)
 
 ### [cloudflare-platform.md](cloudflare-platform.md)
+
+2026-10-02 開發平台增補定位：[官方目錄](https://developers.cloudflare.com/directory/)、[AI Gateway](https://developers.cloudflare.com/ai-gateway/)、[AI Search](https://developers.cloudflare.com/ai-search/)、[Agents](https://developers.cloudflare.com/agents/)、[MCP handler APIs](https://developers.cloudflare.com/agents/model-context-protocol/apis/handler-api/)、[Browser Run](https://developers.cloudflare.com/browser-run/)、[Sandboxes](https://developers.cloudflare.com/sandbox/)、[Containers](https://developers.cloudflare.com/containers/)、[Email Service](https://developers.cloudflare.com/email-service/)、[Images](https://developers.cloudflare.com/images/)、[Stream](https://developers.cloudflare.com/stream/)、[Basin](https://developers.cloudflare.com/basin/)、[K2](https://developers.cloudflare.com/k2/)、[Artifacts](https://developers.cloudflare.com/artifacts/)、[Cache API](https://developers.cloudflare.com/workers/runtime-apis/cache/)、[Analytics Engine](https://developers.cloudflare.com/analytics/analytics-engine/)、[Observability](https://developers.cloudflare.com/workers/observability/)、[Pages](https://developers.cloudflare.com/pages/)。各自支持正文的定位，未完成帳號或部署驗證。
+
+當日成熟度／遷移：[Artifacts open beta changelog](https://developers.cloudflare.com/changelog/product/artifacts/)、[deprecated McpAgent](https://developers.cloudflare.com/agents/model-context-protocol/apis/agent-api/)、[cf beta](https://developers.cloudflare.com/cf/)。框架／工具：[TanStack Start on Workers](https://developers.cloudflare.com/workers/framework-guides/web-apps/tanstack-start/)、[Vite plugin](https://developers.cloudflare.com/workers/vite-plugin/)、[Next.js on Workers](https://developers.cloudflare.com/workers/framework-guides/web-apps/nextjs/)、[vinext compatibility and Agent Skill](https://github.com/cloudflare/vinext)、[Cloudflare Skills inventory](https://github.com/cloudflare/skills)。Sandbox 官方概覽與 skills 的 preview／stable 用語需採用時再比對；upstream 列表不證明本機 loaded 內容相同。
 
 - [developers.cloudflare.com — 官方文件](https://developers.cloudflare.com/cloudflare-one/)
 - [developers.cloudflare.com — 官方文件](https://developers.cloudflare.com/d1/)

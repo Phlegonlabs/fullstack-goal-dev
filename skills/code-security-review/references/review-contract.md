@@ -4,7 +4,7 @@ Read this reference for a Delivery Harness security node or any result consumed 
 
 ## Harness Placement
 
-The security review is an integration-stage runtime review. It covers every mission in the candidate and runs after serial integration fixes one integration_head_sha. It must complete before broad final regression and closeout.
+The security review is an integration-stage runtime review. It covers every mission in the candidate and runs after serial integration fixes one integration_head_sha. It must complete before closeout. Resource-safe final regression may run alongside the read-only review on that unchanged candidate only when declared graph dependencies permit it; managed selection and required-check prerequisites remain binding. A repair invalidates both results.
 
 The Harness parent owns selection, authorization, dispatch, the durable review receipt, repair routing, and result recording. The security reviewer receives a read-only checkout and returns evidence only. It does not edit PLAN or RUN or start nested agents. The PLAN may declare `security_review.required_checks`: batch or final verifier IDs that must PASS at the reviewed head before this review. The review packet's `required_checks` lists each ID with the `execution_key` of its one PASS execution at that head. If the parent chooses a Codex Security scan as the executor, the parent starts that coordinator directly rather than asking a reviewer child to delegate.
 

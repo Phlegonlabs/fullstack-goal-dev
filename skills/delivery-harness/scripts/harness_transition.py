@@ -81,7 +81,9 @@ from select_ready_nodes import (
 )
 from select_ready_nodes import _runtime_binding
 from agent_launch_records import validate_launch_record_shape
-from agent_failure_receipts import load_failure_receipt
+from agent_failure_receipts import (
+    interrupted_retry_issues, interruption_receipt_required, load_failure_receipt,
+)
 from agent_role_contract import role_contract_enabled, role_contract_gate_enabled
 from agent_result_receipts import load_result_receipt
 from agent_role_recovery import resolve_fallback_reservation
@@ -306,6 +308,7 @@ DISPATCH_COMMANDS = {
     "adopt-runtime-contract",
     "accept-wave",
     "lease-worker",
+    "record-launch-observation",
     "record-worker-result",
     "reject-worker-result",
     "reserve-review-dispatch",
@@ -2440,6 +2443,10 @@ def _lease_worker(plan: dict[str, Any], run: dict[str, Any], args: argparse.Name
             == "interrupted_worker_reconciliation"
             and latest_mission_attempt.get("result") == "blocked"
         )
+        if reconciled_interrupt:
+            issues = interrupted_retry_issues(run, latest_mission_attempt)
+            if issues:
+                raise ManifestError("interrupted retry is unsafe: " + "; ".join(issues))
         if not (retryable_failure or reconciled_interrupt):
             raise ManifestError(
                 f"mission {args.mission_id!r} cannot be re-leased from "
@@ -4149,6 +4156,10 @@ def _reconcile_interrupted(run: dict[str, Any], args: argparse.Namespace) -> Non
         raise ManifestError(f"unknown worker {args.worker_id!r}")
     if worker.get("phase") not in {"leased", "worker_running"}:
         raise ManifestError("worker is not active; no interrupted transition is needed")
+    if interruption_receipt_required(run, worker):
+        worker["failure_receipt"] = load_failure_receipt(
+            getattr(args, "failure_receipt", None), run, worker, "mission"
+        )
     worker["phase"] = "blocked"
     mission_id = worker.get("mission_id")
     mission_state = run.get("mission_states", {}).get(mission_id)
@@ -4644,7 +4655,7 @@ def _record_launch_observation(
         "model_provider": args.model_provider,
         "model": args.model,
         "reasoning_effort": args.reasoning_effort,
-        "session_id": args.session_id,
+        "session_id": args.worker_session_id,
         "launch_observation": args.launch_observation,
         "host_observation": args.host_observation,
     }
@@ -5136,6 +5147,7 @@ def build_parser() -> argparse.ArgumentParser:
     reconcile = subparsers.add_parser("reconcile-interrupted")
     reconcile.add_argument("--worker-id", required=True)
     reconcile.add_argument("--reason", required=True)
+    reconcile.add_argument("--failure-receipt", type=Path)
     review_reconcile = subparsers.add_parser("reconcile-interrupted-reviews")
     review_reconcile.add_argument("--worker-id", action="append", required=True)
     review_reconcile.add_argument("--reason", required=True)
@@ -5145,6 +5157,7 @@ def build_parser() -> argparse.ArgumentParser:
     reserve_review.add_argument("--worker-id", required=True)
     reserve_review.add_argument("--attempt-id", required=True)
     reserve_review.add_argument("--report-path")
+    reserve_review.add_argument("--diff-artifact-out", type=Path)
     reserve_review.add_argument("--fallback-record", type=Path)
     reserve_review.add_argument(
         "--packet-out",
@@ -5163,7 +5176,7 @@ def build_parser() -> argparse.ArgumentParser:
     launch_observation.add_argument("--model-provider", required=True)
     launch_observation.add_argument("--model", required=True)
     launch_observation.add_argument("--reasoning-effort", required=True)
-    launch_observation.add_argument("--session-id", required=True)
+    launch_observation.add_argument("--worker-session-id", required=True)
     launch_observation.add_argument("--launch-observation", required=True)
     launch_observation.add_argument("--host-observation", required=True)
     launch_observation.add_argument("--fallback-record", type=Path)
@@ -5447,12 +5460,19 @@ def _transition_under_lock(
         )
 
     packet = None
+    diff_artifacts = []
+    if getattr(args, "diff_artifact_out", None) and not getattr(args, "packet_out", None):
+        raise ManifestError("--diff-artifact-out requires --packet-out")
     if receipt is not None and getattr(args, "packet_out", None):
         from render_review_packet import render_packet
 
         if args.packet_out.exists():
             raise ManifestError(f"refusing to overwrite {args.packet_out}")
-        packet = render_packet(plan, run, args.node_id, args.repo_root)
+        if getattr(args, "diff_artifact_out", None) and args.diff_artifact_out.resolve() == args.packet_out.resolve():
+            raise ManifestError("packet and full diff artifact require distinct output paths")
+        packet = render_packet(plan, run, args.node_id, args.repo_root,
+                               diff_artifact_out=getattr(args, "diff_artifact_out", None),
+                               artifacts=diff_artifacts)
 
     verifier_request = None
     push_request_document = None
@@ -5497,7 +5517,17 @@ def _transition_under_lock(
     _ensure_plan_unchanged(args.plan, expected_plan_text)
     _replace_run_document(args.run, run, expected_text=original_text)
     if packet is not None:
-        args.packet_out.write_text(packet, encoding="utf-8", newline="\n")
+        from render_review_packet import write_diff_artifact
+
+        try:
+            for path, data in diff_artifacts:
+                write_diff_artifact(path, data)
+            _write_text_exclusive(args.packet_out, packet)
+        except (ManifestError, OSError) as exc:
+            raise ManifestError(
+                f"{exc}; the RUN review reservation is durable. Re-render the packet"
+                " for its fixed node and candidate to new output paths before launch"
+            ) from exc
     if verifier_request is not None:
         try:
             _write_text_exclusive(request_out, verifier_request)

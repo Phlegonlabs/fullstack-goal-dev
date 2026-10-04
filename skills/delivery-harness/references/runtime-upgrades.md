@@ -59,6 +59,8 @@ An upgrade does not resume the old orchestration. Once the fresh session records
 
 ## Host Update Boundaries
 
+For maintenance of the skill-source repository, feature and development pushes do not trigger installation into the user's active release directory. After a verified formal release, compare the released seven-skill digest with the observed installed digest and, under the release's installation authority, run the official installer once when it changed. Retain backup, rollback and byte verification. An explicitly requested development installation is separate from the formal release channel. Record unchanged, updated or pending in the existing release handoff; a pending update is not a completed installation. Quiesce relevant sessions and restart only after successful installation when changed loaded inputs require it. This cadence grants no installation or host-stop authority in a consumer repository.
+
 - Update the current host only through its owning installer, then start a fresh session. Preserve standalone skills, installed roles, model choices and fallback order.
 - Every host loads the Harness skills from the user skills directory, so the shared copy there is the only Harness update surface. Use the repository installer transaction above, verify that only the seven current IDs remain discoverable, then start a fresh session.
 

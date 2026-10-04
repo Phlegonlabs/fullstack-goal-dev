@@ -80,9 +80,9 @@ def _string_list(
 
 
 def validate_design_system_registry(registry: dict[str, Any]) -> list[str]:
-    """Validate the machine contract with the compiler's executable rules."""
+    """Validate schemas 2-4 with the compiler's executable rules."""
 
-    if registry.get("schema") in {"design-system/2", "design-system/3"}:
+    if registry.get("schema") in {"design-system/2", "design-system/3", "design-system/4"}:
         scripts = Path(__file__).resolve().parents[2] / "design-system-compiler" / "scripts"
         if str(scripts) not in sys.path:
             sys.path.insert(0, str(scripts))
@@ -330,15 +330,15 @@ def compare_design_system_pair(
     repo_root: str | Path | None = None,
     apply_current_hifi_cutover: bool = True,
 ) -> list[str]:
-    """Adapt legacy pair calls to the compiler's current schema-2 checker.
+    """Adapt legacy pair calls to the compiler's current schema 2-4 checker.
 
-    Schema-2 is owned by ``design-system-compiler``.  Keep this module's
+    Schemas 2-4 are owned by ``design-system-compiler``.  Keep this module's
     schema-1 inspection behavior for historical manifests, but delegate every
     current pair to the canonical checker so source bindings, generated
     contracts, and namespaces cannot drift between skills.
     """
 
-    if registry.get("schema") in {"design-system/2", "design-system/3"}:
+    if registry.get("schema") in {"design-system/2", "design-system/3", "design-system/4"}:
         scripts = Path(__file__).resolve().parents[2] / "design-system-compiler" / "scripts"
         if str(scripts) not in sys.path:
             sys.path.insert(0, str(scripts))

@@ -4,6 +4,8 @@ Applies to role-bound RUN-v11 assignments pinned to 0.58 or later. Older pinned 
 
 ## Trust Boundary
 
+The global `--session-id <parent>` belongs before the transition subcommand and holds the RUN lock. `record-launch-observation --worker-session-id <child>` records the independently observed native worker session. Both are required for launch recording; they are different identities. The old launch-local `--session-id` spelling is ambiguous and rejected. Stored launch records keep their existing `session_id` field.
+
 The parent reads the terminal response through the reserved host handle. Its adapter retains a normalized JSON envelope with exactly `schema_version: 1`, `session_id` from host metadata, and `payload` extracted from that response. Never take the session from child prose or manufacture an envelope from a different worker's output. Retain the original host response alongside it for review. The source envelope is limited to 8 MiB.
 
 The receipt binds retained bytes; it is not a signature or independent authentication of the parent adapter. A compromised or fabricated parent observation is outside this local validator's trust boundary. Keep the source readable for subsequent validation and archive verification. Do not put secrets in retained task evidence.
@@ -44,6 +46,8 @@ Its normalized envelope's payload contains exactly:
 The parent adapter maps only an explicit model/provider availability error to `failure_classification: model_provider_unavailable` and one of `model_not_found`, `model_unavailable`, `provider_unavailable`, `model_not_supported`. Preserve the actual error text and original response. Quota, quiet streams, timeouts, test failures, missing tools and permission denials never map to those codes. Other failure codes may record a stopped failure, but cannot authorize fallback.
 
 ## Recovery
+
+For 0.59+ role-bound delegated missions, `reconcile-interrupted --failure-receipt <path>` verifies the stopped predecessor and inspected partial work before changing phases. The selector and `lease-worker` recheck that retained receipt before admitting a retry. Missing or changed stop evidence blocks retry, including an older interruption marker in a current RUN. Unknown liveness uses pause and host observation. Cancellation or timeout with confirmed termination can permit a fresh same-role attempt; it never permits a model fallback. This bounded check does not change pre-0.59 pins, parent/non-role assignments, or the separate review fan-out reconciliation protocol.
 
 For either `lease-worker` or `reserve-review-dispatch`, pass the existing `--fallback-record` evidence. It must name the configured primary-to-fallback mapping, exact stopped predecessor and a fresh attempt. Its error, termination and partial-work evidence must match the retained failure. The logical role remains unchanged; `resolved_role` records the fallback implementation. Recompute the fallback's capabilities, required tools, action grants, capacity and isolation before reserving it. The same review/mission retry budget still applies. Fallback cannot chain from a fallback.
 

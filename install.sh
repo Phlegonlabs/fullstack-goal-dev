@@ -77,7 +77,7 @@ check_external_dependencies() {
     fi
   done
   if [ "$missing" -ne 0 ]; then
-    echo "install frontend-design through the Codex skill installer and Impeccable through 'npx impeccable install', then rerun: $0 --check-dependencies $skills_dest" >&2
+    echo "install frontend-design through the host's skill installer and Impeccable through 'npx impeccable install', then rerun: $0 --check-dependencies $skills_dest" >&2
     return 1
   fi
 }

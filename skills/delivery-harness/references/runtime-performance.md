@@ -21,6 +21,12 @@ Performance work never weakens authorization, isolation, scope, exact-SHA review
 
 ## Shared Fast Path
 
+A section is not a worker boundary. Freeze shared interfaces first, then assign independent frontend, backend and integration outcomes to isolated checkout owners. Every shared token, router, package/lockfile, schema and migration path has one owner; dependent packets deny writes to those paths. Split executable tasks into verified atomic commits inside each coherent mission, not a fresh worker per task. Keep coupled same-file work with one writer.
+
+Count reviewers and writers against observed runtime capacity and exclusive resources. A completed mission may enter review while siblings run. The current wave barrier still prevents new writer dispatch until the wave closes; do not describe streaming review as rolling writer scheduling. Measure critical-path delay before proposing a new scheduler contract.
+
+Retain input precondition validation and final mutated-state validation. Reuse is limited to an identical immutable in-memory snapshot before any mutation, with fresh external-state checks where required. A matching PLAN identity alone, a changed batch base, or a caller-supplied boolean cannot justify skipping a new state check. Do not extend the existing internal validation fast paths without focused mutation and stale-state regression evidence.
+
 The managed runtime uses the same four invariants:
 
 1. Launch each mission or review with a fresh bounded context capsule. Keep automatic repository instruction discovery enabled, but do not replay the parent transcript or copy full PLAN/RUN manifests.

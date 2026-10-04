@@ -1,0 +1,530 @@
+{
+  "enforcement": "blocking",
+  "motionVariants": [
+    "sheet-rise",
+    "tide-pulse"
+  ],
+  "platform": "web",
+  "primitiveSources": [
+    "src/ui/primitives.css"
+  ],
+  "primitives": {
+    "ArrivalSheet": {
+      "class": "sheet",
+      "layer": "surface"
+    },
+    "Button": {
+      "class": "btn",
+      "defaults": {
+        "sizes": "md",
+        "variants": "primary"
+      },
+      "dsId": "DS-CTL-001",
+      "layer": "control",
+      "minTargetPx": 44,
+      "sizes": [
+        "md"
+      ],
+      "variants": [
+        "primary",
+        "secondary"
+      ]
+    },
+    "StatusTag": {
+      "class": "tag",
+      "layer": "surface",
+      "tones": [
+        "calm",
+        "alert"
+      ]
+    },
+    "TextField": {
+      "class": "field",
+      "dsId": "DS-CTL-002",
+      "layer": "control",
+      "variants": [
+        "default"
+      ]
+    },
+    "TideDot": {
+      "class": "tide-dot",
+      "layer": "surface"
+    }
+  },
+  "product": "Harbor Berth Desk (synthetic fixture)",
+  "productComponents": {
+    "BerthCard": {
+      "composes": [
+        "StatusTag"
+      ],
+      "dsId": "DS-COMP-001",
+      "requiredContentOrder": [
+        "berth",
+        "vessel",
+        "arrival"
+      ],
+      "states": [
+        "ready",
+        "loading",
+        "empty"
+      ]
+    }
+  },
+  "schema": "design-system/4",
+  "showcase": {
+    "motion": [
+      {
+        "specimen": "arrival-sheet",
+        "trigger": {
+          "from": "false",
+          "kind": "attribute",
+          "name": "data-open",
+          "to": "true"
+        },
+        "variant": "sheet-rise"
+      },
+      {
+        "specimen": "tide-dot",
+        "trigger": {
+          "kind": "animation"
+        },
+        "variant": "tide-pulse"
+      }
+    ],
+    "schema": "ds-showcase/1",
+    "specimens": [
+      {
+        "axes": {
+          "sizes": "md",
+          "variants": "primary"
+        },
+        "id": "button-primary",
+        "source": {
+          "page": "index.html",
+          "selector": ".btn",
+          "state": "default",
+          "variant": "primary md"
+        },
+        "subject": {
+          "kind": "primitive",
+          "name": "Button"
+        }
+      },
+      {
+        "axes": {
+          "sizes": "md",
+          "variants": "secondary"
+        },
+        "id": "button-secondary",
+        "source": {
+          "page": "index.html",
+          "selector": ".btn",
+          "state": "default",
+          "variant": "secondary md"
+        },
+        "subject": {
+          "kind": "primitive",
+          "name": "Button"
+        }
+      },
+      {
+        "axes": {
+          "variants": "primary"
+        },
+        "id": "button-disabled",
+        "source": {
+          "page": "index.html",
+          "selector": ".btn",
+          "state": "disabled",
+          "variant": "primary md"
+        },
+        "subject": {
+          "kind": "primitive",
+          "name": "Button"
+        }
+      },
+      {
+        "axes": {
+          "variants": "secondary"
+        },
+        "id": "tab-button",
+        "source": {
+          "page": "log.html",
+          "selector": ".btn",
+          "state": "default",
+          "variant": "secondary md"
+        },
+        "subject": {
+          "kind": "primitive",
+          "name": "Button"
+        }
+      },
+      {
+        "axes": {
+          "variants": "default"
+        },
+        "id": "field-default",
+        "source": {
+          "page": "index.html",
+          "selector": ".field",
+          "state": "default",
+          "variant": "default"
+        },
+        "subject": {
+          "kind": "primitive",
+          "name": "TextField"
+        }
+      },
+      {
+        "axes": {
+          "variants": "default"
+        },
+        "id": "field-error",
+        "source": {
+          "page": "index.html",
+          "selector": ".field",
+          "state": "error",
+          "variant": "default"
+        },
+        "subject": {
+          "kind": "primitive",
+          "name": "TextField"
+        }
+      },
+      {
+        "axes": {
+          "variants": "default"
+        },
+        "id": "field-disabled",
+        "source": {
+          "page": "index.html",
+          "selector": ".field",
+          "state": "disabled",
+          "variant": "default"
+        },
+        "subject": {
+          "kind": "primitive",
+          "name": "TextField"
+        }
+      },
+      {
+        "axes": {
+          "tones": "calm"
+        },
+        "id": "tag-calm",
+        "source": {
+          "page": "index.html",
+          "selector": ".tag",
+          "state": "default",
+          "variant": "calm"
+        },
+        "subject": {
+          "kind": "primitive",
+          "name": "StatusTag"
+        }
+      },
+      {
+        "axes": {
+          "tones": "alert"
+        },
+        "id": "tag-alert",
+        "source": {
+          "page": "index.html",
+          "selector": ".tag",
+          "state": "default",
+          "variant": "alert"
+        },
+        "subject": {
+          "kind": "primitive",
+          "name": "StatusTag"
+        }
+      },
+      {
+        "axes": {},
+        "id": "tide-dot",
+        "source": {
+          "page": "index.html",
+          "selector": ".tide-dot",
+          "state": "default",
+          "variant": "default"
+        },
+        "subject": {
+          "kind": "primitive",
+          "name": "TideDot"
+        }
+      },
+      {
+        "axes": {},
+        "id": "arrival-sheet",
+        "source": {
+          "page": "index.html",
+          "selector": ".sheet",
+          "state": "default",
+          "variant": "default"
+        },
+        "subject": {
+          "kind": "primitive",
+          "name": "ArrivalSheet"
+        }
+      },
+      {
+        "axes": {},
+        "id": "berth-card-ready",
+        "source": {
+          "page": "index.html",
+          "selector": ".berth-card",
+          "state": "ready",
+          "variant": "default"
+        },
+        "subject": {
+          "kind": "component",
+          "name": "BerthCard"
+        }
+      },
+      {
+        "axes": {},
+        "id": "berth-card-loading",
+        "source": {
+          "page": "index.html",
+          "selector": ".berth-card",
+          "state": "loading",
+          "variant": "default"
+        },
+        "subject": {
+          "kind": "component",
+          "name": "BerthCard"
+        }
+      },
+      {
+        "axes": {},
+        "id": "berth-card-empty",
+        "source": {
+          "page": "index.html",
+          "selector": ".berth-card",
+          "state": "empty",
+          "variant": "default"
+        },
+        "subject": {
+          "kind": "component",
+          "name": "BerthCard"
+        }
+      }
+    ],
+    "states": [
+      {
+        "mode": "pseudo",
+        "specimen": "button-primary",
+        "state": "hover",
+        "subject": {
+          "kind": "primitive",
+          "name": "Button"
+        }
+      },
+      {
+        "mode": "pseudo",
+        "specimen": "button-secondary",
+        "state": "focus-visible",
+        "subject": {
+          "kind": "primitive",
+          "name": "Button"
+        }
+      },
+      {
+        "mode": "pseudo",
+        "specimen": "button-primary",
+        "state": "active",
+        "subject": {
+          "kind": "primitive",
+          "name": "Button"
+        }
+      },
+      {
+        "mode": "rendered",
+        "specimen": "button-disabled",
+        "state": "disabled",
+        "subject": {
+          "kind": "primitive",
+          "name": "Button"
+        }
+      },
+      {
+        "mode": "not_applicable",
+        "reason": "Fields keep their border on hover; focus carries the affordance.",
+        "state": "hover",
+        "subject": {
+          "kind": "primitive",
+          "name": "TextField"
+        }
+      },
+      {
+        "mode": "pseudo",
+        "specimen": "field-default",
+        "state": "focus-visible",
+        "subject": {
+          "kind": "primitive",
+          "name": "TextField"
+        }
+      },
+      {
+        "mode": "not_applicable",
+        "reason": "Text entry has no pressed appearance distinct from focus.",
+        "state": "active",
+        "subject": {
+          "kind": "primitive",
+          "name": "TextField"
+        }
+      },
+      {
+        "mode": "rendered",
+        "specimen": "field-disabled",
+        "state": "disabled",
+        "subject": {
+          "kind": "primitive",
+          "name": "TextField"
+        }
+      },
+      {
+        "mode": "rendered",
+        "specimen": "field-error",
+        "state": "error",
+        "subject": {
+          "kind": "primitive",
+          "name": "TextField"
+        }
+      },
+      {
+        "mode": "rendered",
+        "specimen": "berth-card-ready",
+        "state": "ready",
+        "subject": {
+          "kind": "component",
+          "name": "BerthCard"
+        }
+      },
+      {
+        "mode": "rendered",
+        "specimen": "berth-card-loading",
+        "state": "loading",
+        "subject": {
+          "kind": "component",
+          "name": "BerthCard"
+        }
+      },
+      {
+        "mode": "rendered",
+        "specimen": "berth-card-empty",
+        "state": "empty",
+        "subject": {
+          "kind": "component",
+          "name": "BerthCard"
+        }
+      },
+      {
+        "mode": "rendered",
+        "specimen": "button-primary",
+        "state": "default",
+        "subject": {
+          "kind": "primitive",
+          "name": "Button"
+        }
+      },
+      {
+        "mode": "rendered",
+        "specimen": "field-default",
+        "state": "default",
+        "subject": {
+          "kind": "primitive",
+          "name": "TextField"
+        }
+      }
+    ]
+  },
+  "signatureRules": [
+    "DS-001"
+  ],
+  "sourceBindings": {
+    "architecture": {
+      "path": "docs/product/architecture.md",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "hifi": {
+      "path": "docs/design/ui-references/demo/index.html",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "prd": {
+      "path": "docs/product/PRD.md",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "stack": {
+      "path": "docs/product/stack-decisions.md",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "uiDesign": {
+      "path": "docs/design/ui-design.md",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  "stackSemantics": {
+    "componentFoundation": "Fixture components",
+    "platform": "web",
+    "renderingModel": "SPA",
+    "stylingMechanism": "modern vanilla CSS"
+  },
+  "stateMatrix": [
+    "ready",
+    "loading",
+    "empty",
+    "error",
+    "disabled",
+    "reduced-motion",
+    "mobile-reflow"
+  ],
+  "stylingMechanism": "plain CSS",
+  "tokenSources": [
+    "src/styles/tokens.css"
+  ],
+  "tokens": {
+    "color": {
+      "--alarm": "#b3261e",
+      "--buoy": "#e0a526",
+      "--harbor-ink": "#16324f",
+      "--kelp": "#2e6b4f",
+      "--mist": "#eef3f5",
+      "--sea": "#2f6f8f"
+    },
+    "duration": {
+      "--duration-quick": "160ms",
+      "--duration-sheet": "320ms"
+    },
+    "easing": {
+      "--ease-out": "cubic-bezier(.2,0,0,1)"
+    },
+    "fontSize": {
+      "--text-body": "16px",
+      "--text-heading": "28px"
+    },
+    "lineHeight": {
+      "--leading-body": "1.5",
+      "--leading-heading": "1.15"
+    },
+    "radius": {
+      "--radius-card": "12px",
+      "--radius-control": "6px"
+    },
+    "shadow": {
+      "--shadow-card": "0 1px 2px rgba(22,50,79,.18), 0 6px 18px rgba(22,50,79,.10)"
+    },
+    "space": {
+      "--space-1": "4px",
+      "--space-2": "8px",
+      "--space-3": "12px",
+      "--space-4": "16px",
+      "--space-6": "24px"
+    }
+  },
+  "viewports": [
+    390,
+    768,
+    1200
+  ]
+}

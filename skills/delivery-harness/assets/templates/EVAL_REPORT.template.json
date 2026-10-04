@@ -1,0 +1,21 @@
+{
+  "schema": "eval-report/1",
+  "purpose": "quality",
+  "run_id": "<unique-execution-id>",
+  "candidate_sha": "<tested-H1-sha>",
+  "contract_sha256": "<frozen-eval-contract-sha256>",
+  "prd_sha256": "<frozen-prd-sha256>",
+  "policy_sha256": "<canonical-policy-sha256>",
+  "started_at": "<RFC3339>", "finished_at": "<RFC3339>",
+  "execution": {},
+  "artifacts": {},
+  "provenance": {
+    "executor": "<executor-identity>", "job_id": "<captured-job-identity>",
+    "checkout_sha": "<tested-H1-sha>", "git_status": "<captured-status>",
+    "setup": {"argv": [], "exit_code": null, "observation": "<redacted-captured-setup-output>"},
+    "full": {"argv": [], "exit_code": null, "observation": "<redacted-captured-full-run-output>"},
+    "dependency_readbacks": {}
+  },
+  "trials": [],
+  "usage": {"calls": null, "cost_microunits": null, "currency": "<approved-currency>"}
+}

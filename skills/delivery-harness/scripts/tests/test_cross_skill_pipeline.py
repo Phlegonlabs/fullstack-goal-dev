@@ -105,7 +105,7 @@ class CrossSkillPipelineTests(unittest.TestCase):
                 self.assertIn("actual writer", document)
                 self.assertIn("grants no", document)
         self.assertLess(
-            worker.index("For direction/HiFi authoring or repair"),
+            worker.index("For direction/HiFi authoring/repair"),
             worker.index("For design-system compilation"),
         )
         self.assertIn(
@@ -280,6 +280,15 @@ class CrossSkillPipelineTests(unittest.TestCase):
             "When the PRD carries the Product Definition approval marker",
             sources["activation"],
         )
+
+    def test_ui_entry_selects_new_and_retained_contracts_consistently(self) -> None:
+        source = self.read("ui-design-builder/SKILL.md")
+        lifecycle = source.split("## Design Lifecycle", 1)[1].split("## Workflow", 1)[0]
+        self.assertIn("New initial design and explicit full redesign use `ui-design/3`", lifecycle)
+        self.assertIn("retained `ui-design/2` packages keep their original sequence", lifecycle)
+        self.assertNotIn("exact `--ui-contract ui-design/2` product preflight", source)
+        self.assertIn("Routine maintenance edits the actual product", lifecycle)
+        self.assertIn("retain every unaffected product screen", source)
 
     def test_repository_design_images_require_recorded_confirmation(self) -> None:
         references = self.read("ui-design-builder/references/design-reference-guide.md")

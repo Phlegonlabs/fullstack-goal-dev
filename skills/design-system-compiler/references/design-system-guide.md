@@ -1,6 +1,6 @@
 # Design System Guide
 
-`sourceBindings.uiDesign.sha256` uses the canonical UI approval digest, not the raw file hash. Run `python "<ui-design-builder-skill-root>/scripts/ui_approval_digest.py" <ui-design.md>`; it excludes active derived pair/replacement linkage lines so linking the compiled pair does not invalidate its own input. All other source bindings use raw-file SHA-256.
+`sourceBindings.uiDesign.sha256` uses the canonical UI approval digest, not the raw file hash. Run `python "<ui-design-builder-skill-root>/scripts/ui_approval_digest.py" <ui-design.md>`; it excludes active derived pair/replacement linkage lines so linking the compiled pair does not invalidate its own input. For `ui-design/3` it also excludes the `Package action` and `Existing design-system pair disposition` lines, so switching to `reuse` keeps an unchanged package valid while any other approval edit makes it stale. All other source bindings use raw-file SHA-256.
 
 Use this guide to publish the small frontend implementation contract in `docs/design/design-system.md` and `docs/design/design-system.json`.
 
@@ -17,11 +17,11 @@ The design system exists so frontend implementation can follow one set of tokens
 
 Publish the Markdown and JSON together.
 
-Generate the separate derived HTML view through `render_design_system_preview.py` after pair validation; follow `references/output-contract.md`. It shows registry values and declared contracts without becoming another source. Keep validated wireframe and historical approval bytes unchanged; new UI rounds create no wireframe. Recheck the preview against current pair/source bytes before handoff.
+Generate the separate derived HTML view through `render_design_system_preview.py` after pair validation; follow `references/output-contract.md`. It shows registry values and declared contracts without becoming another source. For `design-system/4`, first register the `showcase` source map: bind each primitive variant value, product-component state and motion variant to an approved HiFi element. The HiFi supplies every style; when an element is missing, return the gap to `ui-design-builder` instead of inventing a sample. Keep validated wireframe and historical approval bytes unchanged; new UI rounds create no wireframe. Recheck the preview against current pair/source bytes before handoff.
 
 ## Contract Boundary
 
-`design-system.json` is the sole structured authority. New approval pairs use `design-system/3`; its `sourceBindings` resolve the current PRD, architecture, stack, `ui-design.md`, and approved HiFi target under `--repo-root` and match their current SHA-256 values. It contains only what implementation and validation need:
+`design-system.json` is the sole structured authority. `ui-design/3` packages use `design-system/4` (the `design-system/3` fields plus `showcase`); `ui-design/2` packages use `design-system/3`. Their `sourceBindings` resolve the current PRD, architecture, stack, `ui-design.md`, and approved HiFi target under `--repo-root` and match their current SHA-256 values. It contains only what implementation and validation need:
 
 Use the closed enums `platform: web | ios | android | flutter | react-native | macos | windows | desktop`, `stylingMechanism: utility CSS | Tailwind CSS | CSS-in-JS | CSS modules | plain CSS | platform theme`, and `enforcement: blocking | advisory`. `stackSemantics` binds the exact approved rendering model (or client strategy), component foundation (or framework), styling approach, and platform. `stackSemantics.stylingMechanism` stays the verbatim Stack styling approach; the global `stylingMechanism` is the closed value that names it, such as `plain CSS` for `modern vanilla CSS`, `Tailwind CSS` for `Tailwind CSS v4`, or `platform theme` for native or component-library-managed styles. A hybrid pair uses `surfaceContracts` instead of global `platform`, `stylingMechanism`, `viewports`, and `sizeClasses`, plus a `stackSemantics` map keyed by every UI-* surface. Platform and styling choices remain grounded in the approved `stack-decisions.md` source binding rather than being invented by the compiler. Shared tokens, primitives, product components, motion variants, and state matrix remain global.
 

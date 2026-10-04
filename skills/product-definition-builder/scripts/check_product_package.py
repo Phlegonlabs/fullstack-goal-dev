@@ -16,6 +16,7 @@ from prd_operations import required_operations
 from prd_ui_contract import parse_prd_ui_contract
 from release_targets import parse_release_targets
 from git_evidence import GitEvidenceError, verify_revision_path
+from eval_policy import validate_eval_policy
 from contract_utils import (
     canonical_product_bytes,
     canonical_stack_bytes,
@@ -26,6 +27,8 @@ from contract_utils import (
 )
 
 
+# Wireframe-free UI contracts that use the direct PRD-to-HiFi preflight.
+CURRENT_UI_CONTRACTS = ("ui-design/2", "ui-design/3")
 PRODUCT_APPROVAL_START = "<!-- product-definition-approval:start -->"
 PRODUCT_APPROVAL_END = "<!-- product-definition-approval:end -->"
 STACK_CHECKPOINT_START = "<!-- stack-decision-checkpoint:start -->"
@@ -1531,16 +1534,21 @@ def validate_texts(
     require_approved: bool = False,
     repo_root: Path | None = None,
     ui_contract: str | None = None,
+    eval_policy: str | None = None,
 ) -> list[str]:
     """Validate already-decoded core product-package texts."""
 
-    if ui_contract is not None and ui_contract != "ui-design/2":
+    if ui_contract is not None and ui_contract not in CURRENT_UI_CONTRACTS:
         raise ValueError(
-            "unsupported --ui-contract value; the only current contract is "
-            "ui-design/2"
+            "unsupported --ui-contract value; current contracts are "
+            + " and ".join(CURRENT_UI_CONTRACTS)
         )
 
-    problems: list[str] = []
+    if eval_policy not in (None, "eval-policy/1"):
+        raise ValueError("unsupported --eval-policy value")
+    problems: list[str] = validate_eval_policy(
+        prd_text, required=eval_policy is not None, repo_root=repo_root,
+    )
 
     prd_required_headings = (
         REQUIRED_PRD_HEADINGS
@@ -1579,7 +1587,7 @@ def validate_texts(
         web_floor=3,
     )
     problems.extend(ui_contract_errors)
-    if ui_contract == "ui-design/2":
+    if ui_contract in CURRENT_UI_CONTRACTS:
         # Parse operations from the active contract.  Reusing the parser also
         # checks one operation anchor per surface and its declared endpoints.
         _operations, operation_errors = required_operations(prd_text)
@@ -3032,7 +3040,7 @@ def validate_texts(
                             # Generic product approval accepts either explicit
                             # refresh vocabulary. Current UI preflight still
                             # requires HiFi; a legacy-only row cannot pass it.
-                            current_refresh = ui_contract == "ui-design/2" or (
+                            current_refresh = ui_contract in CURRENT_UI_CONTRACTS or (
                                 re.search(r"\bhifi\b", refresh) is not None
                                 and "hifi review" in refresh
                             )
@@ -3338,6 +3346,7 @@ def validate(
     require_approved: bool = False,
     repo_root: Path | None = None,
     ui_contract: str | None = None,
+    eval_policy: str | None = None,
 ) -> list[str]:
     """Read and validate the three canonical core package files."""
 
@@ -3359,6 +3368,7 @@ def validate(
         require_approved=require_approved,
         repo_root=repo_root,
         ui_contract=ui_contract,
+        eval_policy=eval_policy,
     )
 
 
@@ -3371,10 +3381,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--require-approved", action="store_true")
     parser.add_argument(
         "--ui-contract",
-        choices=("ui-design/2",),
+        choices=CURRENT_UI_CONTRACTS,
         help="select the current wireframe-free PRD preflight",
     )
     parser.add_argument("--repo-root", type=Path)
+    parser.add_argument("--eval-policy", choices=("eval-policy/1",))
     return parser.parse_args(argv)
 
 
@@ -3388,6 +3399,7 @@ def main(argv: list[str] | None = None) -> int:
         require_approved=args.require_approved,
         repo_root=args.repo_root,
         ui_contract=args.ui_contract,
+        eval_policy=args.eval_policy,
     )
     if problems:
         for problem in problems:

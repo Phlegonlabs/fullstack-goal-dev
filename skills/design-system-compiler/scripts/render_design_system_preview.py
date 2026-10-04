@@ -11,7 +11,9 @@ from pathlib import Path
 import re
 import sys
 
-from check_design_system_pair import compare
+from check_design_system_pair import SHOWCASE_SCHEMA, compare, load_showcase_sources
+import design_system_showcase
+from design_system_gallery import render_gallery
 
 
 STYLE = """
@@ -110,6 +112,22 @@ def render_preview(registry_bytes: bytes, markdown_bytes: bytes) -> str:
     return "".join(parts)
 
 
+def render_view(registry_bytes: bytes, markdown_bytes: bytes, repo_root: Path) -> str:
+    """Render the preview a pair's schema requires.
+
+    design-system/4 gets the source-derived specimen book; earlier schemas keep
+    the exact legacy bytes so their published previews stay current.
+    """
+    registry = json.loads(registry_bytes.decode("utf-8"))
+    if registry.get("schema") != SHOWCASE_SCHEMA:
+        return render_preview(registry_bytes, markdown_bytes)
+    documents, manifest, binding, problems = load_showcase_sources(registry, Path(repo_root).resolve())
+    resolved, resolve_problems = design_system_showcase.resolve(registry, documents)
+    if problems or resolve_problems:
+        raise ValueError("\n".join(problems + resolve_problems))
+    return render_gallery(registry, registry_bytes, markdown_bytes, documents, manifest, resolved, binding)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--registry", type=Path, required=True)
@@ -126,14 +144,14 @@ def main(argv: list[str] | None = None) -> int:
         problems = compare(markdown_bytes.decode("utf-8"), registry, require_filled=True, repo_root=args.repo_root)
         if problems:
             raise ValueError("\n".join(problems))
-        output = render_preview(registry_bytes, markdown_bytes).encode("utf-8")
+        output = render_view(registry_bytes, markdown_bytes, args.repo_root).encode("utf-8")
         if args.check:
             if args.check.read_bytes() != output:
                 raise ValueError("design-system preview is stale or modified; regenerate from the current validated pair")
             print("PASS design-system preview matches the current pair and sources")
         else:
             sys.stdout.buffer.write(output)
-    except (OSError, UnicodeError, ValueError, TypeError, AttributeError) as error:
+    except (OSError, UnicodeError, ValueError, TypeError, AttributeError, KeyError) as error:
         print(f"FAIL {error}", file=sys.stderr)
         return 1
     return 0

@@ -8,16 +8,26 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.58.0-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.60.0-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
+
+驗收按 atomic task 跑相關測試，按 mission 檢查受影響整合，再對固定候選完成必要完整 matrix 與一次獨立安全審查。只有已宣告的依賴允許時，資源互不衝突的回歸與審查才可同時進行；Managed selector 與必要檢查的前置條件仍有效。沿用證據時保留原始精確 SHA；修復後重新審查，本地測試不能證明外部狀態。
+
+逐步流程的模板對照表列出每個既有模板的使用時點，包含可選檢視與歷史 Wireframe 模板；不為了用完模板而建立不適用的文件。
+
+CI 回歸會完整解析來源 workflow 與 consumer CI 模板的 YAML，包含多行 candidate 與 diff-base 表達式。只有文字斷言，不能證明 GitHub 能載入 workflow。
+
+0.59 流程以 `development` 與 `main` 為永久保護分支，兩者均不得刪除。實作在隔離工作分支，保留各 task commits，固定已驗證的 development SHA 作 release，另行授權 main promotion。舊 pinned RUN 保留原執行語意。本來源庫正在 `codex/harness-flow-modernization` 準備遷移；本地規則變更不代表已完成遠端保護或發布。
+
+[逐步流程](docs/WORKFLOW.zh-TW.md) 列出每個適用階段的角色、既有模板及驗證邊界。同一 section 可在共享接口凍結後分給多位隔離的 frontend／backend writer；每個 executable task 保留自己的 atomic commit。依實際 host 容量派工，使用有界 packet、完成事件、streaming review 與序列整合。不把修改前／後驗證當作重複工作刪除，也不宣稱已有未實作的 rolling writer scheduler。
 
 Product Definition 撰寫英文正式來源 `PRD.md`、`architecture.md` 時，同步產出完整繁體中文審閱版 `PRD.zh-TW.md`、`architecture.zh-TW.md`。Owner 透過中文審閱；實作與核准 digest 以英文為準，接受的修改同步至兩份內容。[雙語審閱契約](skills/product-definition-builder/references/bilingual-review.md) 要求在審閱及成對發佈前核對來源雜湊、ID 與完整語意。 任務檢查發現既有 PRD 或 architecture 只有英文時，agent 會在同一目錄補上完整中文審閱版，保留英文原稿與核准紀錄。只有 PRD 的專案可單獨檢查，不必建立 architecture。唯讀任務只回報缺漏，不自動翻譯封存文件。
 
 `AGENTS.md` 要求在任務開始、重要變更後及結束時檢查本地 repository，即使不使用 Harness 或 PLAN/RUN。將有意義的已提交與未提交變更記錄到對應 Epic，外部修改標示為觀察到但未驗證，並更新 `docs/DOCUMENTS.md`。缺少基線就明確記錄；沒有新變化不重複寫入。唯讀任務只提出紀錄內容，不建立背景監控，也不增加動作授權。
 
-每次交接前都要重做 repository checkpoint，核對受影響的有效文件、對應 Epic 與索引，以及任務紀錄。Managed run 要用 renderer 的 `--check` 比對 PLAN/RUN 與產生的 `docs/tasks.md` 檢視；RUN 才是權威來源，不能手動編輯產生區段。依語意將共用 `AGENTS.md` 規則與已觀察到的安裝版 project template 及版本比對；在既有文件寫入授權內，只就地更新過期的共用規則並保留 repository 自訂規則。若 template 未觀察到或無法安全合併，交接時說明缺口。這是交接檢查點，不是定時掃描，也不增加動作授權。
+每次交接前都要重做 repository checkpoint，核對受影響的有效文件、對應 Epic 與索引，以及任務紀錄。Managed run 要用 renderer 的 `--check` 比對 PLAN/RUN 與產生的 `docs/tasks.md` 檢視；RUN 才是權威來源，不能手動編輯產生區段。依語意將共用 `AGENTS.md` 規則與已觀察到的安裝版 project template 及版本比對；在既有文件寫入授權內，只就地更新過期的共用規則並保留 repository 自訂規則。授權 bootstrap 會提出缺少的共用區段和同名規則差異；必須先用 reviewed merge plan 綁定觀察雜湊和標題選擇才能附加。附加前須從已開啟檔案重驗核准內容，結果必須精確等於原文加核准區塊；並行差異須報錯並保留全部內容。 Proposed additions 不代表已證明沒有矛盾。依語意 reconciling 時不可覆寫刻意更嚴格的本地規則；後續 `--check --require-resolved` gate 檢查 placeholder，不要求 template byte equality。若 template 未觀察到或語意合併不明，交接時說明缺口。這是交接檢查點，不是定時掃描，也不增加動作授權。
 
 技能儲存庫，讓你用 Codex、Claude Code、Pi 或任何會探索使用者 skills 目錄的 host，把產品構想或變更需求轉化為經過驗證的交付流程。
 
@@ -60,7 +70,13 @@ PRD 會在整個交付流程中持續補全。首次交付批准前，UI 與技�
 
 共用的 optional reference library 提供 19 個技術與設計領域的比較資料，不預選任何技術棧。[selection rule](skills/delivery-harness/references/reference-selection.md) 先從需求出發，只載入 [option-library](skills/delivery-harness/references/option-library/README.md) 中相關領域。它保留健康的既有技術；CSS/Tailwind、icon、Cloudflare、Expo/React Native、GSAP 或任何供應商都不是必選項。採納結論寫入既有 product、architecture、stack、UI 或任務記錄，不新增 gate、register、runtime 或審批權限。
 
+前端目錄把 TanStack Start／Router 與周邊生態分開比較；架構示例涵蓋完整的託管 React、可攜 React、內容、即時、Python 與業務應用技術棧，並補充 server-driven HTML、local-first 同步、durable workflow、租戶資料隔離、headless 內容／條件式商務與獨立 typed API，附失敗檢查及退出成本。成熟度觀察附查核日期，各專案仍由既有 stack checkpoint 決定採納。
+
+設計參考涵蓋元件基礎、八種視覺方向，以及 Mobbin、Dribbble、Awwwards、Refero、MotionSites 的手動搜尋。owner 分享選中的案例／原站連結或截圖，不新增設計參考 MCP 連接。React Bits 提供動效元件，Anime.js 提供動畫引擎；程式重用與相依仍遵循既有 stack 和授權決策。
+
 docs-weight 可見度報告會納入巢狀的選用 reference Markdown，不新增 gate。
+
+Cloudflare 目錄分開 compute、data、agent／search、browser／sandbox、media／email 與分析責任。Basin、K2、Artifacts、框架 adapter、CLI 與技能候選保留當日成熟度或遷移檢查；目錄涵蓋不代表已安裝、帳號可用或已可部署。
 
 ### 設計轉譯與可重用範本
 
@@ -85,6 +101,8 @@ Skills 更新後及實作前，執行[設計有效性檢查](skills/ui-design-bu
 
 ## 核心保證
 
+- **恢復保留身分與證據。** Launch recording 分開父代理的 `--session-id` 鎖與 `--worker-session-id`。新增的歷史 review admission 對上保留的 attempt；舊 PASS 不涵蓋新 head。沒有中斷 reconciliation receipt 的 blocked sibling review 會阻止 candidate 移動。當前 role-bound 中斷 mission 必須先有確認停止的 failure receipt，才可 reconciliation 和重派。Dual-branch archive 驗證凍結 base 的 ancestry，保留 main 觀察；舊 pins 保留原規則。Review packet 可保留帶 SHA-256 與 name-status 清單的完整外部 diff；截斷預覽必須補完整檢視，security integration review 一律檢查完整 scope。新 UI 入口用 `/3`，保留 `/2` 維持原批准語意。
+
 - **實作前主動提供建議.** 使用者沒有技術偏好時，提出符合產品的預設建議及替代方案，涵蓋前端、部署、後端/runtime 和 agent 編排，說明相容性、成本假設與重新評估條件。Enhancement 先檢視現有 UI，展示受影響範圍的前後比較。研究 template 與 CSS 參考時檢查授權和 stack，手機介面保留原生慣例。明確要求的 hero 和動效持續追蹤至交付。Visual Approval 要求每個動效具備綁定雜湊的正常及 reduced-motion 觀察紀錄；HTML 證據只證明審閱投影。
 - **小型工作維持精簡。** 一個有界變更只走檢查、實作、驗證與審查。
 - **大型工作明確記錄。** PLAN v6 定義 typed graph；RUN v11 記錄授權、嘗試與佐證。
@@ -93,7 +111,8 @@ Skills 更新後及實作前，執行[設計有效性檢查](skills/ui-design-bu
 
 安全豁免還須有 documentation-only 產品描述與 Product Archetype，並明確記錄不存在的可執行架構介面。Required security TEST 訊號與 Harness criterion 使用 `denial: rejected (<signal>); no unauthorized side effects: unchanged (<state evidence>)`，兩項斷言皆須有具體觀測。
 - **建議不等於實作權威。** 每個適用領域先提供兩到三組 coherent stack。新選擇經核准後標記 `Approved`，既有選擇是 `Selected`，硬限制是 `Required`；`Recommended` 與 `Provisional` 會阻擋 delivery。Checkpoint 的封閉 area set 必須等於適用且已解決的 areas，核准 option 的 layer map 必須等於可執行 stack rows。`render_stack_option_map.py` 會從既有 rows 產生供 owner review 的候選 map；它不能核准或改寫套件。明確 option map 以 `||...||` 包裹；僅用逗號的 legacy map 仍可讀取，但 layer 名稱或 selection 含逗號時必須使用明確形式。Frontend 的 component foundation 可以是一個 headless React primitive 層（Base UI 或 Radix Primitives）加上自訂元件；每個產品只選一個。Radix Themes 屬於 packaged suite。HiFi 依該層的狀態與焦點行為繪製，不改變 stack。
-- **新設計包直接由 PRD 進入 HiFi。** `UI contract: ui-design/2` 明確選擇新流程。PRD 預檢驗證 operations、states、responsive 與 copy status；HiFi 在 Impeccable 前驗證實際文案來源及產品操作覆蓋。預設三方向，選定後一次審閱完整 HiFi。原生 HTML 仍只是設計證據。舊 schema 與固定版本 RUN 保留原義；缺少 Wireframe 不會自動放寬檢查。
+- **完整 UI 包一定附完整 Design System。** 新的初次與完整重設計使用 `UI contract: ui-design/3`：在 `docs/design/directions/<round>/` 預設做三個可渲染方向，每個由同一作者自查；owner 選擇、混合或修改；完整 HiFi 檢查全部核准尺寸及網頁中間寬度；並必須產出 `design-system/4` 的 Markdown／JSON／HTML（`Package action: compile|update|reuse`）。HTML specimen book 以沙盒 plate 展示核准 HiFi 的全部 token、區間、已登記元件 variants、狀態、響應式尺寸與動效，可重播、停止及 reduced motion。每個必要狀態都須有明確分類列，包含 default。動畫證據須綁定 specimen 勝出的 CSS 宣告與具名 keyframes，包含重要性、選擇器優先順序及已解析的自訂屬性。不支援的動畫 CSS、跳脫字元宣告及無效縮寫列為 finding。保留的 `ui-design/2` 只在 required 時編譯 `design-system/3`；其 `not_required` 核准保留原義。 單方向只在 owner 明示選擇、記錄人類 Decision owner 與 Decided on 時成立；研究數量必須符合該選擇。 經驗證的 `none`／`style` maintenance 保留歷史設計，不代表重新核准 pair 或 preview。 沒有相鄰核准網頁寬度時，記錄完整的 `Intermediate width check: not_applicable — no adjacent approved web viewport widths`；原生 size classes 與其他 HiFi 證據仍須完成。
+- **保留的設計包直接由 PRD 進入 HiFi。** `UI contract: ui-design/2` 明確選擇保留流程；新的初次與完整重設計使用 `ui-design/3`。PRD 預檢驗證 operations、states、responsive 與 copy status；HiFi 在 Impeccable 前驗證實際文案來源及產品操作覆蓋。預設三方向，選定後一次審閱完整 HiFi。原生 HTML 仍只是設計證據。舊 schema 與固定版本 RUN 保留原義；缺少 Wireframe 不會自動放寬檢查。
 - **HiFi 頁面必須由產品控制項連通。** 新增或修訂的 `ui-hifi/2` 以 `index.html` 清單綁定同目錄 HTML 頁面的雜湊與控制項目的地。現行 `ui-output/3` 觀察逐 responsive target 驗證點擊及鍵盤操作；缺頁、過期雜湊、無效控制項、錯誤目的地或未宣告跳轉均阻擋核准。每頁只能呈現分配給該頁的 surface。發布與保留須包含完整套件；schema-1 僅供讀取檢查，正式 Visual Approval 一律要求 HiFi schema 2。歷史 output/2 與 evidence/2 保留原意。指定 Git revision 凍結時，該 revision 必須包含所有子頁面且內容一致。
 - **視覺品質有獨立門檻。** HiFi 的 H5（避免模板感）、H7（創意辨識度）與 H9（設計一致性）各須達到 80；總分 90 不能抵銷視覺分項不足。審查須引用已檢視的截圖與已確認的方向原則；數字驗證不代表美感或人工檢視已獲證明。
 - **以實際代表畫面選方向。** 各方向使用相同主要／壓力案例與內容，涵蓋適用平台並保存截圖及 hash。小型可播放動態展示 normal／reduced motion，只供選擇，不等於最終證據或 provider 授權。選定後才展開完整連通 HiFi。
@@ -110,7 +129,11 @@ Skills 更新後及實作前，執行[設計有效性檢查](skills/ui-design-bu
 - **Parity 靠實拍，不靠記憶。** hosted-browser surface 逐 route×viewport×state capture；extension、native 與 desktop app 使用平台工具或明確的人工 capture，不能拿 hosted URL 代替。任何未支援的 required group 都讓結果成為 partial、不可作 gate。每列綁定 Git blob、authority hash、baseline、capture method、trusted launcher identity 與 layout result。 截圖檔名包含完整 surface/route/breakpoint/state tuple 的 SHA-256，避免名稱正規化或大小寫不敏感的路徑合併不同證據。
 - **讀規則是強制的。** 種子化的專案 `AGENTS.md` 要求：受管工作前必讀已安裝的 `delivery-harness` SKILL.md，影響產品的直接工作前必讀受影響的 PRD 段落；跳過即 blocking review finding。
 - **程式安全是全新的最終審查。** 所有 code PLAN 都必須執行 `code-security-review`；`not_applicable` 只允許窄範圍的純文件工作。實際 candidate path 必須落在 mission/security scope，且永遠不能帶入 parent coordination files。專案要求的 security commands 是 graph 排序的 host 或 container verifiers；review 前會核對 exact current-head execution key。PASS 必須綁 exact SHA、完整 coverage、零 exclusion，且不可沿用舊結果。
-- **Promotion 一律 main-only。** 初次交付與 enhancement 都從觀察到的 remote `main` 開始。Harness 0.38+ RUN 在 C 以 local-only 關閉，不能由 RUN push。A 的授權 publication 必須同時帶 pre-archive external anchor、immutable request/attempt/receipt 與 trusted-host/human boundary；candidate gates 通過後，再另行授權與 read-back，把未變更的 A fast-forward 到 `main`。若 A 之後的 candidate/preview evidence 失敗，在同一個 non-default branch 以精確 A 建立新的 PLAN/RUN continuation，匯入既有 verified scope 與 repair、把 A records 綁為歷史輸入，關閉 C2、以新 anchor 收檔 A2；不能改寫 A history 或重用舊 records。已 publication 的 A 要求 A2 remote pre-state 精確等於 A；未 publication 的 A 則必須維持 absent。
+- **Release source 採用 dual-branch policy。** 0.59+ managed PLAN 會在 ordinary work 凍結 remote `development`、在 hotfix 凍結 remote `main`，再使用 non-protected run branch。Harness 0.38+ RUN 在 C 以 local-only 關閉，不能由 RUN push。A 的授權 publication 必須同時帶 pre-archive external anchor、immutable request/attempt/receipt 與 trusted-host/human boundary；candidate gates 通過後，ordinary flow 先把精確 A 落到受保護的 `development`，再將完整驗證的 SHA 升級到受保護的 `main`；hotfix 則先升級 A 到 `main`，再 no-force forward-integrate 到現有 `development`，並驗證保留 development work 的 SHA T。兩個 protected branch 都永不刪除。若 A 之後的 candidate/preview evidence 失敗，在同一個 non-default branch 以精確 A 建立新的 PLAN/RUN continuation，保留 branch policy，匯入既有 verified scope 與 repair、把 A records 綁為歷史輸入，關閉 C2、以新 anchor 收檔 A2；不能改寫 A history 或重用舊 records。已 publication 的 A 要求 A2 remote pre-state 精確等於 A；未 publication 的 A 則必須維持 absent。
+
+前端選型指南依明確的 release-source 協定記錄來源：`dual-branch/1` 使用已驗證的受保護 development SHA，舊協定使用 candidate branch/SHA。兩者的 production 都需要另行授權並驗證 main promotion。
+
+建立 RUN 前，只有 PLAN 的驗證會一起檢查明示的分支政策及 architecture 標記。缺少 RUN 不代表舊版本固定，也不授予執行權限。
 
 ## 包含的內容
 
@@ -118,7 +141,7 @@ Skills 更新後及實作前，執行[設計有效性檢查](skills/ui-design-bu
 | --- | --- | --- |
 | `product-definition-builder` | Discovery、research、security requirements、可量測產品/UI 行為、完整 frontend/backend 架構、coherent stack、release targets、tests 與 Product Definition Approval | 已核准的 `PRD.md`、`architecture.md`、`stack-decisions.md` 與研究產物 |
 | `ui-design-builder` | PRD 預檢、intake、預設三方向、完整 HiFi、完整性檢查、Impeccable／H1–H9、Visual Approval 與 Design System Need Gate | `docs/design/ui-design.md`、方向研究及已核准完整 HiFi 包 |
-| `design-system-compiler` | Visual Approval 後按需把已核准 `ui-design.md` target 編譯成凍結 design-system pair | `docs/design/design-system.md`、`docs/design/design-system.json` |
+| `design-system-compiler` | Visual Approval 後按需把已核准 `ui-design.md` target 編譯成凍結 design-system pair，並產生來源綁定的 HTML specimen book | `docs/design/design-system.md`、`docs/design/design-system.json`、`docs/design/design-system-preview.html` |
 | `delivery-harness` | 共用的規模判定與 security task gate、PLAN/RUN、授權、本機驗證與整合，外加 runtime adapter 參考文件（`references/runtime-adapters.md`）：由所有 host 共用的能力契約，agent 依觀察到的原生工具自動對應 | 直接動手，或 `PLAN.md` + `RUN.md` |
 | `code-security-review` | 實作與統一整合後的唯讀安全審查，優先由 fresh sibling agent 執行；主動滲透測試與修復不屬於本技能 | 精確 SHA 決策、trust-boundary 覆蓋、驗證後的發現與修復測試 |
 | `product-activation` | 所有支援的 Web、API/backend、iOS、Android、macOS、Windows、browser-extension 與 hybrid release target 的交付後設定，包含 capability routing、精確外部動作授權、read-back、量測來源與 outcome-review 交接 | `docs/ACTIVATION.md` |
@@ -141,9 +164,9 @@ Skills 更新後及實作前，執行[設計有效性檢查](skills/ui-design-bu
 
 ## 各部分如何組合在一起
 
-新 `ui-design/2` 不再製作灰階 Wireframe 或執行 W1–W5 階段。直接用代表視覺研究探索版面、字體、層級與 responsive，再於 HiFi 驗證。舊 Wireframe 工具只供歷史產物唯讀檢視與驗證。
+保留的 `ui-design/2` 套件不再製作灰階 Wireframe 或執行 W1–W5 階段。直接用代表視覺研究探索版面、字體、層級與 responsive，再於 HiFi 驗證。舊 Wireframe 工具只供歷史產物唯讀檢視與驗證。
 
-HiFi 提供完整、取自實際樣式的 Design Tokens 頁。Need Gate 要求正式 pair 時，compiler 產生 `design-system/3`，綁定已核准 PRD、architecture、stack、UI contract 與 HiFi 包，不再綁 Wireframe。
+HiFi 提供完整、取自實際樣式的 Design Tokens 頁。`ui-design/3` 包一定編譯 `design-system/4`：`showcase` 把每個 primitive variant、元件狀態與動效綁到核准 HiFi 元素，`design-system-preview.html` 以 specimen book 呈現，不自行發明樣式。`ui-design/2` 在 Need Gate 要求正式 pair 時才產生 `design-system/3`。兩者都綁定已核准 PRD、architecture、stack、UI contract 與 HiFi 包，不再綁 Wireframe。
 
 HiFi 以內嵌 `ui-hifi-copy/1` 及產品 DOM 綁定保留文案來源。靜態文案、動態顯示契約及成對語言仍可檢查。Tokens 展示實際數值、用途及控件變體；審閱器文字不能代替產品覆蓋。
 
@@ -326,6 +349,8 @@ Product Definition Approval、UI Visual Approval 與合併到 `main` 是分開�
 
 Production deployment 之後，`product-activation` 會從 typed release targets 衍生 profiles，只透過最安全可用路線執行精確授權的動作。Capability、read-back、behavior evidence、measurement sources 與 readiness 都綁定 target、environment、SHA、artifact、provider/channel 和 action digest。後續 strict Outcome Review 會逐字重複 PRD metric 或 TEST definition、baseline、target、window、production release 與相符的 verified `MS-*` evidence。
 
+Activation 預設進入執行：先盤點真實 delta，繼續把 ready 且已授權的 action 做到 mutation/read-back/behavior，最後執行 closeout checker；只有 owner 明確要求時才是 documentation-only。`--require-closeout` 會拒絕停留在 ready、configured、pending、uncertain 或 stale 的 required action。只有 verified 工作或明確 concrete blocker 能關閉動作；blocked 狀態讓 record 保持 blocked。真正的 no-op 不需要合成 action，但每個 target 都必須有 concrete n/a disposition；verified handoff 仍要求 verified sources 與 target readiness。
+
 Activation 之後，`seo-growth-review` 可對 typed public hosted-web production target 做獨立唯讀 review。Dated report 必須對齊 Review date、deployment hostname、exact release、Activation hash、verified source roles、data cutoff 與 PASS integrity checks；它不修改網站或外部帳戶。
 
 保存的 lifecycle SEO review 只要求所審查的 production target 在 Activation 中為 `ready`；其他 target（例如仍在商店審核的 app）可維持 pending。`check_seo_review.py` 只驗證一次 Product Definition package 與 Deployment，把這些 findings 與其他 review findings 一起輸出到 stdout；只有日期的 Data cutoff 會回報為 finding，不再崩潰。`code-security-review` 的 review packet 在 Contract JSON 中列出每個 PLAN `security_review.required_checks` ID，以及它在受審 head 上 PASS 執行的 execution key；結果會把這份清單複製到 `checks`。Reviewer 不回傳 reason code：blocked 結果在 `coverage.gaps` 或 `evidence` 寫明原因，派發阻擋由 parent 的 selector 記錄。
@@ -368,6 +393,21 @@ Full-stack 依完整流程實作畫面、API、權限、資料保存與回饋。
 
 [交付驗收契約](skills/delivery-harness/references/delivery-acceptance-contract.md) 把必要 PRD TEST ID、凍結的情境／平台矩陣與精確版本證據串起來。只在已授權的隔離測試環境準備合成帳號與本輪擁有的資料。Mock 登入不能證明真實認證通過；Web、原生 iOS 與 agent 工具結果各需自己的證據。Production 登入後門、含祕密的 fixture、跳過必要測試、過期 build 或延後處理的阻塞問題，都不能算 PASS。檢查器驗證覆蓋與保留證據，不宣稱能證明人工聲明或外部觀測的真實性。
 
+[Eval policy](skills/product-definition-builder/references/eval-policy-contract.md) 在已批准 PRD 凍結 rubric、樣本分母、重跑次數、pass rate、slice、critical 規則及 judge 輸入。必須使用 `json` code fence，讓 review 畫面顯示每個欄位；前綴的換行及空白行須符合 Markdown 規則。已批准輸入在 staging／發布時保持原路徑，舊版本保留。新 package 的批准及發布檢查使用 `--repo-root <root> --eval-policy eval-policy/1` 驗證已批准輸入的 bytes；一般產品填寫有理由的豁免。必要功能 TEST 仍須全部通過。Legacy package 沒有 marker 沿用原檢查；已加入 marker 就會驗證。
+
+[Eval 驗收契約](skills/delivery-harness/references/eval-acceptance-contract.md) 從 policy 推導執行契約，再重算每個已規劃 trial。品質失敗留在分母，prohibited 或 critical 失敗直接阻擋驗收。兩份 full report 保留 output、judge／tool 觀測、身分、時間和用量；handoff report 在乾淨 checkout 重跑。
+
+`check_eval_acceptance.py` 在乾淨 H2 將兩份 report 接上現有 delivery register，驗證凍結 hash 及 H1 等價，再執行 delivery acceptance。凍結契約、已批准輸入及交付檔案必須已存在，內容、類型及 Git mode 符合 H1，即使同時登記為 evidence。交付的 [eval runbook](skills/delivery-harness/assets/templates/EVAL_RUNBOOK.template.md) 記錄 setup、full／quick 指令、限額、失敗案例重跑和自有 fixture 清理。Checker 不執行 runner 指令；review 仍核對證據來源。
+
+RUN pin >=0.60.0 的 readiness 需要明確 eval applicability；required 時凍結 eval／delivery source，並強制 always-run gate：broad final checks → eval acceptance → delivery acceptance → closeout。錯誤 hash、替換 checker 或斷開 gate 都失敗。舊 pin 沒有 marker 保留原契約；加入 marker 即採用新檢查。
+兩個 acceptance checker 使用安裝目錄及已觀測 Python 的絕對路徑，
+明確在 host 執行，
+避免 image 在同一路徑放入替代 checker。
+舊 pin 也必須安全讀取 PRD authority；
+無法讀取是驗證缺口，不能當作沒有 policy。
+解析 policy 有／無之前，讀到的 bytes 都須符合
+凍結 hash 及已宣告的 Git revision。
+
 Harness 是圍繞明確的邊界所打造的：
 
 1. 檢視目前的專案，找出需要做的工作。
@@ -381,7 +421,7 @@ Harness 是圍繞明確的邊界所打造的：
 
 wave 接受前，Harness 會重新檢查觀測到的非預設整合分支及乾淨產品樹，把 batch 綁到該精確 head，重跑 selector，並且只接受完整的目前 frontier。clean-tree gate 只排除 transition 必然更新的那個精確 tracked RUN 檔案；其他任何變更仍會阻斷。整合分支位於 linked worktree 時，該 checkout 會正確記錄為 parent，Git 的乾淨主要 checkout 則保留為已識別的同層項目。持久 run lock 負責 dispatch；短期作業系統鎖會序列化每一次 RUN 的讀取、驗證與寫入交易。凍結的 PRD、wireframe 與 design-system source 會在獨立驗證和 transition 寫入路徑中按位元組 hash 綁定；即使 PLAN 聲稱 UI surface 為空，凍結的 PRD 仍會被解析。每個結構化 PRD surface 只擁有一個 literal route；帶 UI 的翻譯 PRD 只能有一對語言無關的邊界標記，並且每個條目各有一個 `route` 與 `states` 錨點；各產物的 ID、route 與 state 必須完全一致。design-system 的 Markdown 與 JSON 各有獨立 source row，其 generated contract 與 compiler namespace 必須一致；每個 PLAN `DS-*` trace 也必須在同一個全域唯一的 JSON 註冊表中解析。product-definition-builder 會按問題工具實際的每次容量分批詢問所有適用的封閉決策；沒有 Codex 專屬的呼叫次數目標，也不會為了配合 host 次數而丟掉問題。
 
-0.55.0 新增的規則只套用於要求 Harness 0.55.0 或更新版本的 run；較舊的 run 沿用記錄時的規則。清理類 lifecycle 節點（`archive_worker_tasks`、`remove_worktrees`、`delete_branches`）即使有 run 範圍的 `*` 授權，也必須有精確 PLAN target：PLAN 驗證會拒絕缺少 target 的節點，selector 以 `action_not_authorized` 延後它，`delete_branches` 也永遠不涵蓋 `main`、`development` 或觀察到的預設分支。Subagent reviewer 與 mission worker 一樣會取得精確的 `worker:<id>` `spawn_subagents` receipt。在每個 RUN-v11 版本中，mission 啟動與 `app_threads` reviewer 的啟動授權都要列出精確 `mission_ids`：selector 會以 `action_not_authorized` 延後 `*` mission 範圍，`lease-worker` 也會拒絕它。RUN-v11 `integration.coordination_paths` 只能列出 run 協調檔案（`docs/tasks.md`、`docs/DOCUMENTS.md`、`docs/goal/` 下的 PLAN/RUN/DECISIONS/REFINEMENT_BACKLOG/tasks，以及 `docs/epics/*.md`）；產品與凍結設計來源會被拒絕。`required_harness_version` 為 null 或格式錯誤時，這項檢查與受保護的 `delete_branches` 授權檢查同樣適用；只有低於 0.55.0 的 pin 會略過它們。Closeout 接受 run 未走過路線上的 dormant edge 與未使用的 repair 節點；實際走過的路徑仍須全部完成。若 `record-integration` 要重新啟用的 gate 或 integration review 已沒有剩餘嘗試次數，它會拒絕新的 head。傳入的 route 是 OR、dependency 是 AND，因此多個 reviewer 匯入時，每個 review 各用一個 gate，再以 dependency edge 匯合。PLAN 與 RUNBOOK template 已納入 delivery PLAN 要加入的 delivery-acceptance 項目：來源 `SRC-004`、位於 `final-check` 與 `final-closeout` 之間的 `delivery-acceptance` final gate、節點 `N-ACCEPTANCE-GATE`，以及 edge `E-FINAL-ACCEPTANCE` 與 `E-ACCEPTANCE-CLOSEOUT`；validator 目前尚未強制檢查。PLAN 宣告該 gate 時，worker-result 驗證會在所有 workspace 模式（含 shared checkout）拒絕 worker 對 register 或 evidence 路徑的變更。腳本不會派發跨 provider runtime；`invoke_external_runtime` 保留作 schema 相容，以及 parent 自己啟動的程序。RUN transition、`archive_run.py --apply` 與 `check_design_system_pair.py --write` 保留原子交換提交，現在也能在 macOS 執行（Linux 用 `renameat2` `RENAME_EXCHANGE`，macOS 用 `renameatx_np` `RENAME_SWAP`）。
+0.55.0 新增的規則只套用於要求 Harness 0.55.0 或更新版本的 run；較舊的 run 沿用記錄時的規則。清理類 lifecycle 節點（`archive_worker_tasks`、`remove_worktrees`、`delete_branches`）即使有 run 範圍的 `*` 授權，也必須有精確 PLAN target：PLAN 驗證會拒絕缺少 target 的節點，selector 以 `action_not_authorized` 延後它，`delete_branches` 也永遠不涵蓋 `main`、`development` 或觀察到的預設分支。Subagent reviewer 與 mission worker 一樣會取得精確的 `worker:<id>` `spawn_subagents` receipt。在每個 RUN-v11 版本中，mission 啟動與 `app_threads` reviewer 的啟動授權都要列出精確 `mission_ids`：selector 會以 `action_not_authorized` 延後 `*` mission 範圍，`lease-worker` 也會拒絕它。RUN-v11 `integration.coordination_paths` 只能列出 run 協調檔案（`docs/tasks.md`、`docs/DOCUMENTS.md`、`docs/goal/` 下的 PLAN/RUN/DECISIONS/REFINEMENT_BACKLOG/tasks，以及 `docs/epics/*.md`）；產品與凍結設計來源會被拒絕。`required_harness_version` 為 null 或格式錯誤時，這項檢查與受保護的 `delete_branches` 授權檢查同樣適用；只有低於 0.55.0 的 pin 會略過它們。Closeout 接受 run 未走過路線上的 dormant edge 與未使用的 repair 節點；實際走過的路徑仍須全部完成。若 `record-integration` 要重新啟用的 gate 或 integration review 已沒有剩餘嘗試次數，它會拒絕新的 head。傳入的 route 是 OR、dependency 是 AND，因此多個 reviewer 匯入時，每個 review 各用一個 gate，再以 dependency edge 匯合。PLAN 與 RUNBOOK template 已納入 delivery PLAN 要加入的 delivery-acceptance 項目：來源 `SRC-004`、位於 `final-check` 與 `final-closeout` 之間的 `delivery-acceptance` final gate、節點 `N-ACCEPTANCE-GATE`，以及 edge `E-FINAL-ACCEPTANCE` 與 `E-ACCEPTANCE-CLOSEOUT`；舊 pin 沒有 eval marker 時不強制檢查；適用的新 eval 契約會強制這些 join。PLAN 宣告該 gate 時，worker-result 驗證會在所有 workspace 模式（含 shared checkout）拒絕 worker 對 register 或 evidence 路徑的變更。腳本不會派發跨 provider runtime；`invoke_external_runtime` 保留作 schema 相容，以及 parent 自己啟動的程序。RUN transition、`archive_run.py --apply` 與 `check_design_system_pair.py --write` 保留原子交換提交，現在也能在 macOS 執行（Linux 用 `renameat2` `RENAME_EXCHANGE`，macOS 用 `renameatx_np` `RENAME_SWAP`）。
 
 ```mermaid
 flowchart TB
@@ -466,9 +506,9 @@ cd product-delivery-harness
 
 從 0.23 或更早版本升級時，讓 installer 在同一份備份中用原 ID 保存各舊目錄，並安裝目前七個 skills：`delivery-harness`、`product-definition-builder`、`ui-design-builder`、`design-system-compiler`、`code-security-review`、`product-activation`、`seo-growth-review`。遷移對應為 `full-harness` → `delivery-harness`、`prd-builder` → `product-definition-builder`、`product-design-builder` → `design-system-compiler`；installer 會驗證舊 ID 已不再可被探索。
 
-七個內建技能可獨立呼叫；跨技能模式會驗證已批准的 Product package 與準確來源身分。現行 `ui-design/2` 直接檢查 PRD → HiFi 的範圍、文案、CSP、離線及瀏覽器證據，並按需要檢查 `design-system/3` pair。Hybrid `surfaceContracts` 對應每個已批准 UI surface、capture mode 與 responsive set。舊版契約保留原有檢查。Deployment、Activation、Outcome Review 與保存的 SEO 報告共用 production identity。
+七個內建技能可獨立呼叫；跨技能模式會驗證已批准的 Product package 與準確來源身分。保留的 `ui-design/2` 套件直接檢查 PRD → HiFi 的範圍、文案、CSP、離線及瀏覽器證據，並按需要檢查 `design-system/3` pair；`ui-design/3` 另需 `design-system/4` 完整包，Harness 0.59+ RUN 也凍結其衍生 HTML，較舊固定版本不能使用 `ui-design/3`。Harness 會把 `design-system/4` 交給 design-system compiler 的 checker。在 0.59 pin 下，只有通過驗證且凍結的 maintenance record 可保留 `ui-design/2`；enhancement 必須使用 `ui-design/3`。Hybrid `surfaceContracts` 對應每個已批准 UI surface、capture mode 與 responsive set。舊版契約保留原有檢查。Deployment、Activation、Outcome Review 與保存的 SEO 報告共用 production identity。
 
-新專案的 Skill Bindings 會刻意保持 unresolved，直到 session 觀察本機候選且 owner 確認每個 slot 的唯一 skill。Pin 涵蓋完整 skill tree，不只 `SKILL.md`。公開 dependency manifest 會固定兩個必要 UI dependency 的 source locator 與 install route：請 Codex `$skill-installer` 從紀錄的 Anthropic path 安裝 `frontend-design`；Impeccable 使用 `npx impeccable install`（目前 npx 路徑需要 Node.js 22.18+）。接著執行 `check_external_skill_dependencies.py`；upstream tree 改變時不得悄悄取代 pinned bytes。Harness 負責 conformance 與 compilation contract，Impeccable workflow 仍需額外授權。
+新專案的 Skill Bindings 會刻意保持 unresolved，直到 session 觀察本機候選且 owner 確認每個 slot 的唯一 skill。Pin 涵蓋完整 skill tree，不只 `SKILL.md`。公開 dependency manifest 會固定兩個必要 UI dependency 的 source locator 與 install route：用目前 host 的 skill installer 從紀錄的 Anthropic path 安裝 `frontend-design`；Impeccable 使用 `npx impeccable install`（目前 npx 路徑需要 Node.js 22.18+）。接著執行 `check_external_skill_dependencies.py`；upstream tree 改變時不得悄悄取代 pinned bytes。Harness 負責 conformance 與 compilation contract，Impeccable workflow 仍需額外授權。
 
 Managed 本機 build／test 預設使用專案工具鏈，不需要 Docker 或 Podman。只有明確選用容器的 verifier 才需要管理員安裝的 runtime 與 machine trust policy，詳見 `runtime-trust.md`。Archive publication 仍須另備 machine trust policy 與簽章設定，詳見 `branch-promotion-contract.md`；installer 不會建立這些高權限政策。
 
@@ -476,8 +516,8 @@ Managed 本機 build／test 預設使用專案工具鏈，不需要 Docker 或 P
 
 1. 安裝一個受支援的 host 與七個 skills。Installer 會鎖住目的地、備份 managed IDs、只複製 Git-tracked files，並逐 byte 驗證；完成後重啟 host。
 2. 先用 `product-definition-builder` 完成 research-first evidence、candidate drafting/reconciliation、明確 recommendation choices、accepted 變更、coherent stack、typed release targets、tests、Stack Decision Checkpoint 與人工 Product Definition Approval。
-3. UI 先以 `--ui-contract ui-design/2` 跑 Product Definition 預檢，再進行 intake、方向研究、owner 選擇及完整 HiFi。Impeccable／H1–H9 前先驗 HiFi 完整性，最後一次人工 Visual Approval。
-4. Design System Need Gate 為 `required` 時，從已核准來源編譯 schema-3 Markdown／JSON pair，再通過最終 UI 驗證。`not_required` 時記錄既有 pair 處置並綁定 HiFi 替代契約。
+3. UI 先以 `--ui-contract ui-design/3` 跑 Product Definition 預檢，再進行 intake、三個可渲染方向研究及作者自查、owner 選擇及完整 HiFi。Impeccable／H1–H9 前先驗 HiFi 完整性，最後一次人工 Visual Approval。
+4. 從已核准來源編譯 `design-system/4` Markdown／JSON pair 及其衍生 HTML，再通過最終 UI 驗證。0.59 RUN 只有在通過驗證且凍結的 maintenance record 支持下才可保留 `ui-design/2`；enhancement 要編譯現行包。保留的 pair 只在 Need Gate 為 `required` 時編譯 schema-3；`not_required` 時記錄既有 pair 處置並綁定 HiFi 替代契約。
 5. 再呼叫 `delivery-harness`。Size gate 讓單一小改動維持 direct；大型工作才建立 PLAN-v6/RUN-v11。每個會改狀態的動作都要精確授權。
 6. Managed launch 前先通過 frozen source joins，並執行 `python "<delivery-harness-skill-root>/scripts/harness_transition.py" --plan docs/goal/PLAN.md --run docs/goal/RUN.md --repo-root <absolute-root> record-observation`；`--probe-sandboxes` 只作診斷。Mission 使用隔離 worktree；candidate commands 預設在本機執行，明確選用容器時保留固定映像與隔離檢查。
 7. 完成 exact-head mission reviews、graph-ordered security checks、全新的 unified `code-security-review`、broad regression gates 與 platform-correct UI evidence。
@@ -494,7 +534,7 @@ Managed 本機 build／test 預設使用專案工具鏈，不需要 Docker 或 P
 
 Skill Bindings 預設檢查全部 slot。Product Definition 使用 `--stage product-definition`，未進入的階段可以保留 `pending`/`pending`；UI 與編譯分別使用 `ui-design`、`design-compilation`，`backend` 僅適用於已確認無 UI 的產品或純後端範圍。每個階段重新驗證必要技能的完整 tree pin，前階段結果不代表後階段通過。
 
-UI 核准使用另行授權的 publication checkout，保留來源 HEAD、完整 Git 歷史與最終邏輯路徑。`check_ui_publication.py` 比對上游 bytes 並執行完整 Product 與最終 UI gates；授權發布後以 `--published` 確認轉移的 bytes 完全相同。`.ui-staging` 只放未核准草稿。Compiler 的 `sourceBindings.uiDesign.sha256` 使用 `ui_approval_digest.py` 排除衍生 pair/replacement linkage，其餘來源使用原始檔案 hash。單一平台使用全域 responsive set，hybrid 使用每個 surface 的 `surfaceContracts` 與已核准 stack。
+UI 核准使用另行授權的 publication checkout，保留來源 HEAD、完整 Git 歷史與最終邏輯路徑。`check_ui_publication.py` 比對上游 bytes 並執行完整 Product 與最終 UI gates；授權發布後以 `--published` 確認轉移的 bytes 完全相同。`.ui-staging` 只放未核准草稿。Compiler 的 `sourceBindings.uiDesign.sha256` 使用 `ui_approval_digest.py` 排除衍生 pair/replacement linkage；`ui-design/3` 另排除 Package action 與 pair disposition 行，使未變更的 package 可切換為 `reuse`。其餘來源使用原始檔案 hash。單一平台使用全域 responsive set，hybrid 使用每個 surface 的 `surfaceContracts` 與已核准 stack。
 
 0.55.0 的 Design System Compiler 變更：`stylingMechanism` 仍是封閉 enum，但只需對應 `stackSemantics.stylingMechanism` 中逐字保存的 Stack styling approach（例如 `modern vanilla CSS` 對應 `plain CSS`，原生樣式對應 `platform theme`）。無 pair 的 preflight 沒有獨立命令，而是在 `check_design_system_pair.py --repo-root` 內執行。`tokenSources` 與 `primitiveSources` 必須是精確的 repo 相對路徑。`check_color_contrast.py` 接受疊在不透明背景上的 `#RGBA` 與 `#RRGGBBAA` 前景色，`check_type_scale.py` 以 `--root-font-size`（預設 16px）接受 rem 與 em 尺寸；其內文 1.5 與標題 1.1 的行高下限是內部可讀性標準，不是 WCAG AA 規則。Legacy Harness join 現在會以 repository root 檢查 design-system/2 pair。
 
@@ -511,11 +551,11 @@ Use $product-definition-builder to define this product, including complete front
 ```
 
 ```text
-The Product Definition is approved. Use $ui-design-builder with the `ui-design/2` contract and mandatory $frontend-design. Run the product preflight, read the PRD UI Surface Contract directly, and show three materially different directions over the same representative cases for my selection.
+The Product Definition is approved. Use $ui-design-builder with the `ui-design/3` contract and mandatory $frontend-design. Run the product preflight, read the PRD UI Surface Contract directly, and show three materially different directions over the same representative cases for my selection.
 ```
 
 ```text
-I selected a direction. Continue $ui-design-builder with $frontend-design: build the complete connected HiFi, run the HiFi completeness preflight, then run separately authorized $impeccable critique and audit plus H1-H9 grading. Ask for one full Visual Approval covering copy, structure, product menus, tabs, visuals and tokens, and invoke $design-system-compiler only when required.
+I selected a direction. Continue $ui-design-builder with $frontend-design: build the complete connected HiFi, run the HiFi completeness preflight, then run separately authorized $impeccable critique and audit plus H1-H9 grading. Ask for one full Visual Approval covering copy, structure, product menus, tabs, visuals and tokens, then use $design-system-compiler for the required `design-system/4` pair and frozen derived HTML.
 ```
 
 ```text
@@ -600,6 +640,10 @@ CI 也會執行端到端主幹檢查。POSIX shell 使用 `HARNESS_GOLDEN_PATH=1
 
 CI 會先安裝釘選的 Node／Playwright 套件與 Chromium，再執行必要的 reviewer 瀏覽器測試；缺少相依套件會失敗。本機要執行同樣檢查，先跑 `npm ci` 與 `npx playwright install chromium`，設定 `PDH_REQUIRE_BROWSER_TESTS=1`，並讓 `PLAYWRIGHT_MODULE` 指向此 checkout 的 `node_modules/playwright`，再執行 UI suite。一般本機檢查仍可在瀏覽器不可用時跳過。
 
+Source CI 對 feature branch 只透過 pull request 驗證一次。`main` 或 `development` push、merge queue candidate 與手動 release 分開執行。每個 suite job 都 checkout 並驗證同一個完整 candidate SHA；手動 release 必須指定該 SHA 和完整的祖先 `base_sha`，並以 candidate 作 concurrency identity，後續 development push 無法取消它。resolver 會讓無法解析或非祖先的 base 失敗，並在 PR 和 merge queue 使用驗證過的 merge base，因此 fork 後只在 base 上的變更會被排除。若 push base 缺少或全為零，它會把 candidate tree 和 Git 推導的 empty tree 比較，而不是做空白 self-diff。內建的 consumer template 使用等效的 inline Git 檢查，不需要 skills checkout。最終 `validate` job 要求每個相依結果都是 `success`，包含所有 matrix shard。
+
+Harness suite 在每個 POSIX 平台分成四個 deterministic shard；Windows 的明確 native 檔案也分成四個 shard。`ci-test-timings.json` 記錄的是 Windows scheduling sample，不是通過測試或 release 證據。把這些權重用來切分 macOS 和 Linux 只是排程決定。未量測的新發現檔案只有在 `--allow-unmeasured` 時，才會用最大已量測權重保守排程，並明確回報為 fallback。這些觀察不能證明 hosted 環境提速。
+
 必要瀏覽器模式會直接啟動 Playwright 隨附的 Chromium。HiFi 案例超過總時限時會回報最後完成的階段；每個瀏覽器操作仍有自己的時限，所有產品斷言都會執行。
 
 `design_workflow.py` 納入標準 goal PLAN／RUN 路徑，並區分檔案存在與執行存活。Maintenance 的 UI impact 必須是 `none` 或 `style`；結構或未知影響需要對應設計檢查。共同的 schema-5 lifecycle 測試使用真實 compiler、Harness、Activation 與 SEO 檢查器。UI checker 會在 Harness 移除暫時匯入路徑前載入自身相依模組；SEO 也會把 stack 與 repo context 傳給 Activation。
@@ -622,7 +666,9 @@ README 是紀錄文件：每個新增或改動 skill、規則、表格、圖或�
 
 ## 發佈
 
-Windows CI 會在任一 Python 測試組失敗後立即停止。測試資料在綁定執行檔或儲存庫身分前先解析暫存路徑，包括 Windows 8.3 別名。macOS job 執行與 Linux job 相同的 Python 測試組；瀏覽器測試只在 Linux 執行。macOS 無法執行綁定的檔案描述符，所以在 macOS 上 sandbox container verifier 和瀏覽器 parity capture 會直接報錯（fail closed）；trusted-host 簽章驗證只在使用受 SIP 保護的 `/usr/bin/ssh-keygen` 時可用。
+技能原始碼維護在每個 atomic task 跑 focused checks，固定 release candidate 才跑完整必要 matrix。相容的測試依賴可沿用；同 SHA、同輸入的 deterministic 結果保留來源後引用，不快取 PASS，也不沿用失效的 security、browser、live 或 migration 證據。Consumer 產品訪談、UI 核准與真實 Activation 不屬於本來源庫發布步驟。正式 release 驗證成功且 bundle digest 改變後，才在安全載入邊界用正式 installer 更新一次本機技能，保留備份與驗證。Feature／development push 不取代使用中的正式版本；安裝成功且有載入需要才重啟相關 host。
+
+CI 會以同一個精確 candidate SHA 執行 Linux、macOS 和 Windows job。Aggregate 回歸會從公開 CLI 驗證成功、失敗、skipped、cancelled 和缺少 job 結果的情況。失敗或執行零個測試的 shard 會失敗；穩定的 `validate` aggregate 也會讓任何 skipped 或 cancelled job 失敗。Feature branch 只由 pull request 驗證一次；`main`、`development`、merge queue 和精確 SHA release run 保持分開。瀏覽器測試在 Linux 執行；macOS 保留非瀏覽器 UI suite。Windows 保留 native Harness、installer 和 Design System 檢查。測試資料在綁定執行檔或儲存庫身分前先解析暫存路徑，包括 Windows 8.3 別名。macOS 無法執行綁定的檔案描述符，所以在 macOS 上 sandbox container verifier 和瀏覽器 parity capture 會直接報錯（fail closed）；trusted-host 簽章驗證只在使用受 SIP 保護的 `/usr/bin/ssh-keygen` 時可用。
 
 HiFi 範例以固定 LF 換行維持跨平台位元組雜湊。Wireframe 的 Node 測試透過 stdin 讀取多行程式，避免 Windows 啟動器默默截斷斷言。
 
@@ -647,6 +693,10 @@ HiFi 範例以固定 LF 換行維持跨平台位元組雜湊。Wireframe 的 Nod
 本儲存庫採用 MIT 授權，全文見 [LICENSE](LICENSE)。
 
 ## 版本紀錄
+
+- **0.60.0** — 以 PRD eval-policy/1 凍結 rubric、樣本分母、重跑次數、pass rate 及 judge 輸入。重算品質與獨立乾淨 checkout 報告，交付 runner／grader／lockfile／runbook，並接上精確 H1/H2 證據。適用的 >=0.60 plan 強制凍結 source 與 always-run eval／acceptance gate；舊版沒有 marker 保留原契約。 包含尚未發布的 0.59 流程更新。
+
+- **0.59.0** — 更新 AGENTS 模板合併、受保護的 development／main 流程、跨 host 平行 writer、完整 Design System HTML、Activation 執行閉環及精確候選驗證。保留歷史 pins 與每項任務的 atomic commit。實作與驗證狀態見逐步流程及 modernization Epic。 合入 0.60 的原始碼里程碑，未獨立發布。
 
 - **0.58.0** — Parent 角色派工、多實例研究／探索、身分綁定結果匯合與附帶 maximum-creativity brief 的強制 frontend 委派。App-thread 角色綁定必須觀察到 app capabilities，隔離、衝突與預算檢查採用每個 binding 的 workspace，研究 complete 結果必須附帶有來源的 findings，省略 effort 時接受 host 預設。供使用專案套用的 AGENTS 模板加入新程式碼／測試模組 500 行硬上限、KISS、第一性原理、模組拆分及避免推測性相容程式碼；Harness 原始碼不受此上限限制。保留舊版 pinned RUN 與 owner 核准關卡。
 

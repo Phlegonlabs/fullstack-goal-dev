@@ -30,6 +30,39 @@ PRD 正文未隨附，採用前要先回答：
 
 Tailwind CSS 是 utility-class 樣式的可選候選；官方正文確認可組合 utility classes 與狀態／響應式 variants，採用前要核對版本與專案整合，見 [Tailwind](https://tailwindcss.com/docs/styling-with-utility-classes)。
 
+## 視覺方向候選（2026-10-02 增補）
+
+以下是研究整理的方向詞彙，用來表達字體、密度、色彩、圖像與動效之間的關係，不是指定頁面骨架或八個必做方案。先保留既有品牌，再按 PRD 的受眾和任務提案；正式 direction studies 仍遵循 UI flow 的數量、相同內容、owner selection 和 HiFi gates。
+
+| 方向 | 適用任務 | 字體／構圖／密度 | 色彩／圖像／動效 |
+| --- | --- | --- | --- |
+| 編輯與知識權威（Editorial authority） | 內容、研究、文件、顧問 | display/serif 與易讀正文分工、清楚閱讀順序、低至中密度 | 紙與墨的角色色、來源圖表／攝影、克制揭示 |
+| 產品清晰表達（Product-led clarity） | SaaS、產品介紹、註冊轉換 | 產品主次明確、sans 與數據字體分工、中密度 | 中性色面與少量品牌重點、真實產品圖、功能性轉場 |
+| 安靜操作工作台（Quiet operator console） | 管理、監控、資料操作 | 緊湊文字、tabular figures、穩定表格／detail 層級、高密度 | 低彩度底色、語意訊號、狀態回饋；資料優先 |
+| 策展作品展示（Curated portfolio） | 工作室、創作者、作品 | 有性格的 display、非對稱／滿幅作品、低密度 | 作品決定色彩、項目敘事與有目的的揭示 |
+| 溫暖商務與社群（Warm commerce/community） | 市集、會員、在地服務 | 易讀親切字體、商品／人物分组、中密度 | 暖色但維持對比、真實人與商品、hover／crossfade 回饋 |
+| 技術平台（Technical platform） | API、開發工具、基礎設施 | sans 與 mono 分工、code／docs／demo 層級、中密度 | 明確 light/dark 對比、真實工具畫面、示範優先 |
+| 公共信任（Civic trust） | 公共、金融、健康等高誤解成本流程 | humanist／system 正文、可預測任務順序、中至高密度 | 高對比語意色、解釋圖像、驗證／恢復回饋 |
+| 空間產品展示（Spatial showcase） | 硬體、3D、媒體產品 | 產品展示面與資訊層分開、低密度 | 場景與產品重點色、解說型 3D／scroll、靜態替代 |
+
+每一方向都要用真實中文與中英混排驗證：CJK 字體角色、數字、行長、字級、fallback 與載入预算不能直接照抄西文案例。圖表的資料意義、filter 和狀態由 PRD 決定；方向只處理呈現。[Material 3](https://m3.material.io/)、[Fluent 2](https://fluent2.microsoft.design/) 和 [Carbon](https://carbondesignsystem.com/) 可協助比較控制項、字體與狀態設計，不自動指定品牌或套件。
+
+## 案例與動效來源（2026-10-02 增補）
+
+| 來源 | 主要用途 | 參考邊界 |
+| --- | --- | --- |
+| [Mobbin](https://mobbin.com/) | 實際產品畫面、操作流程與狀態 | 看完整任務與前後狀態；不要只按單張畫面定產品流程 |
+| [Dribbble](https://dribbble.com/) | 視覺語言、排版、配色與設計師作品 | 作品可能是概念展示；實際操作、響應式和原網站另行核對 |
+| [Awwwards](https://www.awwwards.com/websites/) | 品牌網站、作品集、字體、滾動與互動案例 | 原網站上驗證速度、可及性與手機行為；獎項不代表適合本產品 |
+| [Refero](https://refero.design/) | Web App／SaaS 的畫面、流程、table、filter、pricing 等模式 | 把 pattern 對應具體 UI 任務，不整套複製資訊架構 |
+| [MotionSites](https://motionsites.ai/) | Landing／Hero／section 的方向與生成提示詞 | 網址按本輪名稱暫定；prompt、示範與生成結果各自驗證，不能當正式產品契約 |
+| [React Bits](https://www.reactbits.dev/get-started/index) | 可挑選的 React 文字、背景、卡片與互動效果 | 屬元件／程式來源；先查所選版本、license、依賴及效能，再決定是否重用 |
+| [Anime.js](https://animejs.com/) | 自訂 timeline、scroll、SVG、path 或拖曳動效 | 屬動畫引擎；與 CSS/WAAPI、Motion、GSAP 比較，按需要選用 |
+
+參考收集採手動網站搜尋：owner 分享案例 URL／截图、想學的部分和適用頁面；有 Visit Website 或原站連結時，直接檢查原站。動效附短錄影或可操作頁面。沒有觀察到的狀態標成未檢查；不從搜尋摘要、作品縮圖或 prompt 宣稱完成視覺驗證。本流程不安裝或連接這些參考網站的 MCP。
+
+將實際觀察寫進既有 Design Brief 的 `REF-*`，再提出有頁面範圍的 `RP-*` 原則，沿用原有確認步驟。搜尋、靈感、程式碼重用與依賴安裝分開處理；所選素材／元件的 license、成本、來源、版本與修改責任必須確認。網站類型或案例外觀不會選定元件、CSS、框架或 PRD 範圍。
+
 ## 方法比較
 
 | 方法 | 適合 | 避免條件 | 整合義務 | 成本／鎖定 |

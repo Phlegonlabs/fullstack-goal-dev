@@ -77,6 +77,9 @@ class DesignSystemCompilerSkillContractTests(unittest.TestCase):
             self.assertIn(marker, references)
         self.assertIn("end the turn for confirmation", ui_pass)
         self.assertIn("one product-specific direction", ui_pass)
+        self.assertIn("Direction mode: one recommended direction", ui_pass)
+        self.assertIn("this applies to `ui-design/3` and `ui-design/2` alike", ui_pass)
+        self.assertIn("Continuing uncertainty or silence never converts into that instruction", ui_pass)
         self.assertIn("exactly three materially different directions", ui_pass)
         self.assertIn("Impeccable does not generate directions", references)
 
