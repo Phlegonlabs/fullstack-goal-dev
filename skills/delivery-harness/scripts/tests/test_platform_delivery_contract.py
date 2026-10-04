@@ -22,6 +22,7 @@ from harness_manifest import validate_plan  # noqa: E402
 from harness_manifest import _validate_verifier_executions  # noqa: E402
 from manifest_fixtures import valid_plan  # noqa: E402
 from manifest_fixtures import (  # noqa: E402
+    eval_exempt_prd,
     manifest_markdown,
     retained_gate_execution,
     task as task_fixture,
@@ -1288,8 +1289,9 @@ class FrozenSourceJoinTests(unittest.TestCase):
         *,
         architecture: str,
         prd: str,
+        plan: dict[str, object] | None = None,
     ) -> dict[str, object]:
-        plan = platform_plan()
+        plan = plan or platform_plan()
         plan["sources"] = [
             {
                 "id": "SRC-001",
@@ -1341,6 +1343,39 @@ class FrozenSourceJoinTests(unittest.TestCase):
                 path.read_bytes()
             ).hexdigest()
         return plan
+
+    def combined_platform_feature_fixture(
+        self,
+        root: Path,
+    ) -> tuple[dict[str, object], str]:
+        """Return the proven valid public combined feature/platform fixture."""
+
+        architecture, base_prd = self.product_fixtures()
+        plan = platform_plan()
+        mission_traces = plan["missions"][0]["trace_ids"]
+        mission_traces[mission_traces.index("ARCH-001")] = "ARCH-002"
+        for task in plan["missions"][0]["tasks"]:
+            traces = task["trace_ids"]
+            traces[traces.index("ARCH-001")] = "ARCH-002"
+        next(
+            trace for trace in plan["traces"] if trace["id"] == "ARCH-001"
+        )["id"] = "ARCH-002"
+        feature_prd = self.add_planned_feature(plan, eval_exempt_prd(base_prd))
+        plan = self.materialized_platform_plan(
+            root,
+            architecture=architecture,
+            prd=feature_prd,
+            plan=plan,
+        )
+        prd_source = next(
+            source for source in plan["sources"] if source["kind"] == "prd"
+        )
+        self.assertIsNone(prd_source["source_revision"])
+        self.assertEqual(
+            hashlib.sha256(feature_prd.encode("utf-8")).hexdigest(),
+            prd_source["content_sha256"],
+        )
+        return plan, feature_prd
 
     def test_run_none_marked_platform_join_and_exact_byte_reuse(self) -> None:
         architecture, prd = self.product_fixtures()
@@ -1481,17 +1516,104 @@ class FrozenSourceJoinTests(unittest.TestCase):
         )
 
     def test_public_combined_feature_and_platform_join_passes(self) -> None:
-        architecture, prd = self.product_fixtures()
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            plan = self.materialized_platform_plan(
-                root,
-                architecture=architecture,
-                prd=self.add_planned_feature(platform_plan(), prd),
+            plan, _feature_prd = self.combined_platform_feature_fixture(root)
+            feature_trace = next(
+                trace
+                for trace in plan["traces"]
+                if trace["id"] == "PRD-FEATURE"
+            )
+            feature_task = plan["missions"][0]["tasks"][0]
+            feature_row = next(
+                row
+                for row in feature_task["acceptance_matrix"]
+                if row["test_id"] == "TEST-FEATURE"
+            )
+            feature_dependency = next(
+                edge
+                for edge in plan["graph"]["edges"]
+                if edge["id"] == "E-M1-REPAIR-FINAL"
             )
             errors = validate_frozen_contract_joins(plan, root, run=None)
-        self.assertFalse(any("platform delivery" in item for item in errors), errors)
-        self.assertFalse(any("acceptance_gate_ids" in item for item in errors), errors)
+        self.assertEqual(["final"], feature_trace["acceptance_gate_ids"])
+        self.assertIn("PRD-FEATURE", plan["missions"][0]["trace_ids"])
+        self.assertIn("PRD-FEATURE", feature_task["trace_ids"])
+        self.assertIn("PRD-FEATURE", feature_row["trace_ids"])
+        self.assertEqual("dependency", feature_dependency["kind"])
+        self.assertEqual("N-M1", feature_dependency["from"])
+        self.assertEqual("N-FINAL", feature_dependency["to"])
+        self.assertIn("M1", plan["platform_delivery"]["stages"][0]["mission_ids"])
+        self.assertIn("TEST-FEATURE", plan["final_gates"][0]["acceptance_test_ids"])
+        self.assertEqual([], errors)
+
+    def test_combined_fixture_negatives_fail_their_exact_join(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            base_plan, _feature_prd = self.combined_platform_feature_fixture(root)
+            self.assertEqual(
+                [],
+                validate_frozen_contract_joins(base_plan, root, run=None),
+            )
+
+            no_gate = copy.deepcopy(base_plan)
+            next(
+                trace
+                for trace in no_gate["traces"]
+                if trace["id"] == "PRD-FEATURE"
+            ).pop("acceptance_gate_ids")
+            no_gate_errors = validate_frozen_contract_joins(
+                no_gate,
+                root,
+                run=None,
+            )
+
+            no_coverage = copy.deepcopy(base_plan)
+            gate = no_coverage["final_gates"][0]
+            gate["acceptance_test_ids"] = [
+                test_id
+                for test_id in gate["acceptance_test_ids"]
+                if test_id != "TEST-FEATURE"
+            ]
+            no_coverage_errors = validate_frozen_contract_joins(
+                no_coverage,
+                root,
+                run=None,
+            )
+
+            no_dependency = copy.deepcopy(base_plan)
+            no_dependency["graph"]["edges"] = [
+                edge
+                for edge in no_dependency["graph"]["edges"]
+                if edge["id"] != "E-M1-REPAIR-FINAL"
+            ]
+            no_dependency_errors = validate_frozen_contract_joins(
+                no_dependency,
+                root,
+                run=None,
+            )
+        self.assertTrue(
+            any(
+                "a planned PRD must feature requires acceptance gates" in item
+                for item in no_gate_errors
+            ),
+            no_gate_errors,
+        )
+        self.assertTrue(
+            any(
+                "accepting gates do not cover every canonical feature TEST"
+                in item and "TEST-FEATURE" in item
+                for item in no_coverage_errors
+            ),
+            no_coverage_errors,
+        )
+        self.assertTrue(
+            any(
+                "does not precede accepting gate 'final'" in item
+                for item in no_dependency_errors
+            ),
+            no_dependency_errors,
+        )
 
     def test_marker_only_contract_is_adopted_without_mapping(self) -> None:
         architecture, prd = self.product_fixtures()
