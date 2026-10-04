@@ -229,8 +229,10 @@ class PlatformDeliveryTests(unittest.TestCase):
                 self.assertTrue(findings)
 
     def test_active_duplicate_protocol_marker_outside_section_fails(self) -> None:
+        # The explicit Notes section makes the second marker visible outside
+        # the sequence body, where section-local duplicate fields cannot see it.
         candidate = architecture(platform=sequence()) + (
-            "\nPlatform delivery contract: platform-delivery/1\n"
+            "\n## Notes\n\nPlatform delivery contract: platform-delivery/1\n"
         )
         _, findings = parse(architecture_text=candidate)
         self.assertTrue(
@@ -268,11 +270,22 @@ class PlatformDeliveryTests(unittest.TestCase):
                 "| 1 | web first | web-app,public-api | TEST-001 | web smoke passes |\n"
                 "| 2 | ios | ios-app | TEST-002 | ios smoke passes |"
             )),
+            "placeholder stage": sequence(rows=(
+                "| 1 | todo | web-app,public-api | TEST-001 | web smoke passes |\n"
+                "| 2 | ios | ios-app | TEST-002 | ios smoke passes |"
+            )),
         }
         for label, candidate in cases.items():
             with self.subTest(case=label):
                 _, findings = parse(architecture_text=architecture(platform=candidate))
                 self.assertTrue(findings)
+                if label == "placeholder stage":
+                    self.assertTrue(
+                        any(
+                            "stage ID is missing or uses placeholder text" in item
+                            for item in findings
+                        )
+                    )
 
     def test_not_required_cannot_hide_multiple_user_facing_platforms(self) -> None:
         candidate = sequence(

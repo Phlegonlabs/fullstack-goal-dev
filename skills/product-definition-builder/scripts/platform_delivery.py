@@ -362,7 +362,11 @@ def parse_platform_delivery(
                     f"architecture: platform delivery stage order {order} is not contiguous"
                 )
             expected_order = order + 1
-            if KEBAB_RE.fullmatch(stage_id) is None:
+            if not _meaningful(stage_id, minimum=3):
+                findings.append(
+                    "architecture: platform delivery stage ID is missing or uses placeholder text"
+                )
+            elif KEBAB_RE.fullmatch(stage_id) is None:
                 findings.append(
                     f"architecture: platform delivery stage ID {stage_id!r} "
                     "must use lowercase kebab-case"
