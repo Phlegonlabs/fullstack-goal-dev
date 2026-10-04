@@ -481,7 +481,9 @@ One run has one active host. A same-repository handoff is allowed only after Hos
 
 [README Studio](standalone-skills/readme-studio/SKILL.md) helps other projects write a distinctive, brand-first GitHub README with real demonstrations, a useful quickstart and renderer-specific checks. Its [dated case library](standalone-skills/readme-studio/references/case-library.md) draws on Starship, Bruno, Transformers, tldraw and Vite. Visual work follows the target project's frontend route and includes before/after evidence.
 
-These sources are independent of the seven-skill bundle and are not installed by `install.sh` or `install.ps1`. Open the linked `SKILL.md` with its references in your host, or register the complete skill directory using that host's supported discovery mechanism. Registration is a separate local action; this repository does not automatically install it. Once available, invoke `$readme-studio` to improve a README. Keep the project's language, license and supported install channels.
+[Release Packager](standalone-skills/release-packager/SKILL.md) prepares applicable artifacts for Node/Bun, Python, Go/Rust, containers and desktop/mobile apps using the project's native tooling. It tests actual package contents and consumer paths, then reconciles README/release facts. Builds, signatures, installation tests and publication retain separate evidence; missing runners or signing material remain explicit gaps. It adds no automatic CI pipeline.
+
+These sources are independent of the seven-skill bundle and are not installed by `install.sh` or `install.ps1`. Open the linked `SKILL.md` with its references in your host, or register the complete skill directory using that host's supported discovery mechanism. Registration is a separate local action; this repository does not automatically install it. Once available, invoke `$readme-studio` to improve a README or `$release-packager` when preparing a release. Keep the project's language, license and supported channels; publishing follows its existing authorization.
 
 ## Install
 

@@ -481,7 +481,9 @@ Worker 與 reviewer 不能再次分派。Parent 保持每個隔離 worktree 只�
 
 [README Studio](standalone-skills/readme-studio/SKILL.md) 協助其他專案撰寫有品牌特色的 GitHub README，包含真實示範、可用的快速上手及各呈現平台的檢查。[附日期的案例庫](standalone-skills/readme-studio/references/case-library.md) 參考 Starship、Bruno、Transformers、tldraw 與 Vite。視覺工作沿用目標專案的 frontend 路由，交付前後對照證據。
 
-這些來源獨立於七個 skills 的 bundle，`install.sh` 和 `install.ps1` 不會安裝它們。可在 host 中開啟連結的 `SKILL.md` 與 references，或按 host 支援的探索方式註冊完整 skill 目錄。註冊是另一項本機操作，本 repo 不會自動安裝。可用後，以 `$readme-studio` 改善 README，保留專案語言、授權與已支援的安裝渠道。
+[Release Packager](standalone-skills/release-packager/SKILL.md) 沿用專案原生工具，為 Node/Bun、Python、Go/Rust、容器及桌面／行動 App 準備適用產物。它檢查實際包內容和使用者安裝／使用路徑，再核對 README 與 release 資訊。建包、簽署、安裝測試和發布分別保留證據；缺少 runner 或簽署資料會明確列為缺口，不會加入自動 CI 流程。
+
+這些來源獨立於七個 skills 的 bundle，`install.sh` 和 `install.ps1` 不會安裝它們。可在 host 中開啟連結的 `SKILL.md` 與 references，或按 host 支援的探索方式註冊完整 skill 目錄。註冊是另一項本機操作，本 repo 不會自動安裝。可用後，以 `$readme-studio` 改善 README，或在準備 release 時使用 `$release-packager`。保留專案語言、授權與已支援渠道；發布沿用原有授權。
 
 ## 安裝
 
