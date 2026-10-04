@@ -47,6 +47,7 @@ from manifest_fixtures import (  # noqa: E402
     SHA_B,
     SHA_C,
     SHA_D,
+    carry_security_requirement,
     authorize_action,
     authorize_execution,
     native_capability_probe,
@@ -155,6 +156,68 @@ class DigestTests(unittest.TestCase):
         changed = copy.deepcopy(original)
         changed["batch_verifiers"][0]["argv"].reverse()
         self.assertNotEqual(plan_digest(original), plan_digest(changed))
+
+
+class SecurityFixtureTargetTests(unittest.TestCase):
+    def test_regular_fixture_binds_security_to_its_existing_final_gate(self) -> None:
+        plan = valid_plan()
+        carry_security_requirement(plan)
+
+        final_node = next(
+            node
+            for node in plan["graph"]["nodes"]
+            if node.get("kind") == "verifier"
+            and node.get("ref")
+            in {gate["id"] for gate in plan["final_gates"]}
+        )
+        final_gate = next(
+            gate
+            for gate in plan["final_gates"]
+            if gate["id"] == final_node["ref"]
+        )
+        mission_node = next(
+            node
+            for node in plan["graph"]["nodes"]
+            if node.get("kind") == "mission" and node.get("ref") == "M1"
+        )
+        edge = plan["graph"]["edges"][-1]
+
+        self.assertEqual(["TEST-003"], final_gate["acceptance_test_ids"])
+        self.assertEqual([final_gate["id"]], plan["traces"][-1]["acceptance_gate_ids"])
+        self.assertEqual(mission_node["id"], edge["from"])
+        self.assertEqual(final_node["id"], edge["to"])
+        self.assertEqual([], validate_plan(plan))
+
+    def test_template_fixture_binds_security_to_its_existing_final_gate(self) -> None:
+        plan = load_plan(
+            SCRIPTS_DIR.parent / "assets/templates/HARNESS_PLAN.template.md"
+        )
+        carry_security_requirement(plan)
+
+        final_node = next(
+            node
+            for node in plan["graph"]["nodes"]
+            if node.get("kind") == "verifier"
+            and node.get("ref")
+            in {gate["id"] for gate in plan["final_gates"]}
+        )
+        final_gate = next(
+            gate
+            for gate in plan["final_gates"]
+            if gate["id"] == final_node["ref"]
+        )
+        mission_node = next(
+            node
+            for node in plan["graph"]["nodes"]
+            if node.get("kind") == "mission" and node.get("ref") == "M1"
+        )
+        edge = plan["graph"]["edges"][-1]
+
+        self.assertEqual(["TEST-003"], final_gate["acceptance_test_ids"])
+        self.assertEqual([final_gate["id"]], plan["traces"][-1]["acceptance_gate_ids"])
+        self.assertEqual(mission_node["id"], edge["from"])
+        self.assertEqual(final_node["id"], edge["to"])
+        self.assertEqual([], validate_plan(plan))
 
 
 class PlanValidationTests(unittest.TestCase):

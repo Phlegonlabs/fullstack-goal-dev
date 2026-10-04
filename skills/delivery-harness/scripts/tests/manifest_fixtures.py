@@ -316,6 +316,29 @@ def carry_security_requirement(
 ) -> dict[str, object]:
     """Carry one synthetic security obligation through an existing PLAN task."""
 
+    def acceptance_target() -> tuple[dict[str, object], dict[str, object]]:
+        gates = [
+            gate
+            for gate in plan.get("final_gates", [])
+            if isinstance(gate, dict) and isinstance(gate.get("id"), str)
+        ]
+        gate_ids = {str(gate["id"]) for gate in gates}
+        graph = plan.get("graph")
+        nodes = graph.get("nodes", []) if isinstance(graph, dict) else []
+        for node in nodes:
+            if not isinstance(node, dict):
+                continue
+            ref = node.get("ref")
+            if node.get("kind") != "verifier" or not isinstance(ref, str):
+                continue
+            if ref not in gate_ids:
+                continue
+            gate = next(gate for gate in gates if gate["id"] == ref)
+            return gate, node
+        raise ValueError("PLAN has no final gate bound to a graph verifier")
+
+    acceptance_gate, acceptance_node = acceptance_target()
+
     prd_source = next(
         (source for source in plan["sources"] if source.get("kind") == "prd"),
         plan["sources"][0],
@@ -328,17 +351,22 @@ def carry_security_requirement(
             "requirement": "Carry the frozen security obligation",
             "disposition": "planned",
             "rationale": None,
-            "acceptance_gate_ids": ["final"],
+            "acceptance_gate_ids": [acceptance_gate["id"]],
         }
     )
     mission = plan["missions"][0]
-    plan["final_gates"][0]["acceptance_test_ids"] = [test_id]
+    mission_node = next(
+        node
+        for node in plan["graph"]["nodes"]
+        if node.get("kind") == "mission" and node.get("ref") == mission["id"]
+    )
+    acceptance_gate["acceptance_test_ids"] = [test_id]
     plan["graph"]["edges"].append(
         {
             "id": "E-M1-SECURITY-FINAL",
             "kind": "dependency",
-            "from": "N-M1",
-            "to": "N-FINAL",
+            "from": mission_node["id"],
+            "to": acceptance_node["id"],
             "on_outcomes": ["pass"],
             "max_traversals": None,
         }
