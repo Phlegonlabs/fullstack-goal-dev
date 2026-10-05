@@ -5,8 +5,10 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import io
 import sys
 import tempfile
+from contextlib import redirect_stdout
 from unittest.mock import patch
 from pathlib import Path
 from types import SimpleNamespace
@@ -19,6 +21,7 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 from harness_core import _validate_verifier  # noqa: E402
 from harness_manifest import validate_plan  # noqa: E402
+from harness_manifest import validate_current_plan_run  # noqa: E402
 from harness_manifest import _validate_verifier_executions  # noqa: E402
 from manifest_fixtures import valid_plan  # noqa: E402
 from manifest_fixtures import (  # noqa: E402
@@ -37,6 +40,7 @@ from platform_delivery_contract import (  # noqa: E402
 from harness_contract_join import validate_frozen_contract_joins  # noqa: E402
 import harness_contract_join as harness_contract_join_module  # noqa: E402
 from select_ready_nodes import _incoming, _logical_reasons  # noqa: E402
+from select_ready_nodes import _selection_context  # noqa: E402
 from verifier_runtime import _validated_inputs  # noqa: E402
 from render_review_packet import _relevant_acceptance_mappings  # noqa: E402
 from validate_harness_plan import main as validate_plan_cli  # noqa: E402
@@ -251,6 +255,211 @@ def add_ui_surface(
     for task in mission["tasks"]:
         task["trace_ids"].append(surface_id)
     return surface
+
+
+def add_runtime_review_handoff(
+    plan: dict[str, object],
+    *,
+    source_mission: str,
+    target_mission: str,
+    stage: str,
+    guarded: bool = False,
+) -> None:
+    """Replace the direct handoff with a runtime review dependency path."""
+
+    reviewer_id = f"N-REVIEW-{source_mission}"
+    reviewer = graph_node(
+        reviewer_id,
+        "verifier",
+        f"review-{source_mission}",
+        "runtime_worker",
+        ["pass", "fix_required", "blocked"],
+    )
+    reviewer["review"] = {
+        "type": "backend_code",
+        "lineage_id": f"REVIEW-{source_mission}",
+        "mission_ids": [source_mission],
+        "scope": ["src/**"],
+        "required_evidence": ["reviewed_sha", "findings"],
+        "stage": stage,
+    }
+    plan["graph"]["nodes"].append(reviewer)
+    plan["graph"]["edges"] = [
+        edge
+        for edge in plan["graph"]["edges"]
+        if not (
+            edge["kind"] == "dependency"
+            and edge["from"] == f"N-{source_mission}"
+            and edge["to"] == f"N-{target_mission}"
+        )
+    ]
+    review_source = f"N-{source_mission}"
+    if guarded:
+        guard_id = f"N-GATE-{source_mission}"
+        plan["graph"]["nodes"].append(
+            graph_node(
+                guard_id,
+                "verifier",
+                "final",
+                "local_command",
+                ["pass", "blocked"],
+            )
+        )
+        plan["graph"]["edges"].append(
+            {
+                "id": f"E-{source_mission}-PLATFORM-GATE",
+                "kind": "dependency",
+                "from": f"N-{source_mission}",
+                "to": guard_id,
+                "on_outcomes": ["pass"],
+                "max_traversals": None,
+            }
+        )
+        review_source = guard_id
+    plan["graph"]["edges"].extend(
+        [
+            {
+                "id": f"E-{source_mission}-RUNTIME-REVIEW",
+                "kind": "dependency",
+                "from": review_source,
+                "to": reviewer_id,
+                "on_outcomes": ["pass"],
+                "max_traversals": None,
+            },
+            {
+                "id": f"E-RUNTIME-REVIEW-{target_mission}",
+                "kind": "dependency",
+                "from": reviewer_id,
+                "to": f"N-{target_mission}",
+                "on_outcomes": ["pass"],
+                "max_traversals": None,
+            },
+        ]
+    )
+
+
+def preintegration_review_run(plan: dict[str, object]) -> dict[str, object]:
+    """Return worker-pass plus review-pass state while M1 remains unintegrated."""
+
+    run = valid_run(plan)
+    run["status"] = "running"
+    run["plan_readiness"] = "ready"
+    run["execution_authorized"] = True
+    run["graph_state"]["node_states"]["N-M1"].update(
+        {
+            "phase": "running",
+            "attempts": 1,
+            "last_attempt_id": "ATT-M1",
+            "last_outcome": None,
+            "bound_worker_id": "W-M1",
+        }
+    )
+    run["graph_state"]["node_states"]["N-REVIEW-M1"].update(
+        {
+            "phase": "succeeded",
+            "attempts": 1,
+            "last_attempt_id": "ATT-REVIEW-M1",
+            "last_outcome": "pass",
+            "bound_worker_id": "RW-M1",
+        }
+    )
+    run["mission_states"]["M1"].update(
+        {
+            "phase": "worker_passed",
+            "head_sha": "b" * 40,
+        }
+    )
+    run["review_workers"].append(
+        {
+            "worker_id": "RW-M1",
+            "node_id": "N-REVIEW-M1",
+            "attempt_id": "ATT-REVIEW-M1",
+            "plan_revision": plan["revision"],
+            "plan_digest_sha256": run["plan"]["digest_sha256"],
+            "graph_revision": run["graph_state"]["graph_revision"],
+            "reviewed_sha": "b" * 40,
+            "review_path": "C:/repo/worktrees/M1",
+            "phase": "worker_passed",
+            "outcome": "pass",
+            "findings": [],
+        }
+    )
+    return run
+
+
+def feature_review_plan(stage: object, *, guarded: bool = False) -> dict[str, object]:
+    """Bind a feature gate to M1 through a runtime-review dependency path."""
+
+    plan = platform_plan()
+    add_feature_gate(plan)
+    feature_trace = next(
+        trace for trace in plan["traces"] if trace["id"] == "REQ-001"
+    )
+    assert feature_trace["acceptance_gate_ids"] == ["final"]
+    plan["graph"]["edges"] = [
+        edge
+        for edge in plan["graph"]["edges"]
+        if edge["id"] not in {"E-M1-PLATFORM-FINAL", "E-M1-M2"}
+    ]
+    review = next(
+        node for node in plan["graph"]["nodes"]
+        if node["id"] == "N-REVIEW-M1"
+    )
+    review["allowed_outcomes"] = ["pass", "blocked"]
+    review["review"]["stage"] = stage
+    review["review"]["mission_ids"] = ["M1"]
+    review_source = "N-M1"
+    if guarded:
+        review_source = "N-GATE-M1"
+        plan["graph"]["nodes"].append(
+            graph_node(
+                review_source,
+                "verifier",
+                "batch",
+                "local_command",
+                ["pass", "blocked"],
+            )
+        )
+        plan["graph"]["edges"] = [
+            edge
+            for edge in plan["graph"]["edges"]
+            if not (
+                edge["kind"] == "dependency"
+                and edge["from"] == "N-M1"
+                and edge["to"] == "N-REVIEW-M1"
+            )
+        ]
+        plan["graph"]["edges"].extend(
+            [
+                {
+                    "id": "E-M1-FEATURE-GATE",
+                    "kind": "dependency",
+                    "from": "N-M1",
+                    "to": review_source,
+                    "on_outcomes": ["pass"],
+                    "max_traversals": None,
+                },
+                {
+                    "id": "E-FEATURE-GATE-REVIEW",
+                    "kind": "dependency",
+                    "from": review_source,
+                    "to": "N-REVIEW-M1",
+                    "on_outcomes": ["pass"],
+                    "max_traversals": None,
+                },
+            ]
+        )
+    plan["graph"]["edges"].append(
+        {
+            "id": "E-FEATURE-REVIEW-M2",
+            "kind": "dependency",
+            "from": "N-REVIEW-M1",
+            "to": "N-M2",
+            "on_outcomes": ["pass"],
+            "max_traversals": None,
+        }
+    )
+    return plan
 
 
 class PlatformPlanShapeTests(unittest.TestCase):
@@ -564,6 +773,134 @@ class PlatformMappingTests(unittest.TestCase):
             contributor,
             "mission 'M3' does not precede completion 'M1'",
         )
+
+    def test_preintegration_review_only_handoff_fails_both_platform_checks(self) -> None:
+        plan = platform_plan()
+        plan["missions"][1]["depends_on"] = []
+        add_runtime_review_handoff(
+            plan,
+            source_mission="M1",
+            target_mission="M2",
+            stage="preintegration",
+        )
+        self.assert_error(plan, "is not reachable from previous platform completion")
+
+        contributor = platform_plan()
+        contributor["missions"].append(
+            {
+                "id": "M3",
+                "trace_ids": [],
+                "integration_verifiers": [],
+            }
+        )
+        contributor["graph"]["nodes"].append(
+            graph_node(
+                "N-M3",
+                "mission",
+                "M3",
+                "runtime_worker",
+                ["pass", "retryable_failure", "blocked", "contract_gap"],
+            )
+        )
+        contributor["platform_delivery"]["stages"][0]["mission_ids"] = ["M1", "M3"]
+        add_runtime_review_handoff(
+            contributor,
+            source_mission="M3",
+            target_mission="M1",
+            stage="preintegration",
+        )
+        self.assert_error(
+            contributor,
+            "mission 'M3' does not precede completion 'M1'",
+        )
+
+    def test_guarded_preintegration_reviews_keep_safe_platform_paths(self) -> None:
+        handoff = platform_plan()
+        add_runtime_review_handoff(
+            handoff,
+            source_mission="M1",
+            target_mission="M2",
+            stage="preintegration",
+            guarded=True,
+        )
+        self.assertEqual([], validate_platform_delivery(handoff, contract()))
+
+        contributor = platform_plan()
+        contributor["missions"].append(
+            {
+                "id": "M3",
+                "trace_ids": [],
+                "integration_verifiers": [],
+            }
+        )
+        contributor["graph"]["nodes"].append(
+            graph_node(
+                "N-M3",
+                "mission",
+                "M3",
+                "runtime_worker",
+                ["pass", "retryable_failure", "blocked", "contract_gap"],
+            )
+        )
+        contributor["platform_delivery"]["stages"][0]["mission_ids"] = ["M1", "M3"]
+        add_runtime_review_handoff(
+            contributor,
+            source_mission="M3",
+            target_mission="M1",
+            stage="preintegration",
+            guarded=True,
+        )
+        self.assertEqual([], validate_platform_delivery(contributor, contract()))
+
+    def test_integration_runtime_review_is_a_safe_platform_witness(self) -> None:
+        plan = platform_plan()
+        add_runtime_review_handoff(
+            plan,
+            source_mission="M1",
+            target_mission="M2",
+            stage="integration",
+        )
+        self.assertEqual([], validate_platform_delivery(plan, contract()))
+
+        run = valid_run(plan)
+        run["status"] = "running"
+        run["plan_readiness"] = "ready"
+        run["execution_authorized"] = True
+        run["graph_state"]["node_states"]["N-M1"].update(
+            {"phase": "succeeded", "last_outcome": "pass"}
+        )
+        run["graph_state"]["node_states"]["N-REVIEW-M1"].update(
+            {"phase": "succeeded", "last_outcome": "pass"}
+        )
+        run["mission_states"]["M1"].update(
+            {
+                "phase": "integrated",
+                "integrated_sha": "c" * 40,
+                "integration_gate": "PASS",
+            }
+        )
+        context = _selection_context(plan, run)
+        node = next(item for item in plan["graph"]["nodes"] if item["id"] == "N-M2")
+        self.assertEqual([], _logical_reasons(node, plan, run, *_incoming(plan), context))
+
+    def test_worker_pass_and_preintegration_review_do_not_release_platform(self) -> None:
+        plan = platform_plan()
+        plan["missions"][1]["depends_on"] = []
+        add_runtime_review_handoff(
+            plan,
+            source_mission="M1",
+            target_mission="M2",
+            stage="preintegration",
+        )
+        run = preintegration_review_run(plan)
+        context = _selection_context(plan, run)
+        node = next(item for item in plan["graph"]["nodes"] if item["id"] == "N-M2")
+
+        self.assertEqual(
+            [],
+            _logical_reasons(node, plan, run, *_incoming(plan), context),
+        )
+        self.assert_error(plan, "is not reachable from previous platform completion")
 
     def test_middle_stage_completion_requires_dependency_path(self) -> None:
         plan = platform_plan()
@@ -890,6 +1227,69 @@ class FeatureGateTests(unittest.TestCase):
     def test_combined_feature_and_platform_metadata_is_not_rejected(self) -> None:
         plan = platform_plan()
         add_feature_gate(plan)
+        self.assertEqual([], validate_plan(plan))
+        self.assertEqual(
+            [],
+            validate_feature_acceptance(
+                plan,
+                feature_test_authority={
+                    "REQ-001": {
+                        "TEST-001",
+                        "TEST-002",
+                        "TEST-M1-01",
+                        "TEST-M1-02",
+                    }
+                },
+            ),
+        )
+
+    def test_feature_gate_rejects_unsafe_preintegration_review_path(self) -> None:
+        plan = feature_review_plan("preintegration")
+        self.assertEqual([], validate_plan(plan))
+        self.assert_error(plan, "does not precede accepting gate 'final'")
+
+    def test_feature_gate_accepts_guarded_preintegration_review_path(self) -> None:
+        plan = feature_review_plan("preintegration", guarded=True)
+        self.assertEqual([], validate_plan(plan))
+        self.assertEqual([], validate_platform_delivery(plan, contract()))
+        self.assertEqual(
+            [],
+            validate_feature_acceptance(
+                plan,
+                feature_test_authority={
+                    "REQ-001": {
+                        "TEST-001",
+                        "TEST-002",
+                        "TEST-M1-01",
+                        "TEST-M1-02",
+                    }
+                },
+            ),
+        )
+
+    def test_feature_gate_accepts_integration_review_path(self) -> None:
+        plan = feature_review_plan("integration")
+        self.assertEqual([], validate_plan(plan))
+        self.assertEqual([], validate_platform_delivery(plan, contract()))
+        self.assertEqual(
+            [],
+            validate_feature_acceptance(
+                plan,
+                feature_test_authority={
+                    "REQ-001": {
+                        "TEST-001",
+                        "TEST-002",
+                        "TEST-M1-01",
+                        "TEST-M1-02",
+                    }
+                },
+            ),
+        )
+
+    def test_unmarked_feature_gate_keeps_direct_legacy_path(self) -> None:
+        plan = platform_plan()
+        add_feature_gate(plan)
+        plan.pop("platform_delivery")
         self.assertEqual([], validate_plan(plan))
         self.assertEqual(
             [],
@@ -2075,6 +2475,330 @@ class FrozenSourceJoinTests(unittest.TestCase):
             any("must contain exactly id" in item for item in paired_errors),
             paired_errors,
         )
+        self.assertEqual(1, exit_code)
+
+    def malformed_review_barrier_plan(
+        self,
+        mission_ids: object,
+        stage: object = "preintegration",
+    ) -> dict[str, object]:
+        """Reach the selector predicate with one malformed runtime review."""
+
+        plan = platform_plan()
+        review = next(
+            node for node in plan["graph"]["nodes"]
+            if node["id"] == "N-REVIEW-M1"
+        )
+        review["allowed_outcomes"] = ["pass", "blocked"]
+        review["review"]["mission_ids"] = mission_ids
+        review["review"]["stage"] = stage
+        plan["graph"]["edges"] = [
+            edge
+            for edge in plan["graph"]["edges"]
+            if not (
+                edge["kind"] == "dependency"
+                and edge["from"] == "N-M1"
+                and edge["to"] == "N-M2"
+            )
+        ]
+        plan["graph"]["edges"].append(
+            {
+                "id": "E-REVIEW-M1-M2",
+                "kind": "dependency",
+                "from": "N-REVIEW-M1",
+                "to": "N-M2",
+                "on_outcomes": ["pass"],
+                "max_traversals": None,
+            }
+        )
+        return plan
+
+    def test_malformed_runtime_review_metadata_cannot_witness_barrier(self) -> None:
+        malformed_values = (None, 7, "M1", [None], ["M1", "M1"])
+        for mission_ids in malformed_values:
+            with self.subTest(mission_ids=mission_ids):
+                plan = self.malformed_review_barrier_plan(mission_ids)
+                graph_errors = validate_plan(plan)
+                self.assertTrue(
+                    any(
+                        "review.mission_ids" in item
+                        and (
+                            "must be a list of non-empty strings" in item
+                            or "must not contain duplicates" in item
+                        )
+                        for item in graph_errors
+                    ),
+                    graph_errors,
+                )
+                errors = validate_platform_delivery(plan, contract())
+                self.assertTrue(
+                    any(
+                        "is not reachable from previous platform completion"
+                        in item
+                        for item in errors
+                    ),
+                    errors,
+                )
+
+    def test_malformed_review_stage_cannot_witness_barrier(self) -> None:
+        malformed_stages = (None, 7, ["preintegration"], {"name": "preintegration"})
+        for stage in malformed_stages:
+            with self.subTest(stage=stage):
+                plan = self.malformed_review_barrier_plan(["M1"], stage)
+                errors = validate_platform_delivery(plan, contract())
+                self.assertTrue(
+                    any(
+                        "is not reachable from previous platform completion"
+                        in item
+                        for item in errors
+                    ),
+                    errors,
+                )
+                graph_errors = validate_plan(plan)
+                self.assertTrue(
+                    any(
+                        "review.stage" in item
+                        and "must be preintegration or integration" in item
+                        for item in graph_errors
+                    ),
+                    graph_errors,
+                )
+
+    def test_malformed_review_stage_reaches_feature_barrier(self) -> None:
+        malformed_stages = (None, 7, ["preintegration"], {"name": "preintegration"})
+        for stage in malformed_stages:
+            with self.subTest(stage=stage):
+                plan = feature_review_plan(stage)
+                errors = validate_feature_acceptance(
+                    plan,
+                    feature_test_authority={
+                        "REQ-001": {
+                            "TEST-001",
+                            "TEST-002",
+                            "TEST-M1-01",
+                            "TEST-M1-02",
+                        }
+                    },
+                )
+                self.assertTrue(
+                    any(
+                        "mission 'M1' does not precede accepting gate 'final'"
+                        in item
+                        for item in errors
+                    ),
+                    errors,
+                )
+
+    def test_omitted_review_stage_keeps_preintegration_barrier(self) -> None:
+        platform_plan_value = self.malformed_review_barrier_plan(["M1"])
+        next(
+            node for node in platform_plan_value["graph"]["nodes"]
+            if node["id"] == "N-REVIEW-M1"
+        )["review"].pop("stage")
+        self.assertFalse(
+            any("review.stage" in item for item in validate_plan(platform_plan_value))
+        )
+        platform_errors = validate_platform_delivery(
+            platform_plan_value,
+            contract(),
+        )
+        self.assertTrue(
+            any(
+                "is not reachable from previous platform completion" in item
+                for item in platform_errors
+            ),
+            platform_errors,
+        )
+
+        feature_plan_value = feature_review_plan("preintegration")
+        next(
+            node for node in feature_plan_value["graph"]["nodes"]
+            if node["id"] == "N-REVIEW-M1"
+        )["review"].pop("stage")
+        self.assertFalse(
+            any("review.stage" in item for item in validate_plan(feature_plan_value))
+        )
+        feature_errors = validate_feature_acceptance(
+            feature_plan_value,
+            feature_test_authority={
+                "REQ-001": {
+                    "TEST-001",
+                    "TEST-002",
+                    "TEST-M1-01",
+                    "TEST-M1-02",
+                }
+            },
+        )
+        self.assertTrue(
+            any(
+                "does not precede accepting gate 'final'" in item
+                for item in feature_errors
+            ),
+            feature_errors,
+        )
+
+    def test_malformed_review_fails_frozen_legacy_and_cli_routes(self) -> None:
+        architecture, prd = self.product_fixtures()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+
+            public = self.materialized_platform_plan(
+                root,
+                architecture=architecture,
+                prd=prd,
+                plan=self.malformed_review_barrier_plan([None]),
+            )
+            public_run = valid_run(public)
+            public_run["runtime_capabilities"]["runtime_adapter"][
+                "version_gate"
+            ]["required_harness_version"] = "0.62.0"
+            public_errors = validate_frozen_contract_joins(
+                public,
+                root,
+                run=public_run,
+            )
+
+            run_none = self.materialized_platform_plan(
+                root,
+                architecture=architecture,
+                prd=prd,
+                plan=self.malformed_review_barrier_plan("M1"),
+            )
+            run_none_errors = validate_frozen_contract_joins(
+                run_none,
+                root,
+                run=None,
+            )
+
+            legacy = self.materialized_platform_plan(
+                root,
+                architecture=architecture,
+                prd=prd,
+                plan=self.malformed_review_barrier_plan(7),
+            )
+            legacy_run = valid_run(legacy)
+            legacy_run["runtime_capabilities"]["runtime_adapter"][
+                "version_gate"
+            ]["required_harness_version"] = "0.37.0"
+            legacy_errors = validate_frozen_contract_joins(
+                legacy,
+                root,
+                run=legacy_run,
+            )
+
+            for stage_index, stage in enumerate(
+                (None, 7, ["preintegration"], {"name": "preintegration"})
+            ):
+                strict = self.materialized_platform_plan(
+                    root,
+                    architecture=architecture,
+                    prd=prd,
+                    plan=self.malformed_review_barrier_plan(["M1"], stage),
+                )
+                strict_run = valid_run(strict)
+                strict_run["runtime_capabilities"]["runtime_adapter"][
+                    "version_gate"
+                ]["required_harness_version"] = "0.62.0"
+                strict_errors = validate_current_plan_run(
+                    strict,
+                    run=strict_run,
+                    repo_root=root,
+                )
+                self.assertTrue(
+                    any(
+                        "is not reachable from previous platform completion"
+                        in item
+                        for item in strict_errors
+                    ),
+                    strict_errors,
+                )
+                self.assertTrue(
+                    any(
+                        "review.stage" in item
+                        and "must be preintegration or integration" in item
+                        for item in strict_errors
+                    ),
+                    strict_errors,
+                )
+
+                stage_plan_path = root / f"stage-plan-{stage_index}.md"
+                stage_plan_path.write_text(
+                    manifest_markdown(
+                        "## Harness Plan Manifest",
+                        "harness_plan",
+                        strict,
+                    ),
+                    encoding="utf-8",
+                )
+                cli_output = io.StringIO()
+                with redirect_stdout(cli_output):
+                    stage_exit_code = validate_plan_cli([
+                        "--repo-root",
+                        str(root),
+                        "--plan",
+                        str(stage_plan_path),
+                    ])
+                cli_text = cli_output.getvalue()
+                self.assertEqual(1, stage_exit_code)
+                self.assertIn("must be preintegration or integration", cli_text)
+                self.assertIn(
+                    "is not reachable from previous platform completion",
+                    cli_text,
+                )
+
+            run_none_stage = self.materialized_platform_plan(
+                root,
+                architecture=architecture,
+                prd=prd,
+                plan=self.malformed_review_barrier_plan(
+                    ["M1"],
+                    {"name": "preintegration"},
+                ),
+            )
+            run_none_errors.extend(
+                validate_frozen_contract_joins(
+                    run_none_stage,
+                    root,
+                    run=None,
+                )
+            )
+
+            cli_plan = self.materialized_platform_plan(
+                root,
+                architecture=architecture,
+                prd=prd,
+                plan=self.malformed_review_barrier_plan(["M1", "M1"]),
+            )
+            cli_plan_path = root / "PLAN.md"
+            cli_plan_path.write_text(
+                manifest_markdown(
+                    "## Harness Plan Manifest",
+                    "harness_plan",
+                    cli_plan,
+                ),
+                encoding="utf-8",
+            )
+            exit_code = validate_plan_cli([
+                "--repo-root",
+                str(root),
+                "--plan",
+                str(cli_plan_path),
+            ])
+
+        for label, errors in (
+            ("public", public_errors),
+            ("run-none", run_none_errors),
+            ("legacy", legacy_errors),
+        ):
+            with self.subTest(route=label):
+                self.assertTrue(
+                    any(
+                        "is not reachable from previous platform completion"
+                        in item
+                        for item in errors
+                    ),
+                    errors,
+                )
         self.assertEqual(1, exit_code)
 
     def test_declared_architecture_materializes_once_on_failure(self) -> None:

@@ -222,7 +222,8 @@ def _validate_graph(
                                 f"{review_path}.lineage_id",
                                 "must be a flat uppercase identifier",
                             )
-                        if review.get("stage", "preintegration") not in {
+                        review_stage = review.get("stage", "preintegration")
+                        if not isinstance(review_stage, str) or review_stage not in {
                             "preintegration",
                             "integration",
                         }:

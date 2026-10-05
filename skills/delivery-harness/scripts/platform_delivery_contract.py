@@ -111,6 +111,39 @@ def _acceptance_test_ids(value: Any, path: str, errors: list[str]) -> list[str]:
     return ids
 
 
+def _unsafe_review_dependency(
+    source_node: dict[str, Any] | None,
+    target_node: dict[str, Any] | None,
+) -> bool:
+    """Return true when an edge cannot prove an integrated platform barrier."""
+
+    if not isinstance(target_node, dict) or target_node.get(
+        "kind"
+    ) != "verifier" or target_node.get("executor") != "runtime_worker":
+        return False
+    review = target_node.get("review")
+    if not isinstance(review, dict):
+        return True
+    stage = review.get("stage", "preintegration")
+    mission_ids = review.get("mission_ids")
+    if not isinstance(stage, str) or stage not in {"preintegration", "integration"}:
+        return True
+    if (
+        not isinstance(mission_ids, list)
+        or not mission_ids
+        or any(not isinstance(item, str) or not item.strip() for item in mission_ids)
+        or len(mission_ids) != len(set(mission_ids))
+    ):
+        return True
+    return (
+        stage == "preintegration"
+        and len(mission_ids) == 1
+        and isinstance(source_node, dict)
+        and source_node.get("kind") == "mission"
+        and source_node.get("ref") in mission_ids
+    )
+
+
 def _dependency_adjacency(plan: dict[str, Any]) -> tuple[dict[str, set[str]], dict[str, str]]:
     graph = plan.get("graph", {}) if isinstance(plan.get("graph"), dict) else {}
     nodes = {
@@ -127,6 +160,10 @@ def _dependency_adjacency(plan: dict[str, Any]) -> tuple[dict[str, set[str]], di
         if not isinstance(edge, dict) or edge.get("kind") != "dependency":
             continue
         source, target = edge.get("from"), edge.get("to")
+        source_node = nodes.get(source)
+        target_node = nodes.get(target)
+        if _unsafe_review_dependency(source_node, target_node):
+            continue
         if source in nodes and target in nodes:
             dependencies[source].add(target)
     return dependencies, node_missions
@@ -396,25 +433,8 @@ def validate_feature_acceptance(
 
 
 def _dependency_path_exists(plan: dict[str, Any], source_node: str, target_node: str) -> bool:
-    graph = plan.get("graph", {}) if isinstance(plan.get("graph"), dict) else {}
-    adjacency: dict[str, set[str]] = {}
-    for edge in graph.get("edges", []):
-        if not isinstance(edge, dict) or edge.get("kind") != "dependency":
-            continue
-        source, target = edge.get("from"), edge.get("to")
-        if isinstance(source, str) and isinstance(target, str):
-            adjacency.setdefault(source, set()).add(target)
-    pending = list(adjacency.get(source_node, ()))
-    seen = {source_node}
-    while pending:
-        node_id = pending.pop()
-        if node_id == target_node:
-            return True
-        if node_id in seen:
-            continue
-        seen.add(node_id)
-        pending.extend(adjacency.get(node_id, ()))
-    return False
+    dependencies, _node_missions = _dependency_adjacency(plan)
+    return target_node in _reachable_nodes(dependencies, source_node)
 
 
 def validate_platform_delivery(
