@@ -542,16 +542,23 @@ class GraphManifestTests(unittest.TestCase):
         )
 
     def test_review_stage_accepts_only_preintegration_or_integration(self) -> None:
-        plan = valid_plan()
-        review = next(
-            node for node in plan["graph"]["nodes"]
-            if node.get("review") is not None
-        )
-        review["review"]["stage"] = "after_everything"
+        for stage in ("after_everything", ["preintegration"], {"name": "preintegration"}):
+            with self.subTest(stage=stage):
+                plan = valid_plan()
+                review = next(
+                    node for node in plan["graph"]["nodes"]
+                    if node.get("review") is not None
+                )
+                review["review"]["stage"] = stage
 
-        self.assertTrue(
-            any("must be preintegration or integration" in error for error in validate_plan(plan))
-        )
+                errors = validate_plan(plan)
+                self.assertTrue(
+                    any(
+                        "must be preintegration or integration" in error
+                        for error in errors
+                    ),
+                    errors,
+                )
 
     def test_runtime_review_allows_at_most_two_attempts(self) -> None:
         plan = valid_plan()

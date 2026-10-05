@@ -126,7 +126,7 @@ def _unsafe_review_dependency(
         return True
     stage = review.get("stage", "preintegration")
     mission_ids = review.get("mission_ids")
-    if stage not in {"preintegration", "integration"}:
+    if not isinstance(stage, str) or stage not in {"preintegration", "integration"}:
         return True
     if (
         not isinstance(mission_ids, list)

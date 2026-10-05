@@ -5,8 +5,10 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import io
 import sys
 import tempfile
+from contextlib import redirect_stdout
 from unittest.mock import patch
 from pathlib import Path
 from types import SimpleNamespace
@@ -19,6 +21,7 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 from harness_core import _validate_verifier  # noqa: E402
 from harness_manifest import validate_plan  # noqa: E402
+from harness_manifest import validate_current_plan_run  # noqa: E402
 from harness_manifest import _validate_verifier_executions  # noqa: E402
 from manifest_fixtures import valid_plan  # noqa: E402
 from manifest_fixtures import (  # noqa: E402
@@ -384,7 +387,7 @@ def preintegration_review_run(plan: dict[str, object]) -> dict[str, object]:
     return run
 
 
-def feature_review_plan(stage: str, *, guarded: bool = False) -> dict[str, object]:
+def feature_review_plan(stage: object, *, guarded: bool = False) -> dict[str, object]:
     """Bind a feature gate to M1 through a runtime-review dependency path."""
 
     plan = platform_plan()
@@ -448,7 +451,7 @@ def feature_review_plan(stage: str, *, guarded: bool = False) -> dict[str, objec
         )
     plan["graph"]["edges"].append(
         {
-            "id": f"E-FEATURE-{stage.upper()}-REVIEW-M2",
+            "id": "E-FEATURE-REVIEW-M2",
             "kind": "dependency",
             "from": "N-REVIEW-M1",
             "to": "N-M2",
@@ -2477,6 +2480,7 @@ class FrozenSourceJoinTests(unittest.TestCase):
     def malformed_review_barrier_plan(
         self,
         mission_ids: object,
+        stage: object = "preintegration",
     ) -> dict[str, object]:
         """Reach the selector predicate with one malformed runtime review."""
 
@@ -2487,6 +2491,7 @@ class FrozenSourceJoinTests(unittest.TestCase):
         )
         review["allowed_outcomes"] = ["pass", "blocked"]
         review["review"]["mission_ids"] = mission_ids
+        review["review"]["stage"] = stage
         plan["graph"]["edges"] = [
             edge
             for edge in plan["graph"]["edges"]
@@ -2535,6 +2540,103 @@ class FrozenSourceJoinTests(unittest.TestCase):
                     errors,
                 )
 
+    def test_malformed_review_stage_cannot_witness_barrier(self) -> None:
+        malformed_stages = (None, 7, ["preintegration"], {"name": "preintegration"})
+        for stage in malformed_stages:
+            with self.subTest(stage=stage):
+                plan = self.malformed_review_barrier_plan(["M1"], stage)
+                errors = validate_platform_delivery(plan, contract())
+                self.assertTrue(
+                    any(
+                        "is not reachable from previous platform completion"
+                        in item
+                        for item in errors
+                    ),
+                    errors,
+                )
+                graph_errors = validate_plan(plan)
+                self.assertTrue(
+                    any(
+                        "review.stage" in item
+                        and "must be preintegration or integration" in item
+                        for item in graph_errors
+                    ),
+                    graph_errors,
+                )
+
+    def test_malformed_review_stage_reaches_feature_barrier(self) -> None:
+        malformed_stages = (None, 7, ["preintegration"], {"name": "preintegration"})
+        for stage in malformed_stages:
+            with self.subTest(stage=stage):
+                plan = feature_review_plan(stage)
+                errors = validate_feature_acceptance(
+                    plan,
+                    feature_test_authority={
+                        "REQ-001": {
+                            "TEST-001",
+                            "TEST-002",
+                            "TEST-M1-01",
+                            "TEST-M1-02",
+                        }
+                    },
+                )
+                self.assertTrue(
+                    any(
+                        "mission 'M1' does not precede accepting gate 'final'"
+                        in item
+                        for item in errors
+                    ),
+                    errors,
+                )
+
+    def test_omitted_review_stage_keeps_preintegration_barrier(self) -> None:
+        platform_plan_value = self.malformed_review_barrier_plan(["M1"])
+        next(
+            node for node in platform_plan_value["graph"]["nodes"]
+            if node["id"] == "N-REVIEW-M1"
+        )["review"].pop("stage")
+        self.assertFalse(
+            any("review.stage" in item for item in validate_plan(platform_plan_value))
+        )
+        platform_errors = validate_platform_delivery(
+            platform_plan_value,
+            contract(),
+        )
+        self.assertTrue(
+            any(
+                "is not reachable from previous platform completion" in item
+                for item in platform_errors
+            ),
+            platform_errors,
+        )
+
+        feature_plan_value = feature_review_plan("preintegration")
+        next(
+            node for node in feature_plan_value["graph"]["nodes"]
+            if node["id"] == "N-REVIEW-M1"
+        )["review"].pop("stage")
+        self.assertFalse(
+            any("review.stage" in item for item in validate_plan(feature_plan_value))
+        )
+        feature_errors = validate_feature_acceptance(
+            feature_plan_value,
+            feature_test_authority={
+                "REQ-001": {
+                    "TEST-001",
+                    "TEST-002",
+                    "TEST-M1-01",
+                    "TEST-M1-02",
+                }
+            },
+        )
+        self.assertTrue(
+            any(
+                "does not precede accepting gate 'final'" in item
+                for item in feature_errors
+            ),
+            feature_errors,
+        )
+
     def test_malformed_review_fails_frozen_legacy_and_cli_routes(self) -> None:
         architecture, prd = self.product_fixtures()
         with tempfile.TemporaryDirectory() as directory:
@@ -2582,6 +2684,83 @@ class FrozenSourceJoinTests(unittest.TestCase):
                 legacy,
                 root,
                 run=legacy_run,
+            )
+
+            for stage_index, stage in enumerate(
+                (None, 7, ["preintegration"], {"name": "preintegration"})
+            ):
+                strict = self.materialized_platform_plan(
+                    root,
+                    architecture=architecture,
+                    prd=prd,
+                    plan=self.malformed_review_barrier_plan(["M1"], stage),
+                )
+                strict_run = valid_run(strict)
+                strict_run["runtime_capabilities"]["runtime_adapter"][
+                    "version_gate"
+                ]["required_harness_version"] = "0.62.0"
+                strict_errors = validate_current_plan_run(
+                    strict,
+                    run=strict_run,
+                    repo_root=root,
+                )
+                self.assertTrue(
+                    any(
+                        "is not reachable from previous platform completion"
+                        in item
+                        for item in strict_errors
+                    ),
+                    strict_errors,
+                )
+                self.assertTrue(
+                    any(
+                        "review.stage" in item
+                        and "must be preintegration or integration" in item
+                        for item in strict_errors
+                    ),
+                    strict_errors,
+                )
+
+                stage_plan_path = root / f"stage-plan-{stage_index}.md"
+                stage_plan_path.write_text(
+                    manifest_markdown(
+                        "## Harness Plan Manifest",
+                        "harness_plan",
+                        strict,
+                    ),
+                    encoding="utf-8",
+                )
+                cli_output = io.StringIO()
+                with redirect_stdout(cli_output):
+                    stage_exit_code = validate_plan_cli([
+                        "--repo-root",
+                        str(root),
+                        "--plan",
+                        str(stage_plan_path),
+                    ])
+                cli_text = cli_output.getvalue()
+                self.assertEqual(1, stage_exit_code)
+                self.assertIn("must be preintegration or integration", cli_text)
+                self.assertIn(
+                    "is not reachable from previous platform completion",
+                    cli_text,
+                )
+
+            run_none_stage = self.materialized_platform_plan(
+                root,
+                architecture=architecture,
+                prd=prd,
+                plan=self.malformed_review_barrier_plan(
+                    ["M1"],
+                    {"name": "preintegration"},
+                ),
+            )
+            run_none_errors.extend(
+                validate_frozen_contract_joins(
+                    run_none_stage,
+                    root,
+                    run=None,
+                )
             )
 
             cli_plan = self.materialized_platform_plan(
