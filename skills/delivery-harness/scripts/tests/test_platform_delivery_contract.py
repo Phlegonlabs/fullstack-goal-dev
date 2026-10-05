@@ -23,6 +23,7 @@ from harness_manifest import _validate_verifier_executions  # noqa: E402
 from manifest_fixtures import valid_plan  # noqa: E402
 from manifest_fixtures import (  # noqa: E402
     eval_exempt_prd,
+    graph_node,
     manifest_markdown,
     retained_gate_execution,
     task as task_fixture,
@@ -378,6 +379,191 @@ class PlatformMappingTests(unittest.TestCase):
                 edge["kind"] = "route"
                 edge["max_traversals"] = 1
         self.assert_error(route_only, "is not reachable from previous platform completion")
+
+    def test_pass_only_nonmission_intermediaries_reach_missions(self) -> None:
+        intermediaries = (
+            graph_node(
+                "N-GATE",
+                "verifier",
+                "final",
+                "local_command",
+                ["pass", "blocked"],
+            ),
+            graph_node(
+                "N-GATE",
+                "approval",
+                "stage-signoff",
+                "human",
+                ["pass", "blocked"],
+            ),
+        )
+        for intermediary in intermediaries:
+            with self.subTest(kind=intermediary["kind"]):
+                handoff = platform_plan()
+                handoff["graph"]["nodes"].append(intermediary)
+                handoff["graph"]["edges"] = [
+                    edge
+                    for edge in handoff["graph"]["edges"]
+                    if not (
+                        edge["kind"] == "dependency"
+                        and edge["from"] == "N-M1"
+                        and edge["to"] == "N-M2"
+                    )
+                ]
+                handoff["graph"]["edges"].extend(
+                    [
+                        {
+                            "id": "E-M1-GATE",
+                            "kind": "dependency",
+                            "from": "N-M1",
+                            "to": "N-GATE",
+                            "on_outcomes": ["pass"],
+                            "max_traversals": None,
+                        },
+                        {
+                            "id": "E-GATE-M2",
+                            "kind": "dependency",
+                            "from": "N-GATE",
+                            "to": "N-M2",
+                            "on_outcomes": ["pass"],
+                            "max_traversals": None,
+                        },
+                    ]
+                )
+                self.assertEqual([], validate_platform_delivery(handoff, contract()))
+
+                contributor = platform_plan()
+                contributor["graph"]["nodes"].append(intermediary)
+                contributor["missions"].append(
+                    {
+                        "id": "M3",
+                        "trace_ids": [],
+                        "integration_verifiers": [],
+                    }
+                )
+                contributor["graph"]["nodes"].append(
+                    graph_node(
+                        "N-M3",
+                        "mission",
+                        "M3",
+                        "runtime_worker",
+                        ["pass", "retryable_failure", "blocked", "contract_gap"],
+                    )
+                )
+                contributor["platform_delivery"]["stages"][0]["mission_ids"] = [
+                    "M1",
+                    "M3",
+                ]
+                contributor["graph"]["edges"].extend(
+                    [
+                        {
+                            "id": "E-M3-GATE",
+                            "kind": "dependency",
+                            "from": "N-M3",
+                            "to": "N-GATE",
+                            "on_outcomes": ["pass"],
+                            "max_traversals": None,
+                        },
+                        {
+                            "id": "E-GATE-M1",
+                            "kind": "dependency",
+                            "from": "N-GATE",
+                            "to": "N-M1",
+                            "on_outcomes": ["pass"],
+                            "max_traversals": None,
+                        },
+                    ]
+                )
+                self.assertEqual(
+                    [],
+                    validate_platform_delivery(contributor, contract()),
+                )
+
+    def test_route_segments_cannot_satisfy_platform_dependency_paths(self) -> None:
+        intermediary = graph_node(
+            "N-GATE",
+            "verifier",
+            "final",
+            "local_command",
+            ["pass", "blocked"],
+        )
+
+        handoff = platform_plan()
+        handoff["graph"]["nodes"].append(intermediary)
+        handoff["graph"]["edges"] = [
+            edge
+            for edge in handoff["graph"]["edges"]
+            if not (
+                edge["kind"] == "dependency"
+                and edge["from"] == "N-M1"
+                and edge["to"] == "N-M2"
+            )
+        ]
+        handoff["graph"]["edges"].extend(
+            [
+                {
+                    "id": "E-M1-GATE",
+                    "kind": "dependency",
+                    "from": "N-M1",
+                    "to": "N-GATE",
+                    "on_outcomes": ["pass"],
+                    "max_traversals": None,
+                },
+                {
+                    "id": "E-GATE-M2",
+                    "kind": "route",
+                    "from": "N-GATE",
+                    "to": "N-M2",
+                    "on_outcomes": ["pass"],
+                    "max_traversals": 1,
+                },
+            ]
+        )
+        self.assert_error(handoff, "is not reachable from previous platform completion")
+
+        contributor = platform_plan()
+        contributor["graph"]["nodes"].append(intermediary)
+        contributor["missions"].append(
+            {
+                "id": "M3",
+                "trace_ids": [],
+                "integration_verifiers": [],
+            }
+        )
+        contributor["graph"]["nodes"].append(
+            graph_node(
+                "N-M3",
+                "mission",
+                "M3",
+                "runtime_worker",
+                ["pass", "retryable_failure", "blocked", "contract_gap"],
+            )
+        )
+        contributor["platform_delivery"]["stages"][0]["mission_ids"] = ["M1", "M3"]
+        contributor["graph"]["edges"].extend(
+            [
+                {
+                    "id": "E-M3-GATE",
+                    "kind": "dependency",
+                    "from": "N-M3",
+                    "to": "N-GATE",
+                    "on_outcomes": ["pass"],
+                    "max_traversals": None,
+                },
+                {
+                    "id": "E-GATE-M1",
+                    "kind": "route",
+                    "from": "N-GATE",
+                    "to": "N-M1",
+                    "on_outcomes": ["pass"],
+                    "max_traversals": 1,
+                },
+            ]
+        )
+        self.assert_error(
+            contributor,
+            "mission 'M3' does not precede completion 'M1'",
+        )
 
     def test_middle_stage_completion_requires_dependency_path(self) -> None:
         plan = platform_plan()

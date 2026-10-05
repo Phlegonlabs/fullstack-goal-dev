@@ -122,29 +122,50 @@ def _dependency_adjacency(plan: dict[str, Any]) -> tuple[dict[str, set[str]], di
         for node_id, node in nodes.items()
         if node.get("kind") == "mission" and isinstance(node.get("ref"), str)
     }
-    dependencies: dict[str, set[str]] = {mission_id: set() for mission_id in node_missions.values()}
+    dependencies: dict[str, set[str]] = {node_id: set() for node_id in nodes}
     for edge in graph.get("edges", []):
         if not isinstance(edge, dict) or edge.get("kind") != "dependency":
             continue
-        source_mission = node_missions.get(edge.get("from"))
-        target_mission = node_missions.get(edge.get("to"))
-        if source_mission is not None and target_mission is not None:
-            dependencies[source_mission].add(target_mission)
+        source, target = edge.get("from"), edge.get("to")
+        if source in nodes and target in nodes:
+            dependencies[source].add(target)
     return dependencies, node_missions
 
 
-def _reachable_missions(
-    dependencies: dict[str, set[str]], start: str
+def _reachable_nodes(
+    dependencies: dict[str, set[str]], start_node: str
 ) -> set[str]:
     reached: set[str] = set()
-    pending = list(dependencies.get(start, ()))
+    pending = list(dependencies.get(start_node, ()))
     while pending:
-        mission_id = pending.pop()
-        if mission_id in reached:
+        node_id = pending.pop()
+        if node_id in reached:
             continue
-        reached.add(mission_id)
-        pending.extend(dependencies.get(mission_id, ()))
+        reached.add(node_id)
+        pending.extend(dependencies.get(node_id, ()))
     return reached
+
+
+def _reaches_mission(
+    dependencies: dict[str, set[str]],
+    node_missions: dict[str, str],
+    source_mission: str,
+    target_missions: set[str],
+) -> bool:
+    source_nodes = [
+        node_id
+        for node_id, mission_id in node_missions.items()
+        if mission_id == source_mission
+    ]
+    target_nodes = {
+        node_id
+        for node_id, mission_id in node_missions.items()
+        if mission_id in target_missions
+    }
+    return any(
+        _reachable_nodes(dependencies, source_node) & target_nodes
+        for source_node in source_nodes
+    )
 
 
 def _annotated_verifier_tests(
@@ -619,7 +640,7 @@ def validate_platform_delivery(
                 "UI IDs cross platform stages: " + ", ".join(sorted(owners)),
             )
 
-    dependencies, _node_missions = _dependency_adjacency(plan)
+    dependencies, node_missions = _dependency_adjacency(plan)
     missing_foundation = [
         arch_id
         for arch_id in contract.shared_arch_ids
@@ -649,8 +670,8 @@ def validate_platform_delivery(
             if mission_id != completion and mission_id in missions
         ]
         for mission_id in contributors:
-            reached = _reachable_missions(dependencies, mission_id)
-            if completion not in reached:
+            reached = _reaches_mission(dependencies, node_missions, mission_id, {completion})
+            if not reached:
                 _add(
                     errors,
                     f"plan.platform_delivery.stages[{index}].completion_mission_id",
@@ -722,9 +743,14 @@ def validate_platform_delivery(
                     "requires nonempty acceptance_test_ids",
                 )
         if previous_completion is not None:
-            reached = _reachable_missions(dependencies, previous_completion)
             for mission_id in stage_missions:
-                if mission_id not in reached:
+                reached = _reaches_mission(
+                    dependencies,
+                    node_missions,
+                    previous_completion,
+                    {mission_id},
+                )
+                if not reached:
                     _add(
                         errors,
                         f"plan.platform_delivery.stages[{index}].mission_ids",
