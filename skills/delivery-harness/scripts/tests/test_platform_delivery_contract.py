@@ -384,6 +384,81 @@ def preintegration_review_run(plan: dict[str, object]) -> dict[str, object]:
     return run
 
 
+def feature_review_plan(stage: str, *, guarded: bool = False) -> dict[str, object]:
+    """Bind a feature gate to M1 through a runtime-review dependency path."""
+
+    plan = platform_plan()
+    add_feature_gate(plan)
+    feature_trace = next(
+        trace for trace in plan["traces"] if trace["id"] == "REQ-001"
+    )
+    assert feature_trace["acceptance_gate_ids"] == ["final"]
+    plan["graph"]["edges"] = [
+        edge
+        for edge in plan["graph"]["edges"]
+        if edge["id"] not in {"E-M1-PLATFORM-FINAL", "E-M1-M2"}
+    ]
+    review = next(
+        node for node in plan["graph"]["nodes"]
+        if node["id"] == "N-REVIEW-M1"
+    )
+    review["allowed_outcomes"] = ["pass", "blocked"]
+    review["review"]["stage"] = stage
+    review["review"]["mission_ids"] = ["M1"]
+    review_source = "N-M1"
+    if guarded:
+        review_source = "N-GATE-M1"
+        plan["graph"]["nodes"].append(
+            graph_node(
+                review_source,
+                "verifier",
+                "batch",
+                "local_command",
+                ["pass", "blocked"],
+            )
+        )
+        plan["graph"]["edges"] = [
+            edge
+            for edge in plan["graph"]["edges"]
+            if not (
+                edge["kind"] == "dependency"
+                and edge["from"] == "N-M1"
+                and edge["to"] == "N-REVIEW-M1"
+            )
+        ]
+        plan["graph"]["edges"].extend(
+            [
+                {
+                    "id": "E-M1-FEATURE-GATE",
+                    "kind": "dependency",
+                    "from": "N-M1",
+                    "to": review_source,
+                    "on_outcomes": ["pass"],
+                    "max_traversals": None,
+                },
+                {
+                    "id": "E-FEATURE-GATE-REVIEW",
+                    "kind": "dependency",
+                    "from": review_source,
+                    "to": "N-REVIEW-M1",
+                    "on_outcomes": ["pass"],
+                    "max_traversals": None,
+                },
+            ]
+        )
+    plan["graph"]["edges"].append(
+        {
+            "id": f"E-FEATURE-{stage.upper()}-REVIEW-M2",
+            "kind": "dependency",
+            "from": "N-REVIEW-M1",
+            "to": "N-M2",
+            "on_outcomes": ["pass"],
+            "max_traversals": None,
+        }
+    )
+    return plan
+
+
 class PlatformPlanShapeTests(unittest.TestCase):
     def test_optional_shape_is_empty_and_malformed_shapes_fail(self) -> None:
         self.assertEqual([], platform_delivery_shape_errors(valid_plan()))
@@ -1149,6 +1224,69 @@ class FeatureGateTests(unittest.TestCase):
     def test_combined_feature_and_platform_metadata_is_not_rejected(self) -> None:
         plan = platform_plan()
         add_feature_gate(plan)
+        self.assertEqual([], validate_plan(plan))
+        self.assertEqual(
+            [],
+            validate_feature_acceptance(
+                plan,
+                feature_test_authority={
+                    "REQ-001": {
+                        "TEST-001",
+                        "TEST-002",
+                        "TEST-M1-01",
+                        "TEST-M1-02",
+                    }
+                },
+            ),
+        )
+
+    def test_feature_gate_rejects_unsafe_preintegration_review_path(self) -> None:
+        plan = feature_review_plan("preintegration")
+        self.assertEqual([], validate_plan(plan))
+        self.assert_error(plan, "does not precede accepting gate 'final'")
+
+    def test_feature_gate_accepts_guarded_preintegration_review_path(self) -> None:
+        plan = feature_review_plan("preintegration", guarded=True)
+        self.assertEqual([], validate_plan(plan))
+        self.assertEqual([], validate_platform_delivery(plan, contract()))
+        self.assertEqual(
+            [],
+            validate_feature_acceptance(
+                plan,
+                feature_test_authority={
+                    "REQ-001": {
+                        "TEST-001",
+                        "TEST-002",
+                        "TEST-M1-01",
+                        "TEST-M1-02",
+                    }
+                },
+            ),
+        )
+
+    def test_feature_gate_accepts_integration_review_path(self) -> None:
+        plan = feature_review_plan("integration")
+        self.assertEqual([], validate_plan(plan))
+        self.assertEqual([], validate_platform_delivery(plan, contract()))
+        self.assertEqual(
+            [],
+            validate_feature_acceptance(
+                plan,
+                feature_test_authority={
+                    "REQ-001": {
+                        "TEST-001",
+                        "TEST-002",
+                        "TEST-M1-01",
+                        "TEST-M1-02",
+                    }
+                },
+            ),
+        )
+
+    def test_unmarked_feature_gate_keeps_direct_legacy_path(self) -> None:
+        plan = platform_plan()
+        add_feature_gate(plan)
+        plan.pop("platform_delivery")
         self.assertEqual([], validate_plan(plan))
         self.assertEqual(
             [],
