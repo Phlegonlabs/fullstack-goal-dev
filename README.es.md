@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.62.0-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.62.1-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -404,7 +404,7 @@ La [política eval](skills/product-definition-builder/references/eval-policy-con
 
 La nueva autoría con un orden whole-platform elegido por el owner añade `--platform-delivery platform-delivery/1`. El checker lee la secuencia active de architecture, el inventario exacto de release, las filas ARCH compartidas de API/interface, la decisión humana y los TEST Required-Yes del PRD; solo el estado approved es ejecutable. Los casos draft, duplicate, hidden, malformed, omitted o shared-label bypass fallan. Las secciones legacy ausentes siguen siendo legibles.
 
-Harness une ese contrato a PLAN v6. El orden de architecture define la secuencia de stages; cada owner UI explícito se mapea una vez por release surface, el ARCH compartido empieza primero, y las dependencies pass-only llegan al completion mission y a la siguiente platform. La integration y los final gates fresh cubren los TEST de platform; un integration PASS retained es solo handoff histórico. Los PLAN sin marcador siguen siendo legacy.
+Harness une ese contrato a PLAN v6. El orden de architecture define la secuencia de stages; cada owner UI explícito se mapea una vez por release surface, el ARCH compartido empieza primero, y las dependencies pass-only llegan al completion mission y a la siguiente platform. Una review runtime pre-integration de una sola mission no puede llevar esa ruta. La integration y los final gates fresh cubren los TEST de platform; un integration PASS retained es solo handoff histórico. Los PLAN sin marcador siguen siendo legacy.
 
 En un flujo marcado, cada trace `PRD-*` planned y must nombra acceptance gates fresh. Sus TEST provienen de obligations Required-Yes canónicas del PRD y pueden añadir regressions required adicionales; los PLAN legacy sin marcador siguen siendo opcionales.
 
@@ -716,7 +716,9 @@ Este repositorio está bajo la Licencia MIT — ver [LICENSE](LICENSE).
 
 ## Historial de versiones
 
-- **0.62.0** — Aplica Generate, Verify, Correct en siete skills. Los contratos adoptados comprueban el orden aprobado de Web/iOS, cobertura TEST y aceptación de features. Conserva paquetes anteriores y permisos explícitos. Mantiene este repositorio del propietario mediante PR revisados directamente a main.
+- **0.62.1** — Exige una dependency path con mission integrada para handoffs de platform y feature gates. Una review runtime pre-integration de una sola mission no puede testificar ninguna barrera de platform; deterministic verifiers, approvals, rutas directas de mission e integration reviews siguen siendo válidos.
+
+- **0.62.0 (preparación no publicada; incluida en 0.62.1)** — Aplica Generate, Verify, Correct en siete skills. Los contratos adoptados comprueban el orden aprobado de Web/iOS, cobertura TEST y aceptación de features. Conserva paquetes anteriores y permisos explícitos. Mantiene este repositorio del propietario mediante PR revisados directamente a main.
 
 - **0.61.0** — Exige enlaces individuales al paquete completo de Product Definition y UI en el chat. Añade reglas básicas de redacción STE, métodos de arquitectura centrados en el llamador y el estado, y experimentos con límites finitos. Añade skills independientes para README y empaquetado por runtime, fuera del paquete de siete skills. Conserva aprobaciones y permisos; la ejecución remota sigue pendiente.
 

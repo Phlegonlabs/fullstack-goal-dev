@@ -127,6 +127,21 @@ def _dependency_adjacency(plan: dict[str, Any]) -> tuple[dict[str, set[str]], di
         if not isinstance(edge, dict) or edge.get("kind") != "dependency":
             continue
         source, target = edge.get("from"), edge.get("to")
+        source_node = nodes.get(source)
+        target_node = nodes.get(target)
+        review = target_node.get("review") if isinstance(target_node, dict) else None
+        if (
+            isinstance(source_node, dict)
+            and source_node.get("kind") == "mission"
+            and target_node is not None
+            and target_node.get("kind") == "verifier"
+            and target_node.get("executor") == "runtime_worker"
+            and isinstance(review, dict)
+            and review.get("stage", "preintegration") == "preintegration"
+            and len(review.get("mission_ids", [])) == 1
+            and source_node.get("ref") in review.get("mission_ids", [])
+        ):
+            continue
         if source in nodes and target in nodes:
             dependencies[source].add(target)
     return dependencies, node_missions
@@ -396,25 +411,8 @@ def validate_feature_acceptance(
 
 
 def _dependency_path_exists(plan: dict[str, Any], source_node: str, target_node: str) -> bool:
-    graph = plan.get("graph", {}) if isinstance(plan.get("graph"), dict) else {}
-    adjacency: dict[str, set[str]] = {}
-    for edge in graph.get("edges", []):
-        if not isinstance(edge, dict) or edge.get("kind") != "dependency":
-            continue
-        source, target = edge.get("from"), edge.get("to")
-        if isinstance(source, str) and isinstance(target, str):
-            adjacency.setdefault(source, set()).add(target)
-    pending = list(adjacency.get(source_node, ()))
-    seen = {source_node}
-    while pending:
-        node_id = pending.pop()
-        if node_id == target_node:
-            return True
-        if node_id in seen:
-            continue
-        seen.add(node_id)
-        pending.extend(adjacency.get(node_id, ()))
-    return False
+    dependencies, _node_missions = _dependency_adjacency(plan)
+    return target_node in _reachable_nodes(dependencies, source_node)
 
 
 def validate_platform_delivery(

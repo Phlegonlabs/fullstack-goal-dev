@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.62.0-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.62.1-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -404,7 +404,7 @@ Full-stack 依完整流程實作畫面、API、權限、資料保存與回饋。
 
 新授權 whole-platform 順序的 authoring 會加入 `--platform-delivery platform-delivery/1`。Checker 讀取 active architecture sequence、精確 release inventory、shared API/interface ARCH authority rows、human decision 及 Required-Yes PRD tests；只有 approved status 可以執行。Draft、duplicate、hidden、malformed、omitted 或 shared-label bypass 一律失敗。沒有 section 的 legacy package 維持原讀法。
 
-Harness 會把該契約接到 PLAN v6。Architecture order 決定 stage 順序；顯式 UI owner 按 release surface 只映射一次，shared ARCH 先行，並以 pass-only dependency 到達 completion mission 與下一平台。Fresh completion integration 與 final gates 覆蓋 platform TEST；retained integration PASS 只是歷史 handoff。沒有 marker 的 PLAN 維持 legacy。
+Harness 會把該契約接到 PLAN v6。Architecture order 決定 stage 順序；顯式 UI owner 按 release surface 只映射一次，shared ARCH 先行，並以 pass-only dependency 到達 completion mission 與下一平台。single-mission pre-integration runtime review 不能承載該路徑。Fresh completion integration 與 final gates 覆蓋 platform TEST；retained integration PASS 只是歷史 handoff。沒有 marker 的 PLAN 維持 legacy。
 
 在已標記流程中，每個 planned `PRD-*` must trace 都要指定 fresh acceptance gates。其 TEST ID 來自 canonical Required-Yes PRD obligations，可加入其他必要 regression；無 marker 的 legacy PLAN 保持可選。
 
@@ -717,7 +717,9 @@ HiFi 範例以固定 LF 換行維持跨平台位元組雜湊。Wireframe 的 Nod
 
 ## 版本紀錄
 
-- **0.62.0** — 七個 skills 共用 Generate、Verify、Correct。已採用的平台合約檢查核准的 Web／iOS 順序、TEST 覆蓋與 feature acceptance gates。保留 legacy packages 和明確操作授權。Owner 自用的來源倉庫透過 reviewed PR 直接合併到 main。
+- **0.62.1** — 平台 handoff 與 feature gates 都需要整合完成 mission 的 dependency path。single-mission pre-integration runtime review 不能作為任一平台 barrier 的見證；deterministic verifier、approval、直接 mission path 與 integration review 仍然有效。
+
+- **0.62.0（未發佈準備；併入 0.62.1）** — 七個 skills 共用 Generate、Verify、Correct。已採用的平台合約檢查核准的 Web／iOS 順序、TEST 覆蓋與 feature acceptance gates。保留 legacy packages 和明確操作授權。Owner 自用的來源倉庫透過 reviewed PR 直接合併到 main。
 
 - **0.61.0** — 要求在對話列出完整 Product Definition 與 UI 文件連結，加入 STE 核心寫作規則、先看呼叫例與狀態的架構方法，以及有限次實驗迴圈。新增獨立 README 與 runtime 打包 skills，維持在七技能套件之外。保留既有批准與操作授權；遠端執行仍待完成。
 

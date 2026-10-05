@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.62.0-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.62.1-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -404,7 +404,7 @@ The [eval policy](skills/product-definition-builder/references/eval-policy-contr
 
 New authoring with an owner-selected whole-platform order adds `--platform-delivery platform-delivery/1`. The checker reads the active architecture sequence, exact release inventory, shared API/interface ARCH rows, human decision, and Required-Yes PRD tests; only approved status is executable. Draft, duplicate, hidden, malformed, omitted, or shared-label bypass cases fail. Absent legacy sections stay readable.
 
-Harness joins that contract to PLAN v6. Architecture order defines stage sequence. Explicit UI owners map once by release surface, shared ARCH work starts first, and pass-only dependencies reach each completion mission and next platform. Fresh completion integration and final gates cover platform TESTs; retained integration PASS is historical handoff only. Unmarked plans stay legacy.
+Harness joins that contract to PLAN v6. Architecture order defines stage sequence. Explicit UI owners map once by release surface, shared ARCH work starts first, and pass-only dependencies reach each completion mission and next platform. A single-mission pre-integration runtime review cannot carry that path. Fresh completion integration and final gates cover platform TESTs; retained integration PASS is historical handoff only. Unmarked plans stay legacy.
 
 In a marked flow, every planned `PRD-*` must trace names fresh acceptance gates. Their TEST IDs come from canonical Required-Yes PRD obligations and may include extra required regressions; unmarked legacy plans stay optional.
 
@@ -717,7 +717,9 @@ This repository is licensed under the MIT License — see [LICENSE](LICENSE).
 
 ## Version history
 
-- **0.62.0** — Apply Generate, Verify, Correct across seven skills. Adopted platform contracts enforce approved Web/iOS order, TEST coverage and feature acceptance gates. Preserve legacy packages and explicit action grants. Maintain this owner-use source through reviewed PRs directly to main.
+- **0.62.1** — Require an integrated-mission dependency path for platform handoffs and feature gates. Single-mission pre-integration runtime reviews cannot witness either platform barrier; deterministic verifiers, approvals, direct mission paths and integration reviews remain valid.
+
+- **0.62.0 (unreleased preparation; included in 0.62.1)** — Apply Generate, Verify, Correct across seven skills. Adopted platform contracts enforce approved Web/iOS order, TEST coverage and feature acceptance gates. Preserve legacy packages and explicit action grants. Maintain this owner-use source through reviewed PRs directly to main.
 
 - **0.61.0** — Require complete Product Definition and UI document links in chat, add STE core writing rules, caller/state architecture methods and finite experiment loops. Add standalone README and runtime packaging skills outside the seven-skill bundle. Preserve existing approvals and action grants; remote execution remains pending.
 

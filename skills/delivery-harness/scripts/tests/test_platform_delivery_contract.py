@@ -37,6 +37,7 @@ from platform_delivery_contract import (  # noqa: E402
 from harness_contract_join import validate_frozen_contract_joins  # noqa: E402
 import harness_contract_join as harness_contract_join_module  # noqa: E402
 from select_ready_nodes import _incoming, _logical_reasons  # noqa: E402
+from select_ready_nodes import _selection_context  # noqa: E402
 from verifier_runtime import _validated_inputs  # noqa: E402
 from render_review_packet import _relevant_acceptance_mappings  # noqa: E402
 from validate_harness_plan import main as validate_plan_cli  # noqa: E402
@@ -251,6 +252,136 @@ def add_ui_surface(
     for task in mission["tasks"]:
         task["trace_ids"].append(surface_id)
     return surface
+
+
+def add_runtime_review_handoff(
+    plan: dict[str, object],
+    *,
+    source_mission: str,
+    target_mission: str,
+    stage: str,
+    guarded: bool = False,
+) -> None:
+    """Replace the direct handoff with a runtime review dependency path."""
+
+    reviewer_id = f"N-REVIEW-{source_mission}"
+    reviewer = graph_node(
+        reviewer_id,
+        "verifier",
+        f"review-{source_mission}",
+        "runtime_worker",
+        ["pass", "fix_required", "blocked"],
+    )
+    reviewer["review"] = {
+        "type": "backend_code",
+        "lineage_id": f"REVIEW-{source_mission}",
+        "mission_ids": [source_mission],
+        "scope": ["src/**"],
+        "required_evidence": ["reviewed_sha", "findings"],
+        "stage": stage,
+    }
+    plan["graph"]["nodes"].append(reviewer)
+    plan["graph"]["edges"] = [
+        edge
+        for edge in plan["graph"]["edges"]
+        if not (
+            edge["kind"] == "dependency"
+            and edge["from"] == f"N-{source_mission}"
+            and edge["to"] == f"N-{target_mission}"
+        )
+    ]
+    review_source = f"N-{source_mission}"
+    if guarded:
+        guard_id = f"N-GATE-{source_mission}"
+        plan["graph"]["nodes"].append(
+            graph_node(
+                guard_id,
+                "verifier",
+                "final",
+                "local_command",
+                ["pass", "blocked"],
+            )
+        )
+        plan["graph"]["edges"].append(
+            {
+                "id": f"E-{source_mission}-PLATFORM-GATE",
+                "kind": "dependency",
+                "from": f"N-{source_mission}",
+                "to": guard_id,
+                "on_outcomes": ["pass"],
+                "max_traversals": None,
+            }
+        )
+        review_source = guard_id
+    plan["graph"]["edges"].extend(
+        [
+            {
+                "id": f"E-{source_mission}-RUNTIME-REVIEW",
+                "kind": "dependency",
+                "from": review_source,
+                "to": reviewer_id,
+                "on_outcomes": ["pass"],
+                "max_traversals": None,
+            },
+            {
+                "id": f"E-RUNTIME-REVIEW-{target_mission}",
+                "kind": "dependency",
+                "from": reviewer_id,
+                "to": f"N-{target_mission}",
+                "on_outcomes": ["pass"],
+                "max_traversals": None,
+            },
+        ]
+    )
+
+
+def preintegration_review_run(plan: dict[str, object]) -> dict[str, object]:
+    """Return worker-pass plus review-pass state while M1 remains unintegrated."""
+
+    run = valid_run(plan)
+    run["status"] = "running"
+    run["plan_readiness"] = "ready"
+    run["execution_authorized"] = True
+    run["graph_state"]["node_states"]["N-M1"].update(
+        {
+            "phase": "running",
+            "attempts": 1,
+            "last_attempt_id": "ATT-M1",
+            "last_outcome": None,
+            "bound_worker_id": "W-M1",
+        }
+    )
+    run["graph_state"]["node_states"]["N-REVIEW-M1"].update(
+        {
+            "phase": "succeeded",
+            "attempts": 1,
+            "last_attempt_id": "ATT-REVIEW-M1",
+            "last_outcome": "pass",
+            "bound_worker_id": "RW-M1",
+        }
+    )
+    run["mission_states"]["M1"].update(
+        {
+            "phase": "worker_passed",
+            "head_sha": "b" * 40,
+        }
+    )
+    run["review_workers"].append(
+        {
+            "worker_id": "RW-M1",
+            "node_id": "N-REVIEW-M1",
+            "attempt_id": "ATT-REVIEW-M1",
+            "plan_revision": plan["revision"],
+            "plan_digest_sha256": run["plan"]["digest_sha256"],
+            "graph_revision": run["graph_state"]["graph_revision"],
+            "reviewed_sha": "b" * 40,
+            "review_path": "C:/repo/worktrees/M1",
+            "phase": "worker_passed",
+            "outcome": "pass",
+            "findings": [],
+        }
+    )
+    return run
 
 
 class PlatformPlanShapeTests(unittest.TestCase):
@@ -564,6 +695,134 @@ class PlatformMappingTests(unittest.TestCase):
             contributor,
             "mission 'M3' does not precede completion 'M1'",
         )
+
+    def test_preintegration_review_only_handoff_fails_both_platform_checks(self) -> None:
+        plan = platform_plan()
+        plan["missions"][1]["depends_on"] = []
+        add_runtime_review_handoff(
+            plan,
+            source_mission="M1",
+            target_mission="M2",
+            stage="preintegration",
+        )
+        self.assert_error(plan, "is not reachable from previous platform completion")
+
+        contributor = platform_plan()
+        contributor["missions"].append(
+            {
+                "id": "M3",
+                "trace_ids": [],
+                "integration_verifiers": [],
+            }
+        )
+        contributor["graph"]["nodes"].append(
+            graph_node(
+                "N-M3",
+                "mission",
+                "M3",
+                "runtime_worker",
+                ["pass", "retryable_failure", "blocked", "contract_gap"],
+            )
+        )
+        contributor["platform_delivery"]["stages"][0]["mission_ids"] = ["M1", "M3"]
+        add_runtime_review_handoff(
+            contributor,
+            source_mission="M3",
+            target_mission="M1",
+            stage="preintegration",
+        )
+        self.assert_error(
+            contributor,
+            "mission 'M3' does not precede completion 'M1'",
+        )
+
+    def test_guarded_preintegration_reviews_keep_safe_platform_paths(self) -> None:
+        handoff = platform_plan()
+        add_runtime_review_handoff(
+            handoff,
+            source_mission="M1",
+            target_mission="M2",
+            stage="preintegration",
+            guarded=True,
+        )
+        self.assertEqual([], validate_platform_delivery(handoff, contract()))
+
+        contributor = platform_plan()
+        contributor["missions"].append(
+            {
+                "id": "M3",
+                "trace_ids": [],
+                "integration_verifiers": [],
+            }
+        )
+        contributor["graph"]["nodes"].append(
+            graph_node(
+                "N-M3",
+                "mission",
+                "M3",
+                "runtime_worker",
+                ["pass", "retryable_failure", "blocked", "contract_gap"],
+            )
+        )
+        contributor["platform_delivery"]["stages"][0]["mission_ids"] = ["M1", "M3"]
+        add_runtime_review_handoff(
+            contributor,
+            source_mission="M3",
+            target_mission="M1",
+            stage="preintegration",
+            guarded=True,
+        )
+        self.assertEqual([], validate_platform_delivery(contributor, contract()))
+
+    def test_integration_runtime_review_is_a_safe_platform_witness(self) -> None:
+        plan = platform_plan()
+        add_runtime_review_handoff(
+            plan,
+            source_mission="M1",
+            target_mission="M2",
+            stage="integration",
+        )
+        self.assertEqual([], validate_platform_delivery(plan, contract()))
+
+        run = valid_run(plan)
+        run["status"] = "running"
+        run["plan_readiness"] = "ready"
+        run["execution_authorized"] = True
+        run["graph_state"]["node_states"]["N-M1"].update(
+            {"phase": "succeeded", "last_outcome": "pass"}
+        )
+        run["graph_state"]["node_states"]["N-REVIEW-M1"].update(
+            {"phase": "succeeded", "last_outcome": "pass"}
+        )
+        run["mission_states"]["M1"].update(
+            {
+                "phase": "integrated",
+                "integrated_sha": "c" * 40,
+                "integration_gate": "PASS",
+            }
+        )
+        context = _selection_context(plan, run)
+        node = next(item for item in plan["graph"]["nodes"] if item["id"] == "N-M2")
+        self.assertEqual([], _logical_reasons(node, plan, run, *_incoming(plan), context))
+
+    def test_worker_pass_and_preintegration_review_do_not_release_platform(self) -> None:
+        plan = platform_plan()
+        plan["missions"][1]["depends_on"] = []
+        add_runtime_review_handoff(
+            plan,
+            source_mission="M1",
+            target_mission="M2",
+            stage="preintegration",
+        )
+        run = preintegration_review_run(plan)
+        context = _selection_context(plan, run)
+        node = next(item for item in plan["graph"]["nodes"] if item["id"] == "N-M2")
+
+        self.assertEqual(
+            [],
+            _logical_reasons(node, plan, run, *_incoming(plan), context),
+        )
+        self.assert_error(plan, "is not reachable from previous platform completion")
 
     def test_middle_stage_completion_requires_dependency_path(self) -> None:
         plan = platform_plan()
