@@ -111,6 +111,39 @@ def _acceptance_test_ids(value: Any, path: str, errors: list[str]) -> list[str]:
     return ids
 
 
+def _unsafe_review_dependency(
+    source_node: dict[str, Any] | None,
+    target_node: dict[str, Any] | None,
+) -> bool:
+    """Return true when an edge cannot prove an integrated platform barrier."""
+
+    if not isinstance(target_node, dict) or target_node.get(
+        "kind"
+    ) != "verifier" or target_node.get("executor") != "runtime_worker":
+        return False
+    review = target_node.get("review")
+    if not isinstance(review, dict):
+        return True
+    stage = review.get("stage", "preintegration")
+    mission_ids = review.get("mission_ids")
+    if stage not in {"preintegration", "integration"}:
+        return True
+    if (
+        not isinstance(mission_ids, list)
+        or not mission_ids
+        or any(not isinstance(item, str) or not item.strip() for item in mission_ids)
+        or len(mission_ids) != len(set(mission_ids))
+    ):
+        return True
+    return (
+        stage == "preintegration"
+        and len(mission_ids) == 1
+        and isinstance(source_node, dict)
+        and source_node.get("kind") == "mission"
+        and source_node.get("ref") in mission_ids
+    )
+
+
 def _dependency_adjacency(plan: dict[str, Any]) -> tuple[dict[str, set[str]], dict[str, str]]:
     graph = plan.get("graph", {}) if isinstance(plan.get("graph"), dict) else {}
     nodes = {
@@ -129,18 +162,7 @@ def _dependency_adjacency(plan: dict[str, Any]) -> tuple[dict[str, set[str]], di
         source, target = edge.get("from"), edge.get("to")
         source_node = nodes.get(source)
         target_node = nodes.get(target)
-        review = target_node.get("review") if isinstance(target_node, dict) else None
-        if (
-            isinstance(source_node, dict)
-            and source_node.get("kind") == "mission"
-            and target_node is not None
-            and target_node.get("kind") == "verifier"
-            and target_node.get("executor") == "runtime_worker"
-            and isinstance(review, dict)
-            and review.get("stage", "preintegration") == "preintegration"
-            and len(review.get("mission_ids", [])) == 1
-            and source_node.get("ref") in review.get("mission_ids", [])
-        ):
+        if _unsafe_review_dependency(source_node, target_node):
             continue
         if source in nodes and target in nodes:
             dependencies[source].add(target)

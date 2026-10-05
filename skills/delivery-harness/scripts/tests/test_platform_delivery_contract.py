@@ -2336,6 +2336,154 @@ class FrozenSourceJoinTests(unittest.TestCase):
         )
         self.assertEqual(1, exit_code)
 
+    def malformed_review_barrier_plan(
+        self,
+        mission_ids: object,
+    ) -> dict[str, object]:
+        """Reach the selector predicate with one malformed runtime review."""
+
+        plan = platform_plan()
+        review = next(
+            node for node in plan["graph"]["nodes"]
+            if node["id"] == "N-REVIEW-M1"
+        )
+        review["allowed_outcomes"] = ["pass", "blocked"]
+        review["review"]["mission_ids"] = mission_ids
+        plan["graph"]["edges"] = [
+            edge
+            for edge in plan["graph"]["edges"]
+            if not (
+                edge["kind"] == "dependency"
+                and edge["from"] == "N-M1"
+                and edge["to"] == "N-M2"
+            )
+        ]
+        plan["graph"]["edges"].append(
+            {
+                "id": "E-REVIEW-M1-M2",
+                "kind": "dependency",
+                "from": "N-REVIEW-M1",
+                "to": "N-M2",
+                "on_outcomes": ["pass"],
+                "max_traversals": None,
+            }
+        )
+        return plan
+
+    def test_malformed_runtime_review_metadata_cannot_witness_barrier(self) -> None:
+        malformed_values = (None, 7, "M1", [None], ["M1", "M1"])
+        for mission_ids in malformed_values:
+            with self.subTest(mission_ids=mission_ids):
+                plan = self.malformed_review_barrier_plan(mission_ids)
+                graph_errors = validate_plan(plan)
+                self.assertTrue(
+                    any(
+                        "review.mission_ids" in item
+                        and (
+                            "must be a list of non-empty strings" in item
+                            or "must not contain duplicates" in item
+                        )
+                        for item in graph_errors
+                    ),
+                    graph_errors,
+                )
+                errors = validate_platform_delivery(plan, contract())
+                self.assertTrue(
+                    any(
+                        "is not reachable from previous platform completion"
+                        in item
+                        for item in errors
+                    ),
+                    errors,
+                )
+
+    def test_malformed_review_fails_frozen_legacy_and_cli_routes(self) -> None:
+        architecture, prd = self.product_fixtures()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+
+            public = self.materialized_platform_plan(
+                root,
+                architecture=architecture,
+                prd=prd,
+                plan=self.malformed_review_barrier_plan([None]),
+            )
+            public_run = valid_run(public)
+            public_run["runtime_capabilities"]["runtime_adapter"][
+                "version_gate"
+            ]["required_harness_version"] = "0.62.0"
+            public_errors = validate_frozen_contract_joins(
+                public,
+                root,
+                run=public_run,
+            )
+
+            run_none = self.materialized_platform_plan(
+                root,
+                architecture=architecture,
+                prd=prd,
+                plan=self.malformed_review_barrier_plan("M1"),
+            )
+            run_none_errors = validate_frozen_contract_joins(
+                run_none,
+                root,
+                run=None,
+            )
+
+            legacy = self.materialized_platform_plan(
+                root,
+                architecture=architecture,
+                prd=prd,
+                plan=self.malformed_review_barrier_plan(7),
+            )
+            legacy_run = valid_run(legacy)
+            legacy_run["runtime_capabilities"]["runtime_adapter"][
+                "version_gate"
+            ]["required_harness_version"] = "0.37.0"
+            legacy_errors = validate_frozen_contract_joins(
+                legacy,
+                root,
+                run=legacy_run,
+            )
+
+            cli_plan = self.materialized_platform_plan(
+                root,
+                architecture=architecture,
+                prd=prd,
+                plan=self.malformed_review_barrier_plan(["M1", "M1"]),
+            )
+            cli_plan_path = root / "PLAN.md"
+            cli_plan_path.write_text(
+                manifest_markdown(
+                    "## Harness Plan Manifest",
+                    "harness_plan",
+                    cli_plan,
+                ),
+                encoding="utf-8",
+            )
+            exit_code = validate_plan_cli([
+                "--repo-root",
+                str(root),
+                "--plan",
+                str(cli_plan_path),
+            ])
+
+        for label, errors in (
+            ("public", public_errors),
+            ("run-none", run_none_errors),
+            ("legacy", legacy_errors),
+        ):
+            with self.subTest(route=label):
+                self.assertTrue(
+                    any(
+                        "is not reachable from previous platform completion"
+                        in item
+                        for item in errors
+                    ),
+                    errors,
+                )
+        self.assertEqual(1, exit_code)
+
     def test_declared_architecture_materializes_once_on_failure(self) -> None:
         architecture, prd = self.product_fixtures()
         with tempfile.TemporaryDirectory() as directory:
