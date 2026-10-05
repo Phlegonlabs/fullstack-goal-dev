@@ -141,3 +141,22 @@ and dependencies; the new check logs remain outside this repository.
 
 The source is unreleased. Push, PR merge, release tag, and local skill
 installation remain outside this task.
+
+## Release Follow-up
+
+On 2026-10-05, the owner authorized commit, push, merge and installation.
+The observed baseline is clean `8f827694a2ddbea9d83669cebde446cbe2c5c417`
+on `codex/loop-engineering`. Released main remains `aab39d0545a95b3ae2b972cf7843dcf8eadb7cf4`.
+The implementation candidate passed 11 local checks and independent Sol review.
+Its external receipt retains 2,478 tests, 24 skips and no failures.
+
+Prepare 0.62.0 by updating package metadata, VERSION, four README badges/history,
+and the RUNBOOK default. The lockfile version follows package metadata.
+This introduces no generated artifact or ignore change. UI impact is `none`.
+The new fixed candidate requires complete verification and independent review.
+Publish that exact work-branch SHA and merge its reviewed PR directly to main.
+Preserve atomic history. Verify server tree equality and the new exact main SHA.
+Tag verified main and use the official installer once at a quiescent boundary.
+The release result belongs in the checkout-external `loop-engineering-release.md`
+beside the implementation report. Publication, checks and installation remain
+pending until their actual receipts exist.

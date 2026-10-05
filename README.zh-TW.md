@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.61.0-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.62.0-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -716,6 +716,8 @@ HiFi 範例以固定 LF 換行維持跨平台位元組雜湊。Wireframe 的 Nod
 本儲存庫採用 MIT 授權，全文見 [LICENSE](LICENSE)。
 
 ## 版本紀錄
+
+- **0.62.0** — 七個 skills 共用 Generate、Verify、Correct。已採用的平台合約檢查核准的 Web／iOS 順序、TEST 覆蓋與 feature acceptance gates。保留 legacy packages 和明確操作授權。Owner 自用的來源倉庫透過 reviewed PR 直接合併到 main。
 
 - **0.61.0** — 要求在對話列出完整 Product Definition 與 UI 文件連結，加入 STE 核心寫作規則、先看呼叫例與狀態的架構方法，以及有限次實驗迴圈。新增獨立 README 與 runtime 打包 skills，維持在七技能套件之外。保留既有批准與操作授權；遠端執行仍待完成。
 

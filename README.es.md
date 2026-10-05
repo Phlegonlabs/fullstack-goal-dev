@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.61.0-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.62.0-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -715,6 +715,8 @@ Luego ejecuta la verificación completa de arriba, revisa el diff entero y lleva
 Este repositorio está bajo la Licencia MIT — ver [LICENSE](LICENSE).
 
 ## Historial de versiones
+
+- **0.62.0** — Aplica Generate, Verify, Correct en siete skills. Los contratos adoptados comprueban el orden aprobado de Web/iOS, cobertura TEST y aceptación de features. Conserva paquetes anteriores y permisos explícitos. Mantiene este repositorio del propietario mediante PR revisados directamente a main.
 
 - **0.61.0** — Exige enlaces individuales al paquete completo de Product Definition y UI en el chat. Añade reglas básicas de redacción STE, métodos de arquitectura centrados en el llamador y el estado, y experimentos con límites finitos. Añade skills independientes para README y empaquetado por runtime, fuera del paquete de siete skills. Conserva aprobaciones y permisos; la ejecución remota sigue pendiente.
 
