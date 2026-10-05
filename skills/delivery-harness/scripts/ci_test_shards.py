@@ -32,6 +32,7 @@ SUITES = {
 # monolithic CI step. Keep the list explicit so sharding cannot broaden or
 # accidentally remove this platform's focused coverage.
 WINDOWS_NATIVE_FILES = (
+    "test_platform_delivery_contract.py",
     "test_skill_contract.py",
     "test_host_verifier_runtime.py",
     "test_verifier_runtime.py",

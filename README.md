@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.61.0-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.62.0-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -19,7 +19,7 @@ The workflow's template map names where every existing template is used, includi
 
 CI regression parses the complete source workflow and consumer CI template as YAML, including multiline candidate and diff-base expressions. Text assertions alone do not prove GitHub can load a workflow.
 
-For the 0.59 workflow, `development` and `main` are permanent protected branches and cannot be deleted. Author on isolated work branches, retain task commits, freeze a verified development SHA for release, and authorize main promotion separately. Historical pinned runs keep their original execution meaning. The source-repository migration is being prepared on `codex/harness-flow-modernization`; local policy changes do not prove remote protection or publication.
+Consumer workflows keep their approved branch policy. This skills source repository is maintained for our own use: temporary work branches target main through reviewed PRs. It needs no development branch. Historical consumer runs keep their pinned contracts.
 
 The [step-by-step workflow](docs/WORKFLOW.zh-TW.md) maps every applicable stage to its owner, existing templates and verification boundary. A section may have several isolated frontend/backend writers after shared interfaces are frozen; each executable task retains its atomic commit. Use observed host capacity, bounded packets and completion events, streaming review and serial integration. Do not remove precondition or postcondition validation as duplicate work, or claim rolling writer scheduling before it is implemented.
 
@@ -396,11 +396,17 @@ Upgrade to 0.50.0 with the canonical installer after active skill-using sessions
 
 Every skill invocation starts with the shared [document-sync contract](skills/delivery-harness/references/document-sync-contract.md): review changed live instructions, skill/runtime identity and product documents, without rewriting historical approvals or runs. The current PRD stays the next enhancement's baseline; superseded PRDs remain linked references. [Bounded enhancement](skills/delivery-harness/references/bounded-enhancement.md) reuses one accepted scope for repairs, same-scope module replacement and retesting instead of repeated approval prompts. Stop at the repair budget and hand unresolved requirements to the next round; ending a round is not a delivery PASS or permission to publish.
 
-The [bounded-loop method](skills/delivery-harness/references/graph-orchestration.md#bounded-loop-method) fixes measurements and budgets before experiments. It preserves rejected results and uses existing attempts and outcomes. A wake reconciles state; it grants no retry, task or schedule.
+The [Generate, Verify, Correct guide](skills/delivery-harness/references/gen-verify-correct.md) maps each stage to its author, verifier, and corrector. It starts with the shortest meaningful focused check, broadens at mission, feature, platform, and integration scope, and stops on PASS. Read-only findings return to the owning flow with expected and actual evidence; exact-candidate proof and existing budgets stay binding.
 
 The [delivery-acceptance contract](skills/delivery-harness/references/delivery-acceptance-contract.md) joins required PRD TEST IDs to a frozen scenario/platform matrix and exact-version evidence. Prepare isolated synthetic accounts and owned test data only under the declared test-environment authority. Mock login proves mocked behavior, not real authentication; Web, native iOS and agent-tool outcomes need their own evidence. No production login bypass, secret-bearing fixture, skipped required test, stale build or deferred blocker can count as PASS. The checkers validate retained evidence and coverage, not whether a human attestation or external observation is truthful.
 
 The [eval policy](skills/product-definition-builder/references/eval-policy-contract.md) freezes rubric, population, repeats, pass rate, slices, critical rules and judge inputs in the approved PRD. Its required `json` fence keeps every field visible during review. Prefix line endings and blank lines must follow Markdown rules. Approved input paths stay fixed through staging/publication; retain superseded versions. New-package approval and publication use `--repo-root <root> --eval-policy eval-policy/1` to verify approved input bytes; ordinary products give a reasoned exemption. Required functional TESTs still all pass. Legacy packages without the marker keep their checks; a present marker always validates.
+
+New authoring with an owner-selected whole-platform order adds `--platform-delivery platform-delivery/1`. The checker reads the active architecture sequence, exact release inventory, shared API/interface ARCH rows, human decision, and Required-Yes PRD tests; only approved status is executable. Draft, duplicate, hidden, malformed, omitted, or shared-label bypass cases fail. Absent legacy sections stay readable.
+
+Harness joins that contract to PLAN v6. Architecture order defines stage sequence. Explicit UI owners map once by release surface, shared ARCH work starts first, and pass-only dependencies reach each completion mission and next platform. Fresh completion integration and final gates cover platform TESTs; retained integration PASS is historical handoff only. Unmarked plans stay legacy.
+
+In a marked flow, every planned `PRD-*` must trace names fresh acceptance gates. Their TEST IDs come from canonical Required-Yes PRD obligations and may include extra required regressions; unmarked legacy plans stay optional.
 
 The [eval acceptance contract](skills/delivery-harness/references/eval-acceptance-contract.md) derives its execution contract from that policy and recomputes every planned trial. Quality failures remain in the denominator; prohibited or critical failures override the rate. Two full reports retain output, judge/tool observations, identity, timing and usage; the handoff report repeats the run from a clean checkout.
 
@@ -696,7 +702,7 @@ Every flow that lands on `main` is one release, and the version bump rides in th
 3. The RUNBOOK `required_harness_version` default in `skills/delivery-harness/assets/templates/MISSION_RUNBOOK.template.md`.
 4. No test literals: `skills/delivery-harness/scripts/tests/test_skill_contract.py` reads `VERSION` and fails when any surface above differs from it.
 
-Then run the full verification above, review the entire diff, and land through `branch-promotion-contract.md`. Use a PR when repository protection requires it. If the provider creates a new main SHA, require tree equality with the verified candidate and immediately rerun the full suite plus security review on that exact main SHA before tagging or claiming release completion. After landing, tag the release commit on `main` with the matching `v<version>` tag (for example `v0.30.0`); the tag is part of the release, not an optional extra. Every released version has its tag — `git tag` and `package.json` must tell the same story.
+Then run the full verification above, review the entire diff, and land this source candidate through a reviewed PR directly to `main`. Consumer promotions still follow `branch-promotion-contract.md`. Use a PR when repository protection requires it. If the provider creates a new main SHA, require tree equality with the verified candidate and immediately rerun the full suite plus security review on that exact main SHA before tagging or claiming release completion. After landing, tag the release commit on `main` with the matching `v<version>` tag (for example `v0.30.0`); the tag is part of the release, not an optional extra. Every released version has its tag — `git tag` and `package.json` must tell the same story.
 
 ## Security and data safety
 
@@ -710,6 +716,8 @@ Then run the full verification above, review the entire diff, and land through `
 This repository is licensed under the MIT License — see [LICENSE](LICENSE).
 
 ## Version history
+
+- **0.62.0** — Apply Generate, Verify, Correct across seven skills. Adopted platform contracts enforce approved Web/iOS order, TEST coverage and feature acceptance gates. Preserve legacy packages and explicit action grants. Maintain this owner-use source through reviewed PRs directly to main.
 
 - **0.61.0** — Require complete Product Definition and UI document links in chat, add STE core writing rules, caller/state architecture methods and finite experiment loops. Add standalone README and runtime packaging skills outside the seven-skill bundle. Preserve existing approvals and action grants; remote execution remains pending.
 

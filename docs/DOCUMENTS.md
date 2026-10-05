@@ -4,6 +4,8 @@ The four READMEs remain the documentation of record for the skill bundle.
 
 | Document | Purpose | Status |
 | --- | --- | --- |
+| docs/epics/EPIC-gen-verify-platform-delivery.md | Bounded Generate/Verify/Correct, feature acceptance and approved platform order | Accepted; P1/H1 and G1 local source changes committed; final unified checks/review authority is [loop-engineering-result.md](C:/Users/mps19/.codex/visualizations/2026/10/04/01a106f3-1755-7b42-873e-dbd7ebc45feb/loop-engineering-result.md) |
+| `docs/epics/EPIC-skills-source-main-only.md` | Source maintenance directly through main PRs; consumer policy retained | Source governance synchronized; 60 local contracts passed |
 | `docs/epics/EPIC-release-0.61.md` | Publish the completed source changes as 0.61.0 directly to main under the owner's exception | Source candidate CI and independent review passed; publication tracked by PR #136 |
 | `docs/epics/EPIC-document-writing-policy.md` | STE core writing rules for new or changed project documents | Source guideline verified locally; formal release and installation pending |
 | `docs/epics/EPIC-architecture-loop-remote-execution.md` | Accepted architecture methods, bounded loops and remote Cloud Agent integration | T2/T3 source methods implemented and focused checks passed; remote work pending |
@@ -20,7 +22,7 @@ The four READMEs remain the documentation of record for the skill bundle.
 | `docs/epics/EPIC-design-showcase.md` | `ui-design/3` full packages, `design-system/4` source-derived HTML showcase and Harness 0.59 joins | Replay and native-width repairs verified locally; unified 0.60 candidate review/matrix tracked in consolidation |
 | `docs/epics/EPIC-branch-policy.md` | Dual-branch managed release policy, frozen bases, protected-branch landing and cleanup guards | Combined contract, golden and tasks-view fixture repairs integrated; final candidate verification and remote protection pending |
 | `docs/epics/EPIC-context-template-merge.md` | Safe authorized AGENTS bootstrap merge, explicit conflict reporting and host-neutral role/dependency guidance | Integrated locally through MOD-A idempotency repair; final verification pending |
-| `docs/WORKFLOW.zh-TW.md` | Numbered cross-host product delivery workflow and role/template handoffs | 0.60 merged-candidate guide; Eval and modernization steps reconciled; publication pending |
+| `docs/WORKFLOW.zh-TW.md` | Numbered cross-host product delivery workflow and role/template handoffs | Unreleased 0.61 source; Generate/Verify/Correct and platform guidance joined; publication pending |
 | `docs/epics/EPIC-harness-flow-modernization.md` | Template merge, dual protected branches, design showcase, Activation execution and validation efficiency | Joined with Eval as the 0.60.0 candidate; current checks and exact protected-branch decision tracked in consolidation |
 | `docs/epics/EPIC-activation-execution-closure.md` | Read-only fail-closed Activation closeout with explicit owner deferrals and blocked-vs-complete records | Execution-by-default and mandatory closeout integrated; parent 65-test suite passed at 97f2fae3; final candidate checks pending |
 | `docs/epics/EPIC-agent-delegation-contract.md` | Parent-owned role routing, multi-instance research/exploration and verified dispatch | Present in baseline main history at `bdae1d82`, matching local `v0.58.0`; later observation appended to Epic |
@@ -39,7 +41,7 @@ The four READMEs remain the documentation of record for the skill bundle.
 | `docs/epics/EPIC-design-authoring-flow.md` | PRD-bound style and playable-motion authoring across skills | Released in v0.54.2 |
 | `docs/epics/EPIC-prd-continuous-completeness.md` | First-delivery UI/technical completeness and ongoing evidence-based PRD refinement | Released in v0.54.1 |
 | `docs/epics/EPIC-design-brief-reference-intake.md` | Explicit reference questions and a concise Design Brief in existing UI intake | Released in v0.54.1 |
-| `README.md`, `README.zh-TW.md`, `README.zh-CN.md`, `README.es.md` | Skill behavior and release instructions | 0.61.0 source changes; observed release baseline v0.60.0; current publication tracked in EPIC-release-0.61 and PR #136 |
+| `README.md`, `README.zh-TW.md`, `README.zh-CN.md`, `README.es.md` | Skill behavior and release instructions | 0.62.0 release preparation; observed release baseline v0.61.0; loop release tracked in EPIC-gen-verify-platform-delivery |
 | `docs/epics/EPIC-runtime-and-verification-reliability.md` | Browser CI, lifecycle, runtime metrics, document review and same-RUN recovery | Released in v0.54.1 |
 | `docs/epics/EPIC-ui-reviewer-integration.md` | Unified Wireframe/HiFi review, evidence, and lifecycle integration | Released in v0.54.1 |
 | `docs/epics/EPIC-001-incremental-design-review.md` | Incremental UI authoring and interactive review repair | Work released through v0.50.0; Epic status still `in_progress` |

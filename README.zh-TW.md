@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.61.0-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.62.0-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -19,7 +19,7 @@
 
 CI 回歸會完整解析來源 workflow 與 consumer CI 模板的 YAML，包含多行 candidate 與 diff-base 表達式。只有文字斷言，不能證明 GitHub 能載入 workflow。
 
-0.59 流程以 `development` 與 `main` 為永久保護分支，兩者均不得刪除。實作在隔離工作分支，保留各 task commits，固定已驗證的 development SHA 作 release，另行授權 main promotion。舊 pinned RUN 保留原執行語意。本來源庫正在 `codex/harness-flow-modernization` 準備遷移；本地規則變更不代表已完成遠端保護或發布。
+使用 skills 的專案保留各自核准的分支政策。這個 skills 來源倉庫供我們自己使用：修改在臨時工作分支完成，透過已審查的 PR 直接合併到 main，不需要 development 分支。歷史 consumer RUN 保留原有契約。
 
 [逐步流程](docs/WORKFLOW.zh-TW.md) 列出每個適用階段的角色、既有模板及驗證邊界。同一 section 可在共享接口凍結後分給多位隔離的 frontend／backend writer；每個 executable task 保留自己的 atomic commit。依實際 host 容量派工，使用有界 packet、完成事件、streaming review 與序列整合。不把修改前／後驗證當作重複工作刪除，也不宣稱已有未實作的 rolling writer scheduler。
 
@@ -396,11 +396,17 @@ Full-stack 依完整流程實作畫面、API、權限、資料保存與回饋。
 
 每次調用 skill 都先套用共用的[文件同步契約](skills/delivery-harness/references/document-sync-contract.md)，檢查現行指引、skill/runtime 身分與產品文件的變動，不改寫歷史批准或 RUN。現行 PRD 持續作為下一輪 enhancement 的基準，被取代的 PRD 保留連結供參考。[有界 enhancement](skills/delivery-harness/references/bounded-enhancement.md) 沿用一次確認的範圍，執行修復、範圍內 module 重寫與重測，不反覆要求批准。達修復上限就把未解決需求移交下一輪；本輪結束不等於交付 PASS，也不授權發布。
 
-[有界 loop 方法](skills/delivery-harness/references/graph-orchestration.md#bounded-loop-method) 在實驗前固定量測與預算，保留被拒絕的結果，沿用現有 attempt 與 outcome。喚醒後先核對狀態；喚醒不授權重試、新任務或排程。
+[Generate、Verify、Correct 指引](skills/delivery-harness/references/gen-verify-correct.md) 把每個 stage 對應到 author、verifier 與 corrector。先用最短有效 focused check，到 mission、feature、platform 與 integration 才擴大，PASS 即停止。唯讀 finding 帶 expected／actual evidence 回到 owning flow；精確候選證據與既有 budget 繼續有效。
 
 [交付驗收契約](skills/delivery-harness/references/delivery-acceptance-contract.md) 把必要 PRD TEST ID、凍結的情境／平台矩陣與精確版本證據串起來。只在已授權的隔離測試環境準備合成帳號與本輪擁有的資料。Mock 登入不能證明真實認證通過；Web、原生 iOS 與 agent 工具結果各需自己的證據。Production 登入後門、含祕密的 fixture、跳過必要測試、過期 build 或延後處理的阻塞問題，都不能算 PASS。檢查器驗證覆蓋與保留證據，不宣稱能證明人工聲明或外部觀測的真實性。
 
 [Eval policy](skills/product-definition-builder/references/eval-policy-contract.md) 在已批准 PRD 凍結 rubric、樣本分母、重跑次數、pass rate、slice、critical 規則及 judge 輸入。必須使用 `json` code fence，讓 review 畫面顯示每個欄位；前綴的換行及空白行須符合 Markdown 規則。已批准輸入在 staging／發布時保持原路徑，舊版本保留。新 package 的批准及發布檢查使用 `--repo-root <root> --eval-policy eval-policy/1` 驗證已批准輸入的 bytes；一般產品填寫有理由的豁免。必要功能 TEST 仍須全部通過。Legacy package 沒有 marker 沿用原檢查；已加入 marker 就會驗證。
+
+新授權 whole-platform 順序的 authoring 會加入 `--platform-delivery platform-delivery/1`。Checker 讀取 active architecture sequence、精確 release inventory、shared API/interface ARCH authority rows、human decision 及 Required-Yes PRD tests；只有 approved status 可以執行。Draft、duplicate、hidden、malformed、omitted 或 shared-label bypass 一律失敗。沒有 section 的 legacy package 維持原讀法。
+
+Harness 會把該契約接到 PLAN v6。Architecture order 決定 stage 順序；顯式 UI owner 按 release surface 只映射一次，shared ARCH 先行，並以 pass-only dependency 到達 completion mission 與下一平台。Fresh completion integration 與 final gates 覆蓋 platform TEST；retained integration PASS 只是歷史 handoff。沒有 marker 的 PLAN 維持 legacy。
+
+在已標記流程中，每個 planned `PRD-*` must trace 都要指定 fresh acceptance gates。其 TEST ID 來自 canonical Required-Yes PRD obligations，可加入其他必要 regression；無 marker 的 legacy PLAN 保持可選。
 
 [Eval 驗收契約](skills/delivery-harness/references/eval-acceptance-contract.md) 從 policy 推導執行契約，再重算每個已規劃 trial。品質失敗留在分母，prohibited 或 critical 失敗直接阻擋驗收。兩份 full report 保留 output、judge／tool 觀測、身分、時間和用量；handoff report 在乾淨 checkout 重跑。
 
@@ -696,7 +702,7 @@ HiFi 範例以固定 LF 換行維持跨平台位元組雜湊。Wireframe 的 Nod
 3. `skills/delivery-harness/assets/templates/MISSION_RUNBOOK.template.md` 的 RUNBOOK `required_harness_version` 預設值。
 4. 不需修改測試字面值：`skills/delivery-harness/scripts/tests/test_skill_contract.py` 會讀取 `VERSION`，上述任何位置不一致時就失敗。
 
-接著跑完上面的完整驗證、檢視整份 diff，並依 `branch-promotion-contract.md` 落地。Repository protection 要求時使用 PR；若 provider 產生新的 main SHA，必須先證明其 tree 與 verified candidate 相同，並立即在該 exact main SHA 上重跑完整 suite 與 security review，才能 tag 或宣告 release 完成。落地之後，在 `main` 的 release commit 上打上對應的 `v<版本>` tag（例如 `v0.30.0`）；tag 是 release 的一部分，不是可有可無的附加動作。每個釋出的版本都要有它的 tag——`git tag` 和 `package.json` 必須說同一個故事。
+接著跑完上面的完整驗證、檢視整份 diff，並將這個來源候選透過已審查的 PR 直接合併到 `main`。Consumer 的 promotion 仍遵守 `branch-promotion-contract.md`。Repository protection 要求時使用 PR；若 provider 產生新的 main SHA，必須先證明其 tree 與 verified candidate 相同，並立即在該 exact main SHA 上重跑完整 suite 與 security review，才能 tag 或宣告 release 完成。落地之後，在 `main` 的 release commit 上打上對應的 `v<版本>` tag（例如 `v0.30.0`）；tag 是 release 的一部分，不是可有可無的附加動作。每個釋出的版本都要有它的 tag——`git tag` 和 `package.json` 必須說同一個故事。
 
 ## 安全性與資料安全
 
@@ -710,6 +716,8 @@ HiFi 範例以固定 LF 換行維持跨平台位元組雜湊。Wireframe 的 Nod
 本儲存庫採用 MIT 授權，全文見 [LICENSE](LICENSE)。
 
 ## 版本紀錄
+
+- **0.62.0** — 七個 skills 共用 Generate、Verify、Correct。已採用的平台合約檢查核准的 Web／iOS 順序、TEST 覆蓋與 feature acceptance gates。保留 legacy packages 和明確操作授權。Owner 自用的來源倉庫透過 reviewed PR 直接合併到 main。
 
 - **0.61.0** — 要求在對話列出完整 Product Definition 與 UI 文件連結，加入 STE 核心寫作規則、先看呼叫例與狀態的架構方法，以及有限次實驗迴圈。新增獨立 README 與 runtime 打包 skills，維持在七技能套件之外。保留既有批准與操作授權；遠端執行仍待完成。
 

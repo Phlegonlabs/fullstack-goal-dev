@@ -130,6 +130,7 @@ from harness_ui_evidence import (
 from harness_contract_join import (
     validate_frozen_contract_joins,
 )
+from platform_delivery_contract import platform_delivery_shape_errors
 
 __all__ = [
     "AUTHORIZATION_KEYS",
@@ -191,6 +192,14 @@ def _is_reconciled_interrupted_review(
         and isinstance(matches[0].get("evidence"), list)
         and INTERRUPTED_REVIEW_RECEIPT in matches[0]["evidence"]
     )
+
+
+def _sortable_acceptance_ids(value: Any) -> list[str] | None:
+    """Return semantic TEST order only when the retained array has valid IDs."""
+
+    if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
+        return None
+    return sorted(value)
 
 
 PRODUCT_DESIGN_SOURCE_PATHS = (
@@ -827,9 +836,10 @@ def _validate_plan_traces(
             "disposition",
             "rationale",
         }
+        trace_optional_keys = {"acceptance_gate_ids"}
         for index, trace in enumerate(plan["traces"]):
             path = f"plan.traces[{index}]"
-            if not _keys(errors, path, trace, trace_keys):
+            if not _keys(errors, path, trace, trace_keys, trace_optional_keys):
                 continue
             trace_id = trace["id"]
             if not _nonempty_string(trace_id) or not ID_RE.fullmatch(trace_id):
@@ -837,6 +847,12 @@ def _validate_plan_traces(
             if trace_id in traces:
                 _add(errors, f"{path}.id", f"duplicate trace ID {trace_id!r}")
             traces[trace_id] = trace
+            if "acceptance_gate_ids" in trace:
+                _strings(
+                    errors,
+                    f"{path}.acceptance_gate_ids",
+                    trace["acceptance_gate_ids"],
+                )
             source_ids = _strings(errors, f"{path}.source_ids", trace["source_ids"], nonempty=True)
             for source_id in source_ids:
                 if source_id not in sources:
@@ -1973,6 +1989,7 @@ def validate_plan(
         "risks",
         "required_reviews",
         "security_review",
+        "platform_delivery",
     }
     if not _keys(errors, "plan", plan, top_keys, plan_optional_keys):
         return sorted(errors)
@@ -2013,6 +2030,7 @@ def validate_plan(
     _validate_plan_ui_surfaces(errors, plan, traces)
 
     _validate_plan_risks(errors, plan)
+    errors.extend(platform_delivery_shape_errors(plan))
 
     declared_verifier_ids = _validate_plan_verifier_groups(errors, plan)
     execution_required = schema_version == 6
@@ -3097,7 +3115,7 @@ def _validate_verifier_executions(
         # be accepted here or a run that uses them emits evidence its own
         # validator rejects.
         verifier_required_keys = {"id", "cwd", "argv", "pass_signal", "cache"}
-        verifier_optional_keys = {"read_only"}
+        verifier_optional_keys = {"acceptance_test_ids", "read_only"}
         if plan.get("schema_version") == 6:
             verifier_required_keys.add("execution")
         else:
@@ -3123,6 +3141,8 @@ def _validate_verifier_executions(
             normalized_verifier["cwd"] != declaration.get("cwd")
             or normalized_verifier["argv"] != declaration.get("argv")
             or normalized_verifier["pass_signal"] != declaration.get("pass_signal")
+            or _sortable_acceptance_ids(normalized_verifier.get("acceptance_test_ids", []))
+            != _sortable_acceptance_ids(declaration.get("acceptance_test_ids", []))
             or normalized_verifier["cache"] != declared_cache
             or normalized_verifier.get("read_only", False)
             != declaration.get("read_only", False)
@@ -3174,6 +3194,29 @@ def _validate_verifier_executions(
                 errors,
                 f"{path}.verifier.pass_signal",
                 "must be a non-empty string",
+            )
+        retained_acceptance_test_ids = _strings(
+            errors,
+            f"{path}.verifier.acceptance_test_ids",
+            normalized_verifier.get("acceptance_test_ids", []),
+        )
+        if "acceptance_test_ids" in normalized_verifier and (
+            normalized_verifier["acceptance_test_ids"] is None
+            or not retained_acceptance_test_ids
+        ):
+            _add(
+                errors,
+                f"{path}.verifier.acceptance_test_ids",
+                "must be a nonempty TEST-* list",
+            )
+        if any(
+            not item.startswith("TEST-")
+            for item in retained_acceptance_test_ids
+        ):
+            _add(
+                errors,
+                f"{path}.verifier.acceptance_test_ids",
+                "must contain only TEST-* IDs",
             )
         if isinstance(key_document, dict) and key_document.get("read_only", False) != normalized_verifier.get("read_only", False):
             _add(

@@ -33,6 +33,8 @@ In architecture and stack decisions, state what is shared: API contracts, valida
 
 Define separate iOS, Android and web build/release targets, identifiers, environments, distribution, availability signals and rollback paths. Choose build/distribution tools for the selected stack. For the Expo reference option, EAS Build/Submit/Update and local/other CI remain explicit choices; Expo does not require a paid EAS service. Native-library/config changes require compatible native builds. OTA use records runtime compatibility and applicable store-policy constraints rather than promising every change can ship without review. Expo Go or an HTML preview is not production-native acceptance evidence: require platform builds and per-platform test obligations, plus browser checks for web. These fields belong in existing PRD `TEST-*` rows and architecture testing/release sections, not a second specification.
 
+When the owner selects a whole-platform order, keep the sequence in `platform-delivery/1`. It orders implementation only; it does not merge iOS, Android, showcase, or full-product release evidence. A shared API may be a shared surface, but each user-facing platform still proves its own architecture and Required-Yes tests.
+
 Official references checked 2026-09-24: [Expo development workflow](https://docs.expo.dev/workflow/overview/), [Expo web](https://docs.expo.dev/workflow/web/), and [React Native setup](https://reactnative.dev/docs/environment-setup). Recheck current SDK support and service/store constraints when drafting a product.
 
 ## First Separate the Layers

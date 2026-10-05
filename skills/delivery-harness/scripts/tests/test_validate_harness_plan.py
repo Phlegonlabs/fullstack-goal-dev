@@ -1781,6 +1781,14 @@ Research Gate: go — assessed 2026-09-12, decided by Owner
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self.bind_prd(plan, root, "# Product contract\n")
+            architecture_path = root / "docs/product/architecture.md"
+            architecture_path.write_text("# Architecture\n", encoding="utf-8")
+            next(
+                source for source in plan["sources"]
+                if source["kind"] == "architecture"
+            )["content_sha256"] = hashlib.sha256(
+                architecture_path.read_bytes()
+            ).hexdigest()
             markdown_path = root / "design-system.md"
             registry_path = root / "design-system.json"
             markdown_path.write_text(

@@ -142,6 +142,8 @@ One exception to the plain reading above: a review node's `pass` edge to a deter
 
 Incoming routes are OR-matched: one matching route activates the target. Incoming dependencies are AND-matched: every source must pass. Use several routes into one node only for alternative paths, such as a first review and a repair re-review. When a final gate must wait for several reviewers, route each review's `pass` to its own gate, then join those gates into the final gate with `dependency` edges. Several `pass` routes into one final gate would let it run after the first reviewer passes while another is still pending or returned `fix_required`.
 
+Platform handoffs do not use the review-route exception. In `platform-delivery/1`, connect stage contributors to the completion mission and that completion mission to every next-stage mission with dependency paths. Keep feature-acceptance paths dependency-only so all carrying missions AND into the accepting gate. Routes remain correction and review controls, not platform completion evidence.
+
 A route cycle is valid only when:
 
 - every route edge inside the cycle has `max_traversals`;

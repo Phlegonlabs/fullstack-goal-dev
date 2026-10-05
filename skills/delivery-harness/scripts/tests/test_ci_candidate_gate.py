@@ -200,7 +200,7 @@ class CICandidateGateTests(unittest.TestCase):
         selected = {Path(name).name for name in candidate_files(
             self.repo_root, "harness", "windows", discover_files(self.repo_root, "harness")
         )}
-        self.assertEqual(12, len(selected))
+        self.assertEqual(13, len(selected))
         self.assertEqual(selected, planned)
 
     def test_workflow_launches_a_positive_count_for_every_shard_file(self) -> None:
@@ -314,7 +314,7 @@ class CICandidateGateTests(unittest.TestCase):
         timings = {name: 1.0 for name in selected}
         shards = balance_files(selected, timings, 4)
         planned = [name for shard in shards for name in shard]
-        self.assertEqual(12, len(selected))
+        self.assertEqual(13, len(selected))
         self.assertEqual(sorted(selected), sorted(planned))
         self.assertTrue(all(shards))
 

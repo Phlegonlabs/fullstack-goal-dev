@@ -47,6 +47,8 @@ Split the mission when any answer is yes:
 
 Shared foundations do not justify a catch-all mission. Freeze the smallest shared contract or primitive in its own predecessor mission when needed, then use mission dependencies and serialized-resource claims for the dependent outcome missions. Expected merge conflicts are scheduling facts, not product cohesion.
 
+For `platform-delivery/1`, map each mission that explicitly owns a `UI-*` surface to its `release_surface` stage. Put shared ARCH work in the first stage. Later missions may touch shared ARCH only when their dependencies retain the earlier platform regression.
+
 Keep work together only when splitting would produce an unverifiable or nonfunctional half-state, such as one schema change and its inseparable compatibility adapter. Even then, the mission owns one outcome and its tasks remain separate commit-sized checkpoints. Prefer the smaller cohesive mission when either split would work.
 
 Use a mission split, not merely more tasks, when the resulting units can have their own write scope, focused verifier, exact-head review, and integration result. Use task boundaries only for sequential checkpoints that still form one independently reviewable mission outcome. Do this before readiness; execution-time refinement is recovery for a mistaken estimate, not the normal planning path.

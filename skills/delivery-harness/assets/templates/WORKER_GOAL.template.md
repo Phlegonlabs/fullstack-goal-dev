@@ -36,7 +36,7 @@ Scope:
 
 Acceptance:
 - Objective and stop conditions: <exact values>
-- Verifiers: <selected task and worker verifiers>
+- Verifiers: <selected task/worker verifiers>; platform <stage/completion/TESTs or none>
 - Security requirements: <in-scope PRD-*/TEST-* pairs or none>
 - Commit authorization: <true/false and source>
 

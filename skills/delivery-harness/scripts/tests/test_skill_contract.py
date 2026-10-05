@@ -876,9 +876,10 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("Capability never grants permission", project_agents)
         if REPO_ROOT is not None:
             root_agents = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
-            self.assertIn("permanently protects both `development` and `main`", root_agents)
-            self.assertIn("Never delete either local or remote branch", root_agents)
-            self.assertIn("separate authorization for each target", root_agents)
+            self.assertIn("Protect `main` permanently", root_agents)
+            self.assertIn("no `development` branch or development integration is required", root_agents)
+            self.assertIn("Consumer promotions retain", root_agents)
+            self.assertIn("separate exact target/SHA authorization", root_agents)
             self.assertIn("never force-push", root_agents.casefold())
 
     def test_adding_a_binding_runbook_orders_resource_before_declaration(self) -> None:

@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.61.0-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.62.0-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -19,7 +19,7 @@ La tabla de plantillas del flujo indica cuándo usar cada plantilla existente, i
 
 Las pruebas de CI analizan el YAML completo del workflow fuente y de la plantilla CI del consumidor, incluidas las expresiones multilínea del candidato y la base del diff. Las comprobaciones de texto no demuestran que GitHub pueda cargar el workflow.
 
-El flujo 0.59 mantiene `development` y `main` como ramas protegidas permanentes que no se pueden borrar. Trabaja en ramas aisladas, conserva los commits por tarea, fija un SHA verificado de development para el release y autoriza por separado su promoción a main. Los RUN históricos conservan su significado original. La migración del repositorio se prepara en `codex/harness-flow-modernization`; cambiar reglas locales no demuestra protección remota ni publicación.
+Los proyectos consumidores conservan su política de ramas aprobada. Mantenemos este repositorio de skills para nuestro propio uso. Los cambios usan ramas temporales y PR revisados directamente a main. No requiere una rama development. Los RUN históricos de consumidores conservan sus contratos.
 
 El [flujo paso a paso](docs/WORKFLOW.zh-TW.md) identifica responsables, plantillas existentes y verificaciones de cada etapa aplicable. Una sección admite varios autores frontend/backend aislados después de fijar las interfaces comunes; cada tarea ejecutable conserva su commit atómico. Usa capacidad observada, paquetes acotados, eventos de finalización, revisión al terminar cada misión e integración serial. No elimines verificaciones previas o posteriores como si fueran duplicadas ni declares un planificador continuo de autores que aún no existe.
 
@@ -396,11 +396,17 @@ Actualiza a 0.50.0 con el instalador canónico después de detener las sesiones 
 
 Cada invocación aplica el [contrato de sincronización documental](skills/delivery-harness/references/document-sync-contract.md): revisa cambios en las instrucciones vigentes, la identidad del skill/runtime y los documentos del producto, sin reescribir aprobaciones ni RUN históricos. El PRD actual sigue siendo la base de la próxima mejora; las versiones reemplazadas conservan enlaces de referencia. La [mejora acotada](skills/delivery-harness/references/bounded-enhancement.md) reutiliza un alcance aceptado para reparar, reemplazar módulos dentro de ese alcance y repetir pruebas, sin pedir la misma aprobación. Al agotar el presupuesto, entrega los pendientes a la próxima ronda; terminar una ronda no equivale a PASS ni autoriza publicar.
 
-El [método de bucle acotado](skills/delivery-harness/references/graph-orchestration.md#bounded-loop-method) fija las mediciones y los límites antes del experimento. Conserva resultados rechazados y usa los intentos y resultados existentes. Al despertar, revisa el estado; no concede reintentos, tareas ni programación.
+La [guía Generate, Verify, Correct](skills/delivery-harness/references/gen-verify-correct.md) asigna cada etapa a su autor, verificador y corrector. Empieza con la prueba enfocada más corta útil, amplía por mission, feature, platform e integration, y se detiene con PASS. Un hallazgo read-only vuelve al flujo owner con evidencia expected/actual; la prueba del candidate exacto y los budgets existentes siguen vigentes.
 
 El [contrato de aceptación](skills/delivery-harness/references/delivery-acceptance-contract.md) vincula los TEST obligatorios del PRD con la matriz congelada de escenarios/plataformas y evidencia de la versión exacta. Prepara cuentas sintéticas y datos propios solo en un entorno aislado autorizado. Un login mock no prueba autenticación real; Web, iOS nativo y herramientas de agentes necesitan evidencia propia. Un bypass de login en producción, secretos en fixtures, pruebas obligatorias omitidas, builds obsoletos o bloqueos aplazados nunca cuentan como PASS. Los verificadores comprueban cobertura y evidencia retenida, no la veracidad de una declaración humana u observación externa.
 
 La [política eval](skills/product-definition-builder/references/eval-policy-contract.md) congela rúbrica, población, repeticiones, tasa mínima, slices, reglas críticas y entradas del juez en el PRD aprobado. El bloque obligatorio `json` mantiene todos los campos visibles durante la revisión. Los saltos y las líneas en blanco del prefijo deben seguir las reglas de Markdown. Las rutas de entradas aprobadas se conservan durante staging y publicación; las versiones anteriores se retienen. La aprobación y publicación de paquetes nuevos usan `--repo-root <root> --eval-policy eval-policy/1` para verificar los bytes aprobados; los ordinarios justifican la exención. Todos los TEST funcionales obligatorios siguen pasando. Los paquetes antiguos sin marcador conservan sus controles; cualquier marcador presente se valida.
+
+La nueva autoría con un orden whole-platform elegido por el owner añade `--platform-delivery platform-delivery/1`. El checker lee la secuencia active de architecture, el inventario exacto de release, las filas ARCH compartidas de API/interface, la decisión humana y los TEST Required-Yes del PRD; solo el estado approved es ejecutable. Los casos draft, duplicate, hidden, malformed, omitted o shared-label bypass fallan. Las secciones legacy ausentes siguen siendo legibles.
+
+Harness une ese contrato a PLAN v6. El orden de architecture define la secuencia de stages; cada owner UI explícito se mapea una vez por release surface, el ARCH compartido empieza primero, y las dependencies pass-only llegan al completion mission y a la siguiente platform. La integration y los final gates fresh cubren los TEST de platform; un integration PASS retained es solo handoff histórico. Los PLAN sin marcador siguen siendo legacy.
+
+En un flujo marcado, cada trace `PRD-*` planned y must nombra acceptance gates fresh. Sus TEST provienen de obligations Required-Yes canónicas del PRD y pueden añadir regressions required adicionales; los PLAN legacy sin marcador siguen siendo opcionales.
 
 El [contrato de aceptación eval](skills/delivery-harness/references/eval-acceptance-contract.md) deriva la ejecución de esa política y recalcula cada trial previsto. Los fallos de calidad siguen en el denominador; los resultados prohibidos o críticos bloquean la aceptación. Dos informes completos retienen salidas, observaciones del juez/herramientas, identidad, tiempos y uso; el de entrega repite la ejecución desde un checkout limpio.
 
@@ -695,7 +701,7 @@ Cada flujo que aterriza en `main` es un release, y el bump de versión va en el 
 3. El default de `required_harness_version` del RUNBOOK en `skills/delivery-harness/assets/templates/MISSION_RUNBOOK.template.md`.
 4. Sin literales de test: `skills/delivery-harness/scripts/tests/test_skill_contract.py` lee `VERSION` y falla si cualquier superficie anterior no coincide.
 
-Luego ejecuta la verificación completa de arriba, revisa el diff entero y aterriza mediante `branch-promotion-contract.md`. Usa un PR cuando la protección del repositorio lo exija. Si el proveedor crea un SHA nuevo en main, exige igualdad de tree con el candidate verificado y repite inmediatamente la suite completa y la revisión de seguridad sobre ese exact main SHA antes de etiquetar o declarar completo el release. Después de aterrizar, etiqueta el commit de release en `main` con el tag `v<version>` correspondiente (por ejemplo `v0.30.0`); el tag es parte del release, no un extra opcional. Cada versión publicada tiene su tag — `git tag` y `package.json` deben contar la misma historia.
+Luego ejecuta la verificación completa de arriba, revisa el diff entero y lleva este candidato de fuentes directamente a `main` mediante un PR revisado. Los consumidores mantienen `branch-promotion-contract.md`. Usa un PR cuando la protección del repositorio lo exija. Si el proveedor crea un SHA nuevo en main, exige igualdad de tree con el candidate verificado y repite inmediatamente la suite completa y la revisión de seguridad sobre ese exact main SHA antes de etiquetar o declarar completo el release. Después de aterrizar, etiqueta el commit de release en `main` con el tag `v<version>` correspondiente (por ejemplo `v0.30.0`); el tag es parte del release, no un extra opcional. Cada versión publicada tiene su tag — `git tag` y `package.json` deben contar la misma historia.
 
 ## Seguridad y protección de datos
 
@@ -709,6 +715,8 @@ Luego ejecuta la verificación completa de arriba, revisa el diff entero y aterr
 Este repositorio está bajo la Licencia MIT — ver [LICENSE](LICENSE).
 
 ## Historial de versiones
+
+- **0.62.0** — Aplica Generate, Verify, Correct en siete skills. Los contratos adoptados comprueban el orden aprobado de Web/iOS, cobertura TEST y aceptación de features. Conserva paquetes anteriores y permisos explícitos. Mantiene este repositorio del propietario mediante PR revisados directamente a main.
 
 - **0.61.0** — Exige enlaces individuales al paquete completo de Product Definition y UI en el chat. Añade reglas básicas de redacción STE, métodos de arquitectura centrados en el llamador y el estado, y experimentos con límites finitos. Añade skills independientes para README y empaquetado por runtime, fuera del paquete de siete skills. Conserva aprobaciones y permisos; la ejecución remota sigue pendiente.
 

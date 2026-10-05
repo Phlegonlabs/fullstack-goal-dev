@@ -19,6 +19,8 @@ Turn a delivered build into an operationally ready product. Work from the exact 
 
 This skill owns `docs/ACTIVATION.md`. It does not own product requirements, implementation, PLAN/RUN state, deployment, or the later outcome verdict.
 
+Apply [Generate, Verify And Correct](../delivery-harness/references/gen-verify-correct.md) at activation checkpoints. Verify the exact release identity, route contract or code gaps to their owners, and perform external writes only under existing exact grants.
+
 At readiness and measurement handoff, apply `../product-definition-builder/references/prd-refinement.md`: send evidenced operational, recovery or measurement gaps with affected PRD/TEST/release-target IDs to the product owner flow. Preserve actual observations and required targets; missing evidence never justifies lowering a target or silently changing the PRD.
 
 ## Required Inputs

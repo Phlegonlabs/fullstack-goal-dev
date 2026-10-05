@@ -117,7 +117,7 @@ def _separator(cells: tuple[str, ...]) -> bool:
     return bool(cells) and all(re.fullmatch(r":?-{3,}:?", cell) for cell in cells)
 
 
-def _parse_required_prd_tests(raw: bytes) -> tuple[set[str], set[str], list[str]]:
+def _prd_test_rows(raw: bytes) -> tuple[list[tuple[str, ...]], list[str]]:
     try:
         text = raw.decode("utf-8")
     except UnicodeError as exc:
@@ -127,7 +127,7 @@ def _parse_required_prd_tests(raw: bytes) -> tuple[set[str], set[str], list[str]
     headings = list(re.finditer(r"^## Test Obligations\s*$", active, re.MULTILINE))
     errors: list[str] = []
     if len(headings) != 1:
-        return set(), set(), ["PRD requires exactly one Test Obligations section"]
+        return [], ["PRD requires exactly one Test Obligations section"]
 
     section = re.split(r"^## ", active[headings[0].end():], maxsplit=1, flags=re.MULTILINE)[0]
     lines = section.splitlines()
@@ -138,12 +138,12 @@ def _parse_required_prd_tests(raw: bytes) -> tuple[set[str], set[str], list[str]
         and tuple(cell.casefold() for cell in cells) == TABLE_HEADER
     ]
     if len(headers) != 1:
-        return set(), set(), ["PRD Test Obligations requires exactly one canonical table"]
+        return [], ["PRD Test Obligations requires exactly one canonical table"]
 
     start = headers[0] + 1
     separator = _table_cells(lines[start]) if start < len(lines) else None
     if separator is None or not _separator(separator) or len(separator) != len(TABLE_HEADER):
-        return set(), set(), ["PRD Test Obligations separator row is malformed"]
+        return [], ["PRD Test Obligations separator row is malformed"]
 
     rows: list[tuple[str, ...]] = []
     index = start + 1
@@ -157,6 +157,27 @@ def _parse_required_prd_tests(raw: bytes) -> tuple[set[str], set[str], list[str]
         rows.append(cells)
         index += 1
 
+    return rows, errors
+
+
+def parse_required_prd_test_authority(raw: bytes) -> dict[str, set[str]]:
+    """Return Required-Yes TEST IDs grouped by their canonical PRD upstream."""
+
+    rows, errors = _prd_test_rows(raw)
+    if errors:
+        raise AcceptanceError("; ".join(errors))
+    authority: dict[str, set[str]] = {}
+    for row in rows:
+        if len(row) != len(TABLE_HEADER) or row[3].casefold() != "yes":
+            continue
+        test_id = row[0].upper()
+        for match in re.finditer(r"\bPRD-[A-Z0-9-]+\b", row[4], re.IGNORECASE):
+            authority.setdefault(match.group(0).upper(), set()).add(test_id)
+    return authority
+
+
+def _parse_required_prd_tests(raw: bytes) -> tuple[set[str], set[str], list[str]]:
+    rows, errors = _prd_test_rows(raw)
     all_ids: set[str] = set()
     required: set[str] = set()
     for number, row in enumerate(rows, start=1):

@@ -12,6 +12,7 @@ from collections import Counter
 from pathlib import Path
 
 from markdown_contract import active_text, active_machine_block
+from platform_delivery import parse_platform_delivery, PROTOCOL
 from prd_operations import required_operations
 from prd_ui_contract import parse_prd_ui_contract
 from release_targets import parse_release_targets
@@ -1535,6 +1536,7 @@ def validate_texts(
     repo_root: Path | None = None,
     ui_contract: str | None = None,
     eval_policy: str | None = None,
+    platform_delivery: str | None = None,
 ) -> list[str]:
     """Validate already-decoded core product-package texts."""
 
@@ -1546,6 +1548,8 @@ def validate_texts(
 
     if eval_policy not in (None, "eval-policy/1"):
         raise ValueError("unsupported --eval-policy value")
+    if platform_delivery is not None and platform_delivery != PROTOCOL:
+        raise ValueError("unsupported --platform-delivery value")
     problems: list[str] = validate_eval_policy(
         prd_text, required=eval_policy is not None, repo_root=repo_root,
     )
@@ -1610,6 +1614,22 @@ def validate_texts(
     )
     release_contract, _release_findings = parse_release_targets(architecture_text)
     required_stack_areas.update(release_area_requirements(release_contract.targets))
+    platform_contract, platform_findings = parse_platform_delivery(
+        architecture_text,
+        prd_text,
+        require=platform_delivery is not None,
+    )
+    problems.extend(platform_findings)
+    if (
+        require_approved
+        and platform_contract is not None
+        and platform_contract.decision_status != "approved"
+    ):
+        _add(
+            problems,
+            "architecture",
+            "platform delivery Decision status must be approved for implementation",
+        )
     capture_mode_by_class = {
         "hosted_web": "hosted-browser",
         "browser_extension": "browser-extension",
@@ -3347,6 +3367,7 @@ def validate(
     repo_root: Path | None = None,
     ui_contract: str | None = None,
     eval_policy: str | None = None,
+    platform_delivery: str | None = None,
 ) -> list[str]:
     """Read and validate the three canonical core package files."""
 
@@ -3369,6 +3390,7 @@ def validate(
         repo_root=repo_root,
         ui_contract=ui_contract,
         eval_policy=eval_policy,
+        platform_delivery=platform_delivery,
     )
 
 
@@ -3386,6 +3408,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument("--repo-root", type=Path)
     parser.add_argument("--eval-policy", choices=("eval-policy/1",))
+    parser.add_argument(
+        "--platform-delivery",
+        choices=(PROTOCOL,),
+        help="require the opt-in platform-delivery/1 architecture contract",
+    )
     return parser.parse_args(argv)
 
 
@@ -3400,6 +3427,7 @@ def main(argv: list[str] | None = None) -> int:
         repo_root=args.repo_root,
         ui_contract=args.ui_contract,
         eval_policy=args.eval_policy,
+        platform_delivery=args.platform_delivery,
     )
     if problems:
         for problem in problems:

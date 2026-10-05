@@ -237,6 +237,16 @@
 
 上述步驟按適用性執行。沒有產品的技能原始碼維護不跑 consumer 訪談、Visual Approval 或真實 Activation；仍要跑會驗證這些能力的 source tests。所有 skipped／不適用／blocked 都要有實際理由。
 
+## Generate、Verify、Correct
+
+Product、UI、Design System、task／mission、feature、platform handoff 與 integrated candidate 都用[共用 stage-loop 指引](../skills/delivery-harness/references/gen-verify-correct.md)。先用最短有效 focused check，到 mission、feature、platform handoff 或 integration 才擴大；PASS 就停止。
+
+每個 stage 的 author/corrector 是 Product author、bound frontend author、compiler author、assigned writer 或 owning platform mission；verifier 是既有 checker、independent review 或 owner decision。Reviewer 只回報具體 expected／actual／evidence，不變成 author、remediator 或外部 target 的 mutator。
+
+PASS 綁精確 candidate SHA 與輸入；受影響輸入變更會讓相關證據失效。沿用既有 attempt／time budget 與 gate，成功後不要求最低迭代數，也不因失敗放寬閘門或宣稱零 bug。
+
+平台手上的 retained integration PASS 只是歷史 handoff；平台目前健康要用 unified candidate SHA 重新回歸。Human decisions 保持 human，review 或 capability 都不授權外部動作。
+
 ## 現有模板怎樣進入流程
 
 使用目前 installed skill 的適用模板；已有文件先合併／更新，不為使用模板而重建。下列路徑皆在對應 skill 的 `assets/templates/`。

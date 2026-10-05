@@ -505,7 +505,7 @@ def _validate_verifier(
     execution_required: bool = True,
 ) -> None:
     required = {"id", "cwd", "argv", "pass_signal"}
-    optional = {"selection", "cache", "read_only"}
+    optional = {"acceptance_test_ids", "selection", "cache", "read_only"}
     if execution_required:
         required.add("execution")
     else:
@@ -516,6 +516,15 @@ def _validate_verifier(
         if not _nonempty_string(value[key]):
             _add(errors, f"{path}.{key}", "must be a non-empty string")
     _strings(errors, f"{path}.argv", value["argv"], nonempty=True)
+    acceptance_test_ids = _strings(
+        errors, f"{path}.acceptance_test_ids", value.get("acceptance_test_ids", [])
+    )
+    if "acceptance_test_ids" in value and (
+        value["acceptance_test_ids"] is None or not acceptance_test_ids
+    ):
+        _add(errors, f"{path}.acceptance_test_ids", "must be a nonempty TEST-* list")
+    if any(not item.startswith("TEST-") for item in acceptance_test_ids):
+        _add(errors, f"{path}.acceptance_test_ids", "must contain only TEST-* IDs")
     if "read_only" in value and not isinstance(value["read_only"], bool):
         _add(errors, f"{path}.read_only", "must be boolean")
 

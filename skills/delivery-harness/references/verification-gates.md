@@ -68,6 +68,12 @@ Mission integration gate:
 - When missions meet at a security boundary, integration checks cover the seam — enforcement, cross-mission trust/data flow, and failure/no-side-effect behavior — rather than repeating only per-task unit checks.
 - Is the only gate that may transition a mission to `integrated` after the parent confirms the integrated SHA is reachable from the current integration head.
 
+Platform handoff gate:
+
+- Applies to a `platform-delivery/1` completion mission. Its selected integration verifiers run fresh, disable reuse, and annotate every upstream platform TEST ID.
+- Retains the exact `mission_integration` PASS at that mission's `integrated_sha`. This retained PASS starts the next platform; `worker_passed`, a route, or a batch gate does not.
+- Treats a later candidate as new proof. Rerun its integration, shared regressions, and final gates at the new exact SHA.
+
 Batch integration gate:
 
 - Runs the PLAN-level `batch_verifiers` after every selected wave has integrated serially.
@@ -88,6 +94,7 @@ Fresh integration review gate:
 Final/current-head gate:
 
 - Runs the one planned broad regression, browser E2E, and visual/UI validation suite only after fresh integration review and repair loops converge.
+- Covers every `platform-delivery/1` TEST ID. Extra required shared-regression tests are allowed. Every annotated feature gate runs fresh on the exact integration head.
 - Binds every PASS to the exact integration head. Any later code or configuration change invalidates the affected proof.
 - Focused task, worker, and integration checks are not this broad suite. Plan the suite as cross-cutting checks that only the whole candidate can answer — build, browser E2E, migration, UI evidence — rather than a rerun of every focused suite already green on the same code. A gate that only re-executes a mission's own unit tests on an unchanged tree is repeated work; either give it changed-file selection against the plan write union, or drop it and rely on the task and worker gates that already covered it.
 - If the broad suite fails or a repair changes the candidate, establish and review a new candidate before rerunning it; do not claim an exactly-once history when the candidate changed.

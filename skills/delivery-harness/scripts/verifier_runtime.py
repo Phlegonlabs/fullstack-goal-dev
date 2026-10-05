@@ -1273,6 +1273,23 @@ def _validated_inputs(
     read_only = verifier.get("read_only", False)
     if not isinstance(read_only, bool):
         raise VerifierRuntimeError("verifier.read_only must be boolean")
+    if "acceptance_test_ids" in verifier:
+        raw_acceptance_test_ids = verifier["acceptance_test_ids"]
+        if (
+            not isinstance(raw_acceptance_test_ids, list)
+            or not raw_acceptance_test_ids
+            or any(
+                not isinstance(item, str) or not item.startswith("TEST-")
+                for item in raw_acceptance_test_ids
+            )
+            or len(raw_acceptance_test_ids) != len(set(raw_acceptance_test_ids))
+        ):
+            raise VerifierRuntimeError(
+                "verifier.acceptance_test_ids must be a nonempty unique TEST-* string array"
+            )
+        acceptance_test_ids = sorted(raw_acceptance_test_ids)
+    else:
+        acceptance_test_ids = None
 
     cache = verifier.get("cache")
     if cache is None:
@@ -1311,6 +1328,8 @@ def _validated_inputs(
     }
     if "read_only" in verifier:
         normalized_verifier["read_only"] = read_only
+    if acceptance_test_ids is not None:
+        normalized_verifier["acceptance_test_ids"] = acceptance_test_ids
     normalized_verifier["execution"] = execution
     normalized_context = {**context, "changed_files": changed_files}
     return cwd, argv, normalized_verifier, {
