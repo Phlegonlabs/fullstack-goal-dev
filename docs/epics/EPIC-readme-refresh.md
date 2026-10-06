@@ -41,7 +41,8 @@ Branch deletion, worktree removal and unrelated changes remain outside this task
 ## Document Impact
 
 The write scope covers four root READMEs, three `assets/readme-cover-*.png` files, this Epic and `docs/DOCUMENTS.md`.
-Canonical skills, installers, version surfaces and historical records remain outside the requested change.
+The main publication requires version metadata and the RUNBOOK default to advance to `0.62.2`.
+Skill behavior, installers and historical records remain unchanged.
 PNG source assets stay tracked.
 Logs, previews, prompts and temporary dependencies stay outside the checkout; no new ignore pattern is needed.
 
@@ -55,8 +56,13 @@ Logs, previews, prompts and temporary dependencies stay outside the checkout; no
 | 2026-10-05 asset checkpoint | Working-tree covers copied to their three existing paths. PNG SHA-256: English `d1f2f794c83e4b396870cf4fb362298414466c898f59f41fd435dcfa4959abe8`; Traditional Chinese `72ab665ed5869c589de429ae73810db7f816cff757819cf0e9b0014a6e6d37ad`; Simplified Chinese `3c49f1c2a841344c71b1f8db5a535f871e7858ca811c030f0d6ab787d1119090` | All decode at 1774×887. Existing references resolve. Twelve matching captures are in `preview-covers.json`; recorded task processes exited. Whitespace and tracked-asset checks passed. Atomic commit awaits exact branch confirmation. |
 | 2026-10-05 interim handoff | HEAD unchanged at the detached baseline; three modified PNGs, modified index document and one new Epic; no staged files | Installed and source template `0.62.1` share SHA-256 `feed8dcc70b3691d9822a1b05641d4502dae452fd1926954f09db3fc78fff62f`. Shared rules are current by meaning. The source repository retains its documented Git Flow, Required Reading and stage-slot/deployment exceptions. README text remains unchanged. Local `main` is stale at `bdae1d82`; current HEAD carries local tag `v0.62.1`. No fetch or publication ran. |
 | 2026-10-06 publication request and branch | Owner: `ccommit and push and merge all`; remote `main` read through GitHub is exactly the entry baseline | Created `codex/readme-refresh` from that released baseline. Only the recorded covers/Epic/index are dirty. Image decoding, existing references and whitespace checks passed before the first atomic commit. |
+| 2026-10-06 cover commit | `33956400f59928540df3996ea2a05795aa8f5d6f`, `docs(readme): refresh multilingual cover illustrations` | Three PNGs and their required record committed. GitHub before captures are checkout-external: `github-before-wide.png` and `github-before-narrow.png`. |
+| 2026-10-06 README authoring and correction | Working-tree four-language purpose, installation and navigation move ahead of operating detail; 16 disclosures per locale | Claude Opus 5.5 author timed out during self-check. Its process exited. Read-only closeout found an installation-order defect; bounded author repair passed in session `d936a89d-5ad7-402c-b26c-7463615c5ef4`. Launcher requested `high`; provider effort is unobserved. No fallback used. |
+| 2026-10-06 content checkpoint | `work/readme-content-r4.json` under the external evidence root below binds all four raw file hashes | All 103 old version entries, original headings and 21 code fences per locale retained. Spanish's stale Pi-only prompt now matches the generic-host contract. Installer prerequisite prose is split around the unchanged commands; Spanish alt text is localized. No new missing local link. Whitespace and 60 skill-contract tests passed against these working-tree bytes. Independent review and renderer verification remain pending. |
 
 ## Results And Remaining Work
 
 Generated covers now occupy the current README asset paths.
-README authoring, candidate verification, independent review and the approved publication remain pending.
+Four-language authoring and focused source checks are complete.
+Version metadata, full candidate verification, independent review and approved publication remain pending.
+Evidence root: `C:/Users/mps19/.codex/visualizations/2026/10/06/01a10fde-1ee1-7283-9ab3-b8cd44745537/`.
