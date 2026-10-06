@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.62.1-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.62.2-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -804,6 +804,8 @@ Este repositorio está bajo la Licencia MIT — ver [LICENSE](LICENSE).
 ## Historial de versiones
 
 Actualiza esta sección con cada release, como parte del bump de versión y el tag descritos en Releasing arriba.
+
+- **0.62.2** — Coloca propósito, instalación y navegación al principio de los cuatro READMEs. Renueva las tres portadas generadas. Conserva contratos e historial en secciones desplegables. Corrige el prompt español para hosts genéricos y el orden de los comandos de instalación.
 
 <details>
 <summary><b>Historial de versiones desde 0.62.1 hasta 0.2.0</b></summary>

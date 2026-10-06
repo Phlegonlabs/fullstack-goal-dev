@@ -1,6 +1,6 @@
 # README Refresh
 
-Status: in_progress
+Status: source_complete; release outcome recorded in the linked receipt
 Route: bounded direct documentation maintenance
 Product UI impact: none; README presentation changes
 
@@ -59,10 +59,15 @@ Logs, previews, prompts and temporary dependencies stay outside the checkout; no
 | 2026-10-06 cover commit | `33956400f59928540df3996ea2a05795aa8f5d6f`, `docs(readme): refresh multilingual cover illustrations` | Three PNGs and their required record committed. GitHub before captures are checkout-external: `github-before-wide.png` and `github-before-narrow.png`. |
 | 2026-10-06 README authoring and correction | Working-tree four-language purpose, installation and navigation move ahead of operating detail; 16 disclosures per locale | Claude Opus 5.5 author timed out during self-check. Its process exited. Read-only closeout found an installation-order defect; bounded author repair passed in session `d936a89d-5ad7-402c-b26c-7463615c5ef4`. Launcher requested `high`; provider effort is unobserved. No fallback used. |
 | 2026-10-06 content checkpoint | `work/readme-content-r4.json` under the external evidence root below binds all four raw file hashes | All 103 old version entries, original headings and 21 code fences per locale retained. Spanish's stale Pi-only prompt now matches the generic-host contract. Installer prerequisite prose is split around the unchanged commands; Spanish alt text is localized. No new missing local link. Whitespace and 60 skill-contract tests passed against these working-tree bytes. Independent review and renderer verification remain pending. |
+| 2026-10-06 README commit | `82bf696d0f6a9f7bdaf2e6743d4ff9cd8512ff0d`, `docs(readme): put purpose and installation before operating detail` | Clean checkpoint after the authoring commit. No unrelated changes observed. |
+| 2026-10-06 release preparation | Version `0.62.2` in package metadata, copied-skill VERSION, four badges/history entries and RUNBOOK default | All 60 version/skill contracts and whitespace checks passed on the prepared working tree. This changes no dependency or workflow behavior. Existing history is retained. Candidate/main tests, independent review, GitHub rendering, PR, tag and installation are recorded in the checkout-external release receipt below. |
 
 ## Results And Remaining Work
 
 Generated covers now occupy the current README asset paths.
 Four-language authoring and focused source checks are complete.
-Version metadata, full candidate verification, independent review and approved publication remain pending.
+Version metadata is synchronized for `0.62.2`.
+The [release receipt](C:/Users/mps19/.codex/visualizations/2026/10/06/01a10fde-1ee1-7283-9ab3-b8cd44745537/release-result.md) records exact candidate and main SHAs, verification, publication and remaining work.
+Shared AGENTS rules match the observed installed `0.62.1` template by meaning; its SHA-256 is recorded above.
+The VERSION/RUNBOOK update does not change that template. Loaded skill identity remains unknown.
 Evidence root: `C:/Users/mps19/.codex/visualizations/2026/10/06/01a10fde-1ee1-7283-9ab3-b8cd44745537/`.
