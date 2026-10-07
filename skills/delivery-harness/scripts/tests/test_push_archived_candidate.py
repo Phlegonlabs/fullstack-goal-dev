@@ -80,13 +80,22 @@ class ArchiveFirstPushTests(unittest.TestCase):
         for patcher in self._patchers:
             patcher.stop()
 
+    def test_fixture_cleans_external_remote(self) -> None:
+        fixture = self._fixture()
+        remote = Path(fixture["remote"])
+        self.assertTrue(remote.is_dir())
+        self.tearDown()
+        self.assertFalse(remote.exists())
+
     def _fixture(self, *, dual_branch: bool = False) -> dict[str, Path | str]:
         """Create one real archive A with a bare remote and closed receipt."""
         from manifest_fixtures import git as fixture_git, manifest_markdown, mark_complete, valid_plan, valid_run
         holder = tempfile.TemporaryDirectory()
         self._temps.append(holder)
         root = Path(holder.name)
-        remote = root.parent / f"archive-remote-{root.name}.git"
+        remote_holder = tempfile.TemporaryDirectory(prefix="archive-remote-")
+        self._temps.append(remote_holder)
+        remote = Path(remote_holder.name) / "remote.git"
         subprocess.run(["git", "init", "--bare", "-q", str(remote)], check=True)
         root.mkdir(exist_ok=True)
         product = root / "docs/product"
