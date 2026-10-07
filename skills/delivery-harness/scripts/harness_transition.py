@@ -5493,7 +5493,7 @@ def _transition_under_lock(
         if getattr(args, "diff_artifact_out", None) and args.diff_artifact_out.resolve() == args.packet_out.resolve():
             raise ManifestError("packet and full diff artifact require distinct output paths")
         packet = render_packet(plan, run, args.node_id, args.repo_root,
-                               max_diff_bytes=getattr(args, "max_diff_bytes", 50000),
+                               max_diff_bytes=diff_budget if diff_budget is not None else 50000,
                                max_message_bytes=message_budget,
                                diff_artifact_out=getattr(args, "diff_artifact_out", None),
                                artifacts=diff_artifacts)

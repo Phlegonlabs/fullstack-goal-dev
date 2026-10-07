@@ -456,6 +456,59 @@ class TransitionBudgetTests(unittest.TestCase):
             self.assertGreater(artifact_path.stat().st_size, 1)
             self.assertNotEqual(before, self.run_path.read_bytes())
 
+    def _reserve_packet_with_omitted_diff_budget(
+        self,
+        budget_arguments: list[str],
+    ) -> str:
+        """Run the CLI without --max-diff-bytes and return its packet."""
+        before = self.run_path.read_bytes()
+        directive = {
+            "node_id": "N-REVIEW-M1",
+            "launch_kind": "spawn_subagent",
+            "required_actions": [],
+            "runtime_binding": {},
+            "worker_runtime": "subagent",
+            "completion_channel": "agent_result",
+            "workspace_mode": "shared_checkout",
+        }
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(
+                0, harness_transition.main([*self.base_arguments, "acquire-run-lock"])
+            )
+        with tempfile.TemporaryDirectory() as output_temp:
+            packet_path = Path(output_temp) / "packet.md"
+            with patch.object(
+                harness_transition,
+                "_reserve_review_dispatch",
+                return_value={"dispatch_receipt": {"node_id": "N-REVIEW-M1"}},
+            ), patch.object(
+                harness_transition,
+                "select_ready_nodes",
+                return_value={"dispatchable_nodes": [directive], "deferred_nodes": []},
+            ), contextlib.redirect_stdout(io.StringIO()):
+                code = harness_transition.main(self._reserve_arguments(
+                    "--packet-out", str(packet_path), *budget_arguments
+                ))
+            self.assertEqual(0, code)
+            self.assertTrue(packet_path.is_file())
+            packet = packet_path.read_text(encoding="utf-8")
+        self.assertNotEqual(before, self.run_path.read_bytes())
+        return packet
+
+    def test_packet_reserves_with_all_budget_flags_omitted(self) -> None:
+        packet = self._reserve_packet_with_omitted_diff_budget([])
+        self.assertIn("# Review packet: N-REVIEW-M1", packet)
+        self.assertIn("## Diff", packet)
+        self.assertNotIn("## Diff (truncated)", packet)
+
+    def test_packet_reserves_with_only_message_budget(self) -> None:
+        packet = self._reserve_packet_with_omitted_diff_budget(
+            ["--max-message-bytes", "100000"]
+        )
+        self.assertIn("# Review packet: N-REVIEW-M1", packet)
+        self.assertIn("## Diff", packet)
+        self.assertNotIn("## Diff (truncated)", packet)
+
 
 if __name__ == "__main__":
     unittest.main()
