@@ -109,6 +109,11 @@ class ReferenceLibraryTests(unittest.TestCase):
                 selection_pointer = "../delivery-harness/references/reference-selection.md"
                 library_pointer = "../delivery-harness/references/option-library/"
                 pointer_root = ROOT / "skills/product-definition-builder"
+            elif name == "ui-design-builder":
+                path = ROOT / "skills" / name / "references/stages/ui-design.md"
+                selection_pointer = "../delivery-harness/references/reference-selection.md"
+                library_pointer = "../delivery-harness/references/option-library/"
+                pointer_root = ROOT / "skills/ui-design-builder"
             else:
                 path = ROOT / "skills" / name / "SKILL.md"
             text = path.read_text(encoding="utf-8")
@@ -142,7 +147,7 @@ class ReferenceLibraryTests(unittest.TestCase):
         ):
             self.assertIn(phrase, product)
 
-        ui = (ROOT / "skills/ui-design-builder/SKILL.md").read_text(encoding="utf-8")
+        ui = (ROOT / "skills/ui-design-builder/references/stages/ui-design.md").read_text(encoding="utf-8")
         for phrase in (
             "before direction work",
             "An unresolved CSS framework, component library, icon package/dependency, or stack selection returns to `product-definition-builder` before dependent direction work",

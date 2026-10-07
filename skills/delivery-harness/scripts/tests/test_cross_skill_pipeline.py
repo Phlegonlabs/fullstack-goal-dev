@@ -125,7 +125,7 @@ class CrossSkillPipelineTests(unittest.TestCase):
             "worker": self.read(
                 "delivery-harness/assets/templates/WORKER_GOAL.template.md"
             ),
-            "ui": self.read("ui-design-builder/SKILL.md"),
+            "ui": self.read("ui-design-builder/references/stages/ui-design.md"),
         }
 
         for name, document in documents.items():
@@ -257,7 +257,7 @@ class CrossSkillPipelineTests(unittest.TestCase):
 
     def test_downstream_skills_always_run_the_full_product_gate_with_repo_root(self) -> None:
         sources = {
-            "ui design": self.read("ui-design-builder/SKILL.md"),
+            "ui design": self.read("ui-design-builder/references/stages/ui-design.md"),
             "wireframes": self.read("ui-design-builder/references/wireframe-guide.md"),
             "design system": self.read("design-system-compiler/SKILL.md"),
             "activation": self.read("product-activation/SKILL.md"),
@@ -282,13 +282,15 @@ class CrossSkillPipelineTests(unittest.TestCase):
         )
 
     def test_ui_entry_selects_new_and_retained_contracts_consistently(self) -> None:
-        source = self.read("ui-design-builder/SKILL.md")
-        lifecycle = source.split("## Design Lifecycle", 1)[1].split("## Workflow", 1)[0]
+        entry = self.read("ui-design-builder/SKILL.md")
+        stage = self.read("ui-design-builder/references/stages/ui-design.md")
+        lifecycle = entry.split("## Design Lifecycle", 1)[1].split("## Stage Routing", 1)[0]
         self.assertIn("New initial design and explicit full redesign use `ui-design/3`", lifecycle)
         self.assertIn("retained `ui-design/2` packages keep their original sequence", lifecycle)
-        self.assertNotIn("exact `--ui-contract ui-design/2` product preflight", source)
+        self.assertNotIn("exact `--ui-contract ui-design/2` product preflight", entry)
         self.assertIn("Routine maintenance edits the actual product", lifecycle)
-        self.assertIn("retain every unaffected product screen", source)
+        self.assertIn("retain every unaffected product screen", stage)
+        self.assertIn("Enhancements author only added or changed pages", entry)
 
     def test_repository_design_images_require_recorded_confirmation(self) -> None:
         references = self.read("ui-design-builder/references/design-reference-guide.md")

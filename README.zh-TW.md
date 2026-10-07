@@ -74,7 +74,7 @@ Managed 本機 build／test 預設使用專案工具鏈，不需要 Docker 或 P
 
 1. 安裝一個受支援的 host 與七個 skills。Installer 會鎖住目的地、備份 managed IDs、只複製 Git-tracked files，並逐 byte 驗證；完成後重啟 host。
 2. 先用 `product-definition-builder` 完成 research-first evidence、candidate drafting/reconciliation、明確 recommendation choices、accepted 變更、coherent stack、typed release targets、tests、Stack Decision Checkpoint 與人工 Product Definition Approval。入口保留 ownership 與 approvals；撰寫、自查、preflight 與 domain routing 走必要的 stage reads。
-3. UI 先以 `--ui-contract ui-design/3` 跑 Product Definition 預檢，再進行 intake、三個可渲染方向研究及作者自查、owner 選擇及完整 HiFi。Impeccable／H1–H9 前先驗 HiFi 完整性，最後一次人工 Visual Approval。
+3. UI 先以 `--ui-contract ui-design/3` 跑 Product Definition 預檢，再進行 intake、三個可渲染方向研究及作者自查、owner 選擇及完整 HiFi。Impeccable／H1–H9 前先驗 HiFi 完整性，最後一次人工 Visual Approval。入口保留 ownership 與 approvals；撰寫、自查、preflight 與 domain routing 走必要的 stage reads。
 4. 從已核准來源編譯 `design-system/4` Markdown／JSON pair 及其衍生 HTML，再通過最終 UI 驗證。0.59 RUN 只有在通過驗證且凍結的 maintenance record 支持下才可保留 `ui-design/2`；enhancement 要編譯現行包。保留的 pair 只在 Need Gate 為 `required` 時編譯 schema-3；`not_required` 時記錄既有 pair 處置並綁定 HiFi 替代契約。
 5. 再呼叫 `delivery-harness`。Size gate 讓單一小改動維持 direct，且不載入 managed stage file；大型工作依 [mandatory stage routes](skills/delivery-harness/references/stages/managed-delivery.md) 建立 PLAN-v6/RUN-v11。每個會改狀態的動作都要精確授權。
 6. Managed launch 前先通過 frozen source joins，並執行 `python "<delivery-harness-skill-root>/scripts/harness_transition.py" --plan docs/goal/PLAN.md --run docs/goal/RUN.md --repo-root <absolute-root> record-observation`；`--probe-sandboxes` 只作診斷。Mission 使用隔離 worktree；candidate commands 預設在本機執行，明確選用容器時保留固定映像與隔離檢查。
@@ -224,7 +224,7 @@ Use delivery-harness on this host to execute this plan. Observe native capabilit
 | 技能 | 適用情境 | 主要產出 |
 | --- | --- | --- |
 | `product-definition-builder` | Discovery、research、security requirements、可量測產品/UI 行為、完整 frontend/backend 架構、coherent stack、release targets、tests 與 Product Definition Approval | 已核准的 `PRD.md`、`architecture.md`、`stack-decisions.md` 與研究產物 |
-| `ui-design-builder` | PRD 預檢、intake、預設三方向、完整 HiFi、完整性檢查、Impeccable／H1–H9、Visual Approval 與 Design System Need Gate | `docs/design/ui-design.md`、方向研究及已核准完整 HiFi 包 |
+| `ui-design-builder` | PRD 預檢、intake、預設三方向、完整 HiFi、完整性檢查、Impeccable／H1–H9、Visual Approval 與 Design System Need Gate；必要的 stage reads 管撰寫與 routing 細節 | `docs/design/ui-design.md`、方向研究及已核准完整 HiFi 包 |
 | `design-system-compiler` | Visual Approval 後按需把已核准 `ui-design.md` target 編譯成凍結 design-system pair，並產生來源綁定的 HTML specimen book | `docs/design/design-system.md`、`docs/design/design-system.json`、`docs/design/design-system-preview.html` |
 | `delivery-harness` | 共用的規模判定與 security task gate、PLAN/RUN、授權、本機驗證與整合，外加 runtime adapter 參考文件（`references/runtime-adapters.md`）：由所有 host 共用的能力契約，agent 依觀察到的原生工具自動對應 | 直接動手，或 `PLAN.md` + `RUN.md` |
 | `code-security-review` | 實作與統一整合後的唯讀安全審查，優先由 fresh sibling agent 執行；主動滲透測試與修復不屬於本技能 | 精確 SHA 決策、trust-boundary 覆蓋、驗證後的發現與修復測試 |

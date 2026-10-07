@@ -16,7 +16,7 @@ class PreDeliverySelfReviewTests(unittest.TestCase):
     def test_all_stage_owners_link_the_shared_contract(self):
         for relative in (
             "skills/product-definition-builder/references/stages/product-definition.md",
-            "skills/ui-design-builder/SKILL.md",
+            "skills/ui-design-builder/references/stages/ui-design.md",
             "skills/delivery-harness/SKILL.md",
             "skills/delivery-harness/references/installed-commands.md",
             "skills/delivery-harness/assets/templates/PROJECT_AGENTS.template.md",
