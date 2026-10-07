@@ -241,7 +241,7 @@ class CrossSkillPipelineTests(unittest.TestCase):
         )
 
     def test_activation_is_create_once_post_delivery_and_outcome_bound(self) -> None:
-        product = self.read("product-definition-builder/SKILL.md")
+        product = self.read("product-definition-builder/references/stages/product-definition.md")
         lifecycle = self.read("product-definition-builder/references/artifact-lifecycle.md")
         activation = self.read("product-activation/SKILL.md")
         delivery = self.read("delivery-harness/references/stages/managed-delivery.md")

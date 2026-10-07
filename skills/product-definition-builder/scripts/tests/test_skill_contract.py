@@ -15,6 +15,7 @@ DUAL_DEV_SOURCE_POLICY = (
     "stage=development; ref=refs/heads/development; "
     "sha=promotion.verified_development_sha"
 )
+STAGE = "references/stages/product-definition.md"
 
 
 class ProductDefinitionBuilderSkillContractTests(unittest.TestCase):
@@ -26,7 +27,7 @@ class ProductDefinitionBuilderSkillContractTests(unittest.TestCase):
                 self.assertIn(required, text, (path, required))
 
     def test_eval_approval_and_publication_invocations_keep_both_checks(self) -> None:
-        for path in ("SKILL.md", "references/eval-policy-contract.md",
+        for path in ("references/stages/product-definition.md", "references/eval-policy-contract.md",
                      "references/output-contract.md", "references/artifact-lifecycle.md"):
             text = self.read(path)
             lines = [line for line in text.splitlines() if "--eval-policy eval-policy/1" in line]
@@ -273,7 +274,7 @@ async function agent(_prompt, options) {
         self.assertIn("blocked when a human decision", prompts["consistency-verifier"])
 
     def test_skill_routes_browser_products_to_frontend_selection(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         agent = self.read_agent_prompt()
 
         self.assertIn("references/frontend-stack-selection.md", skill)
@@ -285,14 +286,60 @@ async function agent(_prompt, options) {
         self.assertIn("component foundation such as shadcn/ui", agent)
 
     def test_product_definition_stops_before_ui_design_or_harness(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
+        entry = self.read("SKILL.md")
 
         self.assertIn("After step 15 passes, create no UI artifact", skill)
         self.assertIn("later explicit `ui-design-builder` request", skill)
         self.assertIn("UI design and implementation are separate optional phases", skill)
+        self.assertIn("No UI design, implementation, PLAN/RUN, or E2E evidence register starts here", entry)
+        self.assertIn("does not launch downstream work automatically", entry)
+
+    def stage_headings(self, text: str) -> set[str]:
+        headings = set()
+        for line in text.splitlines():
+            if not line.startswith("#"):
+                continue
+            heading = line.lstrip("#").strip().lower()
+            heading = re.sub(r"[^a-z0-9\s-]", "", heading)
+            heading = re.sub(r"\s+", "-", heading.strip())
+            headings.add(heading)
+        return headings
+
+    def test_product_stage_routing_is_conditional_and_targets_exist(self) -> None:
+        entry = self.read("SKILL.md")
+        stage = self.read(STAGE)
+        anchors = self.stage_headings(stage)
+
+        self.assertTrue((SKILL_ROOT / STAGE).is_file())
+        for trigger, anchor in (
+            ("definition or enhancement", "workflow"),
+            ("definition or enhancement", "interview-rules"),
+            ("definition or enhancement", "output-standards"),
+            ("Product Definition Approval is requested", "self-review-before-product-definition-approval"),
+            ("UI handoff is prepared", "current-ui-preflight"),
+            ("applicable domain decisions", "reference-routing"),
+        ):
+            with self.subTest(trigger=trigger, anchor=anchor):
+                self.assertIn(trigger, entry)
+                self.assertRegex(entry, rf"\({re.escape(STAGE)}#{anchor}\)")
+                self.assertIn(anchor, anchors)
+        self.assertIn("Enhancement mode first uses its scoped delta branch", entry)
+        self.assertIn("does not force an initial interview", entry)
+        self.assertIn("Domain guides stay conditional", entry)
+        self.assertIn("Actual initial drafting follows the complete required procedure", entry)
+        self.assertLess(stage.index("1. Read `references/interview-guide.md`"), stage.index("24. When the owner asks"))
+        self.assertEqual(24, len(re.findall(r"(?m)^\d+\. ", stage)))
+
+        missing_anchor = stage.replace("## Output Standards", "## Authoring Rules")
+        with self.assertRaises(AssertionError):
+            self.assertIn("output-standards", self.stage_headings(missing_anchor))
+        missing_pointer = entry.replace("#output-standards", "#missing-output-standards")
+        self.assertNotRegex(missing_pointer, rf"\({re.escape(STAGE)}#output-standards\)")
+        self.assertIn("#missing-output-standards", missing_pointer)
 
     def test_deployment_document_seeds_the_human_configuration_handoff(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         contract = self.read("references/output-contract.md")
         lifecycle = self.read("references/artifact-lifecycle.md")
 
@@ -308,7 +355,7 @@ async function agent(_prompt, options) {
         self.assertIn("before a deployable push", lifecycle)
 
     def test_publish_uses_distinct_repository_context_templates(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
 
         self.assertIn(
             "<delivery-harness-skill-root>/scripts/"
@@ -350,7 +397,8 @@ async function agent(_prompt, options) {
         )
 
     def test_ui_design_is_an_explicit_downstream_skill(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
+        entry = self.read("SKILL.md")
         contract = self.read("references/output-contract.md")
         agent = self.read_agent_prompt()
 
@@ -358,7 +406,7 @@ async function agent(_prompt, options) {
             self.assertIn("ui-design-builder", content)
         self.assertNotIn("design-taste-frontend", skill)
         self.assertIn("complete frontend and backend architecture", contract)
-        self.assertIn("A later explicit UI request invokes `ui-design-builder`", skill)
+        self.assertIn("A later explicit UI request invokes `ui-design-builder`", entry)
         self.assertIn("## UI Surface Contract", contract)
         self.assertIn("<!-- ui-surface-contract:start -->", contract)
         self.assertIn("<!-- ui-surface-contract:end -->", contract)
@@ -387,7 +435,7 @@ async function agent(_prompt, options) {
         self.assertIn("traces to its own `TEST-*` row", contract)
 
     def test_ui_design_builder_owns_wireframe_deliverable(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         contract = self.read("references/output-contract.md")
         lifecycle = self.read("references/artifact-lifecycle.md")
         guide = self.read("references/wireframe-guide.md")
@@ -892,7 +940,7 @@ async function agent(_prompt, options) {
         self.assertIn("Record every inspected source with a stable `REF-*` ID", references)
 
     def test_market_research_precedes_style_aware_design_handoff(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         ui_skill = self.read_ui("SKILL.md")
         intake = self.read_ui("references/ui-design-intake.md")
 
@@ -904,7 +952,7 @@ async function agent(_prompt, options) {
         self.assertIn("one recommended direction or three comparable directions", intake)
 
     def test_product_approval_presents_and_waits_on_the_complete_candidate(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         contract = self.read("references/output-contract.md")
         lifecycle = self.read("references/artifact-lifecycle.md")
 
@@ -974,7 +1022,7 @@ async function agent(_prompt, options) {
         self.assertIn("official-source verification date", architecture)
 
     def test_platform_is_resolved_via_askuserquestion_not_defaulted(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         architecture = self.read("references/architecture-playbook.md")
         frontend = self.read("references/frontend-stack-selection.md")
         contract = self.read("references/output-contract.md")
@@ -1027,7 +1075,7 @@ async function agent(_prompt, options) {
         )
 
     def test_interview_marks_closed_set_questions_for_askuserquestion(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         interview = self.read("references/interview-guide.md")
 
         self.assertIn(
@@ -1054,7 +1102,7 @@ async function agent(_prompt, options) {
         self.assertNotIn("immediately after the free-text interview message", interview)
 
     def test_open_ended_interview_has_three_adaptive_segments(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         interview = self.read("references/interview-guide.md")
         agent = self.read_agent_prompt()
         headings = (
@@ -1093,7 +1141,7 @@ async function agent(_prompt, options) {
         self.assertNotIn("ask one organized free-text interview message", skill.lower())
 
     def test_skill_routes_backend_products_to_backend_selection(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         architecture = self.read("references/architecture-playbook.md")
         contract = self.read("references/output-contract.md")
         agent = self.read_agent_prompt()
@@ -1177,7 +1225,7 @@ async function agent(_prompt, options) {
     def test_interview_marks_backend_and_auth_questions_for_askuserquestion(
         self,
     ) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         interview = self.read("references/interview-guide.md")
 
         self.assertIn("no persistent database, or an evidence-backed recommendation? (AskUserQuestion)", interview)
@@ -1189,7 +1237,7 @@ async function agent(_prompt, options) {
         )
 
     def test_skill_gates_the_backend_askuserquestion_call(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
 
         self.assertIn(
             "skip database/auth questions only when the product provably has no backend", skill
@@ -1205,7 +1253,7 @@ async function agent(_prompt, options) {
     def test_archetype_dependent_questions_come_after_the_archetype_answer(
         self,
     ) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         interview = self.read("references/interview-guide.md")
 
         self.assertIn("Keep deployment and UI design preferences out of this call", skill)
@@ -1230,7 +1278,7 @@ async function agent(_prompt, options) {
         )
 
     def test_trace_ids_and_publish_approval_are_explicit(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         contract = self.read("references/output-contract.md")
         lifecycle = self.read("references/artifact-lifecycle.md")
 
@@ -1252,7 +1300,7 @@ async function agent(_prompt, options) {
 
     def test_prd_contract_requires_measurable_nfrs_and_test_obligations(self) -> None:
         contract = self.read("references/output-contract.md")
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         interview = self.read("references/interview-guide.md")
         agent = self.read_agent_prompt()
 
@@ -1299,7 +1347,7 @@ async function agent(_prompt, options) {
 
     def test_test_ids_are_reused_and_preserved_in_enhancements(self) -> None:
         contract = self.read("references/output-contract.md")
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         interview = self.read("references/interview-guide.md")
         workflow = self.read("scripts/product_agent_graph.cjs")
 
@@ -1353,7 +1401,7 @@ async function agent(_prompt, options) {
         contract = self.read("references/output-contract.md")
         backend = self.read("references/backend-stack-selection.md")
         architecture = self.read("references/architecture-playbook.md")
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         workflow = self.read("scripts/product_agent_graph.cjs")
         agent = self.read_agent_prompt()
 
@@ -1385,7 +1433,7 @@ async function agent(_prompt, options) {
             self.assertIn("polyrepo", content.lower())
 
     def test_release_discovery_is_provider_neutral_and_complete(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         interview = self.read("references/interview-guide.md")
         architecture = self.read("references/architecture-playbook.md")
         contract = self.read("references/output-contract.md")
@@ -1452,7 +1500,7 @@ async function agent(_prompt, options) {
         self.assertIn("stable release target IDs from the prior package", contract)
 
     def test_release_availability_and_native_recovery_are_explicit(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         interview = self.read("references/interview-guide.md")
         architecture = self.read("references/architecture-playbook.md")
         contract = self.read("references/output-contract.md")
@@ -1872,7 +1920,7 @@ async function agent(_prompt, options) {
         self.assertEqual("candidate_ready", disabled["status"])
 
     def test_market_research_delegation_requires_explicit_authorization(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         work_graph = self.read("references/agent-work-graph.md")
         workflow = self.read("scripts/product_agent_graph.cjs")
 
@@ -1942,7 +1990,7 @@ async function agent(_prompt, options) {
         )
 
     def test_market_research_role_forbids_fabricated_evidence(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         guide = self.read("references/market-research-guide.md")
         contract = self.read("references/output-contract.md")
         workflow = self.read("scripts/product_agent_graph.cjs")
@@ -1967,7 +2015,7 @@ async function agent(_prompt, options) {
         self.assertIn("missing or blocked required result blocks the graph barrier", work_graph)
 
     def test_market_research_artifact_is_contracted_and_published(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         contract = self.read("references/output-contract.md")
         lifecycle = self.read("references/artifact-lifecycle.md")
 
@@ -1993,7 +2041,7 @@ async function agent(_prompt, options) {
         self.assertIn("the market context is unvalidated", contract)
 
     def test_research_first_gate_runs_before_any_closed_set_decision(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         guide = self.read("references/research-first-guide.md")
         contract = self.read("references/output-contract.md")
         lifecycle = self.read("references/artifact-lifecycle.md")
@@ -2057,7 +2105,7 @@ async function agent(_prompt, options) {
     def test_research_draft_recommendations_owner_choice_then_final_approvals(
         self,
     ) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         work_graph = self.read("references/agent-work-graph.md")
 
         order = [
@@ -2083,7 +2131,7 @@ async function agent(_prompt, options) {
         )
 
     def test_research_reuses_assessment_and_limits_new_search(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         guide = self.read("references/research-first-guide.md")
         market = self.read("references/market-research-guide.md")
         contract = self.read("references/output-contract.md")
@@ -2119,7 +2167,7 @@ async function agent(_prompt, options) {
     def test_platform_optimization_recommendations_require_evidence_and_owner_decision(
         self,
     ) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         guide = self.read("references/market-research-guide.md")
         contract = self.read("references/output-contract.md")
         work_graph = self.read("references/agent-work-graph.md")
@@ -2146,7 +2194,7 @@ async function agent(_prompt, options) {
         self.assertIn("the workers never apply one", work_graph)
 
     def test_approval_presents_complete_prd_and_recommendation_links(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         contract = self.read("references/output-contract.md")
 
         self.assertIn(
@@ -2184,7 +2232,7 @@ async function agent(_prompt, options) {
         self.assertNotIn("market-research", [call["role"] for call in skipped["calls"]])
 
     def test_recommendation_choices_receive_links_and_revisions_need_acceptance(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         step = skill.split("13. Run the post-draft market-research reconciliation", 1)[1].split("14. Run", 1)[0]
         self.assertIn("verified absolute Markdown links", step)
         self.assertLess(step.index("Verify the links"), step.index("wait for an explicit owner choice"))
@@ -2192,7 +2240,7 @@ async function agent(_prompt, options) {
         self.assertIn("no-recommendation result needs no proposal-choice round", step)
 
     def test_outcome_review_closes_the_loop_after_deployment(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         contract = self.read("references/output-contract.md")
         lifecycle = self.read("references/artifact-lifecycle.md")
         template = self.read("assets/templates/OUTCOME_REVIEW.template.md")
@@ -2241,7 +2289,7 @@ async function agent(_prompt, options) {
         self.assertIn("| Incident | Release target | Containment |", template)
 
     def test_activation_seed_is_create_once_and_owned_downstream(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         contract = self.read("references/output-contract.md")
         lifecycle = self.read("references/artifact-lifecycle.md")
         agent = self.read_agent_prompt()
@@ -2266,7 +2314,7 @@ async function agent(_prompt, options) {
         self.assertIn("Exclude it from the superseded-document inventory", lifecycle)
 
     def test_agent_work_graph_uses_org_roles_and_parent_owned_staging(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         guide = self.read("references/agent-work-graph.md")
         workflow = self.read("scripts/product_agent_graph.cjs")
         contract = self.read("references/output-contract.md")
@@ -2352,7 +2400,7 @@ async function agent(_prompt, options) {
 
     def test_closed_questions_batch_without_dropping_decisions(self) -> None:
         interview = self.read("references/interview-guide.md")
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
 
         self.assertNotIn("Codex CLI caps", skill)
         self.assertNotIn("drop order", interview)
@@ -2408,7 +2456,7 @@ async function agent(_prompt, options) {
             self.assertEqual(inventory_ids, flattened)
 
     def test_monetization_and_partner_channels_are_separate_current_decisions(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         interview = self.read("references/interview-guide.md")
         guide = self.read("references/monetization-and-partner-channel-guide.md")
         contract = self.read("references/output-contract.md")
@@ -2460,7 +2508,7 @@ async function agent(_prompt, options) {
             self.assertIn(f"requires args.{missing_field}", result["error"])
 
     def test_browser_extension_is_a_supported_archetype(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         interview = self.read("references/interview-guide.md")
         architecture = self.read("references/architecture-playbook.md")
         frontend = self.read("references/frontend-stack-selection.md")
@@ -2496,7 +2544,7 @@ async function agent(_prompt, options) {
             self.assertIn(marker, frontend)
 
     def test_market_research_findings_can_land_in_stack_decisions(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         guide = self.read("references/market-research-guide.md")
 
         self.assertIn(
@@ -2540,7 +2588,7 @@ async function agent(_prompt, options) {
         self.assertIn("one line stating that there is no backend and why", architecture_block)
 
     def test_unapproved_stack_rows_gate_product_approval_and_delivery(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         contract = self.read("references/output-contract.md")
 
         self.assertIn(
@@ -2593,7 +2641,7 @@ async function agent(_prompt, options) {
         )
 
     def test_enhancement_classifies_ui_impact_before_drafting(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         interview = self.read("references/interview-guide.md")
         guide = self.read_ui("references/wireframe-guide.md")
         contract = self.read("references/output-contract.md")
@@ -2643,7 +2691,7 @@ async function agent(_prompt, options) {
         self.assertIn("imagery, and motion rules", contract)
 
     def test_typography_color_and_styling_layers_are_decided_with_evidence(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         guide = self.read_ui("references/ui-design-pass.md")
         contract = self.read_ui("references/output-contract.md")
         frontend = self.read("references/frontend-stack-selection.md")
@@ -2847,7 +2895,7 @@ new Function(scripts.at(-1)[1]);
         )
 
     def test_product_definition_approval_precedes_ui_design_builder(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         contract = self.read("references/output-contract.md")
         ui_skill = self.read_ui("SKILL.md")
         wireframe = self.read_ui("references/wireframe-guide.md")
@@ -2875,7 +2923,7 @@ new Function(scripts.at(-1)[1]);
         self.assertIn("only after `product-definition-builder`", ui_skill)
 
     def test_full_hifi_copy_review_does_not_require_a_circular_prd_rewrite(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         contract = self.read("references/output-contract.md")
         lifecycle = self.read("references/artifact-lifecycle.md")
 
@@ -2901,7 +2949,7 @@ new Function(scripts.at(-1)[1]);
         )
 
     def test_stack_checkpoint_separates_and_approves_implementation_layers(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         contract = self.read("references/output-contract.md")
         frontend = self.read("references/frontend-stack-selection.md")
 
@@ -2926,7 +2974,7 @@ new Function(scripts.at(-1)[1]);
         self.assertIn("`Recommended` or `Provisional` blocks", skill)
 
     def test_data_trust_ai_metrics_and_open_questions_are_owner_decisions(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(STAGE)
         work_graph = self.read("references/agent-work-graph.md")
         contract = self.read("references/output-contract.md")
         interview = self.read("references/interview-guide.md")

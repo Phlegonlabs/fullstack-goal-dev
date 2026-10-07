@@ -15,7 +15,7 @@ DEFERRED_HANDOFF_EDGE = (
 class PreDeliverySelfReviewTests(unittest.TestCase):
     def test_all_stage_owners_link_the_shared_contract(self):
         for relative in (
-            "skills/product-definition-builder/SKILL.md",
+            "skills/product-definition-builder/references/stages/product-definition.md",
             "skills/ui-design-builder/SKILL.md",
             "skills/delivery-harness/SKILL.md",
             "skills/delivery-harness/references/installed-commands.md",

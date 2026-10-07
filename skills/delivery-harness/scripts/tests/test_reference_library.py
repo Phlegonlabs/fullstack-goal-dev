@@ -104,13 +104,19 @@ class ReferenceLibraryTests(unittest.TestCase):
 
     def test_each_canonical_skill_has_conditional_installed_relative_pointer(self):
         for name in SKILL_FILES:
-            path = ROOT / "skills" / name / "SKILL.md"
+            if name == "product-definition-builder":
+                path = ROOT / "skills" / name / "references/stages/product-definition.md"
+                selection_pointer = "../delivery-harness/references/reference-selection.md"
+                library_pointer = "../delivery-harness/references/option-library/"
+                pointer_root = ROOT / "skills/product-definition-builder"
+            else:
+                path = ROOT / "skills" / name / "SKILL.md"
             text = path.read_text(encoding="utf-8")
             if name == "delivery-harness":
                 selection_pointer = "references/reference-selection.md"
                 library_pointer = "references/option-library/"
                 pointer_root = ROOT / "skills/delivery-harness/references"
-            else:
+            elif name != "product-definition-builder":
                 selection_pointer = "../delivery-harness/references/reference-selection.md"
                 library_pointer = (
                     "../delivery-harness/references/option-library/"
@@ -128,7 +134,7 @@ class ReferenceLibraryTests(unittest.TestCase):
                     self.assertTrue(resolved.is_relative_to(pointer_root), (name, target))
 
     def test_stage_pointers_keep_their_existing_routes_and_boundaries(self):
-        product = (ROOT / "skills/product-definition-builder/SKILL.md").read_text(encoding="utf-8")
+        product = (ROOT / "skills/product-definition-builder/references/stages/product-definition.md").read_text(encoding="utf-8")
         for phrase in (
             "architecture, API, auth, frontend, backend, data, security, product runtime",
             "closed-set stack questions",
