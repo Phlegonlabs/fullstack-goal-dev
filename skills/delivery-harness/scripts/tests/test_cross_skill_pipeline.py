@@ -257,6 +257,22 @@ class CrossSkillPipelineTests(unittest.TestCase):
         )
         self.assertIn("preparation requires a fixed SHA and separate authorization", delivery)
 
+    def test_security_reviewer_reads_full_stage_and_returns_evidence_only(self) -> None:
+        entry = self.read("code-security-review/SKILL.md")
+        stage = self.read("code-security-review/references/stages/security-review.md")
+        contract = self.read("code-security-review/references/review-contract.md")
+
+        self.assertIn("read both complete files", entry)
+        self.assertIn("references/stages/security-review.md", entry)
+        self.assertIn("references/review-contract.md", entry)
+        self.assertIn("source to sink", stage)
+        self.assertIn("does not start a nested scan coordinator", stage)
+        self.assertIn("Do not change code", stage)
+        self.assertIn("source_to_sink", contract)
+        self.assertIn("coverage.status", contract)
+        self.assertIn("never eligible for the byte-identical-tree skip", contract)
+        self.assertIn("The reviewer never delegates", entry)
+
     def test_downstream_skills_always_run_the_full_product_gate_with_repo_root(self) -> None:
         sources = {
             "ui design": self.read("ui-design-builder/references/stages/ui-design.md"),

@@ -227,7 +227,7 @@ Use delivery-harness on this host to execute this plan. Observe native capabilit
 | `ui-design-builder` | PRD 預檢、intake、預設三方向、完整 HiFi、完整性檢查、Impeccable／H1–H9、Visual Approval 與 Design System Need Gate；必要的 stage reads 管撰寫與 routing 細節 | `docs/design/ui-design.md`、方向研究及已核准完整 HiFi 包 |
 | `design-system-compiler` | Visual Approval 後按需把已核准 `ui-design.md` target 編譯成凍結 design-system pair，並產生來源綁定的 HTML specimen book；必要的 stage reads 管編譯、驗證、發布與 routing 細節 | `docs/design/design-system.md`、`docs/design/design-system.json`、`docs/design/design-system-preview.html` |
 | `delivery-harness` | 共用的規模判定與 security task gate、PLAN/RUN、授權、本機驗證與整合，外加 runtime adapter 參考文件（`references/runtime-adapters.md`）：由所有 host 共用的能力契約，agent 依觀察到的原生工具自動對應 | 直接動手，或 `PLAN.md` + `RUN.md` |
-| `code-security-review` | 實作與統一整合後的唯讀安全審查，優先由 fresh sibling agent 執行；主動滲透測試與修復不屬於本技能 | 精確 SHA 決策、trust-boundary 覆蓋、驗證後的發現與修復測試 |
+| `code-security-review` | 實作與統一整合後的唯讀安全審查，優先由 fresh sibling agent 執行；主動滲透測試與修復不屬於本技能；必要的 stage reads 管輸入、工作流程與交接細節 | 精確 SHA 決策、trust-boundary 覆蓋、驗證後的發現與修復測試 |
 | `product-activation` | 所有支援的 Web、API/backend、iOS、Android、macOS、Windows、browser-extension 與 hybrid release target 的交付後設定，包含 capability routing、精確外部動作授權、read-back、量測來源與 outcome-review 交接；必要的 stage reads 管輸入、執行、狀態交接與報告細節 | `docs/ACTIVATION.md` |
 | `seo-growth-review` | 唯讀的 release 後技術 SEO、量測完整性、關鍵詞研究、自然流量診斷與 query-to-page 機會排序；必要的 stage reads 管輸入、review method 與報告細節 | 預設 inline review；明確要求時才保存日期化報告 |
 

@@ -46,6 +46,18 @@ SEO_STAGE_ROUTES = (
     ("workflow", "Before an actual review"),
     ("saved-lifecycle-public-release-review", "Before a saved lifecycle public-release review"),
 )
+SECURITY_STAGE_FILES = (
+    (
+        "references/stages/security-review.md",
+        "Security Review Stage",
+        ("Required Inputs", "Workflow", "Handoff"),
+    ),
+    (
+        "references/review-contract.md",
+        "Review Contract",
+        ("Harness Placement", "Result"),
+    ),
+)
 
 
 def stage_headings(text: str) -> set[str]:
@@ -887,6 +899,48 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         )
         self.assertNotIn("references/stages/seo-review.md#required-inputs", missing_pointer)
         self.assertIn("references/stages/seo-review.md#missing-intake", missing_pointer)
+
+    def test_security_review_stage_and_contract_are_full_mandatory_reads(self) -> None:
+        security_root = SKILL_ROOT.parent / "code-security-review"
+        entry = (security_root / "SKILL.md").read_text(encoding="utf-8")
+        for pointer, display, anchors in SECURITY_STAGE_FILES:
+            with self.subTest(route=pointer):
+                self.assertIn(f"[{display}]({pointer})", entry)
+                self.assertNotIn(f"{pointer}#", entry)
+                document = (security_root / pointer).read_text(encoding="utf-8")
+                self.assertTrue(document.strip())
+                self.assertTrue((security_root / pointer).is_file())
+                for anchor in anchors:
+                    self.assertIn(anchor, document)
+                    self.assertIn(anchor.lower().replace(" ", "-"), stage_headings(document))
+
+        self.assertIn("Before any actual security review", entry)
+        self.assertIn("complete-file routes", entry)
+        self.assertIn("no reading reduction", entry)
+        self.assertIn("full source-to-sink coverage", entry)
+        self.assertNotIn("## Required Inputs", entry)
+        self.assertNotIn("## Workflow", entry)
+        self.assertNotIn("## Handoff", entry)
+        self.assertIn("exact candidate SHA", entry)
+        self.assertIn("The reviewer never delegates", entry)
+        self.assertIn("Do not edit files", entry)
+        self.assertIn("Do not probe production", entry)
+
+        stage = (security_root / "references/stages/security-review.md").read_text(encoding="utf-8")
+        self.assertIn("../../../delivery-harness/references/reference-selection.md", stage)
+        self.assertIn("[Review Contract](../review-contract.md)", stage)
+        missing_route = entry.replace(
+            "references/stages/security-review.md",
+            "references/stages/missing-security-review.md",
+        )
+        self.assertNotIn("references/stages/security-review.md", missing_route)
+        self.assertIn("references/stages/missing-security-review.md", missing_route)
+        missing_contract = entry.replace(
+            "references/review-contract.md",
+            "references/missing-review-contract.md",
+        )
+        self.assertNotIn("references/review-contract.md", missing_contract)
+        self.assertIn("references/missing-review-contract.md", missing_contract)
 
     def test_deployment_contract_maps_candidate_then_main(self) -> None:
         skill = self.read("SKILL.md")
