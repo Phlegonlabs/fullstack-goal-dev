@@ -66,7 +66,10 @@ The child treats that packet as its complete live task. It opens PLAN/RUN only f
 
 Route references by the stage that names them. A worker packet names the result contract but does not paste it; load that contract only while preparing the terminal result. A review packet keeps its exact base/head, scope, evidence requirements, tools, acceptance, and finding lineage, but does not repeat paths already present in its untruncated diff. Only a byte-truncated diff repeats the changed-path list so truncation cannot hide scope.
 
-Do not compute a `capsule_sha256` or `context_bytes` for the packet. No gate, selector, or validator reads them; the bounded-context rule above is what produces the speedup.
+Every NEW parent launch carries an explicit observed or task `max_message_bytes`.
+Check the complete parent-visible packet with `scripts/check_launch_packet.py`.
+Use fresh host-native context without the parent transcript, and keep the selected role bridge intact.
+The byte guard does not observe host-injected content, so total host token use stays unknown.
 
 ## Resource-Safe Verifier Batches
 
@@ -111,6 +114,6 @@ At closeout record `run_wall_time_ms` and `critical_path_ms`. Record `baseline_w
 
 ## Host Mapping
 
-- Use a fresh bounded native task or child, then subscribe to terminal events or cursor waits when observed. Use bounded polling only when events are unavailable and record that fallback. Preserve installed role and model settings.
+- Use a fresh bounded native task or child, then subscribe to terminal events or cursor waits when observed. Use bounded polling only when events are unavailable and record that fallback. Preserve installed role and model settings and the configured role bridge.
 
 Process each terminal result immediately. Streaming review and streaming serial integration may overlap remaining workers; RUN remains parent-owned and integration remains serial throughout. A mission integrated early that later fails its integration verifier is reverted or superseded like any other integration failure — that rare rollback is the cost of not making every finished mission wait for the slowest one.

@@ -59,6 +59,7 @@ New required reviews use fresh sibling context.
 | Observation / change | Reason and scope | Commit / evidence | Verification and remaining work |
 | --- | --- | --- | --- |
 | 2026-10-07: first observation and scope acceptance | Clean checkout at baseline; branch created from released tag after owner confirmation | Baseline `4338305518bac8155af9b89da6e10a02fe62e71f`; branch `codex/lightweight-context` | Read-only exploration and architecture review completed. Implementation and tests remain pending. Loaded skill identity and actual child model identity are unobserved. |
+| 2026-10-07: LIGHT-01 working-tree implementation | Added the full-message UTF-8 checker, optional renderer/reservation guard and distinct inline-diff/full-message budgets; synchronized runtime guidance, worker template and four READMEs | working-tree on `codex/lightweight-context` from `f4ae46f18f46d79e938fe6dee1291f416b879a84`; logs under `.codex/visualizations/2026/10/06/01a11277-8783-7192-8c29-2f37de1cf543/light01-attempt2` | Focused suites passed: 15 launch/budget tests, 39 renderer/reservation tests, 60 contract tests, pyflakes, skill spec and docs weight. Atomic commit, exact-SHA evidence and independent review remain pending. |
 
 ## Results And Remaining Work
 

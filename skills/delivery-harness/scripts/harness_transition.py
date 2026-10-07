@@ -88,6 +88,7 @@ from agent_role_contract import role_contract_enabled, role_contract_gate_enable
 from agent_result_receipts import load_result_receipt
 from agent_role_recovery import resolve_fallback_reservation
 from agent_launch_records import validate_launch_record
+from check_launch_packet import InvalidMessageBudgetError, check_message
 from security_review_result import (
     SecurityReviewResultError,
     load_security_review_result,
@@ -5164,6 +5165,8 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="also render the reviewer packet from the in-memory reserved run",
     )
+    reserve_review.add_argument("--max-diff-bytes", type=int)
+    reserve_review.add_argument("--max-message-bytes", type=int)
     bind_review_task = subparsers.add_parser("bind-review-task-thread")
     bind_review_task.add_argument("--worker-id", required=True)
     bind_review_task.add_argument("--task-thread-id", required=True)
@@ -5348,6 +5351,25 @@ def _transition_under_lock(
     *,
     expected_plan_text: str | None = None,
 ) -> tuple[dict[str, Any] | None, list[str] | None, bool]:
+    diff_budget = getattr(args, "max_diff_bytes", None)
+    message_budget = getattr(args, "max_message_bytes", None)
+    if diff_budget is not None or message_budget is not None:
+        if getattr(args, "packet_out", None) is None:
+            raise ManifestError(
+                "--max-diff-bytes and --max-message-bytes require --packet-out; "
+                "the budgets must validate the complete packet before durable writes"
+            )
+        if args.command != "reserve-review-dispatch":
+            raise ManifestError(
+                "packet byte budgets are valid only with reserve-review-dispatch"
+            )
+    if getattr(args, "max_message_bytes", None) is not None:
+        try:
+            check_message("", args.max_message_bytes)
+        except InvalidMessageBudgetError as exc:
+            raise ManifestError(f"invalid packet message budget: {exc}") from exc
+    if diff_budget is not None and diff_budget < 1:
+        raise ManifestError("invalid packet diff budget: --max-diff-bytes must be positive")
     prepare_started_counter_ns = time.perf_counter_ns()
     prepare_started_at = _now()
     original_text = args.run.read_text(encoding="utf-8")
@@ -5471,6 +5493,8 @@ def _transition_under_lock(
         if getattr(args, "diff_artifact_out", None) and args.diff_artifact_out.resolve() == args.packet_out.resolve():
             raise ManifestError("packet and full diff artifact require distinct output paths")
         packet = render_packet(plan, run, args.node_id, args.repo_root,
+                               max_diff_bytes=getattr(args, "max_diff_bytes", 50000),
+                               max_message_bytes=message_budget,
                                diff_artifact_out=getattr(args, "diff_artifact_out", None),
                                artifacts=diff_artifacts)
 
