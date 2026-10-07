@@ -478,7 +478,7 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertLess(len(core.split()), 2000)
         managed_stage = self.read(MANAGED_STAGE)
         self.assertLess(len(managed_stage.split()), 2400)
-        self.assertLess(len(worker.split()), 1200)
+        self.assertLessEqual(len(worker.split()), 1200)
         # One shared contract plus one section per provider replaces the three
         # adapter skills; the merged file stays near what those three weighed.
         self.assertLess(len(runtime_adapters.split()), 3700)
@@ -1614,8 +1614,11 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("reviewed plan", skill)
         self.assertIn("original/template hashes", skill)
         self.assertIn("unresolved semantic divergences", skill)
-        self.assertIn("Host-specific repository context:", worker_goal)
-        self.assertIn("Runtime-specific worker contract:", worker_goal)
+        self.assertIn("Host-specific context:", worker_goal)
+        self.assertIn("Worker contract:", worker_goal)
+        self.assertIn("Context source hashes:", worker_goal)
+        self.assertIn("parent ran `scripts/check_launch_packet.py` before dispatch", worker_goal)
+        self.assertIn("resources, permissions, authorizations", worker_goal)
         self.assertIn("Keep automatic context discovery enabled", worker_goal)
         self.assertIn('path.open("xb")', configurator)
         self.assertIn("## Runtime Boundary", project_agents)

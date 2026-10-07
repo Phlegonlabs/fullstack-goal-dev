@@ -67,7 +67,8 @@ The child treats that packet as its complete live task. It opens PLAN/RUN only f
 Route references by the stage that names them. A worker packet names the result contract but does not paste it; load that contract only while preparing the terminal result. A review packet keeps its exact base/head, scope, evidence requirements, tools, acceptance, and finding lineage, but does not repeat paths already present in its untruncated diff. Only a byte-truncated diff repeats the changed-path list so truncation cannot hide scope.
 
 Every NEW parent launch carries an explicit observed or task `max_message_bytes`.
-Check the complete parent-visible packet with `scripts/check_launch_packet.py`.
+The parent checks the complete packet with `scripts/check_launch_packet.py` before dispatch.
+A child's later packet check verifies local facts but never replaces that launch check.
 Use fresh host-native context without the parent transcript, and keep the selected role bridge intact.
 The byte guard does not observe host-injected content, so total host token use stays unknown.
 

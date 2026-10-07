@@ -1,6 +1,7 @@
 # Managed Delivery
 
 Apply this file only after the entry routes work as `large`.
+Literal `references/...`, `assets/...`, and `scripts/...` paths resolve from the delivery-harness skill root.
 
 ## Managed Route
 

@@ -575,7 +575,8 @@ El PRD se completa durante toda la entrega. Antes de aprobar la primera entrega,
 
 La aceptación rechaza marcadores de identidad sin resolver y exige rutas de evidencia relativas al checkout para conservar la portabilidad de los resultados.
 
-La revisión documental enumera fuentes modificadas, artefactos afectados y comprobaciones necesarias. El agente principal revisa el cambio semántico; los hashes no conceden aprobación. Los snapshots `document-sync/1` siguen siendo legibles.
+La revisión documental enumera fuentes modificadas, artefactos afectados y comprobaciones necesarias. El agente principal posee el inventario global; una instancia hija declara su alcance completo y no reemplaza su snapshot. El agente principal revisa el cambio semántico; los hashes no conceden aprobación. Los snapshots `document-sync/1` siguen siendo legibles. La identidad cargada desconocida sigue desconocida.
+La instancia hija verifica source hashes y informa su evidencia loaded/read.
 
 Las mejoras completas usan un Epic indexado en `docs/epics/` que referencia el PRD actual. Una corrección pequeña se añade al Epic correspondiente y puede enlazar evidencia directa detallada. El objetivo, alcance, diseño, dependencias y pruebas se derivan en ese registro o en PLAN/RUN, sin otra especificación intermedia.
 

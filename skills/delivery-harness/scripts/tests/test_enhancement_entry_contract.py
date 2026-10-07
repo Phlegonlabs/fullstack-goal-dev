@@ -71,6 +71,39 @@ class EnhancementEntryContractTests(unittest.TestCase):
                 self.assertIn(handoff_marker, content)
                 self.assertIn("docs/tasks.md", content)
                 self.assertIn(generated_view_rule, content)
+                self.assertIn("source hashes", content)
+
+    def test_scoped_child_and_template_audit_boundaries_are_current(self):
+        sync = (SKILLS / "delivery-harness/references/document-sync-contract.md").read_text(encoding="utf-8")
+        bounded = (SKILLS / "delivery-harness/references/bounded-enhancement.md").read_text(encoding="utf-8")
+        template = (SKILLS / "delivery-harness/assets/templates/PROJECT_AGENTS.template.md").read_text(encoding="utf-8")
+
+        for phrase in (
+            "full global inventory at first entry",
+            "omits the parent global `--baseline`",
+            "never replaces the parent snapshot",
+            "evaluate the inventory triggers",
+            "child independently reads its complete named instruction chain",
+            "verifies packet source hashes",
+            "Unknown loaded identity stays unknown",
+            "Reuse a semantic template audit",
+            "recorded SHA-256 values",
+            "newly applicable, missing, or changed input invalidates reuse",
+            "restart and summary compaction",
+            "Never synthesize unknown loaded identity",
+        ):
+            with self.subTest(reference="document-sync", phrase=phrase):
+                self.assertIn(phrase, sync)
+        self.assertIn("semantic template audit", bounded)
+        delegation = (SKILLS / "delivery-harness/references/delegation-contract.md").read_text(encoding="utf-8")
+        performance = (SKILLS / "delivery-harness/references/runtime-performance.md").read_text(encoding="utf-8")
+        self.assertIn("source hashes", delegation)
+        self.assertIn("parent claim does not substitute", delegation)
+        self.assertIn("before dispatch", performance)
+        self.assertIn("never replaces that launch check", performance)
+        for phrase in ("full global inventory", "semantic template audit", "unknown loaded identity stays unknown"):
+            with self.subTest(reference="template", phrase=phrase):
+                self.assertIn(phrase, template)
 
     def test_required_failure_handoff_cannot_mint_pass(self):
         content = (SKILLS / "delivery-harness/references/bounded-enhancement.md").read_text(encoding="utf-8")

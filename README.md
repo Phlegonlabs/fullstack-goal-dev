@@ -575,7 +575,8 @@ The PRD is refined throughout delivery. Before first-delivery approval, UI and t
 
 Acceptance rejects embedded identity placeholders and requires checkout-relative evidence paths, so retained results remain portable between checkouts.
 
-Document checks now report each changed source, affected artifacts and required rechecks. A parent reviews the semantic delta; hashes and routing hints never grant approval. Existing `document-sync/1` snapshots remain readable.
+Document checks now report each changed source, affected artifacts and required rechecks. The parent owns the global inventory; a child names its complete scope and never replaces the parent snapshot. A parent reviews the semantic delta; hashes and routing hints never grant approval. Existing `document-sync/1` snapshots remain readable. Unknown loaded identity stays unknown.
+The child checks source hashes and reports its own loaded/read evidence.
 
 Complete enhancements use one indexed Epic in `docs/epics/`, referencing the current PRD instead of duplicating it. Small fixes append to the relevant Epic and may link detailed direct-task evidence. The goal, write scope, design source, dependencies and checks are derived into that record or existing PLAN/RUN; no extra coordination specification is required.
 
