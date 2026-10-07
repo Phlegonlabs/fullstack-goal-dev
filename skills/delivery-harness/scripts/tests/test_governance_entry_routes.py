@@ -164,6 +164,43 @@ class GovernanceEntryRouteTests(unittest.TestCase):
                     with self.subTest(owner=owner, anchor=anchor):
                         self.assertIn(owner + anchor, routes)
 
+    def test_consumer_lifecycle_routes_are_conditionally_separate(self) -> None:
+        template = self.read(ENTRY_TEMPLATE)
+        table = template.split("## Mandatory Governance Routes", 1)[1].split(
+            "The Epic and index record", 1
+        )[0]
+        lines = table.splitlines()
+        managed_line = next(line for line in lines if line.startswith("| Managed PLAN/RUN"))
+        deployment_line = next(line for line in lines if line.startswith("| Deployment "))
+        activation_line = next(line for line in lines if line.startswith("| Post-delivery activation"))
+
+        self.assertIn(
+            "delivery-harness/references/governance/managed-delivery.md"
+            "#managed-product-delivery-harness-runs",
+            managed_line,
+        )
+        self.assertIn(
+            "delivery-harness/references/project-operating-rules.md"
+            "#managed-product-delivery-harness-runs",
+            managed_line,
+        )
+        self.assertNotIn("#post-delivery-activation", managed_line)
+        self.assertNotIn("#monetization-and-partner-channels", managed_line)
+        self.assertIn(
+            "delivery-harness/references/deployment-contract.md#deployment-contract",
+            deployment_line,
+        )
+        self.assertNotIn("managed-delivery.md", deployment_line)
+        self.assertNotIn("project-operating-rules.md", deployment_line)
+        self.assertIn(
+            "delivery-harness/references/project-operating-rules.md"
+            "#post-delivery-activation",
+            activation_line,
+        )
+        self.assertNotIn("managed-delivery.md", activation_line)
+        self.assertNotIn("#monetization-and-partner-channels", activation_line)
+        self.assertNotIn("Managed PLAN/RUN, deployment", table)
+
     def test_owner_links_resolve_from_each_owner_file(self) -> None:
         for path in GOVERNANCE.glob("*.md"):
             text = self.read(path)
