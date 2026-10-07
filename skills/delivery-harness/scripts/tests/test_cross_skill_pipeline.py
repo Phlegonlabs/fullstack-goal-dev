@@ -244,7 +244,7 @@ class CrossSkillPipelineTests(unittest.TestCase):
         product = self.read("product-definition-builder/SKILL.md")
         lifecycle = self.read("product-definition-builder/references/artifact-lifecycle.md")
         activation = self.read("product-activation/SKILL.md")
-        delivery = self.read("delivery-harness/SKILL.md")
+        delivery = self.read("delivery-harness/references/stages/managed-delivery.md")
 
         self.assertIn("does not already exist", product)
         self.assertIn("docs/ACTIVATION.md", lifecycle)

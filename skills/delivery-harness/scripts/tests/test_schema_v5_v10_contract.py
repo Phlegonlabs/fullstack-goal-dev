@@ -34,7 +34,7 @@ class SchemaV6V11ContractTests(unittest.TestCase):
         self.fail(f"unsupported canonical manifest key: {key}")
 
     def test_current_schema_versions_and_backward_readability(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read("references/stages/managed-delivery.md")
         plan = self.read("assets/templates/HARNESS_PLAN.template.md")
         run = self.read("assets/templates/MISSION_RUNBOOK.template.md")
 

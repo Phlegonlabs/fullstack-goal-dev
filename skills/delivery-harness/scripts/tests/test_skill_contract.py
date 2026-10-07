@@ -22,6 +22,36 @@ def find_repo_root(start: Path) -> Path | None:
 
 REPO_ROOT = find_repo_root(Path(__file__).resolve().parent)
 
+MANAGED_STAGE = "references/stages/managed-delivery.md"
+MANAGED_STAGE_ROUTES = (
+    ("plan", "managed-route"),
+    ("plan", "reference-routing"),
+    ("plan", "2-plan-large-work"),
+    ("runtime", "adapter-routing"),
+    ("dispatch", "default-runtime-and-wave-policy"),
+    ("dispatch", "default-mission-topology"),
+    ("dispatch", "3-pass-plan-readiness"),
+    ("execution", "4-execute-and-integrate"),
+    ("verification", "5-verify-local-first"),
+    ("closeout", "6-complete"),
+)
+
+
+def stage_headings(text: str) -> set[str]:
+    headings = set()
+    inside_frontmatter = False
+    for line in text.splitlines():
+        if line.strip() == "---":
+            inside_frontmatter = not inside_frontmatter
+            continue
+        if inside_frontmatter or not line.startswith("#"):
+            continue
+        heading = line.lstrip("#").strip().lower()
+        heading = re.sub(r"[^a-z0-9\s-]", "", heading)
+        heading = re.sub(r"\s+", "-", heading.strip())
+        headings.add(heading)
+    return headings
+
 
 class DeliveryHarnessSkillContractTests(unittest.TestCase):
     def test_enhancements_preserve_ui_and_record_small_followups(self) -> None:
@@ -181,7 +211,8 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
                     )
 
     def test_default_mission_topology_is_flat_isolated_and_integration_reviewed(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(MANAGED_STAGE)
+        entry = self.read("SKILL.md")
         worker = self.read("assets/templates/WORKER_GOAL.template.md")
         project = self.read("assets/templates/PROJECT_AGENTS.template.md")
 
@@ -200,12 +231,12 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("do not dispatch another same-scope review", skill)
         self.assertIn("do not attach the full PLAN/RUN", skill)
         self.assertIn("one planned broad final validation suite", skill)
-        self.assertIn("Workers and reviewers never delegate", skill)
+        self.assertIn("Workers and reviewers never delegate", entry)
         self.assertIn("## No Nested Delegation", worker)
         self.assertIn("explicit file-ownership scope", project)
 
     def test_missions_are_cohesive_and_tasks_keep_atomic_commit_boundaries(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(MANAGED_STAGE)
         decomposition = self.read("references/execution-task-decomposition.md")
         convention = self.read("references/commit-convention.md")
         plan = self.read("assets/templates/HARNESS_PLAN.template.md")
@@ -254,7 +285,7 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("commit_order_mismatch", result_validator)
 
     def test_related_review_findings_escalate_by_root_cause_across_revisions(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(MANAGED_STAGE)
         graph = self.read("references/graph-orchestration.md")
         decomposition = self.read("references/execution-task-decomposition.md")
         verification = self.read("references/verification-gates.md")
@@ -360,7 +391,7 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("large -> planner", skill)
         self.assertIn("cannot override a `large` classification", skill)
         self.assertIn("Small work creates no PLAN/RUN files", skill)
-        self.assertIn("scheduler fan-out only when", skill)
+        self.assertIn("Use this routing only when the size gate classifies work as `large`", skill)
         self.assertIn("two-way project-size gate", research)
         self.assertIn("Small work never reaches this selector", selector)
         self.assertIn("Small direct work does not instantiate this file", runbook)
@@ -368,13 +399,38 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("A high file count", skill)
         self.assertIn("does not make work `large` by itself", skill)
 
+    def test_managed_stage_routing_is_conditional_and_targets_exist(self) -> None:
+        skill = self.read("SKILL.md")
+        stage = self.read(MANAGED_STAGE)
+
+        self.assertIn("Use this routing only when the size gate classifies work as `large`", skill)
+        self.assertIn("For direct work, do not read the managed stage file", skill)
+        self.assertTrue((SKILL_ROOT / MANAGED_STAGE).is_file())
+        for trigger, anchor in MANAGED_STAGE_ROUTES:
+            with self.subTest(trigger=trigger, anchor=anchor):
+                self.assertRegex(skill, rf"\({re.escape(MANAGED_STAGE)}#{anchor}\)")
+                self.assertIn(anchor, stage_headings(stage))
+
+        missing_anchor = stage.replace("### 6. Complete", "### Finished")
+        with self.assertRaises(AssertionError):
+            self.assertIn("6-complete", stage_headings(missing_anchor))
+
+        missing_pointer = skill.replace("#6-complete", "#missing-complete")
+        self.assertNotRegex(
+            missing_pointer,
+            rf"\({re.escape(MANAGED_STAGE)}#6-complete\)",
+        )
+        self.assertIn("#missing-complete", missing_pointer)
+
     def test_progressive_disclosure_keeps_routine_context_bounded(self) -> None:
         core = self.read("SKILL.md")
         worker = self.read("assets/templates/WORKER_GOAL.template.md")
         result_contract = self.read("references/worker-result-contract.md")
         runtime_adapters = self.read("references/runtime-adapters.md")
 
-        self.assertLess(len(core.split()), 3600)
+        self.assertLess(len(core.split()), 2000)
+        managed_stage = self.read(MANAGED_STAGE)
+        self.assertLess(len(managed_stage.split()), 2400)
         self.assertLess(len(worker.split()), 1200)
         # One shared contract plus one section per provider replaces the three
         # adapter skills; the merged file stays near what those three weighed.
@@ -405,11 +461,16 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("is not a PLAN node", graph)
         self.assertIn("The System Review And Route stage completes before this file exists", runbook)
         self.assertIn("before this delegated handoff exists", worker)
-        self.assertLess(skill.index("### System Review And Route"), skill.index("## Adapter Routing"))
-        self.assertLess(skill.index("### System Review And Route"), skill.index("### 2. Plan Large Work"))
+        self.assertLess(
+            skill.index("### System Review And Route"),
+            skill.index("## Managed Stage Routing"),
+        )
+        stage = self.read(MANAGED_STAGE)
+        self.assertIn("## Adapter Routing", stage)
+        self.assertLess(stage.index("## Adapter Routing"), stage.index("### 2. Plan Large Work"))
 
     def test_new_managed_work_requires_plan_run_and_legacy_compact_is_read_only(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(MANAGED_STAGE)
         state = self.read("references/execution-state-model.md")
         runbook = self.read("assets/templates/MISSION_RUNBOOK.template.md")
         goal = self.read("assets/templates/GOAL.template.md")
@@ -424,16 +485,18 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("not a new authoring route", runbook)
         self.assertNotIn("compact large sequential work", runbook.lower())
         self.assertNotIn("Planning depth: direct | compact RUN", skill)
+        self.assertNotIn("New managed work uses PLAN schema v6", self.read("SKILL.md"))
 
     def test_large_no_agent_route_is_real_parent_sequential_execution(self) -> None:
         skill = self.read("SKILL.md")
+        stage = self.read(MANAGED_STAGE)
         state = self.read("references/execution-state-model.md")
         selector = self.read("references/parallel-mission-selection.md")
         orchestration = self.read("references/worktree-thread-orchestration.md")
         runbook = self.read("assets/templates/MISSION_RUNBOOK.template.md")
         goal = self.read("assets/templates/GOAL.template.md")
 
-        for content in (skill, state, selector, orchestration, runbook, goal):
+        for content in (stage, state, selector, orchestration, runbook, goal):
             self.assertIn("sequential_parent", content)
         # The full binding rules live once in execution-state-model.md's
         # anchored section; every other file points at that heading.
@@ -758,13 +821,16 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
 
     def test_deployment_contract_maps_candidate_then_main(self) -> None:
         skill = self.read("SKILL.md")
+        stage = self.read(MANAGED_STAGE)
+        stage = self.read(MANAGED_STAGE)
         contract = self.read("references/deployment-contract.md")
         promotion = self.read("references/branch-promotion-contract.md")
         orchestration = self.read("references/worktree-thread-orchestration.md")
         project_agents = self.read("assets/templates/PROJECT_AGENTS.template.md")
         project_claude = self.read("assets/templates/PROJECT_CLAUDE.template.md")
 
-        self.assertIn("references/deployment-contract.md", skill)
+        self.assertIn("references/deployment-contract.md", stage)
+        self.assertIn("references/branch-promotion-contract.md", stage)
         self.assertIn("references/branch-promotion-contract.md", skill)
         for phrase in (
             "Production tracks `main`",
@@ -869,9 +935,9 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("# Documents", documents_template)
         self.assertIn("non-canonical view of RUN", documents_template)
         self.assertIn("`docs/product/`", documents_template)
-        self.assertIn("automatically render `docs/tasks.md`", skill)
-        self.assertIn("A refresh failure leaves successful RUN state intact", skill)
-        self.assertIn("no RUN grant authorizes them", skill)
+        self.assertIn("automatically render `docs/tasks.md`", stage)
+        self.assertIn("A refresh failure leaves successful RUN state intact", stage)
+        self.assertIn("no RUN grant authorizes them", stage)
         self.assertIn("## Post-Delivery Activation", project_agents)
         self.assertIn("Capability never grants permission", project_agents)
         if REPO_ROOT is not None:
@@ -976,7 +1042,8 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("Never replace explicitly requested independent app tasks", adapters)
 
     def test_plan_backed_runs_detect_then_select_full_frontier(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(MANAGED_STAGE)
+        entry = self.read("SKILL.md")
         state = self.read("references/execution-state-model.md")
         orchestration = self.read("references/worktree-thread-orchestration.md")
         selector = self.read("references/parallel-mission-selection.md")
@@ -1000,7 +1067,7 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("selection is the default post-readiness action", selector)
         self.assertIn("Never run parallel writers in `shared_checkout`", runbook)
         self.assertIn("lightest safe direct or PLAN-v6/RUN-v11 delivery path", agent)
-        self.assertIn("Host adapter: none | general (observed host identity or generic)", skill)
+        self.assertIn("Host adapter: none | general (observed host identity or generic)", entry)
 
     def test_runtime_upgrade_gate_blocks_old_or_stale_sessions(self) -> None:
         skill = self.read("SKILL.md")
@@ -1136,7 +1203,7 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
 
     def test_run_template_matches_the_local_only_default(self) -> None:
         """The template must keep remote publication behind explicit intent."""
-        skill = self.read("SKILL.md")
+        skill = self.read(MANAGED_STAGE)
         runbook = self.read("assets/templates/MISSION_RUNBOOK.template.md")
 
         self.assertIn("RUNs close `local_only`", skill)
@@ -1199,7 +1266,7 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         `ready_frontier`. At draft/ready the frontier stays populated and only
         `dispatchable_nodes` empties, so the operator saw a full frontier and
         concluded the snapshot was already filled in."""
-        core = self.read("SKILL.md")
+        core = self.read(MANAGED_STAGE)
         runbook = self.read("assets/templates/MISSION_RUNBOOK.template.md")
 
         for content in (core, runbook):
@@ -1215,7 +1282,7 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
     def test_session_exact_reuse_lists_the_pass_signal_precondition(self) -> None:
         """The pass signal is the first condition the runtime checks and was the
         one missing from the core's list of four."""
-        core = self.read("SKILL.md")
+        core = self.read(MANAGED_STAGE)
         runtime = self.read("scripts/verifier_runtime.py")
 
         self.assertIn('and normalized_verifier["pass_signal"] == "exit 0"', runtime)
@@ -1225,13 +1292,13 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
     def test_readiness_requires_every_node_to_have_a_host(self) -> None:
         """A node whose `allowed_providers` no participating host satisfies is a
         readiness gap, not a surprise at dispatch time."""
-        core = self.read("SKILL.md")
+        core = self.read(MANAGED_STAGE)
 
         readiness = core[core.index("### 3. Pass Plan Readiness") : core.index("### 4. Execute And Integrate")]
         self.assertIn("Executability covers the whole graph, not just the next node", readiness)
         self.assertIn("`allowed_providers`", readiness)
         self.assertIn("blocking readiness gap", readiness)
-        # Reference paths in the core resolve from the skill root, unprefixed.
+        # Literal reference paths are skill-root-relative, even in the stage.
         self.assertIn("`references/graph-orchestration.md`", readiness)
         self.assertNotIn("`../references/graph-orchestration.md`", readiness)
 
@@ -1359,7 +1426,7 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
             self.assertNotIn(model, plan + adapters)
 
     def test_verification_policy_selects_and_reuses_only_exact_focused_checks(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(MANAGED_STAGE)
         verification = self.read("references/verification-gates.md")
         plan = self.read("assets/templates/HARNESS_PLAN.template.md")
         run = self.read("assets/templates/MISSION_RUNBOOK.template.md")
@@ -1378,7 +1445,7 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("after exact-SHA review and repair converge", plan)
 
     def test_schema_v10_closes_only_with_real_ui_evidence(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(MANAGED_STAGE)
         state = self.read("references/execution-state-model.md")
         verification = self.read("references/verification-gates.md")
         runbook = self.read("assets/templates/MISSION_RUNBOOK.template.md")
