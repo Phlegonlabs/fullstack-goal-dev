@@ -27,6 +27,10 @@ from manifest_fixtures import native_capability_probe
 
 
 class CrossSkillPipelineTests(unittest.TestCase):
+    def owner_section(self, text: str, heading: str) -> str:
+        self.assertIn(heading, text)
+        return text.split(heading, 1)[1].split("\n## ", 1)[0]
+
     def test_full_stack_handoff_preserves_ownership_and_real_evidence(self):
         product = self.read("product-definition-builder/references/output-contract.md")
         architecture = self.read("product-definition-builder/references/architecture-playbook.md")
@@ -214,20 +218,24 @@ class CrossSkillPipelineTests(unittest.TestCase):
 
     def test_completed_goal_documents_archive_on_completion_declaration(self) -> None:
         harness = self.read("delivery-harness/references/contract-and-traceability.md")
-        project_agents = self.read("delivery-harness/assets/templates/PROJECT_AGENTS.template.md") + self.read("delivery-harness/references/project-operating-rules.md")
+        project_agents = self.read("delivery-harness/assets/templates/PROJECT_AGENTS.template.md")
+        operating_rules = self.read("delivery-harness/references/project-operating-rules.md")
         promotion = self.read("delivery-harness/references/branch-promotion-contract.md")
 
         self.assertIn("declares the project or initiative complete", harness)
         self.assertIn("archive on the same instruction", harness)
         self.assertIn("archive_run.py", harness)
         self.assertIn("docs/goal/archived/<YYYYMMDD-HHMMSS>-<run-id>/", harness)
-        self.assertIn("writes closed `ARCHIVE_RECEIPT.json`", project_agents)
-        self.assertIn("never moves anything under `docs/product/`", project_agents)
+        managed_route = self.owner_section(
+            operating_rules, "## Managed Product Delivery Harness Runs"
+        )
+        self.assertIn("writes closed `ARCHIVE_RECEIPT.json`", managed_route)
+        self.assertIn("never moves anything under `docs/product/`", managed_route)
         self.assertIn("At RUN close, candidate C", promotion)
         self.assertIn("archive-only commit A", promotion)
         self.assertIn("If separately authorized, `push_archived_candidate.py`", promotion)
         self.assertIn("PENDING_TRUSTED_HOST_PUBLICATION", promotion)
-        self.assertIn("never invokes `git push`", project_agents)
+        self.assertIn("never invokes `git push`", managed_route)
         self.assertIn("fresh PLAN/RUN on the same non-default branch from exact A", harness)
         self.assertIn("Only after production verification may activation readiness", promotion)
         self.assertIn("separate exact external-action authorization; it cannot claim readiness", promotion)

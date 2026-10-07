@@ -246,6 +246,10 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         entry = self.read("SKILL.md")
         worker = self.read("assets/templates/WORKER_GOAL.template.md")
         project = self.read("assets/templates/PROJECT_AGENTS.template.md")
+        operating = self.read("references/project-operating-rules.md")
+        managed_owner = self.owner_section(
+            operating, "## Managed Product Delivery Harness Runs"
+        )
 
         self.assertIn("## Default Mission Topology", skill)
         self.assertIn("Map one independently testable goal to one mission", skill)
@@ -264,7 +268,12 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("one planned broad final validation suite", skill)
         self.assertIn("Workers and reviewers never delegate", entry)
         self.assertIn("## No Nested Delegation", worker)
-        self.assertIn("explicit file-ownership scope", project)
+        self.assertIn(
+            "delivery-harness/references/project-operating-rules.md"
+            "#managed-product-delivery-harness-runs",
+            project,
+        )
+        self.assertIn("explicit file-ownership scope", managed_owner)
 
     def test_missions_are_cohesive_and_tasks_keep_atomic_commit_boundaries(self) -> None:
         skill = self.read(MANAGED_STAGE)
@@ -273,6 +282,10 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         plan = self.read("assets/templates/HARNESS_PLAN.template.md")
         worker = self.read("assets/templates/WORKER_GOAL.template.md")
         result_validator = self.read("scripts/validate_worker_result.py")
+        operating = self.read("references/project-operating-rules.md")
+        managed_owner = self.owner_section(
+            operating, "## Managed Product Delivery Harness Runs"
+        )
 
         self.assertIn("A mission is not a phase label", skill)
         self.assertIn("Pass the Mission Cohesion Gate", skill)
@@ -287,20 +300,25 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("never folded into the merge body", convention)
 
         project_agents = self.read("assets/templates/PROJECT_AGENTS.template.md")
-        self.assertIn("### Commit Messages", project_agents)
         self.assertIn(
-            "follows `delivery-harness/references/commit-convention.md`", project_agents
+            "delivery-harness/references/project-operating-rules.md"
+            "#managed-product-delivery-harness-runs",
+            project_agents,
         )
-        self.assertIn("<type>(<scope>): <imperative summary>", project_agents)
-        self.assertIn("One commit holds one kind of change", project_agents)
-        self.assertIn("exactly one task ID", project_agents)
-        self.assertIn("never a fake task body", project_agents)
+        self.assertIn(
+            "follows `delivery-harness/references/commit-convention.md`", managed_owner
+        )
+        self.assertIn("### Commit Messages", managed_owner)
+        self.assertIn("<type>(<scope>): <imperative summary>", managed_owner)
+        self.assertIn("One commit holds one kind of change", managed_owner)
+        self.assertIn("exactly one task ID", managed_owner)
+        self.assertIn("never a fake task body", managed_owner)
         self.assertIn(
             "Direct small work — including plan-mode edits outside a managed run — "
             "commits with the same subject shape",
-            project_agents,
+            managed_owner,
         )
-        self.assertIn("chore(deps): bump playwright to 1.49", project_agents)
+        self.assertIn("chore(deps): bump playwright to 1.49", managed_owner)
         self.assertIn("## Direct Commits", convention)
         self.assertIn("The subject is the record", convention)
         orchestration = self.read("references/worktree-thread-orchestration.md")
@@ -397,6 +415,7 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
             anchor = title.lower().replace(" ", "-")
             if title == "Monetization And Partner Channels":
                 self.assertIn("delivery-harness/references/governance/product-contracts.md#consumer-keep-product-contracts-current", entry)
+                self.assertIn("project-operating-rules.md#" + anchor, entry)
                 self.assertIn("## " + title, product_owner)
             else:
                 self.assertIn("project-operating-rules.md#" + anchor, entry)
@@ -421,10 +440,12 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("docs/epics/", self.read("assets/templates/DOCUMENTS.template.md"))
 
     def read(self, relative_path: str) -> str:
-        text = (SKILL_ROOT / relative_path).read_text(encoding="utf-8")
-        if relative_path == "assets/templates/PROJECT_AGENTS.template.md":
-            text += (SKILL_ROOT / "references/project-operating-rules.md").read_text(encoding="utf-8")
-        return text
+        return (SKILL_ROOT / relative_path).read_text(encoding="utf-8")
+
+
+    def owner_section(self, text: str, heading: str) -> str:
+        self.assertIn(heading, text)
+        return text.split(heading, 1)[1].split("\n## ", 1)[0]
 
 
     def test_project_size_gate_keeps_small_work_direct(self) -> None:
@@ -973,6 +994,8 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         stage = self.read(MANAGED_STAGE)
         stage = self.read(MANAGED_STAGE)
         contract = self.read("references/deployment-contract.md")
+        operating = self.read("references/project-operating-rules.md")
+        activation_owner = self.owner_section(operating, "## Post-Delivery Activation")
         promotion = self.read("references/branch-promotion-contract.md")
         orchestration = self.read("references/worktree-thread-orchestration.md")
         project_agents = self.read("assets/templates/PROJECT_AGENTS.template.md")
@@ -1029,6 +1052,10 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("frozen ordinary `development` or hotfix `main` remote head", orchestration)
         self.assertIn("## Deployment", project_agents)
         self.assertIn("deployment-contract.md", project_agents)
+        self.assertIn(
+            "delivery-harness/references/deployment-contract.md#deployment-contract",
+            project_agents,
+        )
         self.assertIn("delivery-harness/references/governance/managed-delivery.md#git-safety", project_agents)
         self.assertIn("branch-promotion-contract.md", managed_owner)
         self.assertIn("exact-SHA promotion to protected `main`", managed_owner)
@@ -1089,8 +1116,13 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("automatically render `docs/tasks.md`", stage)
         self.assertIn("A refresh failure leaves successful RUN state intact", stage)
         self.assertIn("no RUN grant authorizes them", stage)
-        self.assertIn("## Post-Delivery Activation", project_agents)
-        self.assertIn("Capability never grants permission", self.read("references/project-operating-rules.md"))
+        self.assertIn(
+            "delivery-harness/references/project-operating-rules.md"
+            "#post-delivery-activation",
+            project_agents,
+        )
+        self.assertIn("## Post-Delivery Activation", operating)
+        self.assertIn("Capability never grants permission", activation_owner)
         if REPO_ROOT is not None:
             root_agents = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
             source_owner = self.read("references/governance/source-maintenance.md")
@@ -1635,6 +1667,10 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         project_claude = self.read("assets/templates/PROJECT_CLAUDE.template.md")
         worker_goal = self.read("assets/templates/WORKER_GOAL.template.md")
         configurator = self.read("scripts/configure_project_context.py")
+        operating = self.read("references/project-operating-rules.md")
+        managed_route = self.owner_section(
+            operating, "## Managed Product Delivery Harness Runs"
+        )
 
         self.assertIn("PROJECT_AGENTS.template.md", skill)
         self.assertIn("PROJECT_CLAUDE.template.md", skill)
@@ -1692,7 +1728,7 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertNotIn("current v10", project_agents)
         self.assertIn(
             "immutable external request/attempt/receipt",
-            self.read("references/project-operating-rules.md"),
+            managed_route,
         )
         self.assertIn("@AGENTS.md", project_claude)
         self.assertIn("general runtime adapter reference", project_claude)
@@ -1749,6 +1785,9 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         project_agents = self.read("assets/templates/PROJECT_AGENTS.template.md")
         operating = self.read("references/project-operating-rules.md")
         product_owner = self.read("references/governance/product-contracts.md")
+        monetization_owner = self.owner_section(
+            operating, "## Monetization And Partner Channels"
+        )
 
         self.assertIn("Monetization infrastructure gate", archetypes)
         self.assertIn("Partner channel gate and affiliate / referral / reseller model", archetypes)
@@ -1757,9 +1796,14 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("commission reversal after refund/chargeback", archetypes)
         self.assertIn("PARTNER-* affiliate/referral/reseller", archetypes)
         self.assertIn("delivery-harness/references/governance/product-contracts.md#consumer-keep-product-contracts-current", project_agents)
+        self.assertIn(
+            "delivery-harness/references/project-operating-rules.md"
+            "#monetization-and-partner-channels",
+            project_agents,
+        )
         self.assertIn("## Monetization And Partner Channels", operating)
-        self.assertIn("RevenueCat is one candidate, never the default", operating)
-        self.assertIn("an affiliate link alone does not satisfy it", operating)
+        self.assertIn("RevenueCat is one candidate, never the default", monetization_owner)
+        self.assertIn("an affiliate link alone does not satisfy it", monetization_owner)
         self.assertIn("#monetization-and-partner-channels", product_owner)
 
         if REPO_ROOT is not None:
