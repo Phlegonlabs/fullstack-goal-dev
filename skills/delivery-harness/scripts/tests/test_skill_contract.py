@@ -952,7 +952,8 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("Do not probe production", entry)
 
         stage = (security_root / "references/stages/security-review.md").read_text(encoding="utf-8")
-        self.assertIn("../../../delivery-harness/references/reference-selection.md", stage)
+        self.assertIn("`../delivery-harness/references/reference-selection.md`", stage)
+        self.assertNotIn("`../../../delivery-harness/", stage)
         self.assertIn("[Review Contract](../review-contract.md)", stage)
         missing_route = entry.replace(
             "references/stages/security-review.md",

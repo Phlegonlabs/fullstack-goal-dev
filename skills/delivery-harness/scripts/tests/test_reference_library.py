@@ -126,8 +126,8 @@ class ReferenceLibraryTests(unittest.TestCase):
                 pointer_root = ROOT / "skills/product-activation"
             elif name == "code-security-review":
                 path = ROOT / "skills" / name / "references/stages/security-review.md"
-                selection_pointer = "../../../delivery-harness/references/reference-selection.md"
-                library_pointer = "../../../delivery-harness/references/option-library/"
+                selection_pointer = "../delivery-harness/references/reference-selection.md"
+                library_pointer = "../delivery-harness/references/option-library/"
                 pointer_root = ROOT / "skills"
             else:
                 path = ROOT / "skills" / name / "SKILL.md"

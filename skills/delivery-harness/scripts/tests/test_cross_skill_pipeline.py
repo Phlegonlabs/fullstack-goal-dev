@@ -265,6 +265,12 @@ class CrossSkillPipelineTests(unittest.TestCase):
         self.assertIn("read both complete files", entry)
         self.assertIn("references/stages/security-review.md", entry)
         self.assertIn("references/review-contract.md", entry)
+        self.assertIn("consult `../delivery-harness/references/reference-selection.md`", stage)
+        self.assertIn(
+            "`../delivery-harness/references/option-library/security.md`",
+            stage,
+        )
+        self.assertNotIn("`../../../delivery-harness/", stage)
         self.assertIn("source to sink", stage)
         self.assertIn("does not start a nested scan coordinator", stage)
         self.assertIn("Do not change code", stage)
