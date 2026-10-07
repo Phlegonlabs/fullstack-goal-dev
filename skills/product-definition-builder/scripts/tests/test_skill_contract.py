@@ -2389,9 +2389,13 @@ async function agent(_prompt, options) {
 
     def test_design_system_not_required_is_a_normal_ui_outcome(self) -> None:
         skill = self.read_ui("SKILL.md")
+        stage = self.read_ui("references/stages/ui-design.md")
         contract = self.read_ui("references/output-contract.md")
 
-        self.assertIn("`not_required` uses the approved HiFi/UI/PRD contract", skill)
+        self.assertIn(
+            "[Workflow](references/stages/ui-design.md#workflow)", skill
+        )
+        self.assertIn("`not_required` uses the approved HiFi/UI/PRD contract", stage)
         self.assertIn("Decision: [required / not_required / blocked]", contract)
         self.assertIn(
             "publish no placeholder pair",
@@ -2613,6 +2617,7 @@ async function agent(_prompt, options) {
 
     def test_wireframe_reference_pass_consults_comparable_structures(self) -> None:
         skill = self.read_ui("SKILL.md")
+        stage = self.read_ui("references/stages/ui-design.md")
         guide = self.read_ui("references/wireframe-guide.md")
         contract = self.read_ui("references/output-contract.md")
 
@@ -2631,8 +2636,13 @@ async function agent(_prompt, options) {
         ):
             self.assertIn(marker, guide)
         self.assertIn(
-            "references/wireframe-guide.md",
+            "[Reference Routing](references/stages/ui-design.md#reference-routing)",
             skill,
+        )
+        self.assertIn(
+            "Read `references/wireframe-guide.md` only to inspect or validate "
+            "an existing legacy wireframe",
+            stage,
         )
         self.assertIn("Reference lessons:", contract)
         self.assertIn(
@@ -2676,6 +2686,7 @@ async function agent(_prompt, options) {
 
     def test_iconography_is_researched_not_remembered(self) -> None:
         skill = self.read_ui("SKILL.md")
+        stage = self.read_ui("references/stages/ui-design.md")
         guide = self.read_ui("references/ui-design-pass.md")
         contract = self.read_ui("references/output-contract.md")
 
@@ -2687,7 +2698,11 @@ async function agent(_prompt, options) {
             "never silently choose from memory",
         ):
             self.assertIn(marker, guide)
-        self.assertIn("Style Integration", skill)
+        self.assertIn(
+            "[Workflow](references/stages/ui-design.md#workflow)", skill
+        )
+        self.assertIn("Read `references/ui-design-pass.md`", stage)
+        self.assertIn("Style Integration", stage)
         self.assertIn("imagery, and motion rules", contract)
 
     def test_typography_color_and_styling_layers_are_decided_with_evidence(self) -> None:
