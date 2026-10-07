@@ -244,11 +244,13 @@ class CrossSkillPipelineTests(unittest.TestCase):
         product = self.read("product-definition-builder/references/stages/product-definition.md")
         lifecycle = self.read("product-definition-builder/references/artifact-lifecycle.md")
         activation = self.read("product-activation/SKILL.md")
+        activation_stage = self.read("product-activation/references/stages/activation.md")
         delivery = self.read("delivery-harness/references/stages/managed-delivery.md")
 
         self.assertIn("does not already exist", product)
         self.assertIn("docs/ACTIVATION.md", lifecycle)
         self.assertIn("Never create, edit, reopen, or extend `docs/goal/PLAN.md`", activation)
+        self.assertIn("verified `MS-*` measurement sources", activation_stage)
         self.assertIn(
             "Readiness, measurement handoff, outcome review, and SEO require promotion and production verification",
             delivery,
@@ -260,7 +262,7 @@ class CrossSkillPipelineTests(unittest.TestCase):
             "ui design": self.read("ui-design-builder/references/stages/ui-design.md"),
             "wireframes": self.read("ui-design-builder/references/wireframe-guide.md"),
             "design system": self.read("design-system-compiler/references/stages/design-compilation.md"),
-            "activation": self.read("product-activation/SKILL.md"),
+            "activation": self.read("product-activation/references/stages/activation.md"),
         }
         required = (
             "check_product_package.py",

@@ -35,6 +35,12 @@ MANAGED_STAGE_ROUTES = (
     ("verification", "5-verify-local-first"),
     ("closeout", "6-complete"),
 )
+ACTIVATION_STAGE_ROUTES = (
+    ("required-inputs", "Before preparation or execution"),
+    ("workflow", "Before platform-specific work"),
+    ("status-and-outcome-handoff", "Before ending an execution pass"),
+    ("checker-contract", "Before ending an execution pass"),
+)
 
 
 def stage_headings(text: str) -> set[str]:
@@ -422,6 +428,29 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
             rf"\({re.escape(MANAGED_STAGE)}#6-complete\)",
         )
         self.assertIn("#missing-complete", missing_pointer)
+
+    def test_activation_stage_routing_is_conditional_and_targets_exist(self) -> None:
+        skill = (SKILL_ROOT.parent / "product-activation" / "SKILL.md").read_text(encoding="utf-8")
+        stage = (SKILL_ROOT.parent / "product-activation" / "references/stages/activation.md").read_text(encoding="utf-8")
+        activation_contract = (SKILL_ROOT.parent / "product-activation" / "references/activation-contract.md").read_text(encoding="utf-8")
+
+        self.assertIn("Activation is execution by default", skill)
+        self.assertIn("explicit owner planning request", skill)
+        for anchor, trigger in ACTIVATION_STAGE_ROUTES:
+            with self.subTest(anchor=anchor, trigger=trigger):
+                self.assertIn(trigger, skill)
+                pointer_root = "references/activation-contract.md" if anchor == "checker-contract" else "references/stages/activation.md"
+                self.assertIn(f"{pointer_root}#{anchor}", skill)
+                anchor_document = activation_contract if anchor == "checker-contract" else stage
+                self.assertIn(anchor, stage_headings(anchor_document))
+
+        missing_anchor = stage.replace("## Checker Contract", "## Finished Checks")
+        with self.assertRaises(AssertionError):
+            self.assertIn("checker-contract", stage_headings(missing_anchor))
+
+        missing_pointer = skill.replace("references/activation-contract.md#checker-contract", "references/activation-contract.md#missing-checks")
+        self.assertNotIn("references/activation-contract.md#checker-contract", missing_pointer)
+        self.assertIn("references/activation-contract.md#missing-checks", missing_pointer)
 
     def test_progressive_disclosure_keeps_routine_context_bounded(self) -> None:
         core = self.read("SKILL.md")

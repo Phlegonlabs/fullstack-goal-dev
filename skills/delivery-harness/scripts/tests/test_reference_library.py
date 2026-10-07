@@ -119,6 +119,11 @@ class ReferenceLibraryTests(unittest.TestCase):
                 selection_pointer = "../../../delivery-harness/references/reference-selection.md"
                 library_pointer = "../../../delivery-harness/references/option-library/"
                 pointer_root = ROOT / "skills"
+            elif name == "product-activation":
+                path = ROOT / "skills" / name / "references/stages/activation.md"
+                selection_pointer = "../delivery-harness/references/reference-selection.md"
+                library_pointer = "../delivery-harness/references/option-library/"
+                pointer_root = ROOT / "skills/product-activation"
             else:
                 path = ROOT / "skills" / name / "SKILL.md"
             text = path.read_text(encoding="utf-8")
@@ -173,7 +178,7 @@ class ReferenceLibraryTests(unittest.TestCase):
         security = (ROOT / "skills/code-security-review/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("not a second PASS standard", security)
 
-        activation = (ROOT / "skills/product-activation/SKILL.md").read_text(encoding="utf-8")
+        activation = (ROOT / "skills/product-activation/references/stages/activation.md").read_text(encoding="utf-8")
         self.assertIn("adopted deployment, operations, or integration choice", activation)
 
         seo = (ROOT / "skills/seo-growth-review/SKILL.md").read_text(encoding="utf-8")
