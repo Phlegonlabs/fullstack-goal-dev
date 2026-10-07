@@ -104,13 +104,39 @@ class ReferenceLibraryTests(unittest.TestCase):
 
     def test_each_canonical_skill_has_conditional_installed_relative_pointer(self):
         for name in SKILL_FILES:
-            path = ROOT / "skills" / name / "SKILL.md"
+            if name == "product-definition-builder":
+                path = ROOT / "skills" / name / "references/stages/product-definition.md"
+                selection_pointer = "../delivery-harness/references/reference-selection.md"
+                library_pointer = "../delivery-harness/references/option-library/"
+                pointer_root = ROOT / "skills/product-definition-builder"
+            elif name == "ui-design-builder":
+                path = ROOT / "skills" / name / "references/stages/ui-design.md"
+                selection_pointer = "../delivery-harness/references/reference-selection.md"
+                library_pointer = "../delivery-harness/references/option-library/"
+                pointer_root = ROOT / "skills/ui-design-builder"
+            elif name == "design-system-compiler":
+                path = ROOT / "skills" / name / "references/stages/design-compilation.md"
+                selection_pointer = "../../../delivery-harness/references/reference-selection.md"
+                library_pointer = "../../../delivery-harness/references/option-library/"
+                pointer_root = ROOT / "skills"
+            elif name == "product-activation":
+                path = ROOT / "skills" / name / "references/stages/activation.md"
+                selection_pointer = "../delivery-harness/references/reference-selection.md"
+                library_pointer = "../delivery-harness/references/option-library/"
+                pointer_root = ROOT / "skills/product-activation"
+            elif name == "code-security-review":
+                path = ROOT / "skills" / name / "references/stages/security-review.md"
+                selection_pointer = "../delivery-harness/references/reference-selection.md"
+                library_pointer = "../delivery-harness/references/option-library/"
+                pointer_root = ROOT / "skills"
+            else:
+                path = ROOT / "skills" / name / "SKILL.md"
             text = path.read_text(encoding="utf-8")
             if name == "delivery-harness":
                 selection_pointer = "references/reference-selection.md"
                 library_pointer = "references/option-library/"
                 pointer_root = ROOT / "skills/delivery-harness/references"
-            else:
+            elif name not in {"product-definition-builder", "design-system-compiler", "code-security-review"}:
                 selection_pointer = "../delivery-harness/references/reference-selection.md"
                 library_pointer = (
                     "../delivery-harness/references/option-library/"
@@ -128,7 +154,7 @@ class ReferenceLibraryTests(unittest.TestCase):
                     self.assertTrue(resolved.is_relative_to(pointer_root), (name, target))
 
     def test_stage_pointers_keep_their_existing_routes_and_boundaries(self):
-        product = (ROOT / "skills/product-definition-builder/SKILL.md").read_text(encoding="utf-8")
+        product = (ROOT / "skills/product-definition-builder/references/stages/product-definition.md").read_text(encoding="utf-8")
         for phrase in (
             "architecture, API, auth, frontend, backend, data, security, product runtime",
             "closed-set stack questions",
@@ -136,7 +162,7 @@ class ReferenceLibraryTests(unittest.TestCase):
         ):
             self.assertIn(phrase, product)
 
-        ui = (ROOT / "skills/ui-design-builder/SKILL.md").read_text(encoding="utf-8")
+        ui = (ROOT / "skills/ui-design-builder/references/stages/ui-design.md").read_text(encoding="utf-8")
         for phrase in (
             "before direction work",
             "An unresolved CSS framework, component library, icon package/dependency, or stack selection returns to `product-definition-builder` before dependent direction work",
@@ -147,22 +173,27 @@ class ReferenceLibraryTests(unittest.TestCase):
         ):
             self.assertIn(phrase, ui)
 
-        compiler = (ROOT / "skills/design-system-compiler/SKILL.md").read_text(encoding="utf-8")
+        compiler = (ROOT / "skills/design-system-compiler/references/stages/design-compilation.md").read_text(encoding="utf-8")
         self.assertIn("downstream consumption only", compiler)
         self.assertIn("never reselect a stack or direction", compiler)
 
         harness = SELECTION.read_text(encoding="utf-8")
         self.assertIn("product runtime, product agent runtime, and the current development runtime", harness)
 
-        security = (ROOT / "skills/code-security-review/SKILL.md").read_text(encoding="utf-8")
+        security = (ROOT / "skills/code-security-review/references/stages/security-review.md").read_text(encoding="utf-8")
         self.assertIn("not a second PASS standard", security)
 
-        activation = (ROOT / "skills/product-activation/SKILL.md").read_text(encoding="utf-8")
+        activation = (ROOT / "skills/product-activation/references/stages/activation.md").read_text(encoding="utf-8")
         self.assertIn("adopted deployment, operations, or integration choice", activation)
 
-        seo = (ROOT / "skills/seo-growth-review/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("public, discoverable surface", seo)
-        self.assertIn("existing public-surface scope", seo)
+        seo_entry = (ROOT / "skills/seo-growth-review/SKILL.md").read_text(encoding="utf-8")
+        seo_stage = (ROOT / "skills/seo-growth-review/references/stages/seo-review.md").read_text(encoding="utf-8")
+        self.assertIn("[Workflow](references/stages/seo-review.md#workflow)", seo_entry)
+        workflow_start = seo_stage.index("## Workflow")
+        workflow_end = seo_stage.find("\n## ", workflow_start + 1)
+        seo_workflow = seo_stage[workflow_start:workflow_end if workflow_end != -1 else None]
+        self.assertIn("public, discoverable surface", seo_workflow)
+        self.assertIn("existing public-surface scope", seo_workflow)
 
     def test_readmes_describe_the_optional_catalog_in_each_language(self):
         for name in ("README.md", "README.zh-TW.md", "README.zh-CN.md", "README.es.md"):

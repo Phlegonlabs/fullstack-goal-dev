@@ -186,9 +186,9 @@ assert.throws(() => setup(badRole));
 ''')
 
     def test_current_instructions_require_producer_self_check_and_existing_evidence(self):
-        product = (fixtures.SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
+        product = (fixtures.SKILL_ROOT / "references/stages/product-definition.md").read_text(encoding="utf-8")
         ui_root = fixtures.SKILL_ROOT.parent / "ui-design-builder"
-        ui = (ui_root / "SKILL.md").read_text(encoding="utf-8")
+        ui = (ui_root / "references" / "stages" / "ui-design.md").read_text(encoding="utf-8")
         workflow = (ui_root / "references" / "review-workflow.md").read_text(encoding="utf-8")
         for content in (product, ui, workflow):
             self.assertIn("same producing agent", content)

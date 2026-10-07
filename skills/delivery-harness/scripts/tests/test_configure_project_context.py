@@ -26,7 +26,14 @@ class ConfigureProjectContextTests(unittest.TestCase):
             text = (root / "AGENTS.md").read_text(encoding="utf-8")
             self.assertIn("observed installed delivery-harness skill root", text)
             self.assertNotIn("under `skills/` in this source repository", text)
-            git_rules = text.split("## Git Safety", 1)[1].split("## Deployment", 1)[0]
+            self.assertIn(
+                "delivery-harness/references/governance/managed-delivery.md#git-safety",
+                text,
+            )
+            owner_root = SCRIPTS_DIR.parent / "references" / "governance"
+            git_rules = (owner_root / "managed-delivery.md").read_text(
+                encoding="utf-8"
+            ).split("## Git Safety", 1)[1].split("\n## ", 1)[0]
             self.assertIn("references/commit-convention.md", git_rules)
             self.assertIn("Direct tasks use `<type>(<scope>): <imperative summary>`", git_rules)
             self.assertIn("trailers apply only inside managed runs", git_rules)

@@ -19,14 +19,14 @@ Runtime:
 - Logical/resolved role: <worker_role> / <resolved_role>
 - Worker/workspace/completion: <worker_runtime> / <workspace_mode> / <completion_channel>
 - Worktree and branch/ref: <exact values>
-- Host-specific repository context: <ordered paths>
-- Runtime-specific worker contract: <matching adapter contract>
-- Parent launch record: <assignment/attempt/worker/session receipt or none>
+- Host-specific context: <ordered paths>
+- Worker contract: <matching adapter contract>
+- Launch record: <assignment/attempt/worker/session receipt or none>
 - Runtime-contract adoption: <contract_adoption receipt or none>
-- Context handoff: <fresh bounded packet or host-native task context>
-- Context sources: <ordered paths>
+- Handoff: <fresh bounded packet or host-native task context; max_message_bytes <positive integer>>
+- Context source hashes: <ordered paths with matching hashes>
 - Result contract: <absolute or readable path to references/worker-result-contract.md>
-- Permission boundary: <mode/profile, filesystem/network/bindings, approval policy>
+- Permissions: <mode/profile, filesystem/network/bindings, approval policy>
 - Resource claims: <typed keys and access>
 - Nested delegation: disabled
 
@@ -52,9 +52,8 @@ Repair context (omit for an initial implementation):
 1. Enter the assigned worktree. Read the ordered repository context and only the named skills. Keep automatic context discovery enabled.
 2. With a contract-adoption receipt, independently recompute the seven-skill contract digest and stop on a mismatch. Read the fixed contract and report it as `contract_adoption_check`.
 3. Treat this handoff as the complete task; do not reconstruct the parent conversation. Open PLAN/RUN only for a named field the packet cannot supply.
-4. Verify repository, branch/ref, base SHA, clean starting state, plan digest, lease, scope, resources, permission boundary, and authorizations. Stop on a missing, stale, or contradictory value.
-5. Apply only the matching host contract; never borrow another host's model, role, context, or launch mechanics.
-6. Confirm required temp/cache paths, network, local bindings, and sockets fit the inherited boundary.
+4. The parent ran `scripts/check_launch_packet.py` before dispatch. Verify source hashes, repository, branch/ref, base SHA, clean state, digest, lease, scope, resources, permissions, authorizations. Stop on invalid, stale, or drift.
+5. Apply only the matching host contract; never borrow another host's model, role, context, or launch mechanics. Confirm temp/cache paths, network, local bindings, and sockets fit its boundary.
 
 ## Work
 

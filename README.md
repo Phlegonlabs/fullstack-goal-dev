@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.62.2-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.62.3-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -73,10 +73,10 @@ Managed local build/test uses the project toolchain without Docker or Podman by 
 ### Zero-to-one flow
 
 1. Install one supported host and all seven skills. The installer locks the destination, backs up managed IDs, copies only Git-tracked files, and verifies every byte. Restart the host.
-2. Start with `product-definition-builder`: research-first evidence, candidate drafting and reconciliation, explicit recommendation choices, accepted changes, coherent stack choices, typed release targets, tests, Stack Decision Checkpoint, and human Product Definition Approval.
-3. For UI, run Product Definition preflight with `--ui-contract ui-design/3`, then intake, three rendered direction studies with author self-checks, owner selection and complete HiFi. Run HiFi completeness checks before Impeccable/H1–H9 and one human Visual Approval.
+2. Start with `product-definition-builder`: research-first evidence, candidate drafting and reconciliation, explicit recommendation choices, accepted changes, coherent stack choices, typed release targets, tests, Stack Decision Checkpoint, and human Product Definition Approval. Its entry retains ownership and approvals; authoring, review, preflight and domain routing use its mandatory stage reads.
+3. For UI, run Product Definition preflight with `--ui-contract ui-design/3`, then intake, three rendered direction studies with author self-checks, owner selection and complete HiFi. Run HiFi completeness checks before Impeccable/H1–H9 and one human Visual Approval. Its entry retains ownership and approvals; authoring, self-review, preflight and domain routing use mandatory stage reads.
 4. Compile the `design-system/4` Markdown/JSON pair and its derived HTML from approved sources and pass final UI validation. A 0.59 RUN retains `ui-design/2` only behind a validated frozen maintenance record; an enhancement compiles the current package. A retained pair compiles schema 3 only when its gate is `required`; if `not_required`, record existing-pair disposition and bind the approved HiFi replacement.
-5. Invoke `delivery-harness`. Its size gate keeps one bounded writer direct or creates PLAN-v6/RUN-v11 for managed work. Obtain exact authorization before every state-changing action.
+5. Invoke `delivery-harness`. Its size gate keeps one bounded writer direct without loading the managed stage file; large work follows the [mandatory stage routes](skills/delivery-harness/references/stages/managed-delivery.md) and creates PLAN-v6/RUN-v11. Obtain exact authorization before every state-changing action.
 6. Before a managed launch, pass exact source joins and run `python "<delivery-harness-skill-root>/scripts/harness_transition.py" --plan docs/goal/PLAN.md --run docs/goal/RUN.md --repo-root <absolute-root> record-observation`; `--probe-sandboxes` is diagnostic only. Execute missions in isolated worktrees and candidate commands on the host by default; explicitly selected containers retain pinned sandbox execution.
 7. Run exact-head mission reviews, graph-ordered security checks, a fresh unified `code-security-review`, broad regression gates, and platform-correct UI evidence.
 8. For managed work only, close the RUN. Dry-run/apply `archive_run.py` with exact `main` evidence and an absolute external `--anchor-out`; commit the journaled move plus `ARCHIVE_RECEIPT.json` as A and reverify it against the anchor. Direct work keeps its already verified fixed candidate and skips RUN archival.
@@ -224,12 +224,12 @@ For a multi-mission delivery, state the intended local and remote outcome. Branc
 | Skill | Use it for | Main output |
 | --- | --- | --- |
 | `product-definition-builder` | Discovery, research, security requirements, measurable product/UI behavior, complete frontend/backend architecture, coherent stack choices, release targets, tests, and Product Definition Approval | Approved `PRD.md`, `architecture.md`, `stack-decisions.md`, and research artifacts |
-| `ui-design-builder` | PRD preflight, intake, three-direction default, connected HiFi, completeness checks, Impeccable/H1–H9, Visual Approval and Design System Need Gate | `docs/design/ui-design.md`, direction studies and the approved complete HiFi package |
-| `design-system-compiler` | Compiling an approved `ui-design.md` target into the frozen design-system pair after Visual Approval when required, plus its derived source-bound HTML specimen book | `docs/design/design-system.md`, `docs/design/design-system.json`, `docs/design/design-system-preview.html` |
+| `ui-design-builder` | PRD preflight, intake, three-direction default, connected HiFi, completeness checks, Impeccable/H1–H9, Visual Approval and Design System Need Gate; mandatory stage reads own authoring and routing detail | `docs/design/ui-design.md`, direction studies and the approved complete HiFi package |
+| `design-system-compiler` | Compiling an approved `ui-design.md` target into the frozen design-system pair after Visual Approval when required, plus its derived source-bound HTML specimen book; mandatory stage reads own compile, validation, publication and routing detail | `docs/design/design-system.md`, `docs/design/design-system.json`, `docs/design/design-system-preview.html` |
 | `delivery-harness` | Shared size gate, security-aware task gates, PLAN/RUN, authorization, local verification, and integration, plus the runtime adapter reference (`references/runtime-adapters.md`) holding one general capability contract mapped to observed native tools | Direct work or `PLAN.md` + `RUN.md` |
-| `code-security-review` | Read-only security review after implementation and unified integration, preferably in a fresh sibling agent; active penetration testing and remediation stay outside this skill | Exact-SHA decision, trust-boundary coverage, validated findings, and remediation tests |
-| `product-activation` | Post-delivery setup for every supported web, API/backend, iOS, Android, macOS, Windows, browser-extension, and hybrid release target, including capability routing, exact external-action authorization, read-back, measurement sources, and outcome-review handoff | `docs/ACTIVATION.md` |
-| `seo-growth-review` | Read-only post-release technical SEO, measurement integrity, keyword research, organic-traffic diagnosis, and query-to-page opportunity prioritization | Inline review by default; optional dated report on explicit request |
+| `code-security-review` | Read-only security review after implementation and unified integration, preferably in a fresh sibling agent; active penetration testing and remediation stay outside this skill; mandatory stage reads own inputs, workflow and handoff detail | Exact-SHA decision, trust-boundary coverage, validated findings, and remediation tests |
+| `product-activation` | Post-delivery setup for every supported web, API/backend, iOS, Android, macOS, Windows, browser-extension, and hybrid release target, including capability routing, exact external-action authorization, read-back, measurement sources, and outcome-review handoff; mandatory stage reads own inputs, execution, status handoff and reporting detail | `docs/ACTIVATION.md` |
+| `seo-growth-review` | Read-only post-release technical SEO, measurement integrity, keyword research, organic-traffic diagnosis, and query-to-page opportunity prioritization; mandatory stage reads own inputs, review method and reporting detail | Inline review by default; optional dated report on explicit request |
 
 <details>
 <summary><b>How the delivery core sizes work: direct or managed</b></summary>
@@ -575,7 +575,10 @@ The PRD is refined throughout delivery. Before first-delivery approval, UI and t
 
 Acceptance rejects embedded identity placeholders and requires checkout-relative evidence paths, so retained results remain portable between checkouts.
 
-Document checks now report each changed source, affected artifacts and required rechecks. A parent reviews the semantic delta; hashes and routing hints never grant approval. Existing `document-sync/1` snapshots remain readable.
+Document checks now report each changed source, affected artifacts and required rechecks. The parent owns the global inventory; a child names its complete scope and never replaces the parent snapshot. A parent reviews the semantic delta; hashes and routing hints never grant approval. Existing `document-sync/1` snapshots remain readable. Unknown loaded identity stays unknown.
+The child checks source hashes and reports its own loaded/read evidence.
+
+Repository governance uses a short entry with mandatory trigger routes. Complete task, development, product-contract, source-maintenance, and managed-delivery rules live in `skills/delivery-harness/references/governance/`; consumer paths resolve from the observed installed Harness root.
 
 Complete enhancements use one indexed Epic in `docs/epics/`, referencing the current PRD instead of duplicating it. Small fixes append to the relevant Epic and may link detailed direct-task evidence. The goal, write scope, design source, dependencies and checks are derived into that record or existing PLAN/RUN; no extra coordination specification is required.
 
@@ -691,7 +694,7 @@ Managed role-bound results use [parent-retained execution receipts](skills/deliv
 
 The former native workflow driver, launch templates and `workflow_runs` compatibility path are removed. Historical user files remain unchanged. Unfinished work with those bindings needs explicit replanning and fresh capability/authorization evidence; do not silently migrate it.
 
-The runtime performance path removes repeated work without moving a gate. `docs_weight.py` reads a resolved baseline's blobs in one `cat-file --batch`; verifier results expose read-only setup, guard, snapshot, command, and postcheck timings; review packets remove only duplicated diff material; same-batch immutable archive bytes are reused while each verifier gets its own checked extraction; verifier slots refill with conflict-free work instead of waiting for a wave; and only a deterministic opted-in PASS from the same runner may reuse a container result after fresh guard and runtime/image trust checks. No container result enters a durable cache. New reuse must include its origin in the current parent-observed batch; RUN history alone cannot authorize it.
+The runtime performance path removes repeated work without moving a gate. `docs_weight.py` reads a resolved baseline's blobs in one `cat-file --batch`; verifier results expose read-only setup, guard, snapshot, command, and postcheck timings; review packets remove only duplicated diff material, and a new launch checks the complete parent-visible UTF-8 message against an explicit byte budget before writes; same-batch immutable archive bytes are reused while each verifier gets its own checked extraction; verifier slots refill with conflict-free work instead of waiting for a wave; and only a deterministic opted-in PASS from the same runner may reuse a container result after fresh guard and runtime/image trust checks. No container result enters a durable cache. New reuse must include its origin in the current parent-observed batch; RUN history alone cannot authorize it.
 
 Workers and reviewers never delegate. The parent keeps one writer per isolated worktree, integrates serially, and dispatches fresh reviewers for exact-head review. Read-only and write scopes stay separate; profile labels never prove permission-level tool removal. A PLAN host mismatch defers with `runtime_unavailable` and never launches another runtime.
 
@@ -804,6 +807,8 @@ This repository is licensed under the MIT License — see [LICENSE](LICENSE).
 ## Version history
 
 Update this section with each release, as part of the version bump and tag described in Releasing above.
+
+- **0.62.3** — Bound complete dispatch messages before durable writes. Load required stage rules through smaller skill and governance entries. Keep parent inventories and scoped child checks separate. Repair owner assertions and archive fixture cleanup.
 
 - **0.62.2** — Put purpose, installation and navigation first in all four READMEs. Refresh the three generated covers. Keep detailed contracts and history in expandable sections. Correct the Spanish generic-host prompt and installation command order.
 

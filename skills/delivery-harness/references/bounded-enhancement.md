@@ -14,6 +14,8 @@ The default is at most two repair rounds per root-cause family, including a repl
 
 Selecting a skill alone grants no writes. Preserve every action-specific authorization, exact target, runtime boundary, and host confirmation requirement. Spending, production data, external writes, publication, installation, branch/worktree deletion, or a new product requirement are not implied by local delivery authority. Check existing grants before asking again; do not repeat a still-valid authorization.
 
+Reuse a semantic template audit only in the same Epic or task after a complete prior audit proves recorded SHA-256 equality for template, VERSION, bundle, instructions, owner references, scope, capabilities, and source text. A first, newly applicable, missing, or changed input invalidates reuse, as do restart, summary compaction, and failed action/source guards.
+
 ## Epic Selection And Change History
 
 Classify the record before implementation, after the owner accepts the outcome:

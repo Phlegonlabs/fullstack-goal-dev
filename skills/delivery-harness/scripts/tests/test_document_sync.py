@@ -222,6 +222,42 @@ class DocumentSyncTests(unittest.TestCase):
         self.assertEqual(2, result)
         self.assertEqual("invalid", json.loads(stream.getvalue())["status"])
 
+    def test_scoped_global_baseline_and_first_use_stay_review_required(self):
+        (self.root / "CLAUDE.md").write_text("Claude rule.\n", encoding="utf-8")
+        baseline_path = self.root / "docs" / "document-sync.json"
+        baseline_path.parent.mkdir()
+        baseline_path.write_text(json.dumps(self.observe()["snapshot"]), encoding="utf-8")
+        before = baseline_path.read_bytes()
+
+        scoped = io.StringIO()
+        with contextlib.redirect_stdout(scoped):
+            result = main([
+                "--repo-root", str(self.root), "--loaded-digest", self.digest,
+                "--baseline", "docs/document-sync.json", "--path", "CLAUDE.md",
+            ])
+        report = json.loads(scoped.getvalue())
+        self.assertEqual(1, result)
+        self.assertEqual("review_required", report["status"])
+        self.assertIn(
+            {"kind": "removed_from_inventory", "path": "AGENTS.md"},
+            report["findings"],
+        )
+        self.assertEqual(before, baseline_path.read_bytes())
+
+        first = io.StringIO()
+        with contextlib.redirect_stdout(first):
+            result = main([
+                "--repo-root", str(self.root),
+                "--path", "AGENTS.md", "--path", "CLAUDE.md",
+                "--required-path", "CLAUDE.md",
+            ])
+        report = json.loads(first.getvalue())
+        self.assertEqual(1, result)
+        self.assertEqual("review_required", report["status"])
+        self.assertIn({"kind": "baseline_review_required"}, report["findings"])
+        self.assertIn({"kind": "loaded_identity_unobserved"}, report["findings"])
+        self.assertEqual(before, baseline_path.read_bytes())
+
     def test_cli_error_is_redacted(self):
         self.doc.write_bytes(b"\xffDO-NOT-PRINT")
         stream = io.StringIO()

@@ -6,6 +6,7 @@ from pathlib import Path
 
 SKILLS = Path(__file__).resolve().parents[3]
 REPO = SKILLS.parent
+GOVERNANCE = SKILLS / "delivery-harness/references/governance"
 NAMES = (
     "delivery-harness", "product-definition-builder", "ui-design-builder",
     "design-system-compiler", "code-security-review", "product-activation",
@@ -14,9 +15,31 @@ NAMES = (
 
 
 class EnhancementEntryContractTests(unittest.TestCase):
+    def read_root(self) -> str:
+        return (REPO / "AGENTS.md").read_text(encoding="utf-8")
+
+    def read_template(self) -> str:
+        return (SKILLS / "delivery-harness/assets/templates/PROJECT_AGENTS.template.md").read_text(encoding="utf-8")
+
+    def owner_section(self, name: str, heading: str) -> str:
+        text = (GOVERNANCE / name).read_text(encoding="utf-8")
+        self.assertIn(heading, text)
+        return text.split(heading, 1)[1].split("\n## ", 1)[0]
+
     def test_repository_checkpoints_are_standalone_and_preserve_authority(self):
-        template = (SKILLS / "delivery-harness/assets/templates/PROJECT_AGENTS.template.md").read_text(encoding="utf-8")
-        section = template.split("## Repository Change Checkpoints\n", 1)[1].split("\n## ", 1)[0]
+        template = self.read_template()
+        root = self.read_root()
+        self.assertIn(
+            "delivery-harness/references/governance/task-and-handoff.md#repository-change-checkpoints",
+            template,
+        )
+        self.assertIn(
+            "skills/delivery-harness/references/governance/task-and-handoff.md#repository-change-checkpoints",
+            root,
+        )
+        section = self.owner_section(
+            "task-and-handoff.md", "## Repository Change Checkpoints"
+        )
         for phrase in ("outside Product Delivery Harness", "task start", "significant edit",
                        "before completion or handoff", "commits made outside Harness",
                        "baseline gap", "observed / unverified", "working-tree", "actual verification separately",
@@ -24,15 +47,22 @@ class EnhancementEntryContractTests(unittest.TestCase):
                        "not a background timer", "Keep `docs/DOCUMENTS.md` indexed"):
             self.assertIn(phrase, section)
         if (REPO / "AGENTS.md").exists():
-            root = (REPO / "AGENTS.md").read_text(encoding="utf-8")
-            self.assertEqual(section, root.split("## Repository Change Checkpoints\n", 1)[1].split("\n## ", 1)[0])
+            self.assertIn("significant edit", root.lower())
 
     def test_handoff_audit_matches_root_rule_and_preserves_generated_tasks_authority(self):
-        template = (SKILLS / "delivery-harness/assets/templates/PROJECT_AGENTS.template.md").read_text(encoding="utf-8")
-        seeded = template.split("## Handoff Documentation Audit\n", 1)[1].split("\n## ", 1)[0]
-        root = (REPO / "AGENTS.md").read_text(encoding="utf-8")
-        root_section = root.split("## Handoff Documentation Audit\n", 1)[1].split("\n## ", 1)[0]
-        self.assertEqual(seeded, root_section)
+        template = self.read_template()
+        root = self.read_root()
+        self.assertIn(
+            "delivery-harness/references/governance/task-and-handoff.md#handoff-documentation-audit",
+            template,
+        )
+        self.assertIn(
+            "skills/delivery-harness/references/governance/task-and-handoff.md#handoff-documentation-audit",
+            root,
+        )
+        seeded = self.owner_section(
+            "task-and-handoff.md", "## Handoff Documentation Audit"
+        )
         for phrase in (
             "Before every handoff", "docs/DOCUMENTS.md", "Epic Change Log",
             "docs/goal/PLAN.md` and `RUN.md", "renderer's `--check`",
@@ -71,6 +101,44 @@ class EnhancementEntryContractTests(unittest.TestCase):
                 self.assertIn(handoff_marker, content)
                 self.assertIn("docs/tasks.md", content)
                 self.assertIn(generated_view_rule, content)
+                self.assertIn("source hashes", content)
+
+    def test_scoped_child_and_template_audit_boundaries_are_current(self):
+        sync = (SKILLS / "delivery-harness/references/document-sync-contract.md").read_text(encoding="utf-8")
+        bounded = (SKILLS / "delivery-harness/references/bounded-enhancement.md").read_text(encoding="utf-8")
+        template = self.read_template()
+        owner = (GOVERNANCE / "task-and-handoff.md").read_text(encoding="utf-8")
+
+        for phrase in (
+            "full global inventory at first entry",
+            "omits the parent global `--baseline`",
+            "never replaces the parent snapshot",
+            "evaluate the inventory triggers",
+            "child independently reads its complete named instruction chain",
+            "verifies packet source hashes",
+            "Unknown loaded identity stays unknown",
+            "Reuse a semantic template audit",
+            "recorded SHA-256 values",
+            "newly applicable, missing, or changed input invalidates reuse",
+            "restart and summary compaction",
+            "Never synthesize unknown loaded identity",
+        ):
+            with self.subTest(reference="document-sync", phrase=phrase):
+                self.assertIn(phrase, sync)
+        self.assertIn("semantic template audit", bounded)
+        delegation = (SKILLS / "delivery-harness/references/delegation-contract.md").read_text(encoding="utf-8")
+        performance = (SKILLS / "delivery-harness/references/runtime-performance.md").read_text(encoding="utf-8")
+        self.assertIn("source hashes", delegation)
+        self.assertIn("parent claim does not substitute", delegation)
+        self.assertIn("before dispatch", performance)
+        self.assertIn("never replaces that launch check", performance)
+        for phrase in ("full global inventory", "semantic template audit", "unknown loaded identity stays unknown"):
+            with self.subTest(reference="template", phrase=phrase):
+                self.assertIn(phrase, owner)
+        self.assertIn(
+            "delivery-harness/references/governance/task-and-handoff.md#project-entry-and-current-work",
+            template,
+        )
 
     def test_required_failure_handoff_cannot_mint_pass(self):
         content = (SKILLS / "delivery-harness/references/bounded-enhancement.md").read_text(encoding="utf-8")

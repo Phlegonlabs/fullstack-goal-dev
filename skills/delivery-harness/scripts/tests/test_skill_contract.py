@@ -22,6 +22,59 @@ def find_repo_root(start: Path) -> Path | None:
 
 REPO_ROOT = find_repo_root(Path(__file__).resolve().parent)
 
+MANAGED_STAGE = "references/stages/managed-delivery.md"
+MANAGED_STAGE_ROUTES = (
+    ("plan", "managed-route"),
+    ("plan", "reference-routing"),
+    ("plan", "2-plan-large-work"),
+    ("runtime", "adapter-routing"),
+    ("dispatch", "default-runtime-and-wave-policy"),
+    ("dispatch", "default-mission-topology"),
+    ("dispatch", "3-pass-plan-readiness"),
+    ("execution", "4-execute-and-integrate"),
+    ("verification", "5-verify-local-first"),
+    ("closeout", "6-complete"),
+)
+ACTIVATION_STAGE_ROUTES = (
+    ("required-inputs", "Before preparation or execution"),
+    ("workflow", "Before platform-specific work"),
+    ("status-and-outcome-handoff", "Before ending an execution pass"),
+    ("checker-contract", "Before ending an execution pass"),
+)
+SEO_STAGE_ROUTES = (
+    ("required-inputs", "Before an actual review"),
+    ("workflow", "Before an actual review"),
+    ("saved-lifecycle-public-release-review", "Before a saved lifecycle public-release review"),
+)
+SECURITY_STAGE_FILES = (
+    (
+        "references/stages/security-review.md",
+        "Security Review Stage",
+        ("Required Inputs", "Workflow", "Handoff"),
+    ),
+    (
+        "references/review-contract.md",
+        "Review Contract",
+        ("Harness Placement", "Result"),
+    ),
+)
+
+
+def stage_headings(text: str) -> set[str]:
+    headings = set()
+    inside_frontmatter = False
+    for line in text.splitlines():
+        if line.strip() == "---":
+            inside_frontmatter = not inside_frontmatter
+            continue
+        if inside_frontmatter or not line.startswith("#"):
+            continue
+        heading = line.lstrip("#").strip().lower()
+        heading = re.sub(r"[^a-z0-9\s-]", "", heading)
+        heading = re.sub(r"\s+", "-", heading.strip())
+        headings.add(heading)
+    return headings
+
 
 class DeliveryHarnessSkillContractTests(unittest.TestCase):
     def test_enhancements_preserve_ui_and_record_small_followups(self) -> None:
@@ -29,7 +82,7 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         epic = self.read("assets/templates/EPIC.template.md")
         ui_root = SKILL_ROOT.parent / "ui-design-builder"
         recommendations = (ui_root / "references/enhancement-recommendations.md").read_text(encoding="utf-8")
-        ui_skill = (ui_root / "SKILL.md").read_text(encoding="utf-8")
+        ui_stage = (ui_root / "references/stages/ui-design.md").read_text(encoding="utf-8")
         for phrase in ("## Epic Selection And Change History", "before implementation",
                        "same accepted outcome", "closed Epic", "small fix"):
             self.assertIn(phrase, bounded)
@@ -38,11 +91,12 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
                        "complete coverage is not a redraw instruction", "entry links",
                        "shared component", "unchanged product"):
             self.assertIn(phrase, recommendations)
-        self.assertIn("Enhancement mode takes precedence", ui_skill)
-        self.assertIn("Do not restart the all-screen authoring sequence", ui_skill)
-        for name in ("product-definition-builder", "design-system-compiler"):
-            content = (SKILL_ROOT.parent / name / "SKILL.md").read_text(encoding="utf-8")
-            self.assertIn("Incremental UI Scope", content)
+        self.assertIn("Enhancement mode takes precedence", ui_stage)
+        self.assertIn("Do not restart the all-screen authoring sequence", ui_stage)
+        product = (SKILL_ROOT.parent / "product-definition-builder" / "SKILL.md").read_text(encoding="utf-8")
+        compiler_stage = (SKILL_ROOT.parent / "design-system-compiler" / "references/stages/design-compilation.md").read_text(encoding="utf-8")
+        self.assertIn("Incremental UI Scope", product)
+        self.assertIn("Incremental UI Scope", compiler_stage)
 
     @unittest.skipUnless(sys.platform == "win32" and REPO_ROOT is not None,
                          "Windows CI candidate identity")
@@ -129,6 +183,7 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
     def test_renamed_installs_have_a_recoverable_legacy_migration(self) -> None:
         documents = {
             "AGENTS.md": (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8"),
+            "source-maintenance.md": self.read("references/governance/source-maintenance.md"),
             "runtime-upgrades.md": self.read("references/runtime-upgrades.md"),
             **{
                 name: (REPO_ROOT / name).read_text(encoding="utf-8")
@@ -137,6 +192,12 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         }
         for name, content in documents.items():
             with self.subTest(document=name):
+                if name == "AGENTS.md":
+                    self.assertIn(
+                        "governance/source-maintenance.md#update-local-skills",
+                        content,
+                    )
+                    continue
                 for skill_id in (
                     "full-harness",
                     "prd-builder",
@@ -155,7 +216,7 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
                 )
                 self.assertIn("~/.agents/skills/", content)
 
-        agents = documents["AGENTS.md"]
+        agents = documents["source-maintenance.md"]
         runtime = documents["runtime-upgrades.md"]
         self.assertIn("never overwrite or delete", agents)
         self.assertIn("Never overwrite or delete", runtime)
@@ -181,9 +242,14 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
                     )
 
     def test_default_mission_topology_is_flat_isolated_and_integration_reviewed(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(MANAGED_STAGE)
+        entry = self.read("SKILL.md")
         worker = self.read("assets/templates/WORKER_GOAL.template.md")
         project = self.read("assets/templates/PROJECT_AGENTS.template.md")
+        operating = self.read("references/project-operating-rules.md")
+        managed_owner = self.owner_section(
+            operating, "## Managed Product Delivery Harness Runs"
+        )
 
         self.assertIn("## Default Mission Topology", skill)
         self.assertIn("Map one independently testable goal to one mission", skill)
@@ -200,17 +266,26 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("do not dispatch another same-scope review", skill)
         self.assertIn("do not attach the full PLAN/RUN", skill)
         self.assertIn("one planned broad final validation suite", skill)
-        self.assertIn("Workers and reviewers never delegate", skill)
+        self.assertIn("Workers and reviewers never delegate", entry)
         self.assertIn("## No Nested Delegation", worker)
-        self.assertIn("explicit file-ownership scope", project)
+        self.assertIn(
+            "delivery-harness/references/project-operating-rules.md"
+            "#managed-product-delivery-harness-runs",
+            project,
+        )
+        self.assertIn("explicit file-ownership scope", managed_owner)
 
     def test_missions_are_cohesive_and_tasks_keep_atomic_commit_boundaries(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(MANAGED_STAGE)
         decomposition = self.read("references/execution-task-decomposition.md")
         convention = self.read("references/commit-convention.md")
         plan = self.read("assets/templates/HARNESS_PLAN.template.md")
         worker = self.read("assets/templates/WORKER_GOAL.template.md")
         result_validator = self.read("scripts/validate_worker_result.py")
+        operating = self.read("references/project-operating-rules.md")
+        managed_owner = self.owner_section(
+            operating, "## Managed Product Delivery Harness Runs"
+        )
 
         self.assertIn("A mission is not a phase label", skill)
         self.assertIn("Pass the Mission Cohesion Gate", skill)
@@ -225,20 +300,25 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("never folded into the merge body", convention)
 
         project_agents = self.read("assets/templates/PROJECT_AGENTS.template.md")
-        self.assertIn("### Commit Messages", project_agents)
         self.assertIn(
-            "follows `delivery-harness/references/commit-convention.md`", project_agents
+            "delivery-harness/references/project-operating-rules.md"
+            "#managed-product-delivery-harness-runs",
+            project_agents,
         )
-        self.assertIn("<type>(<scope>): <imperative summary>", project_agents)
-        self.assertIn("One commit holds one kind of change", project_agents)
-        self.assertIn("exactly one task ID", project_agents)
-        self.assertIn("never a fake task body", project_agents)
+        self.assertIn(
+            "follows `delivery-harness/references/commit-convention.md`", managed_owner
+        )
+        self.assertIn("### Commit Messages", managed_owner)
+        self.assertIn("<type>(<scope>): <imperative summary>", managed_owner)
+        self.assertIn("One commit holds one kind of change", managed_owner)
+        self.assertIn("exactly one task ID", managed_owner)
+        self.assertIn("never a fake task body", managed_owner)
         self.assertIn(
             "Direct small work — including plan-mode edits outside a managed run — "
             "commits with the same subject shape",
-            project_agents,
+            managed_owner,
         )
-        self.assertIn("chore(deps): bump playwright to 1.49", project_agents)
+        self.assertIn("chore(deps): bump playwright to 1.49", managed_owner)
         self.assertIn("## Direct Commits", convention)
         self.assertIn("The subject is the record", convention)
         orchestration = self.read("references/worktree-thread-orchestration.md")
@@ -254,7 +334,7 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("commit_order_mismatch", result_validator)
 
     def test_related_review_findings_escalate_by_root_cause_across_revisions(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(MANAGED_STAGE)
         graph = self.read("references/graph-orchestration.md")
         decomposition = self.read("references/execution-task-decomposition.md")
         verification = self.read("references/verification-gates.md")
@@ -329,23 +409,57 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
     def test_project_entry_links_conditional_rules_and_epic_baseline(self) -> None:
         entry = (SKILL_ROOT / "assets/templates/PROJECT_AGENTS.template.md").read_text(encoding="utf-8")
         rules = self.read("references/project-operating-rules.md")
+        task_owner = self.read("references/governance/task-and-handoff.md")
+        product_owner = self.read("references/governance/product-contracts.md")
         for title in ("Monetization And Partner Channels", "Post-Delivery Activation", "Managed Product Delivery Harness Runs"):
             anchor = title.lower().replace(" ", "-")
-            self.assertIn("project-operating-rules.md#" + anchor, entry)
-            self.assertIn("## " + title, rules)
+            if title == "Monetization And Partner Channels":
+                self.assertIn("delivery-harness/references/governance/product-contracts.md#consumer-keep-product-contracts-current", entry)
+                self.assertIn("project-operating-rules.md#" + anchor, entry)
+                self.assertIn("## " + title, product_owner)
+            else:
+                self.assertIn("project-operating-rules.md#" + anchor, entry)
+                self.assertIn("## " + title, rules)
         for marker in ("## Project Entry And Current Work", "## Required Reading", "## Completion", "docs/epics/EPIC-<id>.md", "unknown means unknown"):
-            self.assertIn(marker, entry)
+            if marker == "## Project Entry And Current Work":
+                self.assertIn(marker, task_owner)
+                self.assertIn("task-and-handoff.md#project-entry-and-current-work", entry)
+            elif marker in {"docs/epics/EPIC-<id>.md", "unknown means unknown"}:
+                self.assertIn(marker, task_owner)
+                self.assertIn("task-and-handoff.md#project-entry-and-current-work", entry)
+            elif marker == "## Completion":
+                self.assertIn("## Source Completion", task_owner)
+                self.assertIn("## Consumer Completion", task_owner)
+                self.assertIn("task-and-handoff.md#consumer-completion", entry)
+            else:
+                self.assertIn(marker, entry)
         epic = self.read("assets/templates/EPIC.template.md")
         self.assertIn("Keep one current PRD", epic)
         self.assertIn("this file grants none", epic)
-        self.assertIn("Small fixes", self.read("assets/templates/PROJECT_AGENTS.template.md"))
+        self.assertIn("Small fixes", task_owner)
         self.assertIn("docs/epics/", self.read("assets/templates/DOCUMENTS.template.md"))
 
+    def test_document_index_epic_link_resolves_from_docs(self) -> None:
+        documents = (REPO_ROOT / "docs/DOCUMENTS.md").read_text(encoding="utf-8")
+        row = next(
+            line
+            for line in documents.splitlines()
+            if "`docs/research/context-decomposition.md`" in line
+        )
+        target = re.search(
+            r"\[EPIC-lightweight-entry\.md\]\(([^)]+)\)", row
+        ).group(1)
+
+        self.assertEqual("epics/EPIC-lightweight-entry.md", target)
+        self.assertTrue((REPO_ROOT / "docs" / target).is_file(), target)
+
     def read(self, relative_path: str) -> str:
-        text = (SKILL_ROOT / relative_path).read_text(encoding="utf-8")
-        if relative_path == "assets/templates/PROJECT_AGENTS.template.md":
-            text += (SKILL_ROOT / "references/project-operating-rules.md").read_text(encoding="utf-8")
-        return text
+        return (SKILL_ROOT / relative_path).read_text(encoding="utf-8")
+
+
+    def owner_section(self, text: str, heading: str) -> str:
+        self.assertIn(heading, text)
+        return text.split(heading, 1)[1].split("\n## ", 1)[0]
 
 
     def test_project_size_gate_keeps_small_work_direct(self) -> None:
@@ -360,7 +474,7 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("large -> planner", skill)
         self.assertIn("cannot override a `large` classification", skill)
         self.assertIn("Small work creates no PLAN/RUN files", skill)
-        self.assertIn("scheduler fan-out only when", skill)
+        self.assertIn("Use this routing only when the size gate classifies work as `large`", skill)
         self.assertIn("two-way project-size gate", research)
         self.assertIn("Small work never reaches this selector", selector)
         self.assertIn("Small direct work does not instantiate this file", runbook)
@@ -368,14 +482,62 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("A high file count", skill)
         self.assertIn("does not make work `large` by itself", skill)
 
+    def test_managed_stage_routing_is_conditional_and_targets_exist(self) -> None:
+        skill = self.read("SKILL.md")
+        stage = self.read(MANAGED_STAGE)
+
+        self.assertIn("Use this routing only when the size gate classifies work as `large`", skill)
+        self.assertIn("For direct work, do not read the managed stage file", skill)
+        self.assertTrue((SKILL_ROOT / MANAGED_STAGE).is_file())
+        for trigger, anchor in MANAGED_STAGE_ROUTES:
+            with self.subTest(trigger=trigger, anchor=anchor):
+                self.assertRegex(skill, rf"\({re.escape(MANAGED_STAGE)}#{anchor}\)")
+                self.assertIn(anchor, stage_headings(stage))
+
+        missing_anchor = stage.replace("### 6. Complete", "### Finished")
+        with self.assertRaises(AssertionError):
+            self.assertIn("6-complete", stage_headings(missing_anchor))
+
+        missing_pointer = skill.replace("#6-complete", "#missing-complete")
+        self.assertNotRegex(
+            missing_pointer,
+            rf"\({re.escape(MANAGED_STAGE)}#6-complete\)",
+        )
+        self.assertIn("#missing-complete", missing_pointer)
+
+    def test_activation_stage_routing_is_conditional_and_targets_exist(self) -> None:
+        skill = (SKILL_ROOT.parent / "product-activation" / "SKILL.md").read_text(encoding="utf-8")
+        stage = (SKILL_ROOT.parent / "product-activation" / "references/stages/activation.md").read_text(encoding="utf-8")
+        activation_contract = (SKILL_ROOT.parent / "product-activation" / "references/activation-contract.md").read_text(encoding="utf-8")
+
+        self.assertIn("Activation is execution by default", skill)
+        self.assertIn("explicit owner planning request", skill)
+        for anchor, trigger in ACTIVATION_STAGE_ROUTES:
+            with self.subTest(anchor=anchor, trigger=trigger):
+                self.assertIn(trigger, skill)
+                pointer_root = "references/activation-contract.md" if anchor == "checker-contract" else "references/stages/activation.md"
+                self.assertIn(f"{pointer_root}#{anchor}", skill)
+                anchor_document = activation_contract if anchor == "checker-contract" else stage
+                self.assertIn(anchor, stage_headings(anchor_document))
+
+        missing_anchor = stage.replace("## Checker Contract", "## Finished Checks")
+        with self.assertRaises(AssertionError):
+            self.assertIn("checker-contract", stage_headings(missing_anchor))
+
+        missing_pointer = skill.replace("references/activation-contract.md#checker-contract", "references/activation-contract.md#missing-checks")
+        self.assertNotIn("references/activation-contract.md#checker-contract", missing_pointer)
+        self.assertIn("references/activation-contract.md#missing-checks", missing_pointer)
+
     def test_progressive_disclosure_keeps_routine_context_bounded(self) -> None:
         core = self.read("SKILL.md")
         worker = self.read("assets/templates/WORKER_GOAL.template.md")
         result_contract = self.read("references/worker-result-contract.md")
         runtime_adapters = self.read("references/runtime-adapters.md")
 
-        self.assertLess(len(core.split()), 3600)
-        self.assertLess(len(worker.split()), 1200)
+        self.assertLess(len(core.split()), 2000)
+        managed_stage = self.read(MANAGED_STAGE)
+        self.assertLess(len(managed_stage.split()), 2400)
+        self.assertLessEqual(len(worker.split()), 1200)
         # One shared contract plus one section per provider replaces the three
         # adapter skills; the merged file stays near what those three weighed.
         self.assertLess(len(runtime_adapters.split()), 3700)
@@ -405,11 +567,16 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("is not a PLAN node", graph)
         self.assertIn("The System Review And Route stage completes before this file exists", runbook)
         self.assertIn("before this delegated handoff exists", worker)
-        self.assertLess(skill.index("### System Review And Route"), skill.index("## Adapter Routing"))
-        self.assertLess(skill.index("### System Review And Route"), skill.index("### 2. Plan Large Work"))
+        self.assertLess(
+            skill.index("### System Review And Route"),
+            skill.index("## Managed Stage Routing"),
+        )
+        stage = self.read(MANAGED_STAGE)
+        self.assertIn("## Adapter Routing", stage)
+        self.assertLess(stage.index("## Adapter Routing"), stage.index("### 2. Plan Large Work"))
 
     def test_new_managed_work_requires_plan_run_and_legacy_compact_is_read_only(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(MANAGED_STAGE)
         state = self.read("references/execution-state-model.md")
         runbook = self.read("assets/templates/MISSION_RUNBOOK.template.md")
         goal = self.read("assets/templates/GOAL.template.md")
@@ -424,16 +591,18 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("not a new authoring route", runbook)
         self.assertNotIn("compact large sequential work", runbook.lower())
         self.assertNotIn("Planning depth: direct | compact RUN", skill)
+        self.assertNotIn("New managed work uses PLAN schema v6", self.read("SKILL.md"))
 
     def test_large_no_agent_route_is_real_parent_sequential_execution(self) -> None:
         skill = self.read("SKILL.md")
+        stage = self.read(MANAGED_STAGE)
         state = self.read("references/execution-state-model.md")
         selector = self.read("references/parallel-mission-selection.md")
         orchestration = self.read("references/worktree-thread-orchestration.md")
         runbook = self.read("assets/templates/MISSION_RUNBOOK.template.md")
         goal = self.read("assets/templates/GOAL.template.md")
 
-        for content in (skill, state, selector, orchestration, runbook, goal):
+        for content in (stage, state, selector, orchestration, runbook, goal):
             self.assertIn("sequential_parent", content)
         # The full binding rules live once in execution-state-model.md's
         # anchored section; every other file points at that heading.
@@ -756,15 +925,99 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("its `<title>` and meta description match the PRD record", gates)
         self.assertIn("A mismatch is a failing check, not a style preference", gates)
 
+    def test_seo_stage_routing_is_conditional_and_targets_exist(self) -> None:
+        seo = SKILL_ROOT.parent / "seo-growth-review"
+        entry = (seo / "SKILL.md").read_text(encoding="utf-8")
+        stage_path = seo / "references/stages/seo-review.md"
+        stage = stage_path.read_text(encoding="utf-8")
+        method = (seo / "references/review-method.md").read_text(encoding="utf-8")
+
+        self.assertIn("no repository prerequisite, but still needs the production URL or domain", entry)
+        self.assertIn("target market, language, and business outcome", entry)
+        self.assertIn("makes SEO `not applicable`", entry)
+        self.assertIn("Inline output follows the applicable rules without creating a repository artifact", entry)
+        for anchor, trigger in SEO_STAGE_ROUTES:
+            with self.subTest(anchor=anchor, trigger=trigger):
+                self.assertIn(trigger, entry)
+                pointer_root = "references/review-method.md" if anchor == "saved-lifecycle-public-release-review" else "references/stages/seo-review.md"
+                pointer = f"{pointer_root}#{anchor}"
+                self.assertIn(pointer, entry)
+                self.assertIn(anchor, stage_headings(method if pointer.startswith("references/review-method") else stage))
+
+        workflow = stage.split("## Workflow\n", 1)[1].split("\n## ", 1)[0]
+        self.assertNotIn("## Workflow", entry)
+        self.assertIn("references/source-catalog.md", workflow)
+        self.assertIn("references/review-method.md", workflow)
+        self.assertIn("assets/templates/SEO_REVIEW.template.md", workflow)
+        self.assertIn("scripts/check_seo_review.py --require-lifecycle", workflow)
+
+        missing_anchor = stage.replace("## Required Inputs", "Intake")
+        self.assertNotIn("required-inputs", stage_headings(missing_anchor))
+        missing_pointer = entry.replace(
+            "references/stages/seo-review.md#required-inputs",
+            "references/stages/seo-review.md#missing-intake",
+        )
+        self.assertNotIn("references/stages/seo-review.md#required-inputs", missing_pointer)
+        self.assertIn("references/stages/seo-review.md#missing-intake", missing_pointer)
+
+    def test_security_review_stage_and_contract_are_full_mandatory_reads(self) -> None:
+        security_root = SKILL_ROOT.parent / "code-security-review"
+        entry = (security_root / "SKILL.md").read_text(encoding="utf-8")
+        for pointer, display, anchors in SECURITY_STAGE_FILES:
+            with self.subTest(route=pointer):
+                self.assertIn(f"[{display}]({pointer})", entry)
+                self.assertNotIn(f"{pointer}#", entry)
+                document = (security_root / pointer).read_text(encoding="utf-8")
+                self.assertTrue(document.strip())
+                self.assertTrue((security_root / pointer).is_file())
+                for anchor in anchors:
+                    self.assertIn(anchor, document)
+                    self.assertIn(anchor.lower().replace(" ", "-"), stage_headings(document))
+
+        self.assertIn("Before any actual security review", entry)
+        self.assertIn("complete-file routes", entry)
+        self.assertIn("no reading reduction", entry)
+        self.assertIn("full source-to-sink coverage", entry)
+        self.assertNotIn("## Required Inputs", entry)
+        self.assertNotIn("## Workflow", entry)
+        self.assertNotIn("## Handoff", entry)
+        self.assertIn("exact candidate SHA", entry)
+        self.assertIn("The reviewer never delegates", entry)
+        self.assertIn("Do not edit files", entry)
+        self.assertIn("Do not probe production", entry)
+
+        stage = (security_root / "references/stages/security-review.md").read_text(encoding="utf-8")
+        self.assertIn("`../delivery-harness/references/reference-selection.md`", stage)
+        self.assertNotIn("`../../../delivery-harness/", stage)
+        self.assertIn("[Review Contract](../review-contract.md)", stage)
+        missing_route = entry.replace(
+            "references/stages/security-review.md",
+            "references/stages/missing-security-review.md",
+        )
+        self.assertNotIn("references/stages/security-review.md", missing_route)
+        self.assertIn("references/stages/missing-security-review.md", missing_route)
+        missing_contract = entry.replace(
+            "references/review-contract.md",
+            "references/missing-review-contract.md",
+        )
+        self.assertNotIn("references/review-contract.md", missing_contract)
+        self.assertIn("references/missing-review-contract.md", missing_contract)
+
     def test_deployment_contract_maps_candidate_then_main(self) -> None:
         skill = self.read("SKILL.md")
+        stage = self.read(MANAGED_STAGE)
+        stage = self.read(MANAGED_STAGE)
         contract = self.read("references/deployment-contract.md")
+        operating = self.read("references/project-operating-rules.md")
+        activation_owner = self.owner_section(operating, "## Post-Delivery Activation")
         promotion = self.read("references/branch-promotion-contract.md")
         orchestration = self.read("references/worktree-thread-orchestration.md")
         project_agents = self.read("assets/templates/PROJECT_AGENTS.template.md")
+        managed_owner = self.read("references/governance/managed-delivery.md")
         project_claude = self.read("assets/templates/PROJECT_CLAUDE.template.md")
 
-        self.assertIn("references/deployment-contract.md", skill)
+        self.assertIn("references/deployment-contract.md", stage)
+        self.assertIn("references/branch-promotion-contract.md", stage)
         self.assertIn("references/branch-promotion-contract.md", skill)
         for phrase in (
             "Production tracks `main`",
@@ -813,8 +1066,13 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("frozen ordinary `development` or hotfix `main` remote head", orchestration)
         self.assertIn("## Deployment", project_agents)
         self.assertIn("deployment-contract.md", project_agents)
-        self.assertIn("branch-promotion-contract.md", project_agents)
-        self.assertIn("exact-SHA promotion to protected `main`", project_agents)
+        self.assertIn(
+            "delivery-harness/references/deployment-contract.md#deployment-contract",
+            project_agents,
+        )
+        self.assertIn("delivery-harness/references/governance/managed-delivery.md#git-safety", project_agents)
+        self.assertIn("branch-promotion-contract.md", managed_owner)
+        self.assertIn("exact-SHA promotion to protected `main`", managed_owner)
         self.assertIn("Protected resources preview must never bind", project_agents)
         self.assertIn(
             "general runtime adapter reference", project_claude
@@ -869,18 +1127,25 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("# Documents", documents_template)
         self.assertIn("non-canonical view of RUN", documents_template)
         self.assertIn("`docs/product/`", documents_template)
-        self.assertIn("automatically render `docs/tasks.md`", skill)
-        self.assertIn("A refresh failure leaves successful RUN state intact", skill)
-        self.assertIn("no RUN grant authorizes them", skill)
-        self.assertIn("## Post-Delivery Activation", project_agents)
-        self.assertIn("Capability never grants permission", project_agents)
+        self.assertIn("automatically render `docs/tasks.md`", stage)
+        self.assertIn("A refresh failure leaves successful RUN state intact", stage)
+        self.assertIn("no RUN grant authorizes them", stage)
+        self.assertIn(
+            "delivery-harness/references/project-operating-rules.md"
+            "#post-delivery-activation",
+            project_agents,
+        )
+        self.assertIn("## Post-Delivery Activation", operating)
+        self.assertIn("Capability never grants permission", activation_owner)
         if REPO_ROOT is not None:
             root_agents = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
-            self.assertIn("Protect `main` permanently", root_agents)
-            self.assertIn("no `development` branch or development integration is required", root_agents)
-            self.assertIn("Consumer promotions retain", root_agents)
-            self.assertIn("separate exact target/SHA authorization", root_agents)
-            self.assertIn("never force-push", root_agents.casefold())
+            source_owner = self.read("references/governance/source-maintenance.md")
+            self.assertIn("governance/source-maintenance.md#git-flow", root_agents)
+            self.assertIn("Protect `main` permanently", source_owner)
+            self.assertIn("no `development` branch or development integration is required", source_owner)
+            self.assertIn("Consumer promotions retain", source_owner)
+            self.assertIn("separate exact target/SHA authorization", source_owner)
+            self.assertIn("never force-push", source_owner.casefold())
 
     def test_adding_a_binding_runbook_orders_resource_before_declaration(self) -> None:
         contract = self.read("references/deployment-contract.md")
@@ -976,7 +1241,8 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("Never replace explicitly requested independent app tasks", adapters)
 
     def test_plan_backed_runs_detect_then_select_full_frontier(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(MANAGED_STAGE)
+        entry = self.read("SKILL.md")
         state = self.read("references/execution-state-model.md")
         orchestration = self.read("references/worktree-thread-orchestration.md")
         selector = self.read("references/parallel-mission-selection.md")
@@ -1000,7 +1266,7 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("selection is the default post-readiness action", selector)
         self.assertIn("Never run parallel writers in `shared_checkout`", runbook)
         self.assertIn("lightest safe direct or PLAN-v6/RUN-v11 delivery path", agent)
-        self.assertIn("Host adapter: none | general (observed host identity or generic)", skill)
+        self.assertIn("Host adapter: none | general (observed host identity or generic)", entry)
 
     def test_runtime_upgrade_gate_blocks_old_or_stale_sessions(self) -> None:
         skill = self.read("SKILL.md")
@@ -1136,7 +1402,7 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
 
     def test_run_template_matches_the_local_only_default(self) -> None:
         """The template must keep remote publication behind explicit intent."""
-        skill = self.read("SKILL.md")
+        skill = self.read(MANAGED_STAGE)
         runbook = self.read("assets/templates/MISSION_RUNBOOK.template.md")
 
         self.assertIn("RUNs close `local_only`", skill)
@@ -1199,7 +1465,7 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         `ready_frontier`. At draft/ready the frontier stays populated and only
         `dispatchable_nodes` empties, so the operator saw a full frontier and
         concluded the snapshot was already filled in."""
-        core = self.read("SKILL.md")
+        core = self.read(MANAGED_STAGE)
         runbook = self.read("assets/templates/MISSION_RUNBOOK.template.md")
 
         for content in (core, runbook):
@@ -1215,7 +1481,7 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
     def test_session_exact_reuse_lists_the_pass_signal_precondition(self) -> None:
         """The pass signal is the first condition the runtime checks and was the
         one missing from the core's list of four."""
-        core = self.read("SKILL.md")
+        core = self.read(MANAGED_STAGE)
         runtime = self.read("scripts/verifier_runtime.py")
 
         self.assertIn('and normalized_verifier["pass_signal"] == "exit 0"', runtime)
@@ -1225,13 +1491,13 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
     def test_readiness_requires_every_node_to_have_a_host(self) -> None:
         """A node whose `allowed_providers` no participating host satisfies is a
         readiness gap, not a surprise at dispatch time."""
-        core = self.read("SKILL.md")
+        core = self.read(MANAGED_STAGE)
 
         readiness = core[core.index("### 3. Pass Plan Readiness") : core.index("### 4. Execute And Integrate")]
         self.assertIn("Executability covers the whole graph, not just the next node", readiness)
         self.assertIn("`allowed_providers`", readiness)
         self.assertIn("blocking readiness gap", readiness)
-        # Reference paths in the core resolve from the skill root, unprefixed.
+        # Literal reference paths are skill-root-relative, even in the stage.
         self.assertIn("`references/graph-orchestration.md`", readiness)
         self.assertNotIn("`../references/graph-orchestration.md`", readiness)
 
@@ -1359,7 +1625,7 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
             self.assertNotIn(model, plan + adapters)
 
     def test_verification_policy_selects_and_reuses_only_exact_focused_checks(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(MANAGED_STAGE)
         verification = self.read("references/verification-gates.md")
         plan = self.read("assets/templates/HARNESS_PLAN.template.md")
         run = self.read("assets/templates/MISSION_RUNBOOK.template.md")
@@ -1378,7 +1644,7 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("after exact-SHA review and repair converge", plan)
 
     def test_schema_v10_closes_only_with_real_ui_evidence(self) -> None:
-        skill = self.read("SKILL.md")
+        skill = self.read(MANAGED_STAGE)
         state = self.read("references/execution-state-model.md")
         verification = self.read("references/verification-gates.md")
         runbook = self.read("assets/templates/MISSION_RUNBOOK.template.md")
@@ -1408,9 +1674,17 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
     def test_bootstrap_seeds_agents_and_claude_governance_templates(self) -> None:
         skill = self.read("SKILL.md")
         project_agents = self.read("assets/templates/PROJECT_AGENTS.template.md")
+        development_owner = self.read("references/governance/development-rules.md")
+        product_owner = self.read("references/governance/product-contracts.md")
+        managed_owner = self.read("references/governance/managed-delivery.md")
+        source_owner = self.read("references/governance/source-maintenance.md")
         project_claude = self.read("assets/templates/PROJECT_CLAUDE.template.md")
         worker_goal = self.read("assets/templates/WORKER_GOAL.template.md")
         configurator = self.read("scripts/configure_project_context.py")
+        operating = self.read("references/project-operating-rules.md")
+        managed_route = self.owner_section(
+            operating, "## Managed Product Delivery Harness Runs"
+        )
 
         self.assertIn("PROJECT_AGENTS.template.md", skill)
         self.assertIn("PROJECT_CLAUDE.template.md", skill)
@@ -1423,47 +1697,53 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("reviewed plan", skill)
         self.assertIn("original/template hashes", skill)
         self.assertIn("unresolved semantic divergences", skill)
-        self.assertIn("Host-specific repository context:", worker_goal)
-        self.assertIn("Runtime-specific worker contract:", worker_goal)
+        self.assertIn("Host-specific context:", worker_goal)
+        self.assertIn("Worker contract:", worker_goal)
+        self.assertIn("Context source hashes:", worker_goal)
+        self.assertIn("parent ran `scripts/check_launch_packet.py` before dispatch", worker_goal)
+        self.assertIn("resources, permissions, authorizations", worker_goal)
         self.assertIn("Keep automatic context discovery enabled", worker_goal)
         self.assertIn('path.open("xb")', configurator)
         self.assertIn("## Runtime Boundary", project_agents)
         self.assertIn("Preserve the current host's effective instruction discovery", project_agents)
-        self.assertIn("## Core Development Principles", project_agents)
-        self.assertIn("### First Principles", project_agents)
+        self.assertIn("## Consumer Core Development Principles", development_owner)
+        self.assertIn("### First Principles", development_owner)
         self.assertIn(
             "not from habit, inherited patterns, or how another project solved it",
-            project_agents,
+            development_owner,
         )
-        self.assertIn("### Module Size Limit", project_agents)
+        self.assertIn("### Module Size Limit", development_owner)
         self.assertNotIn("deleted and rewritten from scratch", project_agents)
         self.assertIn(
             "New code modules, including tests, are limited to 500 physical lines.",
-            project_agents,
+            development_owner,
         )
-        self.assertIn("Record existing oversized modules for scoped follow-up", project_agents)
-        self.assertIn("not the Harness skill-source repository", project_agents)
-        self.assertNotIn("checkpoint, not a hard limit", project_agents)
-        self.assertIn("## Managed Product Delivery Harness Runs", project_agents)
-        self.assertIn("Small bounded work may proceed directly", project_agents)
-        self.assertIn("## Keep Product Contracts Current", project_agents)
+        self.assertIn("Record existing oversized modules for scoped follow-up", development_owner)
+        self.assertIn("not the Harness skill-source repository", development_owner)
+        self.assertIn("checkpoint, not a hard limit", development_owner)
+        self.assertIn("## Managed Product Delivery Harness Runs", managed_owner)
+        self.assertIn("Small bounded work may proceed directly", development_owner)
+        self.assertIn("## Consumer Keep Product Contracts Current", product_owner)
         self.assertIn(
             "small post-delivery fixes that do not use Product Delivery Harness PLAN/RUN",
-            project_agents,
+            product_owner,
         )
         self.assertIn(
             "Adding a page, route, visible region, state, or responsive behavior is at least `structure`",
-            project_agents,
+            product_owner,
         )
         self.assertIn(
             "not complete while implementation and the canonical product documents disagree",
-            project_agents,
+            product_owner,
         )
         self.assertNotIn("<verification-command>", project_agents)
         self.assertNotIn("<e2e-command>", project_agents)
         self.assertNotIn("(List protected files here", project_agents)
         self.assertNotIn("current v10", project_agents)
-        self.assertIn("immutable external request/attempt/receipt", project_agents)
+        self.assertIn(
+            "immutable external request/attempt/receipt",
+            managed_route,
+        )
         self.assertIn("@AGENTS.md", project_claude)
         self.assertIn("general runtime adapter reference", project_claude)
         self.assertIn("Direct work follows `AGENTS.md`", project_claude)
@@ -1473,8 +1753,8 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
             root_agents = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
             root_claude = (REPO_ROOT / "CLAUDE.md").read_text(encoding="utf-8")
             self.assertNotIn("codex/<short-name>", root_agents)
-            self.assertIn("never add a fixed prefix", root_agents.lower())
-            self.assertIn("## Keep Product Contracts Current", root_agents)
+            self.assertIn("never add a fixed prefix", source_owner.lower())
+            self.assertIn("governance/product-contracts.md#source-keep-product-contracts-current", root_agents)
             self.assertIn("@AGENTS.md", root_claude)
             self.assertIn("Direct work follows `AGENTS.md`", root_claude)
             self.assertIn("parent retains authorization", root_claude)
@@ -1483,11 +1763,12 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         skill = self.read("SKILL.md")
         contract = self.read("references/gitignore-contract.md")
         project_agents = self.read("assets/templates/PROJECT_AGENTS.template.md")
+        root_agents = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8") if REPO_ROOT else ""
 
         self.assertIn("Gitignore impact: none | update | needs owner decision", skill)
         self.assertIn("both direct and managed routes", skill)
         self.assertIn("references/gitignore-contract.md", skill)
-        self.assertIn("## Gitignore Hygiene", project_agents)
+        self.assertIn("delivery-harness/references/gitignore-contract.md", project_agents)
         for phrase in (
             "not a generic list copied into every repository",
             "Never add an ignore rule only to make a dirty worktree look clean",
@@ -1501,9 +1782,8 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
             self.assertIn(phrase, contract)
 
         if REPO_ROOT is not None:
-            root_agents = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
             root_ignore = (REPO_ROOT / ".gitignore").read_text(encoding="utf-8")
-            self.assertIn("## Gitignore Hygiene", root_agents)
+            self.assertIn("skills/delivery-harness/references/gitignore-contract.md", root_agents)
             for pattern in (
                 ".env\n",
                 ".env.*\n",
@@ -1517,6 +1797,11 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
     def test_platform_archetypes_keep_monetization_and_partner_channels_separate(self) -> None:
         archetypes = self.read("references/platform-archetypes.md")
         project_agents = self.read("assets/templates/PROJECT_AGENTS.template.md")
+        operating = self.read("references/project-operating-rules.md")
+        product_owner = self.read("references/governance/product-contracts.md")
+        monetization_owner = self.owner_section(
+            operating, "## Monetization And Partner Channels"
+        )
 
         self.assertIn("Monetization infrastructure gate", archetypes)
         self.assertIn("Partner channel gate and affiliate / referral / reseller model", archetypes)
@@ -1524,13 +1809,20 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("Do not fold it into the billing/entitlement mission", archetypes)
         self.assertIn("commission reversal after refund/chargeback", archetypes)
         self.assertIn("PARTNER-* affiliate/referral/reseller", archetypes)
-        self.assertIn("## Monetization And Partner Channels", project_agents)
-        self.assertIn("RevenueCat is one candidate, never the default", project_agents)
-        self.assertIn("an affiliate link alone does not satisfy it", project_agents)
+        self.assertIn("delivery-harness/references/governance/product-contracts.md#consumer-keep-product-contracts-current", project_agents)
+        self.assertIn(
+            "delivery-harness/references/project-operating-rules.md"
+            "#monetization-and-partner-channels",
+            project_agents,
+        )
+        self.assertIn("## Monetization And Partner Channels", operating)
+        self.assertIn("RevenueCat is one candidate, never the default", monetization_owner)
+        self.assertIn("an affiliate link alone does not satisfy it", monetization_owner)
+        self.assertIn("#monetization-and-partner-channels", product_owner)
 
         if REPO_ROOT is not None:
             root_agents = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
-            self.assertIn("## Monetization And Partner Channels", root_agents)
+            self.assertIn("governance/product-contracts.md#source-keep-product-contracts-current", root_agents)
 
     def test_branch_names_are_explicit_and_have_no_harness_prefix(self) -> None:
         policy_paths = (
@@ -1549,11 +1841,12 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
                 self.assertNotIn("codex/<short-name>", content)
 
         skill = self.read("SKILL.md")
-        project = self.read("assets/templates/PROJECT_AGENTS.template.md")
+        managed_owner = self.read("references/governance/managed-delivery.md")
+        source_owner = self.read("references/governance/source-maintenance.md")
         ci = self.read("assets/templates/PROJECT_CI.template.yml")
         adapters = self.read("references/runtime-adapters.md")
 
-        for content in (skill, project):
+        for content in (skill, managed_owner, source_owner):
             self.assertIn("never add a fixed prefix", content.lower())
         self.assertIn("does not own shared state", adapters)
         self.assertIn("ask before branch creation", skill.lower())

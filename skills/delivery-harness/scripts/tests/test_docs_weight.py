@@ -155,7 +155,11 @@ class DocsWeightTests(unittest.TestCase):
         repo_root = Path(__file__).resolve().parents[4]
         now = docs_weight.weights(repo_root, None)
         self.assertIn("skills/delivery-harness/SKILL.md", now)
-        self.assertGreater(now["skills/delivery-harness/SKILL.md"], 3000)
+        self.assertGreater(now["skills/delivery-harness/SKILL.md"], 1500)
+        self.assertIn("skills/delivery-harness/references/stages/managed-delivery.md", now)
+        self.assertGreater(
+            now["skills/delivery-harness/references/stages/managed-delivery.md"], 1800
+        )
         # The worktree walk must find every canonical skill.
         skills = {key.split("/", 2)[1] for key in now}
         self.assertIn("product-definition-builder", skills)

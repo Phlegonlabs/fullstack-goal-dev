@@ -22,7 +22,14 @@ CLAUDE_TEMPLATE = SKILL_ROOT / "assets" / "templates" / "PROJECT_CLAUDE.template
 
 class ModuleSizeLimitTests(unittest.TestCase):
     def test_shared_template_states_the_new_module_cap(self) -> None:
-        template = AGENTS_TEMPLATE.read_text(encoding="utf-8")
+        route = AGENTS_TEMPLATE.read_text(encoding="utf-8")
+        self.assertIn(
+            "delivery-harness/references/governance/development-rules.md#protect-local-data",
+            route,
+        )
+        owner_path = SKILL_ROOT / "references/governance/development-rules.md"
+        template = owner_path.read_text(encoding="utf-8")
+        template = template.split("## Consumer Core Development Principles", 1)[1]
         self.assertIn("### Module Size Limit", template)
         self.assertIn(
             "New code modules, including tests, are limited to 500 physical lines.",

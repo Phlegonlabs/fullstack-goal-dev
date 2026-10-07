@@ -12,6 +12,11 @@ from typing import Any
 
 from harness_git import GitMetadataError, reject_object_substitution, run_git
 from harness_manifest import ManifestError, load_plan, load_run, validate_current_plan_run
+from check_launch_packet import (
+    InvalidMessageBudgetError,
+    MessageBudgetOverflowError,
+    check_message,
+)
 
 
 def validate_artifact_path(path: Path, repo_root: Path) -> None:
@@ -100,9 +105,15 @@ def render_packet(
     repo_root: Path,
     *,
     max_diff_bytes: int = 50000,
+    max_message_bytes: int | None = None,
     diff_artifact_out: Path | None = None,
     artifacts: list[tuple[Path, bytes]] | None = None,
 ) -> str:
+    if max_message_bytes is not None:
+        try:
+            check_message("", max_message_bytes)
+        except InvalidMessageBudgetError as exc:
+            raise ManifestError(f"invalid review packet budget: {exc}") from exc
     if max_diff_bytes < 1:
         raise ManifestError("--max-diff-bytes must be positive")
     if diff_artifact_out is not None:
@@ -140,6 +151,7 @@ def render_packet(
         raise ManifestError("cannot read full review diff")
     encoded = result.stdout
     diff = encoded.decode("utf-8", errors="replace")
+    pending_artifacts: list[tuple[Path, bytes]] = []
     diff_artifact = None
     if diff_artifact_out is not None:
         diff_artifact = {
@@ -150,10 +162,7 @@ def render_packet(
                                 "--no-ext-diff", "--no-textconv", "--name-status",
                                 "--find-renames=50%", f"{base}..{head}"),
         }
-        if artifacts is None:
-            write_diff_artifact(diff_artifact_out, encoded)
-        else:
-            artifacts.append((diff_artifact_out, encoded))
+        pending_artifacts.append((diff_artifact_out, encoded))
     truncated = len(encoded) > max_diff_bytes
     if truncated:
         diff = encoded[:max_diff_bytes].decode("utf-8", errors="replace")
@@ -320,7 +329,24 @@ def render_packet(
         "```",
         "",
     ]
-    return "\n".join(packet_lines)
+    packet = "\n".join(packet_lines)
+    if max_message_bytes is not None:
+        try:
+            check_message(packet, max_message_bytes)
+        except MessageBudgetOverflowError as exc:
+            raise ManifestError(
+                f"review packet exceeds its full-message budget: {exc}. "
+                "Use a smaller inline diff with a retained full artifact and "
+                "scoped metadata. Defer the launch if required content cannot fit."
+            ) from exc
+        except InvalidMessageBudgetError as exc:
+            raise ManifestError(f"invalid review packet budget: {exc}") from exc
+    if artifacts is not None:
+        artifacts.extend(pending_artifacts)
+    else:
+        for path, data in pending_artifacts:
+            write_diff_artifact(path, data)
+    return packet
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -330,6 +356,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--node", required=True)
     parser.add_argument("--repo-root", type=Path, required=True)
     parser.add_argument("--max-diff-bytes", type=int, default=50000)
+    parser.add_argument("--max-message-bytes", type=int)
     parser.add_argument("--out", type=Path)
     parser.add_argument("--diff-artifact-out", type=Path)
     args = parser.parse_args(argv)
@@ -346,6 +373,7 @@ def main(argv: list[str] | None = None) -> int:
         artifacts = []
         packet = render_packet(plan, run, args.node, args.repo_root,
                                max_diff_bytes=args.max_diff_bytes,
+                               max_message_bytes=args.max_message_bytes,
                                diff_artifact_out=args.diff_artifact_out, artifacts=artifacts)
         for path, data in artifacts:
             write_diff_artifact(path, data)

@@ -117,7 +117,8 @@ class AdapterContractTests(unittest.TestCase):
                        "No worker or reviewer spawns another agent", "Never run parallel writers in `shared_checkout`",
                        "exact unified integration SHA", "reserve-review-dispatch", "reviewer_session",
                        "Serialized Same-Repository Host Handoff", "never automatically create a duplicate",
-                       "cannot satisfy a fresh independent review", "installed defaults"):
+                       "cannot satisfy a fresh independent review", "installed defaults",
+                       "ordered paths and source hashes", "child independently reads"):
             self.assertIn(phrase, text)
 
     def test_removed_native_templates_are_absent(self):

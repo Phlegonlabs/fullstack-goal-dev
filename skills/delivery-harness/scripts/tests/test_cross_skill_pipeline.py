@@ -27,6 +27,10 @@ from manifest_fixtures import native_capability_probe
 
 
 class CrossSkillPipelineTests(unittest.TestCase):
+    def owner_section(self, text: str, heading: str) -> str:
+        self.assertIn(heading, text)
+        return text.split(heading, 1)[1].split("\n## ", 1)[0]
+
     def test_full_stack_handoff_preserves_ownership_and_real_evidence(self):
         product = self.read("product-definition-builder/references/output-contract.md")
         architecture = self.read("product-definition-builder/references/architecture-playbook.md")
@@ -125,7 +129,7 @@ class CrossSkillPipelineTests(unittest.TestCase):
             "worker": self.read(
                 "delivery-harness/assets/templates/WORKER_GOAL.template.md"
             ),
-            "ui": self.read("ui-design-builder/SKILL.md"),
+            "ui": self.read("ui-design-builder/references/stages/ui-design.md"),
         }
 
         for name, document in documents.items():
@@ -155,7 +159,7 @@ class CrossSkillPipelineTests(unittest.TestCase):
         self.assertIn("reducedMotionFallback", checker)
 
     def test_design_system_pair_publishes_and_freezes_together(self) -> None:
-        design = self.read("design-system-compiler/SKILL.md")
+        design = self.read("design-system-compiler/references/stages/design-compilation.md")
         lifecycle = self.read("design-system-compiler/references/artifact-lifecycle.md")
         harness = self.read("delivery-harness/references/contract-and-traceability.md")
 
@@ -214,20 +218,23 @@ class CrossSkillPipelineTests(unittest.TestCase):
 
     def test_completed_goal_documents_archive_on_completion_declaration(self) -> None:
         harness = self.read("delivery-harness/references/contract-and-traceability.md")
-        project_agents = self.read("delivery-harness/assets/templates/PROJECT_AGENTS.template.md") + self.read("delivery-harness/references/project-operating-rules.md")
+        operating_rules = self.read("delivery-harness/references/project-operating-rules.md")
         promotion = self.read("delivery-harness/references/branch-promotion-contract.md")
 
         self.assertIn("declares the project or initiative complete", harness)
         self.assertIn("archive on the same instruction", harness)
         self.assertIn("archive_run.py", harness)
         self.assertIn("docs/goal/archived/<YYYYMMDD-HHMMSS>-<run-id>/", harness)
-        self.assertIn("writes closed `ARCHIVE_RECEIPT.json`", project_agents)
-        self.assertIn("never moves anything under `docs/product/`", project_agents)
+        managed_route = self.owner_section(
+            operating_rules, "## Managed Product Delivery Harness Runs"
+        )
+        self.assertIn("writes closed `ARCHIVE_RECEIPT.json`", managed_route)
+        self.assertIn("never moves anything under `docs/product/`", managed_route)
         self.assertIn("At RUN close, candidate C", promotion)
         self.assertIn("archive-only commit A", promotion)
         self.assertIn("If separately authorized, `push_archived_candidate.py`", promotion)
         self.assertIn("PENDING_TRUSTED_HOST_PUBLICATION", promotion)
-        self.assertIn("never invokes `git push`", project_agents)
+        self.assertIn("never invokes `git push`", managed_route)
         self.assertIn("fresh PLAN/RUN on the same non-default branch from exact A", harness)
         self.assertIn("Only after production verification may activation readiness", promotion)
         self.assertIn("separate exact external-action authorization; it cannot claim readiness", promotion)
@@ -241,26 +248,50 @@ class CrossSkillPipelineTests(unittest.TestCase):
         )
 
     def test_activation_is_create_once_post_delivery_and_outcome_bound(self) -> None:
-        product = self.read("product-definition-builder/SKILL.md")
+        product = self.read("product-definition-builder/references/stages/product-definition.md")
         lifecycle = self.read("product-definition-builder/references/artifact-lifecycle.md")
         activation = self.read("product-activation/SKILL.md")
-        delivery = self.read("delivery-harness/SKILL.md")
+        activation_stage = self.read("product-activation/references/stages/activation.md")
+        delivery = self.read("delivery-harness/references/stages/managed-delivery.md")
 
         self.assertIn("does not already exist", product)
         self.assertIn("docs/ACTIVATION.md", lifecycle)
         self.assertIn("Never create, edit, reopen, or extend `docs/goal/PLAN.md`", activation)
+        self.assertIn("verified `MS-*` measurement sources", activation_stage)
         self.assertIn(
             "Readiness, measurement handoff, outcome review, and SEO require promotion and production verification",
             delivery,
         )
         self.assertIn("preparation requires a fixed SHA and separate authorization", delivery)
 
+    def test_security_reviewer_reads_full_stage_and_returns_evidence_only(self) -> None:
+        entry = self.read("code-security-review/SKILL.md")
+        stage = self.read("code-security-review/references/stages/security-review.md")
+        contract = self.read("code-security-review/references/review-contract.md")
+
+        self.assertIn("read both complete files", entry)
+        self.assertIn("references/stages/security-review.md", entry)
+        self.assertIn("references/review-contract.md", entry)
+        self.assertIn("consult `../delivery-harness/references/reference-selection.md`", stage)
+        self.assertIn(
+            "`../delivery-harness/references/option-library/security.md`",
+            stage,
+        )
+        self.assertNotIn("`../../../delivery-harness/", stage)
+        self.assertIn("source to sink", stage)
+        self.assertIn("does not start a nested scan coordinator", stage)
+        self.assertIn("Do not change code", stage)
+        self.assertIn("source_to_sink", contract)
+        self.assertIn("coverage.status", contract)
+        self.assertIn("never eligible for the byte-identical-tree skip", contract)
+        self.assertIn("The reviewer never delegates", entry)
+
     def test_downstream_skills_always_run_the_full_product_gate_with_repo_root(self) -> None:
         sources = {
-            "ui design": self.read("ui-design-builder/SKILL.md"),
+            "ui design": self.read("ui-design-builder/references/stages/ui-design.md"),
             "wireframes": self.read("ui-design-builder/references/wireframe-guide.md"),
-            "design system": self.read("design-system-compiler/SKILL.md"),
-            "activation": self.read("product-activation/SKILL.md"),
+            "design system": self.read("design-system-compiler/references/stages/design-compilation.md"),
+            "activation": self.read("product-activation/references/stages/activation.md"),
         }
         required = (
             "check_product_package.py",
@@ -282,13 +313,15 @@ class CrossSkillPipelineTests(unittest.TestCase):
         )
 
     def test_ui_entry_selects_new_and_retained_contracts_consistently(self) -> None:
-        source = self.read("ui-design-builder/SKILL.md")
-        lifecycle = source.split("## Design Lifecycle", 1)[1].split("## Workflow", 1)[0]
+        entry = self.read("ui-design-builder/SKILL.md")
+        stage = self.read("ui-design-builder/references/stages/ui-design.md")
+        lifecycle = entry.split("## Design Lifecycle", 1)[1].split("## Stage Routing", 1)[0]
         self.assertIn("New initial design and explicit full redesign use `ui-design/3`", lifecycle)
         self.assertIn("retained `ui-design/2` packages keep their original sequence", lifecycle)
-        self.assertNotIn("exact `--ui-contract ui-design/2` product preflight", source)
+        self.assertNotIn("exact `--ui-contract ui-design/2` product preflight", entry)
         self.assertIn("Routine maintenance edits the actual product", lifecycle)
-        self.assertIn("retain every unaffected product screen", source)
+        self.assertIn("retain every unaffected product screen", stage)
+        self.assertIn("Enhancements author only added or changed pages", entry)
 
     def test_repository_design_images_require_recorded_confirmation(self) -> None:
         references = self.read("ui-design-builder/references/design-reference-guide.md")

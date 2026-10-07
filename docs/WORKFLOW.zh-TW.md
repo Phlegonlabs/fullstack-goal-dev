@@ -1,6 +1,6 @@
 # Product Delivery Harness：逐步流程
 
-這是 0.60 整合候選的流程導覽。發布狀態看四語 README 與 `EPIC-worktree-consolidation.md`；導覽不授權外部操作，也不取代各 skill 的 checker、核准紀錄或 pinned RUN。既有核准和舊 RUN 按原版本保留。
+這是開發來源的流程導覽。發布狀態看四語 README 與對應 Epic；導覽不授權外部操作，也不取代各 skill 的 checker、核准紀錄或 pinned RUN。既有核准和舊 RUN 按原版本保留。
 
 ## 角色與分工
 
@@ -23,7 +23,7 @@
 ## 入口與既有專案對帳
 
 1. 確認 repository、有效指令鏈、工作目錄、分支、HEAD、staged／unstaged 與未追蹤檔案。
-2. 先處理專案指令：沒有 `AGENTS.md` 就從目前 `PROJECT_AGENTS.template.md` 建立；已有就檢查並合併缺少的共用內容。
+2. 先套用 `AGENTS.md` 的 Mandatory Governance Routes；沒有 `AGENTS.md` 才從目前 `PROJECT_AGENTS.template.md` 建立。已有檔案按觸發讀取 `delivery-harness/references/governance/` 的完整 rule owner，並保留本地規則和 precedence。
 3. 合併時保留本地規則、路徑、bindings、owner 決定與歷史；對有差異的同名規則作語意對帳，不整份覆蓋、不追加矛盾指令。
 4. 若 host 使用 `CLAUDE.md`，使用獨立 `PROJECT_CLAUDE.template.md`；保留已有 overlay 和原本 precedence。
 5. 讀 `docs/DOCUMENTS.md`、適用產品／設計文件、未完成 Epic 及既有 PLAN/RUN；先辨認現有工作，不新建重複流程。

@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.62.2-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.62.3-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -73,10 +73,10 @@ Los build/test locales gestionados usan las herramientas del proyecto sin Docker
 ### Flujo Zero-to-one
 
 1. Instala un host soportado y los siete skills. El instalador bloquea el destino, respalda IDs gestionados, copia solo archivos tracked y verifica cada byte; reinicia el host.
-2. Empieza con `product-definition-builder`: evidencia research-first, drafting/reconciliación del candidate, decisiones explícitas de recommendations, cambios accepted, stack coherente, release targets tipados, tests, Stack Decision Checkpoint y Product Definition Approval humana.
-3. Para UI, ejecutar el preflight de Product Definition con `--ui-contract ui-design/3`, intake, tres estudios renderizados con autorrevisión del autor, selección del owner y HiFi completo. Comprobar HiFi antes de Impeccable/H1–H9 y una Visual Approval humana.
+2. Empieza con `product-definition-builder`: evidencia research-first, drafting/reconciliación del candidate, decisiones explícitas de recommendations, cambios accepted, stack coherente, release targets tipados, tests, Stack Decision Checkpoint y Product Definition Approval humana. Su entrada conserva ownership y approvals; authoring, self-review, preflight y domain routing usan sus lecturas obligatorias de stage.
+3. Para UI, ejecutar el preflight de Product Definition con `--ui-contract ui-design/3`, intake, tres estudios renderizados con autorrevisión del autor, selección del owner y HiFi completo. Comprobar HiFi antes de Impeccable/H1–H9 y una Visual Approval humana. Su entrada conserva ownership y approvals; authoring, self-review, preflight y domain routing usan lecturas obligatorias de stage.
 4. Compilar el par Markdown/JSON `design-system/4` y su HTML derivado desde fuentes aprobadas y validar la UI final. Un RUN 0.59 retiene `ui-design/2` solo detrás de un frozen maintenance record validado; un enhancement compila el paquete actual. Un par retenido compila schema-3 solo si su gate es `required`; si es `not_required`, registrar la disposición del par existente y vincular el reemplazo HiFi aprobado.
-5. Invoca `delivery-harness`. Su size gate mantiene directo un único escritor acotado o crea PLAN-v6/RUN-v11 para el trabajo gestionado. Obtén autorización exacta antes de cada acción que cambie estado.
+5. Invoca `delivery-harness`. Su size gate mantiene directo un único escritor acotado sin cargar el archivo de etapa gestionada; el trabajo grande sigue las [rutas de etapa obligatorias](skills/delivery-harness/references/stages/managed-delivery.md) y crea PLAN-v6/RUN-v11. Obtén autorización exacta antes de cada acción que cambie estado.
 6. Antes del launch gestionado, pasa los joins y ejecuta `python "<delivery-harness-skill-root>/scripts/harness_transition.py" --plan docs/goal/PLAN.md --run docs/goal/RUN.md --repo-root <absolute-root> record-observation`; `--probe-sandboxes` es solo diagnóstico. Usa worktrees aislados y comandos host por defecto; los contenedores seleccionados explícitamente conservan la imagen fijada y sus controles.
 7. Completa reviews exact-head, security checks ordenados, un `code-security-review` nuevo, regresión amplia y evidencia UI por plataforma.
 8. Solo para managed, cierra RUN. Ejecuta dry-run/apply de `archive_run.py` con evidencia exacta de `main` y un `--anchor-out` externo absoluto; haz commit del move con journal y del receipt como A, y reverifica contra el anchor. Direct conserva su candidate fijo y omite el archivo RUN.
@@ -224,12 +224,12 @@ Para una entrega multi-mission, declara el resultado local y remoto previsto. La
 | Skill | Úsalo para | Salida principal |
 | --- | --- | --- |
 | `product-definition-builder` | Discovery, research, security requirements, comportamiento medible de producto/UI, arquitectura frontend/backend completa, stack coherente, release targets, tests y Product Definition Approval | `PRD.md`, `architecture.md`, `stack-decisions.md` y artifacts de research aprobados |
-| `ui-design-builder` | Preflight del PRD, intake, tres direcciones por defecto, HiFi completo, comprobaciones, Impeccable/H1–H9, Visual Approval y Design System Need Gate | `docs/design/ui-design.md`, estudios y paquete HiFi completo aprobado |
-| `design-system-compiler` | Compilar el target aprobado de `ui-design.md` en el par design-system congelado tras Visual Approval cuando sea necesario, más su specimen book HTML ligado a la fuente | `docs/design/design-system.md`, `docs/design/design-system.json`, `docs/design/design-system-preview.html` |
+| `ui-design-builder` | Preflight del PRD, intake, tres direcciones por defecto, HiFi completo, comprobaciones, Impeccable/H1–H9, Visual Approval y Design System Need Gate; lecturas obligatorias de stage poseen el detalle de authoring y routing | `docs/design/ui-design.md`, estudios y paquete HiFi completo aprobado |
+| `design-system-compiler` | Compilar el target aprobado de `ui-design.md` en el par design-system congelado tras Visual Approval cuando sea necesario, más su specimen book HTML ligado a la fuente; las lecturas obligatorias de stage poseen el detalle de compilación, validación, publicación y routing | `docs/design/design-system.md`, `docs/design/design-system.json`, `docs/design/design-system-preview.html` |
 | `delivery-harness` | Size gate compartido, security task gates, PLAN/RUN, autorización, verificación local e integración, más la referencia de adaptadores de runtime (`references/runtime-adapters.md`) que contiene un contrato general de capacidades que el agente asigna a las herramientas nativas observadas | Trabajo directo o `PLAN.md` + `RUN.md` |
-| `code-security-review` | Revisión de seguridad de solo lectura tras la implementación y la integración unificada, preferentemente en un agente sibling fresco; el penetration testing activo y la remediación quedan fuera de este skill | Decisión de SHA exacto, cobertura de trust boundaries, hallazgos validados y tests de remediación |
-| `product-activation` | Configuración post-entrega para todos los targets web, API/backend, iOS, Android, macOS, Windows, browser-extension e híbridos compatibles, incluyendo capability routing, autorización exacta de acciones externas, read-back, fuentes de medición y handoff del outcome review | `docs/ACTIVATION.md` |
-| `seo-growth-review` | SEO técnico post-release de solo lectura, integridad de medición, keyword research, diagnóstico de tráfico orgánico y priorización de oportunidades query-to-page | Revisión inline por defecto; informe datado opcional con pedido explícito |
+| `code-security-review` | Revisión de seguridad de solo lectura tras la implementación y la integración unificada, preferentemente en un agente sibling fresco; el penetration testing activo y la remediación quedan fuera de este skill; las lecturas obligatorias de stage poseen inputs, workflow y handoff detail | Decisión de SHA exacto, cobertura de trust boundaries, hallazgos validados y tests de remediación |
+| `product-activation` | Configuración post-entrega para todos los targets web, API/backend, iOS, Android, macOS, Windows, browser-extension e híbridos compatibles, incluyendo capability routing, autorización exacta de acciones externas, read-back, fuentes de medición y handoff del outcome review; las lecturas obligatorias de stage poseen inputs, execution, status handoff y reporting detail | `docs/ACTIVATION.md` |
+| `seo-growth-review` | SEO técnico post-release de solo lectura, integridad de medición, keyword research, diagnóstico de tráfico orgánico y priorización de oportunidades query-to-page; las lecturas obligatorias de stage poseen inputs, review method y reporting detail | Revisión inline por defecto; informe datado opcional con pedido explícito |
 
 <details>
 <summary><b>Cómo dimensiona el trabajo el núcleo de entrega: directo o gestionado</b></summary>
@@ -575,7 +575,10 @@ El PRD se completa durante toda la entrega. Antes de aprobar la primera entrega,
 
 La aceptación rechaza marcadores de identidad sin resolver y exige rutas de evidencia relativas al checkout para conservar la portabilidad de los resultados.
 
-La revisión documental enumera fuentes modificadas, artefactos afectados y comprobaciones necesarias. El agente principal revisa el cambio semántico; los hashes no conceden aprobación. Los snapshots `document-sync/1` siguen siendo legibles.
+La revisión documental enumera fuentes modificadas, artefactos afectados y comprobaciones necesarias. El agente principal posee el inventario global; una instancia hija declara su alcance completo y no reemplaza su snapshot. El agente principal revisa el cambio semántico; los hashes no conceden aprobación. Los snapshots `document-sync/1` siguen siendo legibles. La identidad cargada desconocida sigue desconocida.
+La instancia hija verifica source hashes y informa su evidencia loaded/read.
+
+La gobernanza del repositorio usa una entrada corta con rutas obligatorias por condición. Las reglas completas de tareas, desarrollo, contratos de producto, mantenimiento del código fuente y entrega gestionada están en `skills/delivery-harness/references/governance/`; las rutas del consumidor se resuelven desde la raíz observada del Harness instalado.
 
 Las mejoras completas usan un Epic indexado en `docs/epics/` que referencia el PRD actual. Una corrección pequeña se añade al Epic correspondiente y puede enlazar evidencia directa detallada. El objetivo, alcance, diseño, dependencias y pruebas se derivan en ese registro o en PLAN/RUN, sin otra especificación intermedia.
 
@@ -691,7 +694,7 @@ Los resultados de roles gestionados usan [recibos retenidos por el padre](skills
 
 Se eliminan el driver nativo de workflow, sus plantillas y la compatibilidad con `workflow_runs`. Los archivos históricos del usuario quedan intactos. El trabajo pendiente con esos bindings necesita replanificación explícita y nuevas pruebas de capacidad y autorización; no se migra silenciosamente.
 
-La ruta de rendimiento runtime elimina trabajo repetido sin mover un gate. `docs_weight.py` lee los blobs de un baseline resuelto con un `cat-file --batch`; los resultados verifier exponen tiempos de solo lectura para setup, guard, snapshot, command y postcheck; los review packets quitan solo material duplicado del diff; bytes de archive immutables del mismo batch se reutilizan mientras cada verifier recibe su propia extracción verificada; los slots de verifier se llenan con trabajo sin conflicto en lugar de esperar una wave; y solo un PASS determinista opt-in del mismo runner puede reutilizar un resultado container después de verificar de nuevo el guard y la confianza runtime/image. Ningún resultado container entra en un cache durable. Cada reutilización nueva debe incluir su ejecución de origen en el lote actual observado por el parent; el historial de RUN por sí solo no la autoriza.
+La ruta de rendimiento runtime elimina trabajo repetido sin mover un gate. `docs_weight.py` lee los blobs de un baseline resuelto con un `cat-file --batch`; los resultados verifier exponen tiempos de solo lectura para setup, guard, snapshot, command y postcheck; los review packets quitan solo material duplicado del diff, y un nuevo launch comprueba el mensaje UTF-8 completo visible al parent con un byte budget explícito antes de escrituras; bytes de archive immutables del mismo batch se reutilizan mientras cada verifier recibe su propia extracción verificada; los slots de verifier se llenan con trabajo sin conflicto en lugar de esperar una wave; y solo un PASS determinista opt-in del mismo runner puede reutilizar un resultado container después de verificar de nuevo el guard y la confianza runtime/image. Ningún resultado container entra en un cache durable. Cada reutilización nueva debe incluir su ejecución de origen en el lote actual observado por el parent; el historial de RUN por sí solo no la autoriza.
 
 Workers y reviewers nunca delegan. El parent mantiene un writer por worktree aislado, integra en serie y despacha fresh reviewers para exact-head review. Los alcances de lectura y escritura quedan separados; una etiqueta de perfil no demuestra permission-level tool removal. Si el host no coincide con PLAN, el nodo se difiere con `runtime_unavailable` sin lanzar otro runtime.
 
@@ -804,6 +807,8 @@ Este repositorio está bajo la Licencia MIT — ver [LICENSE](LICENSE).
 ## Historial de versiones
 
 Actualiza esta sección con cada release, como parte del bump de versión y el tag descritos en Releasing arriba.
+
+- **0.62.3** — Limita los mensajes completos antes de las escrituras durables. Reduce las entradas y carga las reglas obligatorias por etapa. Separa el inventario del padre y las comprobaciones acotadas del hijo. Corrige las pruebas de propietarios y la limpieza de fixtures de archivo.
 
 - **0.62.2** — Coloca propósito, instalación y navegación al principio de los cuatro READMEs. Renueva las tres portadas generadas. Conserva contratos e historial en secciones desplegables. Corrige el prompt español para hosts genéricos y el orden de los comandos de instalación.
 

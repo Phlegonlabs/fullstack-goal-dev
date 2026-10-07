@@ -3,9 +3,11 @@
 import shutil
 import subprocess
 import unittest
+import re
 from pathlib import Path
 
 SKILL_ROOT = Path(__file__).resolve().parents[2]
+UI_STAGE = "references/stages/ui-design.md"
 
 
 class UiDesignBuilderSkillContractTests(unittest.TestCase):
@@ -109,40 +111,90 @@ console.log("hybrid fallback and stale QA assertions completed");
         self.assertIn("ui-design/2", skill)
         self.assertIn("Do not use for product scope, backend architecture", skill)
 
+    def stage_headings(self, text: str) -> set[str]:
+        headings = set()
+        for line in text.splitlines():
+            if not line.startswith("#"):
+                continue
+            heading = line.lstrip("#").strip().lower()
+            heading = re.sub(r"[^a-z0-9\s-]", "", heading)
+            heading = re.sub(r"\s+", "-", heading.strip())
+            headings.add(heading)
+        return headings
+
+    def test_ui_stage_routing_is_conditional_and_targets_exist(self):
+        entry = self.read("SKILL.md")
+        stage = self.read(UI_STAGE)
+        anchors = self.stage_headings(stage)
+
+        self.assertTrue((SKILL_ROOT / UI_STAGE).is_file())
+        for trigger, anchor in (
+            ("UI research or authorship", "required-skills-and-inputs"),
+            ("directions, HiFi or design repair", "workflow"),
+            ("Full initial authoring follows the complete required procedure", "workflow"),
+            ("handoff self-review", "author-self-review-before-handoff"),
+            ("unresolved visual, motion, reference or platform decisions", "reference-routing"),
+        ):
+            with self.subTest(trigger=trigger, anchor=anchor):
+                self.assertIn(trigger, entry)
+                self.assertRegex(entry, rf"\({re.escape(UI_STAGE)}#{anchor}\)")
+                self.assertIn(anchor, anchors)
+
+        self.assertIn("approved Product Definition and Stack Decision Checkpoint", entry)
+        self.assertIn("host's actual `frontend_worker`", entry)
+        self.assertIn("complete pinned `frontend-design`", entry)
+        self.assertIn("Enhancements author only added or changed pages", entry)
+        self.assertIn("Routine maintenance does not rebuild historical HiFi", entry)
+        self.assertIn("one human Visual Approval", entry)
+        self.assertIn("## Installed Commands", entry)
+        self.assertIn("## Purpose", entry)
+        self.assertIn("## Design Lifecycle", entry)
+        self.assertIn("## Review And Repair Boundaries", entry)
+
+        missing_anchor = stage.replace("## Reference Routing", "## Optional Guides")
+        with self.assertRaises(AssertionError):
+            self.assertIn("reference-routing", self.stage_headings(missing_anchor))
+        missing_pointer = entry.replace("#reference-routing", "#missing-reference-routing")
+        self.assertNotRegex(missing_pointer, rf"\({re.escape(UI_STAGE)}#reference-routing\)")
+        self.assertIn("#missing-reference-routing", missing_pointer)
+
     def test_human_intake_precedes_wireframe_and_style(self):
-        skill = self.read("SKILL.md")
-        intake = skill.index("Combine unanswered design, imagery and motion questions into one intake")
-        wireframe = skill.index("produce direction studies")
-        style = skill.index("author the complete connected `ui-hifi/2` package")
-        review = skill.index("Run Impeccable critique/audit under the existing authorization")
+        stage = self.read(UI_STAGE)
+        intake = stage.index("Combine unanswered design, imagery and motion questions into one intake")
+        wireframe = stage.index("produce direction studies")
+        style = stage.index("author the complete connected `ui-hifi/2` package")
+        review = stage.index("Run Impeccable critique/audit under the existing authorization")
         self.assertLess(intake, wireframe)
         self.assertLess(wireframe, style)
         self.assertLess(style, review)
-        self.assertIn("Wait for the explicit human decision", skill)
+        self.assertIn("Wait for the explicit human decision", stage)
 
     def test_frontend_design_authors_and_impeccable_reviews(self):
         skill = self.read("SKILL.md")
+        stage = self.read(UI_STAGE)
         pass_guide = self.read("references/ui-design-pass.md")
         rubric = self.read("references/ui-grading-rubric.md")
-        for content in (skill, pass_guide):
+        for content in (skill, stage, pass_guide):
             self.assertIn("`frontend-design`", content)
             self.assertIn("Impeccable", content)
-        self.assertIn("one `critique` and one `audit`", skill)
+        self.assertIn("one `critique` and one `audit`", stage)
         self.assertIn("single design author", skill)
         self.assertIn("Impeccable", rubric)
         self.assertIn("`H1`–`H9`", pass_guide)
 
     def test_impeccable_is_required_and_declined_authorization_blocks(self):
         skill = self.read("SKILL.md")
+        stage = self.read(UI_STAGE)
         pass_guide = self.read("references/ui-design-pass.md")
-        for content in (skill, pass_guide):
+        for content in (skill, stage, pass_guide):
             self.assertNotIn("publication gate", content)
             self.assertIn("`blocked`", content)
-        self.assertIn("required HiFi quality review", skill)
+        self.assertIn("required HiFi quality review", stage)
+        self.assertIn("Impeccable critique/audit", skill)
 
     def test_frontend_design_is_admitted_before_both_authoring_stages(self):
         prompt = self.read("agents/openai.yaml")
-        skill = self.read("SKILL.md")
+        stage = self.read(UI_STAGE)
         wireframe = self.read("references/wireframe-guide.md")
         hifi = self.read("references/ui-design-pass.md")
         workflow = self.read("references/review-workflow.md")
@@ -155,7 +207,7 @@ console.log("hybrid fallback and stale QA assertions completed");
         self.assertIn("actual design author for directions", prompt)
         self.assertIn("Before each authoring stage", prompt)
         for document, authoring_marker in (
-            (skill, "produce direction studies"),
+            (stage, "produce direction studies"),
             (wireframe, "## Wireframe Validation Gate (wireframes/5)"),
             (hifi, "## Frontend Design Style Integration"),
             (workflow, "Product/stack and PRD preflight"),
@@ -164,7 +216,7 @@ console.log("hybrid fallback and stale QA assertions completed");
                 self.assertIn(binding, document)
                 self.assertLess(document.index(binding), document.index(authoring_marker))
 
-        authoring_contract = "\n".join((skill, wireframe, hifi, workflow))
+        authoring_contract = "\n".join((stage, wireframe, hifi, workflow))
         self.assertIn("actual writer", authoring_contract)
         self.assertIn("parent read", authoring_contract.lower())
         self.assertIn("silently replace the binding", authoring_contract)
@@ -204,12 +256,12 @@ console.log("hybrid fallback and stale QA assertions completed");
         self.assertIn("Higgsfield MCP", template)
 
     def test_new_wireframe_validation_has_no_human_copy_or_structure_gate(self):
-        skill = self.read("SKILL.md")
+        stage = self.read(UI_STAGE)
         contract = self.read("references/output-contract.md")
         guide = self.read("references/wireframe-guide.md")
         self.assertLess(
-            skill.index("run a cheap machine completeness check"),
-            skill.index("Present the complete current HiFi entry"),
+            stage.index("run a cheap machine completeness check"),
+            stage.index("Present the complete current HiFi entry"),
         )
         for marker in ("UI contract: ui-design/2", "ui-hifi-copy/1", "### Frontend Design Usage"):
             self.assertIn(marker, contract)
@@ -220,15 +272,17 @@ console.log("hybrid fallback and stale QA assertions completed");
 
     def test_ui_gate_presentations_are_visible_complete_and_blocking(self):
         skill = self.read("SKILL.md")
+        stage = self.read(UI_STAGE)
         contract = self.read("references/output-contract.md")
         visual_pass = self.read("references/ui-design-pass.md")
 
-        self.assertLess(skill.index("run a cheap machine completeness check"), skill.index("Present the complete current HiFi entry"))
-        self.assertIn("verified absolute Markdown links", skill)
-        self.assertIn("every manifest-listed sibling page", skill)
-        self.assertIn("affected `ui-design.md` handoff", skill)
+        self.assertIn("one human Visual Approval", skill)
+        self.assertLess(stage.index("run a cheap machine completeness check"), stage.index("Present the complete current HiFi entry"))
+        self.assertIn("verified absolute Markdown links", stage)
+        self.assertIn("every manifest-listed sibling page", stage)
+        self.assertIn("affected `ui-design.md` handoff", stage)
         self.assertIn("complete actual HiFi candidate", contract)
-        for document in (skill, contract, visual_pass):
+        for document in (stage, contract, visual_pass):
             with self.subTest(document=document[:50]):
                 self.assertIn("final logical paths in the authorized publication checkout", document)
                 self.assertTrue("source checkout" in document or "canonical source paths" in document)
@@ -243,9 +297,9 @@ console.log("hybrid fallback and stale QA assertions completed");
         self.assertIn("ask explicitly for Visual Approval", visual_pass)
 
     def test_output_contract_keeps_tokens_after_visual_approval(self):
-        skill = self.read("SKILL.md")
+        stage = self.read(UI_STAGE)
         contract = self.read("references/output-contract.md")
-        self.assertLess(skill.index("Request one **Visual Approval**"), skill.index("Apply the **Design System Need Gate** after Visual Approval"))
+        self.assertLess(stage.index("Request one **Visual Approval**"), stage.index("Apply the **Design System Need Gate** after Visual Approval"))
         self.assertIn("Design author: frontend-design", contract)
         self.assertIn("Direction decision owner:", contract)
         self.assertIn("Impeccable critique:", contract)
