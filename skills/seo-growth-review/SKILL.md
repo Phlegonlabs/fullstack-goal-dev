@@ -39,7 +39,7 @@ Apply SEO only to the product's applicable publicly discoverable surfaces. Priva
 
 ## Stage Routing
 
-Read the owning stage section before its matching action. A standalone inline public audit needs only the production URL or domain and no repository. No publicly discoverable surface makes SEO `not applicable`; record the reason and do not invent a report. Missing market, language, or business outcome remains a review gap.
+Read the owning stage section before its matching action. A standalone inline public audit has no repository prerequisite, but still needs the production URL or domain, target market, language, and business outcome. No publicly discoverable surface makes SEO `not applicable`; record the reason and do not invent a report. Missing market, language, or business outcome remains a review gap.
 
 - Before an actual review, read [Required Inputs](references/stages/seo-review.md#required-inputs), [Modes](references/stages/seo-review.md#modes), and [Workflow](references/stages/seo-review.md#workflow). Before reviewing or using any evidence, read [SEO Source Catalog](references/source-catalog.md) and [SEO Review Method](references/review-method.md); both are mandatory for every actual review.
 - Before finishing an inline audit or saved report, read [Reference Routing](references/stages/seo-review.md#reference-routing) and [Output](references/stages/seo-review.md#output). Inline output follows the applicable rules without creating a repository artifact.

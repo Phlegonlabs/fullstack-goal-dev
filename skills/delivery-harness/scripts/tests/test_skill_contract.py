@@ -873,7 +873,8 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         stage = stage_path.read_text(encoding="utf-8")
         method = (seo / "references/review-method.md").read_text(encoding="utf-8")
 
-        self.assertIn("needs only the production URL or domain and no repository", entry)
+        self.assertIn("no repository prerequisite, but still needs the production URL or domain", entry)
+        self.assertIn("target market, language, and business outcome", entry)
         self.assertIn("makes SEO `not applicable`", entry)
         self.assertIn("Inline output follows the applicable rules without creating a repository artifact", entry)
         for anchor, trigger in SEO_STAGE_ROUTES:

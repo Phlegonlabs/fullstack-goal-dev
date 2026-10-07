@@ -103,7 +103,8 @@ class SeoGrowthReviewSkillContractTests(unittest.TestCase):
         stage = self.read(SEO_STAGE)
 
         self.assertIn("## Stage Routing", skill)
-        self.assertIn("needs only the production URL or domain and no repository", skill)
+        self.assertIn("no repository prerequisite, but still needs the production URL or domain", skill)
+        self.assertIn("target market, language, and business outcome", skill)
         self.assertIn("makes SEO `not applicable`", skill)
         self.assertIn("Missing market, language, or business outcome remains a review gap", skill)
         self.assertIn("Inline output follows the applicable rules without creating a repository artifact", skill)
