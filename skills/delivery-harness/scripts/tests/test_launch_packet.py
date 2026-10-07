@@ -293,7 +293,7 @@ class TransitionBudgetTests(unittest.TestCase):
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
         self.root = Path(temp.name)
-        _git(self.root, "init", "-q")
+        _git(self.root, "init", "-q", "-b", "integration")
         _git(self.root, "config", "user.email", "test@example.com")
         _git(self.root, "config", "user.name", "Harness Test")
         (self.root / "file.txt").write_text("base\n", encoding="utf-8")
