@@ -181,7 +181,9 @@ class ReferenceLibraryTests(unittest.TestCase):
         activation = (ROOT / "skills/product-activation/references/stages/activation.md").read_text(encoding="utf-8")
         self.assertIn("adopted deployment, operations, or integration choice", activation)
 
-        seo = (ROOT / "skills/seo-growth-review/SKILL.md").read_text(encoding="utf-8")
+        seo_entry = (ROOT / "skills/seo-growth-review/SKILL.md").read_text(encoding="utf-8")
+        seo_stage = (ROOT / "skills/seo-growth-review/references/stages/seo-review.md").read_text(encoding="utf-8")
+        seo = seo_entry + "\n" + seo_stage
         self.assertIn("public, discoverable surface", seo)
         self.assertIn("existing public-surface scope", seo)
 

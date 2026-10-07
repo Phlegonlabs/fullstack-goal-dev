@@ -41,6 +41,11 @@ ACTIVATION_STAGE_ROUTES = (
     ("status-and-outcome-handoff", "Before ending an execution pass"),
     ("checker-contract", "Before ending an execution pass"),
 )
+SEO_STAGE_ROUTES = (
+    ("required-inputs", "Before an actual review"),
+    ("workflow", "Before an actual review"),
+    ("saved-lifecycle-public-release-review", "Before a saved lifecycle public-release review"),
+)
 
 
 def stage_headings(text: str) -> set[str]:
@@ -848,6 +853,40 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
         self.assertIn("the rendered `<head>` on the integration head", gates)
         self.assertIn("its `<title>` and meta description match the PRD record", gates)
         self.assertIn("A mismatch is a failing check, not a style preference", gates)
+
+    def test_seo_stage_routing_is_conditional_and_targets_exist(self) -> None:
+        seo = SKILL_ROOT.parent / "seo-growth-review"
+        entry = (seo / "SKILL.md").read_text(encoding="utf-8")
+        stage_path = seo / "references/stages/seo-review.md"
+        stage = stage_path.read_text(encoding="utf-8")
+        method = (seo / "references/review-method.md").read_text(encoding="utf-8")
+
+        self.assertIn("needs only the production URL or domain and no repository", entry)
+        self.assertIn("makes SEO `not applicable`", entry)
+        self.assertIn("Inline output follows the applicable rules without creating a repository artifact", entry)
+        for anchor, trigger in SEO_STAGE_ROUTES:
+            with self.subTest(anchor=anchor, trigger=trigger):
+                self.assertIn(trigger, entry)
+                pointer_root = "references/review-method.md" if anchor == "saved-lifecycle-public-release-review" else "references/stages/seo-review.md"
+                pointer = f"{pointer_root}#{anchor}"
+                self.assertIn(pointer, entry)
+                self.assertIn(anchor, stage_headings(method if pointer.startswith("references/review-method") else stage))
+
+        workflow = stage.split("## Workflow\n", 1)[1].split("\n## ", 1)[0]
+        self.assertNotIn("## Workflow", entry)
+        self.assertIn("references/source-catalog.md", workflow)
+        self.assertIn("references/review-method.md", workflow)
+        self.assertIn("assets/templates/SEO_REVIEW.template.md", workflow)
+        self.assertIn("scripts/check_seo_review.py --require-lifecycle", workflow)
+
+        missing_anchor = stage.replace("## Required Inputs", "Intake")
+        self.assertNotIn("required-inputs", stage_headings(missing_anchor))
+        missing_pointer = entry.replace(
+            "references/stages/seo-review.md#required-inputs",
+            "references/stages/seo-review.md#missing-intake",
+        )
+        self.assertNotIn("references/stages/seo-review.md#required-inputs", missing_pointer)
+        self.assertIn("references/stages/seo-review.md#missing-intake", missing_pointer)
 
     def test_deployment_contract_maps_candidate_then_main(self) -> None:
         skill = self.read("SKILL.md")

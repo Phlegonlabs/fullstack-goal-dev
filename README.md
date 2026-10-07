@@ -229,7 +229,7 @@ For a multi-mission delivery, state the intended local and remote outcome. Branc
 | `delivery-harness` | Shared size gate, security-aware task gates, PLAN/RUN, authorization, local verification, and integration, plus the runtime adapter reference (`references/runtime-adapters.md`) holding one general capability contract mapped to observed native tools | Direct work or `PLAN.md` + `RUN.md` |
 | `code-security-review` | Read-only security review after implementation and unified integration, preferably in a fresh sibling agent; active penetration testing and remediation stay outside this skill | Exact-SHA decision, trust-boundary coverage, validated findings, and remediation tests |
 | `product-activation` | Post-delivery setup for every supported web, API/backend, iOS, Android, macOS, Windows, browser-extension, and hybrid release target, including capability routing, exact external-action authorization, read-back, measurement sources, and outcome-review handoff; mandatory stage reads own inputs, execution, status handoff and reporting detail | `docs/ACTIVATION.md` |
-| `seo-growth-review` | Read-only post-release technical SEO, measurement integrity, keyword research, organic-traffic diagnosis, and query-to-page opportunity prioritization | Inline review by default; optional dated report on explicit request |
+| `seo-growth-review` | Read-only post-release technical SEO, measurement integrity, keyword research, organic-traffic diagnosis, and query-to-page opportunity prioritization; mandatory stage reads own inputs, review method and reporting detail | Inline review by default; optional dated report on explicit request |
 
 <details>
 <summary><b>How the delivery core sizes work: direct or managed</b></summary>
