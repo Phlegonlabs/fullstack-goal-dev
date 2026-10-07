@@ -19,10 +19,22 @@ class PreDeliverySelfReviewTests(unittest.TestCase):
             "skills/ui-design-builder/references/stages/ui-design.md",
             "skills/delivery-harness/SKILL.md",
             "skills/delivery-harness/references/installed-commands.md",
-            "skills/delivery-harness/assets/templates/PROJECT_AGENTS.template.md",
         ):
             with self.subTest(path=relative):
                 self.assertIn(REFERENCE, (ROOT / relative).read_text(encoding="utf-8"))
+
+        template = (ROOT / "skills/delivery-harness/assets/templates/PROJECT_AGENTS.template.md").read_text(encoding="utf-8")
+        self.assertIn(
+            "| Implementation or repair | `delivery-harness/references/governance/development-rules.md#keep-changes-simple` "
+            "and `delivery-harness/references/governance/development-rules.md#consumer-core-development-principles` |",
+            template,
+        )
+
+        owner = (ROOT / "skills/delivery-harness/references/governance/development-rules.md").read_text(encoding="utf-8")
+        section_start = owner.index("## Consumer Core Development Principles")
+        section_end = owner.find("\n## ", section_start + 1)
+        consumer_section = owner[section_start:section_end if section_end != -1 else None]
+        self.assertIn("`delivery-harness/references/pre-delivery-self-review.md`", consumer_section)
 
     def test_contract_preserves_review_order_and_evidence_boundaries(self):
         source = (ROOT / "skills/delivery-harness/references" / REFERENCE).read_text(encoding="utf-8")

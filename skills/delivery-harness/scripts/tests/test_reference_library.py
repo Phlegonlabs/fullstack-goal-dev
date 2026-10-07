@@ -188,9 +188,12 @@ class ReferenceLibraryTests(unittest.TestCase):
 
         seo_entry = (ROOT / "skills/seo-growth-review/SKILL.md").read_text(encoding="utf-8")
         seo_stage = (ROOT / "skills/seo-growth-review/references/stages/seo-review.md").read_text(encoding="utf-8")
-        seo = seo_entry + "\n" + seo_stage
-        self.assertIn("public, discoverable surface", seo)
-        self.assertIn("existing public-surface scope", seo)
+        self.assertIn("[Workflow](references/stages/seo-review.md#workflow)", seo_entry)
+        workflow_start = seo_stage.index("## Workflow")
+        workflow_end = seo_stage.find("\n## ", workflow_start + 1)
+        seo_workflow = seo_stage[workflow_start:workflow_end if workflow_end != -1 else None]
+        self.assertIn("public, discoverable surface", seo_workflow)
+        self.assertIn("existing public-surface scope", seo_workflow)
 
     def test_readmes_describe_the_optional_catalog_in_each_language(self):
         for name in ("README.md", "README.zh-TW.md", "README.zh-CN.md", "README.es.md"):
