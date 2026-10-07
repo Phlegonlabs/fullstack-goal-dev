@@ -155,7 +155,7 @@ class CrossSkillPipelineTests(unittest.TestCase):
         self.assertIn("reducedMotionFallback", checker)
 
     def test_design_system_pair_publishes_and_freezes_together(self) -> None:
-        design = self.read("design-system-compiler/SKILL.md")
+        design = self.read("design-system-compiler/references/stages/design-compilation.md")
         lifecycle = self.read("design-system-compiler/references/artifact-lifecycle.md")
         harness = self.read("delivery-harness/references/contract-and-traceability.md")
 
@@ -259,7 +259,7 @@ class CrossSkillPipelineTests(unittest.TestCase):
         sources = {
             "ui design": self.read("ui-design-builder/references/stages/ui-design.md"),
             "wireframes": self.read("ui-design-builder/references/wireframe-guide.md"),
-            "design system": self.read("design-system-compiler/SKILL.md"),
+            "design system": self.read("design-system-compiler/references/stages/design-compilation.md"),
             "activation": self.read("product-activation/SKILL.md"),
         }
         required = (

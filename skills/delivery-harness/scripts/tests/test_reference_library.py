@@ -114,6 +114,11 @@ class ReferenceLibraryTests(unittest.TestCase):
                 selection_pointer = "../delivery-harness/references/reference-selection.md"
                 library_pointer = "../delivery-harness/references/option-library/"
                 pointer_root = ROOT / "skills/ui-design-builder"
+            elif name == "design-system-compiler":
+                path = ROOT / "skills" / name / "references/stages/design-compilation.md"
+                selection_pointer = "../../../delivery-harness/references/reference-selection.md"
+                library_pointer = "../../../delivery-harness/references/option-library/"
+                pointer_root = ROOT / "skills"
             else:
                 path = ROOT / "skills" / name / "SKILL.md"
             text = path.read_text(encoding="utf-8")
@@ -121,7 +126,7 @@ class ReferenceLibraryTests(unittest.TestCase):
                 selection_pointer = "references/reference-selection.md"
                 library_pointer = "references/option-library/"
                 pointer_root = ROOT / "skills/delivery-harness/references"
-            elif name != "product-definition-builder":
+            elif name not in {"product-definition-builder", "design-system-compiler"}:
                 selection_pointer = "../delivery-harness/references/reference-selection.md"
                 library_pointer = (
                     "../delivery-harness/references/option-library/"
@@ -158,7 +163,7 @@ class ReferenceLibraryTests(unittest.TestCase):
         ):
             self.assertIn(phrase, ui)
 
-        compiler = (ROOT / "skills/design-system-compiler/SKILL.md").read_text(encoding="utf-8")
+        compiler = (ROOT / "skills/design-system-compiler/references/stages/design-compilation.md").read_text(encoding="utf-8")
         self.assertIn("downstream consumption only", compiler)
         self.assertIn("never reselect a stack or direction", compiler)
 

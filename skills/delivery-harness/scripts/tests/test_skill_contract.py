@@ -70,9 +70,10 @@ class DeliveryHarnessSkillContractTests(unittest.TestCase):
             self.assertIn(phrase, recommendations)
         self.assertIn("Enhancement mode takes precedence", ui_stage)
         self.assertIn("Do not restart the all-screen authoring sequence", ui_stage)
-        for name in ("product-definition-builder", "design-system-compiler"):
-            content = (SKILL_ROOT.parent / name / "SKILL.md").read_text(encoding="utf-8")
-            self.assertIn("Incremental UI Scope", content)
+        product = (SKILL_ROOT.parent / "product-definition-builder" / "SKILL.md").read_text(encoding="utf-8")
+        compiler_stage = (SKILL_ROOT.parent / "design-system-compiler" / "references/stages/design-compilation.md").read_text(encoding="utf-8")
+        self.assertIn("Incremental UI Scope", product)
+        self.assertIn("Incremental UI Scope", compiler_stage)
 
     @unittest.skipUnless(sys.platform == "win32" and REPO_ROOT is not None,
                          "Windows CI candidate identity")
