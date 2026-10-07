@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml"><img alt="CI" src="https://github.com/Phlegonlabs/product-delivery-harness/actions/workflows/harness-ci.yml/badge.svg?branch=main"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.62.2-059669?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.62.3-059669?style=flat-square">
 </p>
 
 # Product Delivery Harness
@@ -807,6 +807,8 @@ This repository is licensed under the MIT License — see [LICENSE](LICENSE).
 ## Version history
 
 Update this section with each release, as part of the version bump and tag described in Releasing above.
+
+- **0.62.3** — Bound complete dispatch messages before durable writes. Load required stage rules through smaller skill and governance entries. Keep parent inventories and scoped child checks separate. Repair owner assertions and archive fixture cleanup.
 
 - **0.62.2** — Put purpose, installation and navigation first in all four READMEs. Refresh the three generated covers. Keep detailed contracts and history in expandable sections. Correct the Spanish generic-host prompt and installation command order.
 
